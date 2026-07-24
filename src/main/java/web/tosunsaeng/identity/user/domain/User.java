@@ -23,6 +23,8 @@ public class User {
 
 	private String nickname;
 
+	private AudioConsent audioConsent;
+
 	private UserStatus status;
 
 	private Instant createdAt;
@@ -38,6 +40,7 @@ public class User {
 			String normalizedEmail,
 			String passwordHash,
 			String nickname,
+			AudioConsent audioConsent,
 			UserStatus status,
 			Instant createdAt,
 			Instant updatedAt
@@ -47,6 +50,7 @@ public class User {
 		this.normalizedEmail = Objects.requireNonNull(normalizedEmail, "normalizedEmail must not be null");
 		this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash must not be null");
 		this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
+		this.audioConsent = Objects.requireNonNull(audioConsent, "audioConsent must not be null");
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
@@ -57,6 +61,7 @@ public class User {
 			String normalizedEmail,
 			String passwordHash,
 			String nickname,
+			AudioConsent audioConsent,
 			Instant createdAt
 	) {
 		return new User(
@@ -65,6 +70,7 @@ public class User {
 				normalizedEmail,
 				passwordHash,
 				nickname,
+				audioConsent,
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt
@@ -89,6 +95,10 @@ public class User {
 
 	public String getNickname() {
 		return nickname;
+	}
+
+	public AudioConsent getAudioConsent() {
+		return audioConsent;
 	}
 
 	public UserStatus getStatus() {
