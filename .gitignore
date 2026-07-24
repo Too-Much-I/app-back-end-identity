@@ -43,3 +43,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+### Local RSA keys ###
+.local/
