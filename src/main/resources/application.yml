@@ -6,6 +6,7 @@ spring:
     mongodb:
       uri: ${MONGODB_URI}
       database: ${MONGODB_DATABASE:to-teacher-identity}
+      auto-index-creation: true
 
 server:
   port: ${SERVER_PORT:8081}
