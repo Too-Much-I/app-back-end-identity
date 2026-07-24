@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재는 실제 인증 기능을 구현하기 전 공통 서버 실행 환경과 API 기반을 구성한 Bootstrap 단계다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입과 RS256 Access Token 발급 기반, Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -31,12 +31,24 @@ Identity Service는 다음 기능을 소유한다.
 | `MONGODB_URI` | 필수 | Identity MongoDB 연결 주소 |
 | `MONGODB_DATABASE` | 선택 | `to-teacher-identity` |
 | `SERVER_PORT` | 선택 | `8081` |
+| `JWT_ISSUER` | 선택 | `http://localhost:8081` |
+| `JWT_AUDIENCE` | 선택 | `tosunsaeng-learning-core` |
+| `JWT_KEY_ID` | 선택 | `tosunsaeng-identity-rsa-1` |
+| `JWT_ACCESS_TOKEN_TTL` | 선택 | `PT30M` |
+| `JWT_PRIVATE_KEY_LOCATION` | 선택 | 로컬 PKCS#8 Private Key Resource 경로 |
+| `JWT_PUBLIC_KEY_LOCATION` | 선택 | 로컬 X.509 Public Key Resource 경로 |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 
 ## 로컬 실행
 
-Java 21과 접근 가능한 로컬 MongoDB를 준비한 뒤 다음과 같이 실행한다.
+Java 21, OpenSSL과 접근 가능한 로컬 MongoDB를 준비한다. 최초 실행 전에 다음 스크립트로 Git에서 제외되는 `.local/keys` 아래에 RSA 2048비트 키 쌍을 생성한다.
+
+```shell
+./scripts/generate-local-rsa-keys.sh
+```
+
+기존 로컬 키를 의도적으로 교체할 때만 `--force`를 사용한다. Private Key는 PKCS#8 PEM과 권한 `600`, Public Key는 `PUBLIC KEY` PEM과 권한 `644`로 생성되며 키 본문은 표준 출력에 표시되지 않는다. 그다음 환경변수를 로드해 실행한다.
 
 ```shell
 cp .env.example .env
@@ -46,7 +58,7 @@ set +a
 ./gradlew bootRun
 ```
 
-Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http://localhost:8081/v3/api-docs`, health endpoint는 `http://localhost:8081/actuator/health`에서 확인할 수 있다. 포트를 변경했다면 URL의 포트도 함께 변경한다.
+Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http://localhost:8081/v3/api-docs`, health endpoint는 `http://localhost:8081/actuator/health`, Public Key JWKS는 `http://localhost:8081/.well-known/jwks.json`에서 확인할 수 있다. 포트를 변경했다면 URL의 포트도 함께 변경한다.
 
 ## 테스트
 
@@ -58,10 +70,8 @@ Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http:/
 
 ## 아직 구현되지 않은 기능
 
-- User Entity와 Repository
-- 회원가입과 이메일 중복 확인
-- 로그인과 PasswordEncoder
-- Access Token 발급, RSA Key 로딩 및 JWKS endpoint
+- 이메일 로그인과 계정 상태 확인
+- 로그인 응답의 Access Token 연결
 - Refresh Token과 로그아웃
 - 소셜 로그인
 - 사용자 프로필과 음성 데이터 수집 동의 API

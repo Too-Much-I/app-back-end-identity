@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 이메일 중복 확인 및 일반 이메일 회원가입 완료
+- 현재 단계: RS256 Access Token 발급 기반 및 Public JWKS endpoint 완료
 - 상태 기준일: 2026-07-24
 
 ## 완료
@@ -42,19 +42,31 @@
 - 회원가입 시 동의 상태 `agreed=true`, 정책 버전, 동의 시각 및 null 철회 시각을 원자적으로 저장
 - Repository를 Mock 처리한 Service·Controller 테스트와 전체 44개 테스트 통과
 - 회원가입 성공 응답 및 오류 응답의 해시·정규화 이메일·자격증명·MongoDB 내부 정보 비노출 검증
+- `app.jwt` 기반 issuer, audience, keyId, Access Token TTL, RSA Key Resource 경로 및 기본 scope 설정
+- PKCS#8 Private Key와 X.509 Public Key만 지원하고 오류에 키 내용을 포함하지 않는 RSA Resource 로더
+- RSA Key 타입과 Private/Public Key 쌍 일치 검증 및 민감값을 숨기는 Key Material 문자열 표현
+- `RSAKey`, `JWKSet`, `JWKSource<SecurityContext>`, `NimbusJwtEncoder`를 사용하는 Spring Security 6.4 호환 서명 구성
+- `RS256`, `SIGNATURE`, `kid` 메타데이터가 고정된 서버 내부 RSA JWK와 `Clock.systemUTC()` Bean
+- UUID `userId` 검증, 고정 순서 scope 및 기본 scope fallback을 제공하는 내부 `AccessTokenIssuer`
+- `sub`, `iss`, 단일 원소 배열 `aud`, `iat`, `exp`, UUID `jti`, 공백 구분 `scope`와 `alg=RS256`, `kid`, `typ=JWT`를 갖춘 Access Token 발급
+- `GET /.well-known/jwks.json`에서 `toPublicJWK()` 결과만 표준 JWKS로 반환하고 BaseResponse를 적용하지 않는 공개 endpoint
+- 로컬 RSA 2048비트 키 생성 스크립트, Private/Public Key 권한 설정, 명시적 `--force` 교체 및 `.local/` Git ignore
+- Java `KeyPairGenerator`와 고정 Clock을 사용하는 JWT·JWKS·Key Loader 테스트 10개 추가 및 전체 54개 테스트 통과
+- 실제 PEM 본문·서명 토큰·자격증명 포함 URI·민감 로그 부재와 JWKS/Access Token의 Private Key·자격증명 정보 비노출 검증
+- 회원가입 응답과 외부 임시 endpoint에는 Access Token을 연결하지 않음
 
 ## 진행 중
 
-- 없음 — 이메일 중복 확인 및 일반 이메일 회원가입 완료
+- 없음 — RS256 Access Token 발급 기반 및 Public JWKS endpoint 완료
 
 ## 다음 작업
 
 - 이메일 로그인에서 저장된 BCrypt 해시를 검증하고 계정 상태를 확인하는 인증 흐름 설계
-- Access Token의 환경별 `issuer`, 정확한 `audience`, 만료 시간, `kid` 설정 계약 확정
-- 저장소 밖 RSA Private Key 로딩과 RS256 전용 서명 구성을 구현하고 대칭키·알고리즘 혼동을 차단
-- UUID `userId`를 `sub`에 넣고 `iss`, `aud`, `iat`, `exp`, `jti`, `scope`를 포함하는 Access Token 발급
-- Public Key만 노출하는 JWKS endpoint와 `kid` 기반 키 조회·교체 전략 구현
-- 테스트 전용 인메모리 RSA Key로 서명·Claim·JWKS를 검증하고 실제 Key나 외부 서비스를 사용하지 않는 테스트 추가
+- 로그인 성공 시에만 검증된 User의 UUID를 기존 `AccessTokenIssuer`에 전달하고 로그인 응답 DTO에 Access Token 메타데이터 연결
+- Refresh Token 원문을 저장하지 않는 Refresh Session, 회전·재사용 탐지·만료·폐기 정책 설계
+- Refresh Token 재발급과 로그아웃에서 세션을 안전하게 폐기하는 흐름 구현
+- 인증 기능 도입 단계에서 공개 endpoint 외 API 보호 정책과 Identity 자체 Resource Server 검증 범위 확정
+- 배포 환경의 issuer/JWKS URL 합의와 이전 Public Key 유지 기간을 포함한 다중 키 Rotation 전략 확정
 
 ## 중요 결정
 
@@ -75,8 +87,18 @@
 - 음성 동의 정책 버전은 `app.consent.audio-policy-version`과 `AUDIO_POLICY_VERSION` 환경변수로 관리
 - 현재 음성 동의 상태는 User 문서 내부의 `AudioConsent`로 저장하고 별도 이력 컬렉션은 만들지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
-- Access Token은 향후 JWT RS256으로 서명
-- Public Key 배포는 향후 JWKS 사용
+- Access Token은 RSA Private Key를 가진 Identity에서만 JWT RS256으로 서명
+- Access Token 기본 TTL은 `PT30M`이며 issuer, audience, keyId, TTL과 키 Resource 위치는 환경변수로 교체 가능
+- JWT Header는 `alg=RS256`, `typ=JWT`, 필수 `kid`를 사용
+- JWT Claim은 UUID `sub`, `iss`, 단일 대상 배열 `aud`, `iat`, `exp`, UUID `jti`, 공백 구분 `scope`로 최소화
+- 요청 scope는 정렬해 결정적으로 직렬화하고 null 또는 빈 scope에는 `learning:read learning:write` 기본값 사용
+- Access Token에는 이메일, 닉네임 전체, 비밀번호 관련 값, Refresh Token 또는 Private Key 정보를 포함하지 않음
+- RSA Private Key는 PKCS#8 `PRIVATE KEY`, Public Key는 X.509 `PUBLIC KEY` PEM 형식만 지원
+- Spring Security 6.4 호환을 위해 `RSAKey` → `JWKSet` → `JWKSource<SecurityContext>` → `NimbusJwtEncoder` 구성을 사용
+- JWKS는 `/.well-known/jwks.json`에서 Public JWK만 표준 `keys` 배열로 공개하며 BaseResponse로 감싸지 않음
+- 현재 단일 Active Key를 사용하고 향후 Rotation에서는 기존 토큰 만료와 캐시를 고려해 이전 Public Key를 일정 기간 유지
+- Access Token 발급 시간은 주입된 `Clock`을 사용하고 운영 기본값은 UTC 시스템 Clock
+- 로컬 키는 저장소에서 무시하고 테스트 키는 매 테스트 런타임에 메모리에서 생성
 - Learning Core `audience`는 `tosunsaeng-learning-core`
 - 실제 `userId`를 Python AI 서버로 보내지 않으며 Python AI의 `user_id`는 `examId` 유지
 - 공통 응답 필드는 `isSuccess`, `code`, `message`, `result`
@@ -88,9 +110,10 @@
 ## 아직 구현되지 않은 것
 
 - 이메일 로그인
-- Access Token 발급
-- RSA Key 로딩과 JWKS endpoint
+- 로그인 응답에 내부 Access Token 발급 결과 연결
 - Refresh Token과 로그아웃
+- 다중 Active/Retiring Key를 지원하는 Key Rotation
+- JWT Resource Server 인증 강제와 보호 API 정책
 - 소셜 로그인
 - 사용자 프로필 API
 - 음성 데이터 수집 동의 철회 API와 별도 동의 이력 관리
@@ -107,6 +130,10 @@
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.
 - 예외 타입만 기록하는 현재 정책을 보완할 운영 관측성 기준이 필요하다.
+- 운영 RSA Key의 생성·주입·파일 권한·백업·교체는 저장소 밖의 Secret 관리 및 배포 절차로 확정해야 한다.
+- 현재 JWKS는 단일 Active Key만 제공하므로 Rotation 전에 복수 Public Key 제공과 캐시 전파 기간을 구현해야 한다.
+- 배포 환경의 `issuer`와 Learning Core 검증 설정이 정확히 일치해야 하며 HTTPS 배포 URL과 환경별 값을 함께 확정해야 한다.
+- 서버 간 Clock 차이가 Access Token 검증에 미치는 영향을 고려해 Learning Core의 허용 오차 정책을 정해야 한다.
 
 ## Codex Hook 운영 메모
 

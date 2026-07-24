@@ -12,3 +12,13 @@ spring:
 app:
   consent:
     audio-policy-version: test-audio-policy-v1
+  jwt:
+    issuer: https://identity.test
+    audience: tosunsaeng-learning-core
+    key-id: identity-test-rsa-key
+    access-token-ttl: PT30M
+    private-key-location: classpath:test-key-files-are-not-used.pem
+    public-key-location: classpath:test-key-files-are-not-used.pem
+    default-scopes:
+      - learning:read
+      - learning:write

@@ -14,6 +14,16 @@ server:
 app:
   consent:
     audio-policy-version: ${AUDIO_POLICY_VERSION:audio-policy-v1}
+  jwt:
+    issuer: ${JWT_ISSUER:http://localhost:8081}
+    audience: ${JWT_AUDIENCE:tosunsaeng-learning-core}
+    key-id: ${JWT_KEY_ID:tosunsaeng-identity-rsa-1}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT30M}
+    private-key-location: ${JWT_PRIVATE_KEY_LOCATION:file:.local/keys/private.pem}
+    public-key-location: ${JWT_PUBLIC_KEY_LOCATION:file:.local/keys/public.pem}
+    default-scopes:
+      - learning:read
+      - learning:write
 
 springdoc:
   swagger-ui:

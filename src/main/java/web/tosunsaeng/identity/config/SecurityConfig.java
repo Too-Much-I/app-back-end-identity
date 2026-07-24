@@ -21,6 +21,7 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(
+								"/.well-known/jwks.json",
 								"/actuator/health",
 								"/swagger-ui/**",
 								"/swagger-ui.html",
