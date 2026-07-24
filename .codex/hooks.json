@@ -1,0 +1,43 @@
+{
+  "description": "Identity Service current-state and append-only worklog hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/load_current_state.py\"",
+            "timeout": 10,
+            "statusMessage": "Loading Identity current state"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/inject_worklog_instruction.py\"",
+            "timeout": 10,
+            "statusMessage": "Preparing Identity worklog instruction"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/enforce_worklog.py\"",
+            "timeout": 15,
+            "statusMessage": "Checking Identity worklog"
+          }
+        ]
+      }
+    ]
+  }
+}
+
