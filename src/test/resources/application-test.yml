@@ -12,6 +12,9 @@ spring:
 app:
   consent:
     audio-policy-version: test-audio-policy-v1
+  refresh-token:
+    ttl: P14D
+    random-bytes: 32
   jwt:
     issuer: https://identity.test
     audience: tosunsaeng-learning-core

@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.auth.dto.request.CheckEmailRequest;
+import web.tosunsaeng.identity.auth.dto.request.LoginRequest;
 import web.tosunsaeng.identity.auth.dto.request.SignupRequest;
 import web.tosunsaeng.identity.auth.dto.response.CheckEmailResponse;
+import web.tosunsaeng.identity.auth.dto.response.LoginResponse;
 import web.tosunsaeng.identity.auth.dto.response.SignupResponse;
 import web.tosunsaeng.identity.auth.service.AuthService;
 import web.tosunsaeng.identity.common.response.BaseResponse;
@@ -45,5 +47,16 @@ public class AuthController {
 			@Valid @RequestBody SignupRequest request
 	) {
 		return BaseResponse.success(authService.signup(request));
+	}
+
+	@Operation(
+			summary = "일반 이메일 로그인",
+			description = "이메일 계정의 자격증명과 상태를 확인하고 인증 토큰을 발급합니다."
+	)
+	@PostMapping("/login")
+	public BaseResponse<LoginResponse> login(
+			@Valid @RequestBody LoginRequest request
+	) {
+		return BaseResponse.success(authService.login(request));
 	}
 }

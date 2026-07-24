@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 import web.tosunsaeng.identity.common.exception.BusinessException;
 import web.tosunsaeng.identity.common.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.security.jwt.TestRsaKeyConfiguration;
+import web.tosunsaeng.identity.security.refresh.RefreshSessionRepository;
 import web.tosunsaeng.identity.user.repository.UserRepository;
 
 @SpringBootTest
@@ -51,6 +52,9 @@ class IdentityApplicationTests {
 
 	@MockitoBean
 	private UserRepository userRepository;
+
+	@MockitoBean
+	private RefreshSessionRepository refreshSessionRepository;
 
 	@Test
 	void contextLoads() {
