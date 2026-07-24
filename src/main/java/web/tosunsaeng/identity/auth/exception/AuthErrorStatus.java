@@ -15,6 +15,16 @@ public enum AuthErrorStatus implements ErrorCode {
 			HttpStatus.BAD_REQUEST,
 			"AUDIO_CONSENT_REQUIRED",
 			"음성 데이터 수집·이용 동의가 필요합니다."
+	),
+	INVALID_CREDENTIALS(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_CREDENTIALS",
+			"이메일 또는 비밀번호가 올바르지 않습니다."
+	),
+	ACCOUNT_NOT_ACTIVE(
+			HttpStatus.FORBIDDEN,
+			"ACCOUNT_NOT_ACTIVE",
+			"활성 상태가 아닌 계정은 로그인할 수 없습니다."
 	);
 
 	private final HttpStatus httpStatus;

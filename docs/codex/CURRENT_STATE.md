@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: RS256 Access Token 발급 기반 및 Public JWKS endpoint 완료
+- 현재 단계: 일반 이메일 로그인, RS256 Access Token 연결 및 Opaque RefreshSession 발급 완료
 - 상태 기준일: 2026-07-24
 
 ## 완료
@@ -54,17 +54,29 @@
 - Java `KeyPairGenerator`와 고정 Clock을 사용하는 JWT·JWKS·Key Loader 테스트 10개 추가 및 전체 54개 테스트 통과
 - 실제 PEM 본문·서명 토큰·자격증명 포함 URI·민감 로그 부재와 JWKS/Access Token의 Private Key·자격증명 정보 비노출 검증
 - 회원가입 응답과 외부 임시 endpoint에는 Access Token을 연결하지 않음
+- `POST /api/v1/auth/login` 일반 이메일 로그인 API와 `LoginRequest`/`LoginResponse` validation·응답 계약
+- 정규화 이메일 조회, BCrypt 검증, `ACTIVE` 상태 확인 후에만 토큰 발급을 진행하는 `AuthService.login`
+- 존재하지 않는 이메일과 불일치 자격증명을 동일한 `INVALID_CREDENTIALS` 401로 처리하고 비활성 계정을 상태 구분 없는 `ACCOUNT_NOT_ACTIVE` 403으로 처리
+- 로그인 성공 시 검증된 User의 UUID를 기존 `AccessTokenIssuer`에 전달해 기존 RS256 Header·Claim·기본 scope·TTL 계약을 그대로 사용
+- 기존 `IssuedAccessToken`의 `issuedAt`과 `expiresAt` 차이를 milliseconds로 계산해 `accessTokenExpiresIn`에 반환하고 `grantType`은 `Bearer`로 고정
+- `app.refresh-token`의 `Duration` TTL과 최소 32바이트 난수 길이 설정, 기본값 `P14D`와 32 및 32 미만 시작 거부
+- `SecureRandom`과 Base64 URL-safe without padding을 사용하는 JWT가 아닌 Opaque Refresh Token 생성기
+- UTF-8 원문에 SHA-256을 적용한 뒤 Base64 URL-safe without padding으로 인코딩하는 일관된 Refresh Token 해시기
+- `refresh_sessions` 컬렉션의 UUID `sessionId`, 실제 `userId`, `tokenHash`, 생성·만료·최근 사용·폐기·회전 원본 시각/상태 필드 모델
+- `tokenHash` unique index와 `expiresAt`의 `expireAfter = "0s"` TTL index 및 해시 조회·존재 확인만 추가한 `RefreshSessionRepository`
+- 공용 `Clock` 기준 생성 시각, 설정 TTL 만료 시각, 최초 최근 사용 시각과 null 폐기·회전 필드를 저장하고 원문은 내부 발급 결과로만 반환하는 `RefreshSessionIssuer`
+- 로그인 및 RefreshSession 관련 41개 테스트와 전체 75개 테스트 통과, 실패·오류·건너뜀 0개
+- RefreshSession 원문 필드·Access Token 영속화·민감 로그·운영 자격증명 하드코딩 부재와 외부 응답 내부 필드 비노출 검증
 
 ## 진행 중
 
-- 없음 — RS256 Access Token 발급 기반 및 Public JWKS endpoint 완료
+- 없음 — 일반 이메일 로그인과 최초 RefreshSession 발급 완료
 
 ## 다음 작업
 
-- 이메일 로그인에서 저장된 BCrypt 해시를 검증하고 계정 상태를 확인하는 인증 흐름 설계
-- 로그인 성공 시에만 검증된 User의 UUID를 기존 `AccessTokenIssuer`에 전달하고 로그인 응답 DTO에 Access Token 메타데이터 연결
-- Refresh Token 원문을 저장하지 않는 Refresh Session, 회전·재사용 탐지·만료·폐기 정책 설계
-- Refresh Token 재발급과 로그아웃에서 세션을 안전하게 폐기하는 흐름 구현
+- `POST /api/v1/auth/reissue`에서 해시 조회 후 `expiresAt`과 `revokedAt`을 애플리케이션에서 직접 확인하는 재발급 흐름 구현
+- Refresh Token Rotation의 원자적 기존 세션 폐기·후속 세션 연결과 재사용 탐지 및 세션 패밀리 폐기 정책 구현
+- `POST /api/v1/auth/logout`과 필요 시 전체 세션 로그아웃에서 RefreshSession을 안전하게 폐기하는 흐름 구현
 - 인증 기능 도입 단계에서 공개 endpoint 외 API 보호 정책과 Identity 자체 Resource Server 검증 범위 확정
 - 배포 환경의 issuer/JWKS URL 합의와 이전 Public Key 유지 기간을 포함한 다중 키 Rotation 전략 확정
 
@@ -79,7 +91,7 @@
 - Provider별 점 제거와 plus addressing 제거는 수행하지 않음
 - `normalizedEmail`은 명시적인 unique index를 사용하며 현재 애플리케이션에서 자동 index 생성을 활성화
 - 비밀번호 해시는 Spring Security의 기본 cost를 사용하는 BCrypt로 생성하고 User에는 `passwordHash`만 저장
-- 비밀번호 validation은 현재 제품 명세에 따라 8자 이상 64자 이하만 적용하고 임의의 복잡도 정규식을 적용하지 않음
+- 회원가입 비밀번호 validation은 8~64자이고, 로그인 입력은 `NotBlank`와 최대 64자만 확인해 가입 복잡도·최소 길이 정책을 다시 적용하지 않음
 - 이메일과 닉네임은 앞뒤 공백을 제거한 값으로 validation하며 비밀번호는 공백을 포함한 입력값을 임의 변환하지 않음
 - 이메일 중복 확인은 가입 여부와 관계없이 성공 응답을 사용하며 `isAvailable`로 결과를 구분
 - 회원가입의 사전 중복과 unique index 저장 충돌은 모두 `EMAIL_ALREADY_EXISTS` 409 오류로 통일
@@ -98,6 +110,15 @@
 - JWKS는 `/.well-known/jwks.json`에서 Public JWK만 표준 `keys` 배열로 공개하며 BaseResponse로 감싸지 않음
 - 현재 단일 Active Key를 사용하고 향후 Rotation에서는 기존 토큰 만료와 캐시를 고려해 이전 Public Key를 일정 기간 유지
 - Access Token 발급 시간은 주입된 `Clock`을 사용하고 운영 기본값은 UTC 시스템 Clock
+- 로그인은 `EmailNormalizer` 조회, BCrypt 일치 확인, `ACTIVE` 상태 확인 순서로 처리하고 실패 시 Access Token 발급기와 RefreshSession 저장소를 호출하지 않음
+- 로그인 Access Token은 `AccessTokenIssuer.issue(userId, empty scopes)`를 호출해 설정된 기본 scope를 사용하며 Service에서 JWT를 직접 조립하지 않음
+- 로그인 응답은 `accessToken`, `refreshToken`, `grantType`, milliseconds 단위 `accessTokenExpiresIn`만 포함하고 내부 사용자·세션 정보를 포함하지 않음
+- Refresh Token 기본 TTL은 14일이고 난수 길이는 최소 32바이트이며 두 값은 `app.refresh-token` 환경 설정으로 교체 가능
+- Refresh Token은 `SecureRandom` 기반 Opaque 값이고 Base64 URL-safe without padding으로 인코딩하며 UUID나 JWT를 대체 형식으로 사용하지 않음
+- Refresh Token 원문은 `RefreshSession`에 저장하지 않고 UTF-8 SHA-256의 Base64 URL-safe without padding 해시만 저장
+- `RefreshSession.createdAt`과 최초 `lastUsedAt`은 주입된 공용 `Clock`의 같은 시각이며 `expiresAt`은 해당 시각에 설정 TTL을 더함
+- MongoDB TTL index는 만료 문서 정리 용도이며 향후 재발급은 문서 존재 여부와 별개로 `expiresAt`과 `revokedAt`을 직접 검증
+- 토큰을 보유하는 내부 발급 결과와 로그인 응답의 문자열 표현은 토큰 값을 redaction 처리
 - 로컬 키는 저장소에서 무시하고 테스트 키는 매 테스트 런타임에 메모리에서 생성
 - Learning Core `audience`는 `tosunsaeng-learning-core`
 - 실제 `userId`를 Python AI 서버로 보내지 않으며 Python AI의 `user_id`는 `examId` 유지
@@ -109,9 +130,8 @@
 
 ## 아직 구현되지 않은 것
 
-- 이메일 로그인
-- 로그인 응답에 내부 Access Token 발급 결과 연결
-- Refresh Token과 로그아웃
+- Refresh Token 재발급, Rotation 및 재사용 탐지
+- RefreshSession 폐기를 사용하는 로그아웃과 전체 로그아웃
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - JWT Resource Server 인증 강제와 보호 API 정책
 - 소셜 로그인
@@ -123,7 +143,7 @@
 - 임시 `anyRequest().permitAll()`을 인증 기능 도입 시 보호 정책으로 교체해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
 - 기존 User 문서가 운영 데이터로 존재한다면 필수 embedded 음성 동의 필드 도입 전 데이터 이행 정책이 필요하다.
-- 이메일 중복 확인 공개 API와 회원가입 API에는 향후 rate limit, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
+- 이메일 중복 확인·회원가입·로그인 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
 - 비밀번호 복잡도, 유출 비밀번호 차단 및 변경 정책은 제품·보안 명세 확정 후 추가해야 한다.
 - 현재는 최신 음성 동의 상태만 저장하므로 동의 철회와 정책 버전 변경 시 감사 가능한 별도 이력 관리가 필요하다.
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
@@ -134,6 +154,9 @@
 - 현재 JWKS는 단일 Active Key만 제공하므로 Rotation 전에 복수 Public Key 제공과 캐시 전파 기간을 구현해야 한다.
 - 배포 환경의 `issuer`와 Learning Core 검증 설정이 정확히 일치해야 하며 HTTPS 배포 URL과 환경별 값을 함께 확정해야 한다.
 - 서버 간 Clock 차이가 Access Token 검증에 미치는 영향을 고려해 Learning Core의 허용 오차 정책을 정해야 한다.
+- MongoDB TTL 삭제는 비동기 정리이므로 만료 문서가 일시적으로 남을 수 있으며 향후 재발급은 반드시 `expiresAt`과 `revokedAt`을 애플리케이션에서 검사해야 한다.
+- Refresh Token 재발급·Rotation·재사용 탐지·로그아웃이 아직 없으므로 현재 발급 세션은 만료 전 서버 측 사용·폐기 흐름이 없다.
+- 자격증명 실패의 외부 code와 message는 통일했지만 사용자 부재 경로와 BCrypt 검증 경로의 실행 시간 차이에 대한 완화 정책은 rate limit·관측 기준과 함께 검토해야 한다.
 
 ## Codex Hook 운영 메모
 

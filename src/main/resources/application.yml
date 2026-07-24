@@ -14,6 +14,9 @@ server:
 app:
   consent:
     audio-policy-version: ${AUDIO_POLICY_VERSION:audio-policy-v1}
+  refresh-token:
+    ttl: ${REFRESH_TOKEN_TTL:P14D}
+    random-bytes: ${REFRESH_TOKEN_RANDOM_BYTES:32}
   jwt:
     issuer: ${JWT_ISSUER:http://localhost:8081}
     audience: ${JWT_AUDIENCE:tosunsaeng-learning-core}
