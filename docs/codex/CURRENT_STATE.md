@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: User 도메인 기반 완료
+- 현재 단계: 이메일 중복 확인 및 일반 이메일 회원가입 완료
 - 상태 기준일: 2026-07-24
 
 ## 완료
@@ -32,18 +32,29 @@
 - 정규화 이메일 단건 조회·존재 확인만 제공하는 `UserRepository`
 - 실제 MongoDB 연결 없이 User 도메인 기반을 검증하는 테스트를 포함해 전체 23개 통과
 - `git diff --check`, 평문 필드·토큰 필드·비소유 도메인 및 생성 경계 정적 검사 통과
+- `POST /api/v1/auth/check-email` 이메일 중복 확인 API와 정상 응답 기반 사용 가능 여부 반환
+- `POST /api/v1/auth/signup` 일반 이메일 회원가입 API와 Request/Response validation 계약
+- 이메일과 닉네임의 앞뒤 공백 제거 후 validation 및 기존 `EmailNormalizer` 기반 중복 조회
+- 정규화 이메일 사전 중복 확인과 MongoDB `DuplicateKeyException`의 `EMAIL_ALREADY_EXISTS` 변환
+- 비밀번호 8~64자 길이 정책과 별도 복잡도 정규식 없는 BCrypt 해시 저장
+- `EMAIL_ALREADY_EXISTS`, `AUDIO_CONSENT_REQUIRED` 인증 도메인 오류와 공통 `BaseResponse` 오류 응답
+- User 문서에 `AudioConsent` embedded value object를 저장하고 정책 버전을 환경 설정으로 주입
+- 회원가입 시 동의 상태 `agreed=true`, 정책 버전, 동의 시각 및 null 철회 시각을 원자적으로 저장
+- Repository를 Mock 처리한 Service·Controller 테스트와 전체 44개 테스트 통과
+- 회원가입 성공 응답 및 오류 응답의 해시·정규화 이메일·자격증명·MongoDB 내부 정보 비노출 검증
 
 ## 진행 중
 
-- 없음 — User 도메인 기반 완료
+- 없음 — 이메일 중복 확인 및 일반 이메일 회원가입 완료
 
 ## 다음 작업
 
-- 이메일 회원가입 Request/Response DTO와 validation 정책 설계
-- `UserFactory`와 `UserRepository`를 사용하는 회원가입 Service 및 API 구현
-- 정규화 이메일 사전 중복 확인과 함께 MongoDB `DuplicateKeyException`을 최종 방어선으로 처리하고 도메인 오류로 변환
-- 비밀번호 길이·복잡도와 닉네임 입력 정책 결정
-- Repository를 Mock 처리한 회원가입 성공·중복·저장 충돌 단위 테스트
+- 이메일 로그인에서 저장된 BCrypt 해시를 검증하고 계정 상태를 확인하는 인증 흐름 설계
+- Access Token의 환경별 `issuer`, 정확한 `audience`, 만료 시간, `kid` 설정 계약 확정
+- 저장소 밖 RSA Private Key 로딩과 RS256 전용 서명 구성을 구현하고 대칭키·알고리즘 혼동을 차단
+- UUID `userId`를 `sub`에 넣고 `iss`, `aud`, `iat`, `exp`, `jti`, `scope`를 포함하는 Access Token 발급
+- Public Key만 노출하는 JWKS endpoint와 `kid` 기반 키 조회·교체 전략 구현
+- 테스트 전용 인메모리 RSA Key로 서명·Claim·JWKS를 검증하고 실제 Key나 외부 서비스를 사용하지 않는 테스트 추가
 
 ## 중요 결정
 
@@ -56,6 +67,13 @@
 - Provider별 점 제거와 plus addressing 제거는 수행하지 않음
 - `normalizedEmail`은 명시적인 unique index를 사용하며 현재 애플리케이션에서 자동 index 생성을 활성화
 - 비밀번호 해시는 Spring Security의 기본 cost를 사용하는 BCrypt로 생성하고 User에는 `passwordHash`만 저장
+- 비밀번호 validation은 현재 제품 명세에 따라 8자 이상 64자 이하만 적용하고 임의의 복잡도 정규식을 적용하지 않음
+- 이메일과 닉네임은 앞뒤 공백을 제거한 값으로 validation하며 비밀번호는 공백을 포함한 입력값을 임의 변환하지 않음
+- 이메일 중복 확인은 가입 여부와 관계없이 성공 응답을 사용하며 `isAvailable`로 결과를 구분
+- 회원가입의 사전 중복과 unique index 저장 충돌은 모두 `EMAIL_ALREADY_EXISTS` 409 오류로 통일
+- 회원가입의 음성 데이터 수집·이용 동의는 반드시 true이며 false는 `AUDIO_CONSENT_REQUIRED` 400 오류로 처리
+- 음성 동의 정책 버전은 `app.consent.audio-policy-version`과 `AUDIO_POLICY_VERSION` 환경변수로 관리
+- 현재 음성 동의 상태는 User 문서 내부의 `AudioConsent`로 저장하고 별도 이력 컬렉션은 만들지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
 - Access Token은 향후 JWT RS256으로 서명
 - Public Key 배포는 향후 JWKS 사용
@@ -69,19 +87,22 @@
 
 ## 아직 구현되지 않은 것
 
-- 이메일 중복 확인과 회원가입
 - 이메일 로그인
 - Access Token 발급
 - RSA Key 로딩과 JWKS endpoint
 - Refresh Token과 로그아웃
 - 소셜 로그인
-- 사용자 프로필과 음성 데이터 수집 동의 API
+- 사용자 프로필 API
+- 음성 데이터 수집 동의 철회 API와 별도 동의 이력 관리
 
 ## 남아 있는 위험 요소
 
 - 임시 `anyRequest().permitAll()`을 인증 기능 도입 시 보호 정책으로 교체해야 한다.
-- 회원가입에서는 사전 중복 조회만 신뢰하지 않고 동시 요청으로 발생할 수 있는 MongoDB `DuplicateKeyException`을 처리해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
+- 기존 User 문서가 운영 데이터로 존재한다면 필수 embedded 음성 동의 필드 도입 전 데이터 이행 정책이 필요하다.
+- 이메일 중복 확인 공개 API와 회원가입 API에는 향후 rate limit, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
+- 비밀번호 복잡도, 유출 비밀번호 차단 및 변경 정책은 제품·보안 명세 확정 후 추가해야 한다.
+- 현재는 최신 음성 동의 상태만 저장하므로 동의 철회와 정책 버전 변경 시 감사 가능한 별도 이력 관리가 필요하다.
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.

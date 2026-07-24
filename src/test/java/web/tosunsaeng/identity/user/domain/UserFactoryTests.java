@@ -15,8 +15,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 class UserFactoryTests {
 
+	private static final String AUDIO_POLICY_VERSION = "test-audio-policy-v1";
+
 	private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
-	private final UserFactory userFactory = new UserFactory(new EmailNormalizer(), passwordEncoder);
+	private final UserFactory userFactory = new UserFactory(
+			new EmailNormalizer(),
+			passwordEncoder,
+			AUDIO_POLICY_VERSION
+	);
 
 	@Test
 	void createsUserWithUuidIdentifier() {
@@ -65,6 +71,16 @@ class UserFactoryTests {
 		assertThat(user.getCreatedAt()).isNotNull();
 		assertThat(user.getUpdatedAt()).isNotNull();
 		assertThat(user.getUpdatedAt()).isEqualTo(user.getCreatedAt());
+	}
+
+	@Test
+	void createsAgreedAudioConsentWithConfiguredPolicyVersion() {
+		User user = createUser();
+
+		assertThat(user.getAudioConsent().isAgreed()).isTrue();
+		assertThat(user.getAudioConsent().getPolicyVersion()).isEqualTo(AUDIO_POLICY_VERSION);
+		assertThat(user.getAudioConsent().getAgreedAt()).isNotNull();
+		assertThat(user.getAudioConsent().getWithdrawnAt()).isNull();
 	}
 
 	@Test

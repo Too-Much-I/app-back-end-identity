@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.common.exception.BusinessException;
 import web.tosunsaeng.identity.common.exception.CommonErrorStatus;
+import web.tosunsaeng.identity.user.repository.UserRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +44,9 @@ class IdentityApplicationTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@MockitoBean
+	private UserRepository userRepository;
 
 	@Test
 	void contextLoads() {
