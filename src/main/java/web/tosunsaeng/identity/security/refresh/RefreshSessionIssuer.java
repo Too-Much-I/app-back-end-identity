@@ -42,4 +42,27 @@ public class RefreshSessionIssuer {
 		RefreshSession savedSession = refreshSessionRepository.save(refreshSession);
 		return new IssuedRefreshSession(tokenValue, savedSession.getExpiresAt());
 	}
+
+	public IssuedRefreshSession issueRotated(
+			String sessionId,
+			String userId,
+			String rotationFamilyId,
+			String rotatedFromSessionId,
+			Instant createdAt
+	) {
+		String tokenValue = refreshTokenGenerator.generate();
+		String tokenHash = refreshTokenHasher.hash(tokenValue);
+		RefreshSession refreshSession = RefreshSession.createRotated(
+				sessionId,
+				userId,
+				rotationFamilyId,
+				rotatedFromSessionId,
+				tokenHash,
+				createdAt,
+				createdAt.plus(properties.ttl())
+		);
+
+		RefreshSession savedSession = refreshSessionRepository.save(refreshSession);
+		return new IssuedRefreshSession(tokenValue, savedSession.getExpiresAt());
+	}
 }
