@@ -13,6 +13,7 @@
 - Spring Boot 프로젝트 및 Identity용 의존성 구성
 - 저장소 Codex 작업 규칙과 Identity–Learning Core JWT 계약 문서화
 - CURRENT_STATE/WORKLOG 작업 기록 체계와 Codex Hook 구성
+- Codex 사용자 전역 설정에 Atlassian Remote MCP(`atlassian`) 등록 및 OAuth 연결 확인
 - 환경변수 기반 애플리케이션 이름, MongoDB 데이터베이스 및 서버 포트 설정
 - Swagger UI `/swagger-ui.html` 및 OpenAPI `/v3/api-docs` 설정
 - Actuator health endpoint 노출
@@ -83,6 +84,7 @@
 ## 중요 결정
 
 - Java 21
+- Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
 - 실제 `userId`는 UUID 문자열
@@ -140,6 +142,7 @@
 
 ## 남아 있는 위험 요소
 
+- Atlassian MCP는 사용자 계정 권한으로 외부 서비스에 접근하므로 허용 범위와 연결 해제 필요성을 Codex 사용자 설정 및 Atlassian 계정에서 별도로 관리해야 한다.
 - 임시 `anyRequest().permitAll()`을 인증 기능 도입 시 보호 정책으로 교체해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
 - 기존 User 문서가 운영 데이터로 존재한다면 필수 embedded 음성 동의 필드 도입 전 데이터 이행 정책이 필요하다.
