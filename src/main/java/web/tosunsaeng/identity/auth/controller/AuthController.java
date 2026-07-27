@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.auth.dto.request.CheckEmailRequest;
 import web.tosunsaeng.identity.auth.dto.request.LoginRequest;
+import web.tosunsaeng.identity.auth.dto.request.LogoutRequest;
+import web.tosunsaeng.identity.auth.dto.request.ReissueRequest;
 import web.tosunsaeng.identity.auth.dto.request.SignupRequest;
 import web.tosunsaeng.identity.auth.dto.response.CheckEmailResponse;
 import web.tosunsaeng.identity.auth.dto.response.LoginResponse;
+import web.tosunsaeng.identity.auth.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.auth.dto.response.SignupResponse;
 import web.tosunsaeng.identity.auth.service.AuthService;
 import web.tosunsaeng.identity.common.response.BaseResponse;
@@ -58,5 +61,28 @@ public class AuthController {
 			@Valid @RequestBody LoginRequest request
 	) {
 		return BaseResponse.success(authService.login(request));
+	}
+
+	@Operation(
+			summary = "인증 토큰 재발급",
+			description = "Refresh Token을 Rotation하고 새 Access Token과 Refresh Token을 발급합니다."
+	)
+	@PostMapping("/reissue")
+	public BaseResponse<ReissueResponse> reissue(
+			@Valid @RequestBody ReissueRequest request
+	) {
+		return BaseResponse.success(authService.reissue(request));
+	}
+
+	@Operation(
+			summary = "로그아웃",
+			description = "RefreshSession을 멱등적으로 폐기합니다."
+	)
+	@PostMapping("/logout")
+	public BaseResponse<Void> logout(
+			@Valid @RequestBody LogoutRequest request
+	) {
+		authService.logout(request);
+		return BaseResponse.success(null);
 	}
 }

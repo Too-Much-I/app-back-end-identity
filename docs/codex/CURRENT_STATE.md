@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 일반 이메일 로그인, RS256 Access Token 연결 및 Opaque RefreshSession 발급 완료
-- 상태 기준일: 2026-07-24
+- 현재 단계: 일반 이메일 로그인, RS256 Access Token과 Opaque Refresh Token Rotation·재사용 탐지·멱등 로그아웃 구현 완료
+- 상태 기준일: 2026-07-27
 
 ## 완료
 
@@ -14,6 +14,9 @@
 - 저장소 Codex 작업 규칙과 Identity–Learning Core JWT 계약 문서화
 - CURRENT_STATE/WORKLOG 작업 기록 체계와 Codex Hook 구성
 - Codex 사용자 전역 설정에 Atlassian Remote MCP(`atlassian`) 등록 및 OAuth 연결 확인
+- Atlassian MCP의 읽기 전용 조회로 `to-teacher` 사이트의 접근 가능 Jira 프로젝트 1개(`TMI`)와 이슈 생성 권한, 사용 가능한 이슈 유형 `에픽`·`하위 작업`·`작업`·`스토리`를 생성·수정 호출 없이 확인
+- 승인된 Refresh Token 재발급·Rotation·재사용 탐지·멱등 로그아웃 Payload로 TMI `작업` 이슈 `TMI-6`을 `High` 우선순위와 기본 상태 `해야 할 일`로 생성하고 담당자·라벨·상태 전환은 적용하지 않음
+- Jira `TMI-6`의 사용 가능한 전환을 재확인한 뒤 사용자 승인에 따라 transition ID `21`만 전송해 `해야 할 일`에서 `진행 중`으로 변경하고 다른 필드·댓글·이슈는 수정하지 않음
 - 환경변수 기반 애플리케이션 이름, MongoDB 데이터베이스 및 서버 포트 설정
 - Swagger UI `/swagger-ui.html` 및 OpenAPI `/v3/api-docs` 설정
 - Actuator health endpoint 노출
@@ -63,27 +66,36 @@
 - `app.refresh-token`의 `Duration` TTL과 최소 32바이트 난수 길이 설정, 기본값 `P14D`와 32 및 32 미만 시작 거부
 - `SecureRandom`과 Base64 URL-safe without padding을 사용하는 JWT가 아닌 Opaque Refresh Token 생성기
 - UTF-8 원문에 SHA-256을 적용한 뒤 Base64 URL-safe without padding으로 인코딩하는 일관된 Refresh Token 해시기
-- `refresh_sessions` 컬렉션의 UUID `sessionId`, 실제 `userId`, `tokenHash`, 생성·만료·최근 사용·폐기·회전 원본 시각/상태 필드 모델
-- `tokenHash` unique index와 `expiresAt`의 `expireAfter = "0s"` TTL index 및 해시 조회·존재 확인만 추가한 `RefreshSessionRepository`
-- 공용 `Clock` 기준 생성 시각, 설정 TTL 만료 시각, 최초 최근 사용 시각과 null 폐기·회전 필드를 저장하고 원문은 내부 발급 결과로만 반환하는 `RefreshSessionIssuer`
-- 로그인 및 RefreshSession 관련 41개 테스트와 전체 75개 테스트 통과, 실패·오류·건너뜀 0개
+- `refresh_sessions` 컬렉션의 UUID 기반 세션·사용자·회전 패밀리 관계, 생성·만료·최근 사용·폐기 시각, 폐기 사유와 `@Version` 기반 Optimistic Lock 모델
+- Refresh Token 해시 unique index와 `expiresAt`의 `expireAfter = "0s"` TTL index, 해시 단건 조회 및 사용자별 미폐기 Session 조회만 제공하는 `RefreshSessionRepository`
+- 공용 `Clock` 기준 최초 Session과 Rotation 후속 Session을 발급하고 Refresh Token 원문은 내부 발급 결과로만 반환하는 `RefreshSessionIssuer`
+- `POST /api/v1/auth/reissue`에서 해시 조회, ROTATED 재사용 판별, 명시적 만료 경계 검사, `ACTIVE` 사용자 확인, 기존 Session Optimistic Lock 폐기 성공 후 새 Access Token과 Refresh Token 발급
+- Rotation 시 기존 Session은 `ROTATED` 사유와 후속 관계를 저장하고 새 Session은 같은 회전 패밀리와 이전 관계를 유지하며, 최초 로그인 Session은 새 UUID 회전 패밀리를 생성
+- 같은 Refresh Token의 동시 재발급에서 기존 Session 저장 충돌을 `INVALID_REFRESH_TOKEN`으로 변환하고 충돌 요청에는 Access Token 발급이나 후속 Session 생성을 수행하지 않음
+- 이미 Rotation된 Refresh Token 재사용 시 사용자별 미폐기 Session 전체를 `REUSE_DETECTED` 사유로 폐기하고 `REFRESH_TOKEN_REUSE_DETECTED` 401 반환
+- 존재하지 않는 Refresh Token은 `INVALID_REFRESH_TOKEN` 401, `expiresAt <= Clock`은 `REFRESH_TOKEN_EXPIRED` 401, 비활성 사용자는 기존 `ACCOUNT_NOT_ACTIVE` 403 정책 적용
+- `POST /api/v1/auth/logout`에서 활성·미만료 Session만 `LOGOUT` 사유로 폐기하고 없는·이미 폐기된·만료된 Refresh Token은 성공 처리하는 멱등 흐름 구현
+- 재발급·로그아웃 Request의 `NotBlank`와 최대 512자 제한, Refresh Token validation 값 마스킹 및 Request·Response 문자열 redaction 적용
+- Reissue 응답의 Access Token·Refresh Token 만료 기간을 milliseconds로 반환하고 내부 사용자·세션·해시·비밀번호 관련 필드를 외부 응답에 포함하지 않음
+- 실제 Atlas와 운영 키를 사용하지 않는 Service·Controller·도메인 회귀 테스트를 포함해 전체 97개 통과, 실패·오류·건너뜀 0개
 - RefreshSession 원문 필드·Access Token 영속화·민감 로그·운영 자격증명 하드코딩 부재와 외부 응답 내부 필드 비노출 검증
 
 ## 진행 중
 
-- 없음 — 일반 이메일 로그인과 최초 RefreshSession 발급 완료
+- Jira `TMI-6` — 읽기 전용 재조회 기준 상태 `진행 중`, 애플리케이션 구현·전체 테스트·문서 갱신 완료, Jira 완료 댓글과 상태 변경은 미수행
 
 ## 다음 작업
 
-- `POST /api/v1/auth/reissue`에서 해시 조회 후 `expiresAt`과 `revokedAt`을 애플리케이션에서 직접 확인하는 재발급 흐름 구현
-- Refresh Token Rotation의 원자적 기존 세션 폐기·후속 세션 연결과 재사용 탐지 및 세션 패밀리 폐기 정책 구현
-- `POST /api/v1/auth/logout`과 필요 시 전체 세션 로그아웃에서 RefreshSession을 안전하게 폐기하는 흐름 구현
+- Jira `TMI-6` 변경을 사용자 검토 후 커밋·push하고, PR 병합 확인 뒤 별도 승인에 따라 Jira 완료 댓글과 상태 전환 수행
+- 운영 배포 전에 기존 RefreshSession 문서의 Optimistic Lock 버전과 회전 패밀리 필드 이행 정책 확정
+- MongoDB Transaction 없이 기존 Session 폐기 후 후속 Session 저장이 실패하는 경우의 복구 또는 재로그인 UX 정책 확정
 - 인증 기능 도입 단계에서 공개 endpoint 외 API 보호 정책과 Identity 자체 Resource Server 검증 범위 확정
 - 배포 환경의 issuer/JWKS URL 합의와 이전 Public Key 유지 기간을 포함한 다중 키 Rotation 전략 확정
 
 ## 중요 결정
 
 - Java 21
+- Jira `TMI-6`은 사용자 승인으로 `진행 중` 상태이며 추가 댓글이나 상태 변경은 별도 명시적 승인 후 수행
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
@@ -121,6 +133,9 @@
 - `RefreshSession.createdAt`과 최초 `lastUsedAt`은 주입된 공용 `Clock`의 같은 시각이며 `expiresAt`은 해당 시각에 설정 TTL을 더함
 - MongoDB TTL index는 만료 문서 정리 용도이며 향후 재발급은 문서 존재 여부와 별개로 `expiresAt`과 `revokedAt`을 직접 검증
 - 토큰을 보유하는 내부 발급 결과와 로그인 응답의 문자열 표현은 토큰 값을 redaction 처리
+- 재발급은 폐기 사유 확인 후 `expiresAt <= Clock`을 만료로 판정하고, 사용자 상태 확인 뒤 기존 Session의 Optimistic Lock 저장이 성공한 요청만 후속 토큰을 발급
+- Rotation 재사용 탐지는 해당 사용자의 미폐기 RefreshSession 전체를 폐기하며 LOGOUT 또는 다른 폐기 사유는 일반 `INVALID_REFRESH_TOKEN`으로 구분
+- 로그아웃은 RefreshSession만 폐기하고 Access Token 블랙리스트를 만들지 않으므로 기존 Access Token은 만료 시각까지 유효할 수 있으며 클라이언트는 로컬 두 토큰을 즉시 삭제
 - 로컬 키는 저장소에서 무시하고 테스트 키는 매 테스트 런타임에 메모리에서 생성
 - Learning Core `audience`는 `tosunsaeng-learning-core`
 - 실제 `userId`를 Python AI 서버로 보내지 않으며 Python AI의 `user_id`는 `examId` 유지
@@ -132,8 +147,7 @@
 
 ## 아직 구현되지 않은 것
 
-- Refresh Token 재발급, Rotation 및 재사용 탐지
-- RefreshSession 폐기를 사용하는 로그아웃과 전체 로그아웃
+- 전체 Session 로그아웃 API
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - JWT Resource Server 인증 강제와 보호 API 정책
 - 소셜 로그인
@@ -146,7 +160,7 @@
 - 임시 `anyRequest().permitAll()`을 인증 기능 도입 시 보호 정책으로 교체해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
 - 기존 User 문서가 운영 데이터로 존재한다면 필수 embedded 음성 동의 필드 도입 전 데이터 이행 정책이 필요하다.
-- 이메일 중복 확인·회원가입·로그인 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
+- 이메일 중복 확인·회원가입·로그인·재발급·로그아웃 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
 - 비밀번호 복잡도, 유출 비밀번호 차단 및 변경 정책은 제품·보안 명세 확정 후 추가해야 한다.
 - 현재는 최신 음성 동의 상태만 저장하므로 동의 철회와 정책 버전 변경 시 감사 가능한 별도 이력 관리가 필요하다.
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
@@ -157,8 +171,11 @@
 - 현재 JWKS는 단일 Active Key만 제공하므로 Rotation 전에 복수 Public Key 제공과 캐시 전파 기간을 구현해야 한다.
 - 배포 환경의 `issuer`와 Learning Core 검증 설정이 정확히 일치해야 하며 HTTPS 배포 URL과 환경별 값을 함께 확정해야 한다.
 - 서버 간 Clock 차이가 Access Token 검증에 미치는 영향을 고려해 Learning Core의 허용 오차 정책을 정해야 한다.
-- MongoDB TTL 삭제는 비동기 정리이므로 만료 문서가 일시적으로 남을 수 있으며 향후 재발급은 반드시 `expiresAt`과 `revokedAt`을 애플리케이션에서 검사해야 한다.
-- Refresh Token 재발급·Rotation·재사용 탐지·로그아웃이 아직 없으므로 현재 발급 세션은 만료 전 서버 측 사용·폐기 흐름이 없다.
+- MongoDB TTL 삭제는 비동기 정리이므로 만료 문서가 일시적으로 남을 수 있으며 재발급은 계속 `expiresAt`과 폐기 상태를 애플리케이션에서 검사해야 한다.
+- MongoDB Transaction을 도입하지 않았으므로 기존 Session의 Rotation 폐기 저장 이후 Access Token 발급 또는 후속 RefreshSession 저장이 실패하면 사용자가 현재 Session을 잃고 다시 로그인해야 할 수 있다.
+- 기존 RefreshSession 문서에 `@Version` 또는 회전 패밀리 필드가 없다면 운영 적용 전에 데이터 이행 또는 기존 Session 만료·재로그인 정책이 필요하다.
+- 재사용 탐지에서 여러 활성 Session을 폐기하는 저장은 Transaction으로 묶이지 않으므로 중간 저장 실패 시 일부 Session만 폐기될 가능성이 남아 있다.
+- 로그아웃은 Access Token을 즉시 무효화하지 않으므로 클라이언트의 로컬 토큰 삭제와 짧은 Access Token TTL을 함께 유지해야 한다.
 - 자격증명 실패의 외부 code와 message는 통일했지만 사용자 부재 경로와 BCrypt 검증 경로의 실행 시간 차이에 대한 완화 정책은 rate limit·관측 기준과 함께 검토해야 한다.
 
 ## Codex Hook 운영 메모

@@ -96,7 +96,10 @@ class AuthServiceTests {
 				userFactory,
 				passwordEncoder,
 				accessTokenIssuer,
-				refreshSessionIssuer
+				refreshSessionIssuer,
+				refreshTokenHasher,
+				refreshSessionRepository,
+				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 	}
 
@@ -258,7 +261,11 @@ class AuthServiceTests {
 		assertThat(savedSession.getLastUsedAt()).isEqualTo(NOW);
 		assertThat(savedSession.getExpiresAt()).isEqualTo(NOW.plus(REFRESH_TOKEN_TTL));
 		assertThat(savedSession.getRevokedAt()).isNull();
+		assertThat(UUID.fromString(savedSession.getRotationFamilyId()).toString())
+				.isEqualTo(savedSession.getRotationFamilyId());
 		assertThat(savedSession.getRotatedFromSessionId()).isNull();
+		assertThat(savedSession.getReplacedBySessionId()).isNull();
+		assertThat(savedSession.getRevocationReason()).isNull();
 		assertThat(response.accessToken()).isEqualTo(issuedAccessToken.tokenValue());
 		assertThat(response.grantType()).isEqualTo("Bearer");
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(1_800_000L);

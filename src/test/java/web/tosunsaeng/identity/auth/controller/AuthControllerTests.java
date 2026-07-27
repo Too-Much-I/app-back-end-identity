@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.auth.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.lang.reflect.Field;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -39,7 +41,11 @@ import web.tosunsaeng.identity.config.SecurityConfig;
 import web.tosunsaeng.identity.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.security.refresh.IssuedRefreshSession;
+import web.tosunsaeng.identity.security.refresh.RefreshSession;
 import web.tosunsaeng.identity.security.refresh.RefreshSessionIssuer;
+import web.tosunsaeng.identity.security.refresh.RefreshSessionRepository;
+import web.tosunsaeng.identity.security.refresh.RefreshTokenHasher;
+import web.tosunsaeng.identity.security.refresh.RevocationReason;
 import web.tosunsaeng.identity.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.user.domain.User;
 import web.tosunsaeng.identity.user.domain.UserFactory;
@@ -54,7 +60,8 @@ import web.tosunsaeng.identity.user.repository.UserRepository;
 		UserFactory.class,
 		PasswordConfig.class,
 		SecurityConfig.class,
-		GlobalExceptionHandler.class
+		GlobalExceptionHandler.class,
+		RefreshTokenHasher.class
 })
 @TestPropertySource(properties = "app.consent.audio-policy-version=controller-test-policy-v1")
 class AuthControllerTests {
@@ -65,6 +72,9 @@ class AuthControllerTests {
 	@Autowired
 	private UserFactory userFactory;
 
+	@Autowired
+	private RefreshTokenHasher refreshTokenHasher;
+
 	@MockitoBean
 	private UserRepository userRepository;
 
@@ -73,6 +83,12 @@ class AuthControllerTests {
 
 	@MockitoBean
 	private RefreshSessionIssuer refreshSessionIssuer;
+
+	@MockitoBean
+	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private Clock clock;
 
 	@Test
 	void checkEmailReturnsAvailableAndNormalizesWhitespaceAndCase() throws Exception {
@@ -411,6 +427,176 @@ class AuthControllerTests {
 	}
 
 	@Test
+	void reissueReturnsBothTokensInMillisecondsWithoutInternalFields() throws Exception {
+		String currentRefreshValue = "controller-current-refresh-value";
+		Instant currentTime = Instant.parse("2026-07-27T04:05:06Z");
+		User user = userFactory.create(
+				"reissue.user@example.com",
+				"controller-test-credential",
+				"재발급사용자"
+		);
+		RefreshSession currentSession = RefreshSession.create(
+				user.getUserId(),
+				refreshTokenHasher.hash(currentRefreshValue),
+				currentTime.minusSeconds(60),
+				currentTime.plus(Duration.ofDays(14))
+		);
+		when(clock.instant()).thenReturn(currentTime);
+		when(refreshSessionRepository.findByTokenHash(
+				refreshTokenHasher.hash(currentRefreshValue)
+		)).thenReturn(Optional.of(currentSession));
+		when(refreshSessionRepository.save(currentSession)).thenReturn(currentSession);
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		when(accessTokenIssuer.issue(user.getUserId(), Set.of())).thenReturn(new IssuedAccessToken(
+				"controller-next-access-value",
+				"Bearer",
+				currentTime,
+				currentTime.plus(Duration.ofMinutes(30)),
+				1_800
+		));
+		when(refreshSessionIssuer.issueRotated(any(), any(), any(), any(), any()))
+				.thenReturn(new IssuedRefreshSession(
+						"controller-next-refresh-value",
+						currentTime.plus(Duration.ofDays(14))
+				));
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson(currentRefreshValue)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.result.accessToken")
+						.value("controller-next-access-value"))
+				.andExpect(jsonPath("$.result.refreshToken")
+						.value("controller-next-refresh-value"))
+				.andExpect(jsonPath("$.result.grantType").value("Bearer"))
+				.andExpect(jsonPath("$.result.accessTokenExpiresIn").value(1_800_000))
+				.andExpect(jsonPath("$.result.refreshTokenExpiresIn").value(1_209_600_000))
+				.andExpect(jsonPath("$.result.tokenHash").doesNotExist())
+				.andExpect(jsonPath("$.result.sessionId").doesNotExist())
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.rotationFamilyId").doesNotExist())
+				.andExpect(jsonPath("$.result.passwordHash").doesNotExist())
+				.andReturn();
+
+		verify(refreshSessionRepository).findByTokenHash(
+				refreshTokenHasher.hash(currentRefreshValue)
+		);
+		verify(refreshSessionRepository).save(currentSession);
+		verify(refreshSessionIssuer).issueRotated(
+				eq(currentSession.getReplacedBySessionId()),
+				eq(user.getUserId()),
+				eq(currentSession.getRotationFamilyId()),
+				eq(currentSession.getSessionId()),
+				eq(currentTime)
+		);
+		assertThat(currentSession.getRevocationReason()).isEqualTo(RevocationReason.ROTATED);
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain(
+						currentRefreshValue,
+						currentSession.getTokenHash(),
+						currentSession.getSessionId(),
+						currentSession.getRotationFamilyId(),
+						user.getUserId(),
+						user.getPasswordHash()
+				);
+	}
+
+	@Test
+	void reissueUnknownTokenReturnsGenericUnauthorizedWithoutEchoingToken() throws Exception {
+		String unknownRefreshValue = "controller-unknown-refresh-value";
+		when(refreshSessionRepository.findByTokenHash(any())).thenReturn(Optional.empty());
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson(unknownRefreshValue)))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.isSuccess").value(false))
+				.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"))
+				.andExpect(jsonPath("$.message").value("유효하지 않은 Refresh Token"))
+				.andExpect(jsonPath("$.result").value(nullValue()))
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain(unknownRefreshValue, refreshTokenHasher.hash(unknownRefreshValue));
+		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void reissueValidationMasksBlankAndOversizedRefreshTokenValues() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson("")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[0].field").value("refreshToken"))
+				.andExpect(jsonPath("$.result[0].rejectedValue").value(nullValue()));
+
+		mockMvc.perform(post("/api/v1/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson("x".repeat(513))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[0].field").value("refreshToken"))
+				.andExpect(jsonPath("$.result[0].rejectedValue").value(nullValue()));
+	}
+
+	@Test
+	void logoutRevokesSessionAndReturnsNoTokenPayload() throws Exception {
+		String refreshValue = "controller-logout-refresh-value";
+		Instant currentTime = Instant.parse("2026-07-27T04:05:06Z");
+		RefreshSession session = RefreshSession.create(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86",
+				refreshTokenHasher.hash(refreshValue),
+				currentTime.minusSeconds(60),
+				currentTime.plus(Duration.ofDays(14))
+		);
+		when(clock.instant()).thenReturn(currentTime);
+		when(refreshSessionRepository.findByTokenHash(refreshTokenHasher.hash(refreshValue)))
+				.thenReturn(Optional.of(session));
+		when(refreshSessionRepository.save(session)).thenReturn(session);
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson(refreshValue)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.code").value("SUCCESS"))
+				.andExpect(jsonPath("$.result").value(nullValue()))
+				.andExpect(jsonPath("$.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.refreshToken").doesNotExist());
+
+		assertThat(session.getRevokedAt()).isEqualTo(currentTime);
+		assertThat(session.getLastUsedAt()).isEqualTo(currentTime);
+		assertThat(session.getRevocationReason()).isEqualTo(RevocationReason.LOGOUT);
+		verify(refreshSessionRepository).save(session);
+		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(refreshSessionIssuer, never()).issue(any());
+		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void logoutUnknownTokenIsSuccessfulAndBlankTokenIsMasked() throws Exception {
+		when(refreshSessionRepository.findByTokenHash(any())).thenReturn(Optional.empty());
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson("controller-missing-refresh-value")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.result").value(nullValue()));
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson("")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[0].field").value("refreshToken"))
+				.andExpect(jsonPath("$.result[0].rejectedValue").value(nullValue()));
+	}
+
+	@Test
 	void controllerDependsOnServiceRatherThanRepository() {
 		assertThat(Arrays.stream(AuthController.class.getDeclaredFields()).map(Field::getType))
 				.contains(AuthService.class)
@@ -435,5 +621,13 @@ class AuthControllerTests {
 				  "password": "%s"
 				}
 				""".formatted(email, password);
+	}
+
+	private String refreshRequestJson(String refreshToken) {
+		return """
+				{
+				  "refreshToken": "%s"
+				}
+				""".formatted(refreshToken);
 	}
 }

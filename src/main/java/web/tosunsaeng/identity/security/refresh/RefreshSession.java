@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -28,7 +29,16 @@ public class RefreshSession {
 
 	private Instant revokedAt;
 
+	private String rotationFamilyId;
+
 	private String rotatedFromSessionId;
+
+	private String replacedBySessionId;
+
+	private RevocationReason revocationReason;
+
+	@Version
+	private Long version;
 
 	private RefreshSession() {
 	}
@@ -41,7 +51,10 @@ public class RefreshSession {
 			Instant expiresAt,
 			Instant lastUsedAt,
 			Instant revokedAt,
-			String rotatedFromSessionId
+			String rotationFamilyId,
+			String rotatedFromSessionId,
+			String replacedBySessionId,
+			RevocationReason revocationReason
 	) {
 		this.sessionId = requireUuid(sessionId, "sessionId");
 		this.userId = requireUuid(userId, "userId");
@@ -50,7 +63,16 @@ public class RefreshSession {
 		this.expiresAt = requireExpiresAt(expiresAt, createdAt);
 		this.lastUsedAt = Objects.requireNonNull(lastUsedAt, "lastUsedAt must not be null");
 		this.revokedAt = revokedAt;
-		this.rotatedFromSessionId = rotatedFromSessionId;
+		this.rotationFamilyId = requireUuid(rotationFamilyId, "rotationFamilyId");
+		this.rotatedFromSessionId = requireNullableUuid(
+				rotatedFromSessionId,
+				"rotatedFromSessionId"
+		);
+		this.replacedBySessionId = requireNullableUuid(
+				replacedBySessionId,
+				"replacedBySessionId"
+		);
+		this.revocationReason = revocationReason;
 	}
 
 	public static RefreshSession create(
@@ -60,14 +82,96 @@ public class RefreshSession {
 			Instant expiresAt
 	) {
 		return new RefreshSession(
-				UUID.randomUUID().toString(),
+				newSessionId(),
 				userId,
 				tokenHash,
 				createdAt,
 				expiresAt,
 				createdAt,
 				null,
+				UUID.randomUUID().toString(),
+				null,
+				null,
 				null
+		);
+	}
+
+	public static RefreshSession createRotated(
+			String sessionId,
+			String userId,
+			String rotationFamilyId,
+			String rotatedFromSessionId,
+			String tokenHash,
+			Instant createdAt,
+			Instant expiresAt
+	) {
+		return new RefreshSession(
+				sessionId,
+				userId,
+				tokenHash,
+				createdAt,
+				expiresAt,
+				createdAt,
+				null,
+				rotationFamilyId,
+				rotatedFromSessionId,
+				null,
+				null
+		);
+	}
+
+	public static String newSessionId() {
+		return UUID.randomUUID().toString();
+	}
+
+	public String initializeRotationFamilyIfMissing() {
+		if (rotationFamilyId == null) {
+			rotationFamilyId = UUID.randomUUID().toString();
+		}
+		return rotationFamilyId;
+	}
+
+	public void rotate(Instant revokedAt, String replacementSessionId) {
+		revoke(revokedAt, RevocationReason.ROTATED, replacementSessionId);
+	}
+
+	public void logout(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.LOGOUT, null);
+	}
+
+	public void revokeForReuse(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.REUSE_DETECTED, null);
+	}
+
+	public boolean isRevoked() {
+		return revokedAt != null || revocationReason != null;
+	}
+
+	public boolean isExpiredAt(Instant currentTime) {
+		return !expiresAt.isAfter(Objects.requireNonNull(
+				currentTime,
+				"currentTime must not be null"
+		));
+	}
+
+	private void revoke(
+			Instant revocationTime,
+			RevocationReason reason,
+			String replacementSessionId
+	) {
+		if (isRevoked()) {
+			throw new IllegalStateException("RefreshSession is already revoked.");
+		}
+		Instant requiredRevocationTime = Objects.requireNonNull(
+				revocationTime,
+				"revocationTime must not be null"
+		);
+		this.lastUsedAt = requiredRevocationTime;
+		this.revokedAt = requiredRevocationTime;
+		this.revocationReason = Objects.requireNonNull(reason, "reason must not be null");
+		this.replacedBySessionId = requireNullableUuid(
+				replacementSessionId,
+				"replacedBySessionId"
 		);
 	}
 
@@ -89,6 +193,10 @@ public class RefreshSession {
 			throw new IllegalArgumentException("tokenHash must not be blank");
 		}
 		return requiredTokenHash;
+	}
+
+	private static String requireNullableUuid(String value, String fieldName) {
+		return value == null ? null : requireUuid(value, fieldName);
 	}
 
 	private static Instant requireExpiresAt(Instant expiresAt, Instant createdAt) {
@@ -127,7 +235,23 @@ public class RefreshSession {
 		return revokedAt;
 	}
 
+	public String getRotationFamilyId() {
+		return rotationFamilyId;
+	}
+
 	public String getRotatedFromSessionId() {
 		return rotatedFromSessionId;
+	}
+
+	public String getReplacedBySessionId() {
+		return replacedBySessionId;
+	}
+
+	public RevocationReason getRevocationReason() {
+		return revocationReason;
+	}
+
+	public Long getVersion() {
+		return version;
 	}
 }

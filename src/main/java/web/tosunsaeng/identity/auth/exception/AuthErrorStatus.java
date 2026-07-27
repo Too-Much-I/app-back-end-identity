@@ -25,6 +25,21 @@ public enum AuthErrorStatus implements ErrorCode {
 			HttpStatus.FORBIDDEN,
 			"ACCOUNT_NOT_ACTIVE",
 			"활성 상태가 아닌 계정은 로그인할 수 없습니다."
+	),
+	INVALID_REFRESH_TOKEN(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_REFRESH_TOKEN",
+			"유효하지 않은 Refresh Token"
+	),
+	REFRESH_TOKEN_EXPIRED(
+			HttpStatus.UNAUTHORIZED,
+			"REFRESH_TOKEN_EXPIRED",
+			"만료된 Refresh Token"
+	),
+	REFRESH_TOKEN_REUSE_DETECTED(
+			HttpStatus.UNAUTHORIZED,
+			"REFRESH_TOKEN_REUSE_DETECTED",
+			"이미 사용된 Refresh Token"
 	);
 
 	private final HttpStatus httpStatus;

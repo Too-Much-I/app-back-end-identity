@@ -112,3 +112,54 @@ Codex는 다음 작업을 직접 수행하지 않는다.
    - 다음 작업
 6. Secret, Token, Password, 전체 MongoDB URI를 기록하지 않는다.
 
+
+## Jira MCP 사용 규칙
+
+- Atlassian 공식 MCP 서버만 사용한다.
+- Jira 조회 작업은 수행할 수 있다.
+- 이슈 생성, 수정, 댓글, 상태 변경, 삭제 전에는
+  변경할 내용을 사용자에게 먼저 보여주고 승인을 받는다.
+- 명시적인 요청 없이 이슈 상태를 변경하지 않는다.
+- Jira에 다음 정보를 기록하지 않는다.
+   - 비밀번호
+   - Access Token
+   - Refresh Token
+   - MongoDB URI
+   - RSA Private Key
+   - AWS Key
+   - 사용자 개인정보
+- Jira 댓글에는 작업 요약, 변경 파일, 테스트 결과,
+  남은 위험 요소만 기록한다.
+- Jira 이슈 키가 주어진 작업은 WORKLOG에도 해당 키를 기록한다.
+- Git commit과 push는 사용자가 직접 수행한다.
+
+## Jira MCP 작업 규칙
+
+- Jira 이슈 키가 있는 작업은 구현 전에 해당 이슈를 읽는다.
+- Jira 설명과 완료 조건을 구현 범위의 기준으로 사용한다.
+- Jira 내용이 AGENTS.md 또는 계약 문서와 충돌하면 임의로 구현하지 않고 보고한다.
+- 브랜치, WORKLOG, CURRENT_STATE, 커밋, PR에 Jira 키를 포함한다.
+- Jira 이슈 생성, 수정, 댓글, 상태 전환 전에는 실행할 내용을 먼저 보여주고 승인을 받는다.
+- 명시적인 승인 없이 Jira 상태를 변경하거나 댓글을 등록하지 않는다.
+- Jira에 Secret, Password, Token, MongoDB URI, RSA Private Key, 사용자 개인정보를 기록하지 않는다.
+- 작업 종료 시 Jira 댓글 초안을 만들되 자동 등록하지 않는다.
+- PR 병합을 확인하기 전에 Jira 이슈를 Done으로 변경하지 않는다.
+
+## Jira 연동 작업 기록
+
+사용자 프롬프트 또는 현재 브랜치에서 Jira 이슈 키를 확인할 수 있으면
+WORKLOG 항목에 다음 형식으로 기록한다.
+
+- Jira: TOS-123
+
+CURRENT_STATE에는 현재 진행 중인 Jira 이슈만 기록한다.
+
+Jira에 이슈를 생성하거나 수정한 경우 WORKLOG에 다음을 기록한다.
+
+- 사용한 Jira 이슈 키
+- 수행한 Jira 작업
+- 추가한 댓글의 목적
+- 변경한 상태
+- 승인 여부
+
+Jira 이슈 본문이나 댓글 전체를 WORKLOG에 복사하지 않는다.
