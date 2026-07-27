@@ -36,6 +36,7 @@ class UserFactoryTests {
 		User user = createUser();
 
 		assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(user.getProvider()).isEqualTo(UserProvider.LOCAL);
 	}
 
 	@Test
