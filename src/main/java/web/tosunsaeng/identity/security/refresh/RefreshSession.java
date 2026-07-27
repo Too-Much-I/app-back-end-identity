@@ -139,6 +139,10 @@ public class RefreshSession {
 		revoke(revokedAt, RevocationReason.LOGOUT, null);
 	}
 
+	public void logoutAll(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.LOGOUT_ALL, null);
+	}
+
 	public void revokeForReuse(Instant revokedAt) {
 		revoke(revokedAt, RevocationReason.REUSE_DETECTED, null);
 	}

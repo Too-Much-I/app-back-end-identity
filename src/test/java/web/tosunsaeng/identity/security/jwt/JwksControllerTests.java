@@ -23,8 +23,10 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import web.tosunsaeng.identity.config.SecurityConfig;
 
@@ -36,6 +38,9 @@ class JwksControllerTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@MockitoBean
+	private JwtDecoder jwtDecoder;
 
 	@Test
 	void returnsUnauthenticatedStandardPublicJwksWithoutPrivateParameters() throws Exception {

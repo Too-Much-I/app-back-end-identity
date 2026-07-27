@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, RS256 Access Token, Opaque Refresh Token Rotation, 로그아웃과 Public Key 전용 JWKS endpoint가 구현되어 있다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -76,14 +76,27 @@ Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http:/
 - `POST /api/v1/auth/login`은 RS256 Access Token과 Opaque Refresh Token을 발급하고 Refresh Token의 해시만 `RefreshSession`에 저장한다.
 - `POST /api/v1/auth/reissue`는 기존 RefreshSession을 폐기한 뒤 Access Token과 Refresh Token을 모두 Rotation한다. 만료 여부는 MongoDB TTL 삭제 시점에 의존하지 않고 애플리케이션에서 직접 검증한다.
 - `POST /api/v1/auth/logout`은 RefreshSession을 멱등적으로 폐기하며 Access Token 블랙리스트를 만들지 않는다.
+- `POST /api/v1/auth/logout-all`은 인증된 사용자의 활성 RefreshSession 전체를 `LOGOUT_ALL` 사유로 멱등적으로 폐기한다.
 
-로그아웃 전에 발급된 Access Token은 자체 만료 시각까지 유효할 수 있다. 클라이언트는 로그아웃 성공 직후 로컬 Access Token과 Refresh Token을 모두 삭제해야 한다.
+단일 또는 전체 로그아웃 전에 발급된 Access Token은 자체 만료 시각까지 유효할 수 있다. 클라이언트는 로그아웃 성공 직후 로컬 Access Token과 Refresh Token을 모두 삭제해야 한다.
+
+## API 인증 정책
+
+다음 경로는 Access Token 없이 접근할 수 있다.
+
+- `POST /api/v1/auth/check-email`
+- `POST /api/v1/auth/signup`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/reissue`
+- `POST /api/v1/auth/logout`
+- `GET /.well-known/jwks.json`
+- `GET /actuator/health`
+- Swagger UI와 OpenAPI 경로
+
+그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
 
 ## 아직 구현되지 않은 기능
 
 - 소셜 로그인
-- 사용자 프로필과 음성 데이터 수집 동의 API
-- JWT Resource Server 인증 강제와 보호 API 정책
+- 사용자 프로필 수정과 음성 데이터 수집 동의 철회 API
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
-
-Bootstrap의 보안 정책은 모든 요청을 임시로 허용한다. 실제 인증 기능을 추가할 때 공개 경로를 제외한 API를 보호해야 한다.

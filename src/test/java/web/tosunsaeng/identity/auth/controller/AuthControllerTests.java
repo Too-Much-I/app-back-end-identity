@@ -28,6 +28,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,6 +36,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import web.tosunsaeng.identity.auth.service.AuthService;
+import web.tosunsaeng.identity.auth.service.LogoutAllService;
 import web.tosunsaeng.identity.common.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.config.PasswordConfig;
 import web.tosunsaeng.identity.config.SecurityConfig;
@@ -89,6 +91,12 @@ class AuthControllerTests {
 
 	@MockitoBean
 	private Clock clock;
+
+	@MockitoBean
+	private JwtDecoder jwtDecoder;
+
+	@MockitoBean
+	private LogoutAllService logoutAllService;
 
 	@Test
 	void checkEmailReturnsAvailableAndNormalizesWhitespaceAndCase() throws Exception {
@@ -597,9 +605,23 @@ class AuthControllerTests {
 	}
 
 	@Test
+	void logoutAllHasNoRequestBodyAndDelegatesWithoutReturningTokenOrSessionData() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/logout-all"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.result").value(nullValue()))
+				.andExpect(jsonPath("$.sessionId").doesNotExist())
+				.andExpect(jsonPath("$.tokenHash").doesNotExist())
+				.andExpect(jsonPath("$.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.refreshToken").doesNotExist());
+
+		verify(logoutAllService).logoutAll();
+	}
+
+	@Test
 	void controllerDependsOnServiceRatherThanRepository() {
 		assertThat(Arrays.stream(AuthController.class.getDeclaredFields()).map(Field::getType))
-				.contains(AuthService.class)
+				.contains(AuthService.class, LogoutAllService.class)
 				.doesNotContain(UserRepository.class);
 	}
 

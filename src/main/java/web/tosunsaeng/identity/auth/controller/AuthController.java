@@ -18,6 +18,7 @@ import web.tosunsaeng.identity.auth.dto.response.LoginResponse;
 import web.tosunsaeng.identity.auth.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.auth.dto.response.SignupResponse;
 import web.tosunsaeng.identity.auth.service.AuthService;
+import web.tosunsaeng.identity.auth.service.LogoutAllService;
 import web.tosunsaeng.identity.common.response.BaseResponse;
 
 @RestController
@@ -25,9 +26,11 @@ import web.tosunsaeng.identity.common.response.BaseResponse;
 public class AuthController {
 
 	private final AuthService authService;
+	private final LogoutAllService logoutAllService;
 
-	public AuthController(AuthService authService) {
+	public AuthController(AuthService authService, LogoutAllService logoutAllService) {
 		this.authService = authService;
+		this.logoutAllService = logoutAllService;
 	}
 
 	@Operation(
@@ -83,6 +86,16 @@ public class AuthController {
 			@Valid @RequestBody LogoutRequest request
 	) {
 		authService.logout(request);
+		return BaseResponse.success(null);
+	}
+
+	@Operation(
+			summary = "전체 로그아웃",
+			description = "현재 사용자의 활성 RefreshSession을 모두 멱등적으로 폐기합니다."
+	)
+	@PostMapping("/logout-all")
+	public BaseResponse<Void> logoutAll() {
+		logoutAllService.logoutAll();
 		return BaseResponse.success(null);
 	}
 }

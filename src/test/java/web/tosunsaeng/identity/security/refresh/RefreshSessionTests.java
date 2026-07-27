@@ -133,15 +133,26 @@ class RefreshSessionTests {
 				createdAt,
 				expiresAt
 		);
+		RefreshSession logoutAllSession = RefreshSession.create(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86",
+				"logout-all-test-token-hash",
+				createdAt,
+				expiresAt
+		);
 
 		assertThat(logoutSession.isExpiredAt(expiresAt.minusNanos(1))).isFalse();
 		assertThat(logoutSession.isExpiredAt(expiresAt)).isTrue();
 		logoutSession.logout(createdAt.plusSeconds(10));
 		reusedFamilySession.revokeForReuse(createdAt.plusSeconds(20));
+		logoutAllSession.logoutAll(createdAt.plusSeconds(30));
 
 		assertThat(logoutSession.getRevocationReason()).isEqualTo(RevocationReason.LOGOUT);
 		assertThat(reusedFamilySession.getRevocationReason())
 				.isEqualTo(RevocationReason.REUSE_DETECTED);
+		assertThat(logoutAllSession.getRevokedAt()).isEqualTo(createdAt.plusSeconds(30));
+		assertThat(logoutAllSession.getLastUsedAt()).isEqualTo(createdAt.plusSeconds(30));
+		assertThat(logoutAllSession.getRevocationReason())
+				.isEqualTo(RevocationReason.LOGOUT_ALL);
 	}
 
 	@Test

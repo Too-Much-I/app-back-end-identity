@@ -298,3 +298,131 @@
 - 결정사항: `expiresAt <= Clock`을 만료로 처리하고, ROTATED 재사용은 만료 검사보다 먼저 구분해 활성 Session 폐기를 수행한다. 기존 Session의 Optimistic Lock 저장이 성공한 요청만 후속 토큰을 발급하며 충돌 요청은 일반 `INVALID_REFRESH_TOKEN`으로 실패한다. 로그아웃은 Access Token 블랙리스트 없이 RefreshSession만 폐기하고 DB 장애는 성공으로 숨기지 않는다. 이번 Jira 작업은 조회만 수행했으며 댓글·상태·필드 변경은 없고 승인 대상 쓰기 작업도 수행하지 않았다.
 - 위험 요소: MongoDB Transaction을 도입하지 않았으므로 기존 Session 폐기 저장 후 Access Token 발급 또는 후속 RefreshSession 저장이 실패하면 현재 Session을 잃고 재로그인이 필요할 수 있다. 여러 활성 Session의 재사용 탐지 폐기도 중간 저장 실패 시 일부만 반영될 수 있다. 기존 RefreshSession 문서에는 Optimistic Lock 버전 및 회전 패밀리 데이터 이행 정책이 필요할 수 있다. 로그아웃 전 Access Token은 만료 시각까지 유효할 수 있으므로 클라이언트의 즉시 로컬 토큰 삭제가 필요하다.
 - 다음 작업: 사용자가 변경을 검토한 뒤 직접 커밋·push하고 PR 병합을 확인한다. 이후 별도 승인에 따라 Jira 완료 댓글과 상태 전환을 수행하며, 후속 개발은 공개 API abuse 방어, JWT Resource Server 보호 정책 및 다중 키 Rotation을 다룬다.
+
+## 2026-07-27 — 승인된 TMI-6 구현 완료 댓글 등록
+
+<!-- codex-turn:019fa15b-def2-7e70-9d87-7b0b39dec722 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-6`
+- 작업 목표: 사용자가 승인한 구현 완료 댓글 초안을 Atlassian 공식 MCP로 Jira `TMI-6`에 등록하되 이슈 상태, 다른 필드와 다른 이슈는 변경하지 않는다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았다. 외부 Jira에서는 `TMI-6`에 새 댓글 하나만 추가했다.
+- 구현 내용: 직전 Codex 세션 기록에서 승인 대상 Markdown 초안을 확인하고, 쓰기 전 `TMI-6`의 제목·상태·댓글을 읽기 전용으로 조회해 상태 `진행 중`과 기존 댓글 없음을 확인했다. 승인된 작업 요약, 변경 파일, 테스트 결과와 남은 위험 요소를 댓글 ID `10000`으로 등록했다. 댓글의 목적은 Refresh Token 재발급·Rotation·재사용 탐지·멱등 로그아웃 구현 결과와 검증 결과 및 잔여 위험 공유다.
+- 실행한 테스트와 결과: Atlassian MCP 댓글 생성 응답이 성공했고 후속 읽기 전용 재조회에서 댓글 수 1개, 최신 댓글 ID `10000`, 승인된 본문과 상태 `진행 중`을 확인했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 다시 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: Jira 댓글에는 작업 요약, 변경 파일, 테스트 결과와 남은 위험 요소만 기록했으며 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 포함하지 않았다. UUID `userId`, RS256·`kid`·issuer·audience·JWKS와 Refresh Token 원문 비저장 계약 및 Identity 도메인 경계를 변경하지 않았다.
+- 결정사항: 사용자 명시적 승인을 근거로 `TMI-6`에 새 댓글 하나만 등록했다. 수행한 Jira 작업은 댓글 추가이며 상태는 `진행 중`으로 유지했고 상태 전환, 이슈 필드 편집, 다른 이슈 변경은 수행하지 않았다. 댓글 등록 승인 여부는 승인됨이며, 추가 댓글이나 상태 변경에는 별도 승인이 필요하다.
+- 위험 요소: Jira 상태는 계속 `진행 중`이며 PR 병합 여부는 이번 작업에서 확인하지 않았다. 등록된 테스트 결과는 현재 저장소 구현 시점의 결과이므로 이후 코드 변경이 있으면 다시 검증해야 한다.
+- 다음 작업: 사용자가 직접 변경을 검토해 커밋·push하고 PR 병합을 확인한다. 병합 후 Jira 상태 전환이 필요하면 전환 내용을 먼저 제시하고 별도 승인을 받은 뒤 수행한다.
+
+## 2026-07-27 — TMI-6 현재 상태 및 가능한 전환 재조회
+
+<!-- codex-turn:019fa160-19bf-7c23-bba3-56b0f536b998 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-6`
+- 작업 목표: Atlassian 공식 MCP로 Jira `TMI-6`의 현재 상태와 현재 계정에서 실행 가능한 상태 전환 목록을 읽기 전용으로 조회하고 Jira 데이터는 변경하지 않는다.
+- 변경 파일: 이번 작업으로는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았고 Jira 데이터도 변경하지 않았다.
+- 구현 내용: 이슈 조회에는 제목과 상태만 요청하고 최근 조회 기록을 갱신하지 않도록 설정했다. 별도의 가능한 전환 조회에서 사용할 수 없는 전환을 제외해 현재 상태 `진행 중`과 전환 `해야 할 일(11)`, `검토 중(31)`, `진행 중(21)`, `완료(41)`를 확인했다. 상태 전환, 댓글 추가, 이슈 편집 또는 다른 이슈 조회·변경은 수행하지 않았다.
+- 실행한 테스트와 결과: Atlassian MCP의 이슈 및 전환 읽기 전용 조회가 모두 성공했고 네 전환은 모두 현재 사용 가능 상태로 반환됐다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: Identity 도메인 경계, UUID `userId`, RS256·`kid`·issuer·audience·JWKS와 Refresh Token 원문 DB·로그 비저장 계약을 변경하지 않았다. Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 이번 Jira 작업은 `TMI-6`의 상태와 가능한 전환 조회 두 건뿐이며 댓글, 필드와 상태는 변경하지 않았다. 상태 변경은 없음이고 댓글 목적도 해당 없으며, 쓰기 작업이 아니므로 별도 변경 승인은 사용하지 않았다.
+- 위험 요소: 가능한 전환 목록은 Jira 워크플로 설정, 현재 상태와 계정 권한에 따라 달라질 수 있으므로 실제 전환 직전에 다시 확인해야 한다.
+- 다음 작업: 사용자가 특정 상태 전환을 명시적으로 요청하고 승인하기 전까지 `TMI-6`의 상태와 다른 Jira 데이터는 변경하지 않는다.
+
+## 2026-07-27 — TMI-6 완료 전환
+
+<!-- codex-turn:019fa162-679a-7530-b7e1-ef95319279e3 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-6`
+- 작업 목표: 사용자가 구현 PR의 main 병합과 전체 테스트 성공을 확인한 것을 근거로 Jira `TMI-6`을 방금 확인한 `완료` 상태로 전환하되 다른 필드, 댓글과 다른 이슈는 변경하지 않는다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았다. 외부 Jira에서는 `TMI-6`의 상태만 변경했다.
+- 구현 내용: 전환 직전 `TMI-6`의 현재 상태와 가능한 전환을 다시 읽어 상태 `진행 중` 및 `완료` transition ID `41`의 사용 가능 여부를 확인했다. 필드, update, 댓글 또는 이력 메타데이터 없이 transition ID `41`만 전송하고, 후속 읽기 전용 조회에서 상태 `완료`와 status ID `10003`을 확인했다. 다른 이슈는 조회하거나 변경하지 않았다.
+- 실행한 테스트와 결과: 사용자가 main 병합 및 전체 테스트 성공을 확인했다고 명시했으며 이번 Jira 작업에서는 애플리케이션 테스트를 다시 실행하지 않았다. Atlassian MCP의 전환 전 조회, 상태 전환과 전환 후 조회가 모두 성공했고 `진행 중`에서 `완료`로 변경된 것을 확인했다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: Jira 상태 외에 설명, 우선순위, 담당자, 라벨, 댓글과 다른 필드를 변경하지 않았다. UUID `userId`, RS256·`kid`·issuer·audience·JWKS, Refresh Token 원문 DB·로그 비저장과 Identity 도메인 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 사용자의 명시적 승인에 따라 `TMI-6`에 transition ID `41`만 적용했다. 수행한 Jira 작업은 상태 `진행 중` → `완료`, 댓글 목적은 해당 없음, 다른 필드 변경은 없음이며 승인 여부는 승인됨이다.
+- 위험 요소: PR 병합과 전체 테스트 성공은 사용자 확인을 근거로 했으며 이번 작업에서 Git 원격 상태나 테스트를 독립적으로 재검증하지 않았다. Jira 상태는 이후 다른 사용자나 자동화에 의해 변경될 수 있다.
+- 다음 작업: `TMI-6`에 추가 Jira 변경은 별도 요청과 승인 전까지 수행하지 않는다. 후속 개발은 기존 RefreshSession 데이터 이행, 실패 복구 정책, Resource Server 보호 정책과 다중 키 Rotation을 다룬다.
+
+## 2026-07-27 — JWT 인증·내 프로필·전체 로그아웃 Jira Payload 초안
+
+<!-- codex-turn:019fa19b-25bf-7d02-9ab5-38979dcbe1c6 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-6`
+- 작업 목표: 저장소 규칙과 현재 상태를 먼저 확인하고 TMI 프로젝트에 생성할 JWT Resource Server 인증·내 프로필 조회·전체 로그아웃 구현 `작업` 이슈의 최종 Payload를 Jira 변경 없이 준비한다.
+- 변경 파일: 이번 작업으로는 필수 기록 문서인 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았고 Jira 데이터도 변경하지 않았다.
+- 구현 내용: `AGENTS.md`, `CURRENT_STATE.md`와 Identity–Learning Core JWT 계약을 끝까지 읽어 Identity 경계와 현재 구현 상태를 대조했다. Atlassian 공식 MCP로 TMI의 이슈 생성 권한, 네 이슈 유형, `작업` 유형 ID `10003`의 생성 필드 20개를 읽기 전용으로 조회했으며 `priority` 허용값에 `High`가 포함됨을 확인했다. 요청된 배경, 공개·보호 Endpoint, JWT 검증, 내 프로필, 전체 로그아웃, 완료 조건, 제외 범위와 보안 요구사항을 Markdown 설명으로 구조화하고 실제 전송 예정 필드를 최소화한 최종 초안을 작성했다.
+- 실행한 테스트와 결과: Atlassian MCP의 생성 가능 프로젝트, 이슈 유형과 생성 필드 메타데이터 조회가 모두 성공했으며 TMI `작업` 및 `High` 우선순위 지원을 확인했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: 실제 사용자 ID는 UUID 문자열이고 검증된 JWT `sub`에서만 얻으며 Request Body, Path 또는 Query로 받지 않는 계약을 유지했다. RS256·필수 `kid`·issuer·`tosunsaeng-learning-core` audience·JWKS, Refresh Token 원문 비저장, Python AI의 `examId` 의미와 Identity 비소유 시험·스트릭·학습 경계를 초안에 반영했다. Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 초안은 프로젝트 `TMI`, 유형 `작업`, 지정 제목, Markdown 설명과 지원이 확인된 `High` 우선순위만 전송 대상으로 삼는다. 담당자, 라벨, 상위 항목, 상태 전환과 다른 선택 필드는 지정하지 않는다. 현재 브랜치의 `TMI-6`은 이미 완료된 기존 이슈이며 이번 신규 초안에는 아직 Jira key가 없다. 이번 Jira 작업은 조회만 수행했고 이슈 생성·수정·댓글·상태 변경은 없으며 생성 승인은 아직 받지 않았다.
+- 위험 요소: Jira 프로젝트 설정이나 권한이 변경되면 생성 시점의 허용 필드와 우선순위가 달라질 수 있으므로 실제 생성 직전에 다시 확인해야 한다. 프로필의 `provider` 표현과 기존 LOCAL 사용자 데이터 호환 방식, 전체 로그아웃의 다중 Session 저장 실패 처리 및 JWT 검증 Clock 오차 정책은 구현 시 테스트와 함께 구체화해야 한다.
+- 다음 작업: 사용자에게 최종 Payload 초안을 제시하고 명시적 생성 승인을 기다린다. 승인받으면 TMI `작업` 메타데이터와 `High` 지원을 다시 확인한 뒤 제시한 필드만 전송하며, 승인 전에는 Jira 이슈를 생성하지 않는다.
+
+## 2026-07-27 — 승인된 JWT 인증·내 프로필·전체 로그아웃 Jira 이슈 생성
+
+<!-- codex-turn:019fa1aa-9f56-7463-9ed6-2d4220e3533f -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-9`
+- 작업 목표: 사용자가 승인한 최종 Payload 그대로 TMI 프로젝트에 JWT 인증 적용·내 프로필 조회·전체 로그아웃 구현 `작업` 이슈를 생성하고 기본 상태와 지정하지 않은 필드를 유지한다.
+- 변경 파일: 저장소에서는 필수 기록 문서인 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았다. 외부 Jira에는 새 이슈 `TMI-9` 하나만 생성했다.
+- 구현 내용: 직전 세션 기록에서 승인된 제목과 Markdown 설명 원문을 복원하고, 생성 직전 Atlassian 공식 MCP로 TMI의 이슈 생성 권한, `작업` 유형 ID `10003`과 `High` 우선순위 지원을 재확인했다. `projectKey`, `issueTypeName`, `summary`, `description`, `contentFormat`, `additional_fields.priority`만 전송해 `TMI-9`를 생성했다. 담당자, 스프린트, 에픽, 라벨과 상태 전환은 전송하지 않았다.
+- 실행한 테스트와 결과: Jira 생성 응답이 성공했고 후속 읽기 전용 조회에서 key `TMI-9`, 승인된 제목과 구조화된 설명, 우선순위 `High`, 기본 상태 `해야 할 일`, 담당자 없음과 빈 라벨을 확인했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: 실제 사용자 ID의 UUID 및 검증된 JWT `sub` 사용, RS256·필수 `kid`·issuer·`tosunsaeng-learning-core` audience·JWKS, Refresh Token 원문 비저장과 Identity 도메인 경계를 승인된 설명에 유지했다. Jira와 기록에 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 포함하지 않았다.
+- 결정사항: 사용자 명시적 승인을 근거로 Jira `TMI-9` 신규 생성만 수행했다. Jira 작업은 새 이슈 생성, 댓글 목적은 해당 없음, 상태는 기본 `해야 할 일`, 우선순위는 `High`, 승인 여부는 승인됨이며 담당자·스프린트·에픽·라벨과 별도 상태 전환은 적용하지 않았다.
+- 위험 요소: `TMI-9` 구현은 아직 시작하지 않았고 현재 로컬 브랜치 이름은 완료된 기존 이슈 `TMI-6`을 가리킨다. 구현 착수 전 Jira key를 포함하는 브랜치 운영과 프로필 `provider` 호환, 다중 Session 폐기의 부분 실패 및 JWT Clock 오차 정책을 구체화해야 한다.
+- 다음 작업: 새 작업 브랜치에서 Atlassian MCP로 `TMI-9` 설명과 완료 조건을 다시 읽은 뒤 구현·테스트를 진행한다. Jira 댓글이나 상태 변경은 별도 사용자 승인 전까지 수행하지 않는다.
+
+## 2026-07-27 — TMI-9 현재 상태 및 가능한 전환 조회
+
+<!-- codex-turn:019fa1b1-8a2c-7e62-ba5a-7a05f7c5c903 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-9`
+- 작업 목표: Atlassian 공식 MCP로 Jira `TMI-9`의 제목, 현재 상태와 현재 계정에서 실행 가능한 상태 전환 목록을 읽기 전용으로 조회한다.
+- 변경 파일: 이번 작업으로는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았고 Jira 데이터도 변경하지 않았다.
+- 구현 내용: 이슈 조회에는 제목과 상태만 요청하고 최근 조회 기록을 갱신하지 않도록 설정했다. 사용 불가능한 전환을 제외한 별도 조회에서 제목 `[Identity] JWT 인증 적용·내 프로필 조회·전체 로그아웃 구현`, 현재 상태 `해야 할 일`과 가능한 전환 `해야 할 일(11)`, `검토 중(31)`, `진행 중(21)`, `완료(41)`를 확인했다. 네 전환은 모두 현재 사용 가능으로 반환됐다.
+- 실행한 테스트와 결과: Atlassian MCP의 이슈 및 전환 읽기 전용 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: Identity 도메인 경계, UUID `userId`, RS256·`kid`·issuer·audience·JWKS와 Refresh Token 원문 DB·로그 비저장 계약을 변경하지 않았다. Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 이번 Jira 작업은 `TMI-9` 이슈와 가능한 전환 조회 두 건뿐이다. 상태 변경은 없음, 댓글 목적은 해당 없음이며 이슈 편집·댓글·전환 또는 다른 이슈 조회·변경을 수행하지 않았다.
+- 위험 요소: 가능한 전환 목록은 Jira 워크플로 설정, 현재 상태와 계정 권한에 따라 달라질 수 있으므로 실제 전환 직전에 다시 확인해야 한다. 현재 로컬 브랜치는 완료된 기존 `TMI-6`을 가리키며 `TMI-9` 구현은 아직 시작하지 않았다.
+- 다음 작업: 사용자가 특정 상태 전환을 명시적으로 승인하기 전까지 `TMI-9`의 상태와 다른 Jira 데이터는 변경하지 않는다. 구현 착수 시 Jira key가 포함된 작업 브랜치에서 이슈 설명과 완료 조건을 다시 읽는다.
+
+## 2026-07-27 — TMI-9 진행 중 전환
+
+<!-- codex-turn:019fa1b2-b580-71b2-94da-4cfbc4f491a0 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-6-refresh-token-lifecycle`
+- Jira: `TMI-9`
+- 작업 목표: 사용자가 방금 확인하고 승인한 `진행 중` 전환을 Jira `TMI-9`에 적용하고 다른 필드와 다른 Jira 이슈는 수정하지 않은 뒤 현재 상태만 다시 조회한다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 건드리지 않았다. 외부 Jira에서는 `TMI-9`의 상태만 변경했다.
+- 구현 내용: 직전 읽기 전용 조회에서 사용 가능함을 확인한 `진행 중` transition ID `21`만 필드, update, 댓글과 이력 메타데이터 없이 전송했다. 전환 후 최근 조회 기록을 갱신하지 않고 `status` 필드만 다시 요청해 `TMI-9`의 상태 `진행 중`과 status ID `10001`을 확인했다. 다른 Jira 이슈는 조회하거나 변경하지 않았다.
+- 실행한 테스트와 결과: Atlassian MCP 상태 전환 응답이 성공했고 후속 상태 전용 조회가 `진행 중`을 반환했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: Jira 상태 외에 제목, 설명, 우선순위, 담당자, 스프린트, 에픽, 라벨, 댓글과 다른 필드를 변경하지 않았다. Identity 도메인 경계, UUID `userId`, RS256·`kid`·issuer·audience·JWKS와 Refresh Token 원문 비저장 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 사용자 명시적 승인을 근거로 `TMI-9`에 transition ID `21`만 적용했다. 수행한 Jira 작업은 상태 `해야 할 일` → `진행 중`, 댓글 목적은 해당 없음, 다른 필드·이슈 변경은 없음이며 승인 여부는 승인됨이다.
+- 위험 요소: Jira 상태는 `진행 중`이지만 현재 로컬 브랜치는 완료된 기존 `TMI-6`을 가리키고 애플리케이션 구현은 아직 시작하지 않았다. Jira 상태는 이후 다른 사용자나 자동화에 의해 변경될 수 있다.
+- 다음 작업: Jira key가 포함된 작업 브랜치에서 `TMI-9` 설명과 완료 조건을 다시 읽고 구현·테스트를 진행한다. 추가 Jira 댓글이나 상태 변경은 별도 사용자 승인 전까지 수행하지 않는다.
+
+## 2026-07-27 — TMI-9 JWT 인증·내 프로필·전체 로그아웃 구현
+
+<!-- codex-turn:019fa1b6-532e-74a0-81bd-4e22002367ab -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: Jira `TMI-9`의 설명과 완료 조건을 기준으로 Identity에 RS256 JWT Resource Server 인증, JWT subject 기반 내 프로필 조회와 현재 사용자의 전체 RefreshSession 로그아웃을 구현하고 공개·보호 경로 및 민감정보 경계를 전체 회귀로 검증한다.
+- 변경 파일: `build.gradle`, `README.md`, `SecurityConfig.java`, `JwtConfiguration.java`, 신규 `JwtAudienceValidator.java`, 신규 CurrentUserProvider 2개, 신규 401/403 Security Handler 2개, `CommonErrorStatus.java`, `AuthController.java`, 신규 `LogoutAllService.java`, `RefreshSession.java`, `RevocationReason.java`, `User.java`, 신규 `UserProvider.java`, 신규 User Controller·Service·Response DTO·오류 enum, 관련 기존 테스트 6개와 신규 Security·JWT·CurrentUser·프로필·전체 로그아웃 테스트 7개, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 작업 시작 전부터 수정돼 있던 과거 WORKLOG와 TMI-6/TMI-9 Jira 운영 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 작업 전에 `AGENTS.md`, Identity–Learning Core JWT 계약과 CURRENT_STATE를 끝까지 읽고 Atlassian 공식 MCP로 `TMI-9`의 설명·완료 조건·상태를 읽기 전용 조회해 충돌이 없음을 확인했다. 기존 RSA Public Key Bean과 Clock으로 자기 JWKS HTTP 호출 없는 `NimbusJwtDecoder`를 구성하고 RS256, 정확한 `typ=JWT`, 현재 `kid`, 필수 subject·만료 Claim, `exp`·`nbf`, issuer와 audience를 검증했다. 지정된 공개 POST·GET 경로만 허용하고 나머지를 인증하도록 SecurityFilterChain을 전환했으며 401/403을 UTF-8 BaseResponse JSON으로 처리했다. `JwtCurrentUserProvider`가 검증된 JWT subject를 canonical UUID로 제공하고, `/api/v1/users/me`는 해당 User의 ACTIVE 상태를 확인해 LOCAL provider와 음성 동의 상태만 전용 DTO로 반환한다. `/api/v1/auth/logout-all`은 현재 사용자의 미폐기 RefreshSession만 같은 Clock 시각과 `LOGOUT_ALL` 사유로 폐기해 `saveAll`하고 빈 목록·반복 요청은 성공하며 Repository 오류는 전파한다.
+- 실행한 테스트와 결과: 변경 전 `./gradlew test` 기준 97개가 통과했다. 구현 중 main·test 컴파일과 관련 Security·JWT·프로필·전체 로그아웃 테스트를 반복 실행해 fixture 경계값과 Mockito stubbing 문제를 수정했고, 최종 `./gradlew clean test`는 전체 138개, 실패 0개, 오류 0개, 건너뜀 0개로 성공했다. 실제 Atlas, 운영 RSA Key 또는 외부 OAuth Provider는 호출하지 않았다. 실제 키 본문·서명 JWT 문자열·자격증명 포함 MongoDB URI·민감 로그·Entity 직접 응답·과도한 공개 경로·자기 JWKS HTTP 호출 정적 검색과 `git diff --check`도 통과했다.
+- 유지한 계약: 실제 사용자 ID는 UUID 문자열이며 Request Body, Path 또는 Query 값이 아니라 검증된 JWT `sub`만 사용한다. 기존 RS256, 필수 `kid`, issuer, `tosunsaeng-learning-core` audience, Public Key 전용 JWKS와 최소 Claim 계약을 유지하고 Private Key를 검증에 사용하지 않았다. Refresh Token 원문은 저장·로그·응답하지 않고 프로필 응답에는 비밀번호 해시, 정규화 이메일, RefreshSession 내부 정보, 시험·스트릭·학습 데이터를 포함하지 않았다. Learning Core 코드와 Python AI의 `examId` 경계는 변경하지 않았다.
+- 결정사항: Spring Security 6.4와 Nimbus에서 exact `typ=JWT` verifier를 적용하고 주입 Clock에 zero-skew 시간 검증을 사용했다. Identity 보호 API도 이번에는 기존 Learning Core audience를 그대로 검증하며 Identity 전용 또는 다중 audience는 도입하지 않았다. scope Claim의 `SCOPE_` 변환은 확인했지만 endpoint별 scope 권한은 강제하지 않았다. 이메일 계정 provider는 최소 `LOCAL` enum으로 저장하고 기존 null 문서는 LOCAL로 해석한다. 공통 Security 오류 코드는 `COMMON_UNAUTHORIZED`와 `COMMON_FORBIDDEN`으로 반환한다. 이번 Jira 작업은 `TMI-9` 읽기 전용 조회뿐이며 댓글 목적은 해당 없음, 댓글·필드·상태 변경은 없음이고 쓰기 승인도 사용하지 않았다.
+- 위험 요소: 현재 Identity 보호 API와 Learning Core가 같은 audience를 사용하므로 토큰 용도 분리 여부를 후속 검토해야 한다. endpoint별 scope 인가가 아직 없고 다중 키 Rotation도 구현되지 않았다. logout-all의 여러 문서 저장은 MongoDB Transaction이 아니므로 중간 실패 시 일부만 반영될 수 있으며 Optimistic Lock 오류를 포함한 저장 오류는 호출자에게 전파된다. 전체 로그아웃 후에도 이미 발급된 Access Token은 만료 시각까지 유효할 수 있어 클라이언트가 성공 즉시 로컬 인증 정보를 삭제해야 한다. 기존 User provider 이행과 소셜 계정 연결 정책도 소셜 로그인 전에 필요하다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 커밋·push하고 PR 병합을 확인한다. Jira 완료 댓글과 상태 변경은 별도 승인 전까지 수행하지 않는다. 다음 Learning Core 작업에서는 Identity JWKS로 RS256 서명·issuer·audience를 로컬 검증하고 검증된 JWT `sub`를 실제 userId로 사용하되 Python AI payload의 `user_id`는 계속 `examId`로 유지한다.

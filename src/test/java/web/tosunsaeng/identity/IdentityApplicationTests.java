@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import java.util.Map;
 
@@ -77,17 +78,19 @@ class IdentityApplicationTests {
 	}
 
 	@Test
-	void bootstrapPolicyDoesNotForceLoginOrBasicAuthentication() throws Exception {
+	void unlistedEndpointRequiresAuthenticationWithoutLoginPageOrBasicChallenge() throws Exception {
 		mockMvc.perform(get("/__test/open"))
-				.andExpect(status().isOk())
+				.andExpect(status().isUnauthorized())
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-				.andExpect(jsonPath("$.status").value("open"));
+				.andExpect(jsonPath("$.isSuccess").value(false))
+				.andExpect(jsonPath("$.code").value("COMMON_UNAUTHORIZED"));
 	}
 
 	@Test
 	void validationErrorUsesBaseResponseAndMasksSensitiveRejectedValue() throws Exception {
 		mockMvc.perform(post("/__test/validation")
+						.with(jwt())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"password\":\"\"}"))
 				.andExpect(status().isBadRequest())
@@ -101,7 +104,7 @@ class IdentityApplicationTests {
 
 	@Test
 	void businessExceptionUsesConfiguredErrorCode() throws Exception {
-		mockMvc.perform(get("/__test/business-error"))
+		mockMvc.perform(get("/__test/business-error").with(jwt()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.code").value("NOT_FOUND"))
@@ -111,7 +114,7 @@ class IdentityApplicationTests {
 
 	@Test
 	void unexpectedExceptionDoesNotExposeInternalDetailsOrStackTrace() throws Exception {
-		MvcResult result = mockMvc.perform(get("/__test/unexpected-error"))
+		MvcResult result = mockMvc.perform(get("/__test/unexpected-error").with(jwt()))
 				.andExpect(status().isInternalServerError())
 				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
