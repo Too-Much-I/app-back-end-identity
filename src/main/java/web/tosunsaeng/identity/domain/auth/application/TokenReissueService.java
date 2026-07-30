@@ -60,6 +60,7 @@ public class TokenReissueService {
 				.orElseThrow(this::invalidRefreshToken);
 		Instant currentTime = clock.instant();
 
+		// 회전된 토큰이 재사용되면 탈취 가능성에 대비해 활성 세션을 모두 폐기한다.
 		if (currentSession.getRevocationReason() == RevocationReason.ROTATED) {
 			revokeActiveSessionsForReuse(currentSession.getUserId(), currentTime);
 			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
@@ -81,11 +82,13 @@ public class TokenReissueService {
 		String replacementSessionId = RefreshSession.newSessionId();
 		currentSession.rotate(currentTime, replacementSessionId);
 		try {
+			// 낙관적 잠금으로 동일한 Refresh Token의 동시 회전을 차단한다.
 			refreshSessionRepository.save(currentSession);
 		} catch (OptimisticLockingFailureException exception) {
 			throw invalidRefreshToken();
 		}
 
+		// 기존 세션 폐기가 저장된 후에만 후속 토큰과 세션을 발급한다.
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issueRotated(
 				replacementSessionId,

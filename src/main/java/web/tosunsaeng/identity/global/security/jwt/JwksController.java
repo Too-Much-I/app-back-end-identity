@@ -30,6 +30,7 @@ public class JwksController {
 	)
 	@ApiResponse(responseCode = "200", description = "JWKS 조회 성공")
 	public Map<String, Object> jwks() {
+		// 서명 검증에 필요한 공개 JWK만 외부에 제공한다.
 		return new JWKSet(rsaKey.toPublicJWK()).toJSONObject();
 	}
 }

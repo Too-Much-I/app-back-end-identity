@@ -125,6 +125,7 @@ public class GlobalExceptionHandler {
 				? ""
 				: field.replaceAll("[^A-Za-z0-9]", "").toLowerCase(Locale.ROOT);
 
+		// 비밀번호와 토큰 계열의 거부 값은 오류 응답에서 제거한다.
 		boolean sensitive = SENSITIVE_FIELD_FRAGMENTS.stream().anyMatch(normalizedField::contains);
 		return sensitive ? null : rejectedValue;
 	}

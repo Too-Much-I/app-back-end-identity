@@ -28,6 +28,7 @@ public class OpenApiConfig {
 				.scheme("bearer")
 				.bearerFormat("JWT");
 
+		// 인증 스키마만 등록하고 보호 API 여부는 각 Operation에서 지정한다.
 		return new OpenAPI().components(
 				new Components().addSecuritySchemes(BEARER_AUTH, bearerScheme)
 		);

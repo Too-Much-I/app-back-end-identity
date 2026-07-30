@@ -46,6 +46,7 @@ public class JwtConfiguration {
 
 	@Bean
 	public RsaKeyLoader rsaKeyLoader(ApplicationContext applicationContext) {
+		// ApplicationContext를 사용해 ResourceLoader 타입의 Bean 주입 모호성을 피한다.
 		return new RsaKeyLoader(applicationContext);
 	}
 
@@ -125,6 +126,7 @@ public class JwtConfiguration {
 		);
 		OAuth2TokenValidator<Jwt> keyIdValidator = keyIdValidator(properties.keyId());
 
+		// 서명 검증 후 시간, 발급자, 대상, 사용자, 만료, 키 식별자를 모두 검증한다.
 		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
 				timestampValidator,
 				issuerValidator,

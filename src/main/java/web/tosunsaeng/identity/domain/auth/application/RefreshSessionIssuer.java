@@ -36,6 +36,7 @@ public class RefreshSessionIssuer {
 
 	public IssuedRefreshSession issue(String userId) {
 		String tokenValue = refreshTokenGenerator.generate();
+		// DB에는 Refresh Token 원문 대신 조회용 해시만 저장한다.
 		String tokenHash = refreshTokenHasher.hash(tokenValue);
 		Instant createdAt = clock.instant();
 		RefreshSession refreshSession = RefreshSession.create(

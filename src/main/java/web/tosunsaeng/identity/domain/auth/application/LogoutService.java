@@ -31,6 +31,7 @@ public class LogoutService {
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
 		RefreshSession session = refreshSessionRepository.findByTokenHash(tokenHash)
 				.orElse(null);
+		// 존재하지 않거나 이미 종료된 세션도 로그아웃 성공으로 처리한다.
 		if (session == null) {
 			return;
 		}

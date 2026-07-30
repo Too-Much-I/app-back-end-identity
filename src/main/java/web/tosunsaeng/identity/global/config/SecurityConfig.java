@@ -31,6 +31,7 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
+						// 인증 진입점과 문서, 상태 확인, JWKS만 공개한다.
 						.requestMatchers(HttpMethod.POST,
 								"/api/v1/auth/check-email",
 								"/api/v1/auth/signup",
@@ -48,6 +49,7 @@ public class SecurityConfig {
 								"/v3/api-docs/**"
 						)
 						.permitAll()
+						// 명시적으로 공개하지 않은 모든 요청은 JWT 인증을 요구한다.
 						.anyRequest().authenticated()
 				)
 				.exceptionHandling(exception -> exception

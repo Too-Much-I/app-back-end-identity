@@ -19,6 +19,7 @@ public class RefreshTokenHasher {
 				"tokenValue must not be null"
 		);
 		try {
+			// 결정적 해시를 원문 대신 세션 조회 키로 사용한다.
 			MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
 			byte[] tokenHash = digest.digest(requiredTokenValue.getBytes(StandardCharsets.UTF_8));
 			return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenHash);

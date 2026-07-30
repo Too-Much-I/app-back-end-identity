@@ -27,6 +27,7 @@ public class JwtCurrentUserProvider implements CurrentUserProvider {
 		}
 
 		try {
+			// 클라이언트 입력이 아닌 검증된 JWT subject에서 사용자 ID를 가져온다.
 			UUID userId = UUID.fromString(jwt.getSubject());
 			if (!userId.toString().equalsIgnoreCase(jwt.getSubject())) {
 				throw new IllegalArgumentException("non-canonical UUID");

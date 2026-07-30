@@ -29,6 +29,7 @@ public class UserFactory {
 
 	public User create(String email, String rawPassword, String nickname) {
 		String normalizedEmail = emailNormalizer.normalize(email);
+		// 사용자 엔티티에는 원문 비밀번호가 아닌 해시만 전달한다.
 		String passwordHash = passwordEncoder.encode(
 				Objects.requireNonNull(rawPassword, "rawPassword must not be null")
 		);

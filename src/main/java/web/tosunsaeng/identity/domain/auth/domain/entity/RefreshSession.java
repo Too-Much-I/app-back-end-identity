@@ -39,6 +39,7 @@ public class RefreshSession {
 
 	private RevocationReason revocationReason;
 
+	// 동일한 세션의 동시 회전 요청은 버전 충돌로 감지한다.
 	@Version
 	private Long version;
 
@@ -165,6 +166,7 @@ public class RefreshSession {
 			RevocationReason reason,
 			String replacementSessionId
 	) {
+		// 모든 폐기 경로가 시간과 사유를 동일한 규칙으로 갱신한다.
 		if (isRevoked()) {
 			throw new IllegalStateException("RefreshSession is already revoked.");
 		}

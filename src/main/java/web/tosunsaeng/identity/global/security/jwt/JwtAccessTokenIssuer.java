@@ -39,12 +39,14 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 		validateUserId(userId);
 		Instant issuedAt = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		Instant expiresAt = issuedAt.plus(properties.accessTokenTtl());
+		// Scope 순서를 고정해 같은 권한 집합의 Claim 표현을 일관되게 유지한다.
 		String scopeClaim = String.join(" ", orderedScopes(scopes));
 
 		JwsHeader headers = JwsHeader.with(SignatureAlgorithm.RS256)
 				.keyId(properties.keyId())
 				.type("JWT")
 				.build();
+		// 검증된 실제 사용자 UUID를 JWT subject로 사용한다.
 		JwtClaimsSet claims = JwtClaimsSet.builder()
 				.subject(userId)
 				.issuer(properties.issuer())

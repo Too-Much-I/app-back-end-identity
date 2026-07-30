@@ -585,3 +585,19 @@
 - 결정사항: MongoDB replica set과 Transaction 지원 여부를 코드에서 확정할 수 없어 RefreshSession rotation·다중 폐기에 TransactionManager를 임의로 추가하지 않았다. 운영 index 상태를 알 수 없어 `{userId, revokedAt}` compound index를 추가하지 않았고 Mongo `_class` migration도 만들지 않았다. OpenAPI 오류 schema는 일반 오류와 Validation 배열을 정확히 표현하려면 문서 전용 wrapper와 다수 annotation 변경이 필요해 LOW 후속으로 유지했다. UserFactory의 Spring·시스템 시간 결합도 기능 회귀가 아니므로 이번 병합 범위에서 제외했다. 필수 parameter와 타입 변환을 사용하는 현재 공개 API가 없어 MissingServletRequestParameter와 MethodArgumentTypeMismatch의 별도 매핑은 추가하지 않았다. Jira 이슈·댓글·상태·필드는 변경하지 않았고 commit·push·merge·PR 생성도 수행하지 않았다.
 - 위험 요소: RefreshSession 기존 폐기와 후속 발급, 재사용 탐지와 logout-all 다중 저장은 Mongo Transaction이 없어 부분 실패 가능성이 남아 있으며 실제 동시 재발급은 replica set 기반 통합 테스트가 필요하다. 운영 DB에 `{userId, revokedAt}` 조회 index가 없으면 활성 Session 조회가 collection scan일 수 있다. 외부 시스템의 Mongo `_class` FQCN 직접 사용 여부, OpenAPI Validation 오류 schema 구체성, UserFactory의 Clock·Spring 결합은 후속 확인이 필요하다. 실제 MongoDB가 없어 로그인·회원가입의 영속 E2E와 운영 index 실행계획은 실행하지 않았다.
 - 다음 작업: 사용자가 `git diff --cached --stat`, `git diff --cached --find-renames --summary`, `git status`를 확인한 뒤 현재 staged 변경을 직접 commit·push한다. 운영 Mongo에서 `refresh_sessions` 실행계획과 `_class` 값을 확인하고, Transaction·동시 재발급 통합 테스트·OpenAPI 오류 wrapper·UserFactory Clock 개선은 별도 승인된 작업으로 진행한다. Jira 댓글이나 상태 변경은 별도 요청과 명시적 승인 전까지 수행하지 않는다.
+
+## 2026-07-30 — 핵심 인증·보안 코드 한 줄 주석 보강
+
+<!-- codex-turn:019fb1d6-9e99-7461-89e0-70880a3cb177 -->
+
+- 날짜: 2026-07-30
+- 브랜치: `main`
+- Jira: TMI-9
+- 작업 목표: main에 병합된 Identity 리팩토링 코드에서 인증·세션·보안 흐름의 비자명한 의도를 짧은 한국어 `//` 한 줄 주석으로 설명하고 기능 계약이 그대로 유지되는지 재검증한다.
+- 변경 파일: `domain/auth/application`의 `LoginService`, `LogoutService`, `LogoutAllService`, `SignupService`, `TokenReissueService`, `RefreshSessionIssuer`, `domain/auth/domain/entity/RefreshSession`, `domain/user/domain/UserFactory`, `global/config`의 `SecurityConfig`, `OpenApiConfig`, `global/security/jwt`의 `JwtConfiguration`, `JwtAccessTokenIssuer`, `JwksController`, `RsaKeyLoader`, `global/security/refresh`의 `RefreshTokenGenerator`, `RefreshTokenHasher`, `global/security/currentuser/JwtCurrentUserProvider`, `global/exception/GlobalExceptionHandler`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다.
+- 구현 내용: 로그인 검증 이후 토큰 발급, Refresh Token 재사용 탐지와 낙관적 잠금, 로그아웃 멱등성, 사용자 소유 세션 범위, 동시 회원가입 고유 인덱스, 토큰 원문 비저장, 세션 폐기 상태 일관성, 비밀번호 해시, 공개·보호 경로, Operation 단위 OpenAPI 보안, JWT 검증·subject·scope, Public JWK 전용 공개, RSA ResourceLoader 주입 모호성 회피와 Private Key 바이트 정리, Refresh Token 난수·해시, JWT 사용자 식별과 validation 민감값 제거 의도를 각 한 줄로 설명했다. DTO 필드, getter와 단순 대입에는 주석을 추가하지 않았고 실행 코드는 변경하지 않았다.
+- 실행한 테스트와 결과: 최초 `./gradlew clean test`는 샌드박스가 사용자 Gradle 캐시 잠금 파일 접근을 막아 테스트 실행 전에 종료됐다. 승인된 Gradle 접근 범위에서 같은 명령을 다시 실행해 전체 146개 테스트가 성공했고 실패·오류·건너뜀은 모두 0개였다. `./gradlew build`와 `git diff --check`도 성공했다.
+- 유지한 계약: API URL·HTTP Method·요청/응답 JSON·오류 상태, JWT RS256·`kid`·issuer·audience·UUID `sub`·TTL, Refresh Token 해시·회전·폐기, Mongo collection·field·index와 환경변수를 변경하지 않았다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·주석·기록에 추가하지 않았다.
+- 결정사항: 코드만으로 목적을 놓치기 쉬운 인증과 보안 경계에만 총 25개의 짧은 한 줄 주석을 추가하고 JavaDoc이나 장문의 설명, 이모지, 자명한 줄별 주석은 사용하지 않았다. Jira `TMI-9`의 설명·완료 조건·완료 상태는 Atlassian 공식 MCP로 읽기 전용 확인했으며 댓글·상태·필드와 다른 이슈는 변경하지 않았다. commit·push·stage도 수행하지 않았다.
+- 위험 요소: 실행 동작의 위험은 새로 추가되지 않았지만 향후 코드 변경 시 주석도 함께 갱신하지 않으면 설명과 구현이 어긋날 수 있다. 기존 RefreshSession 다중 쓰기의 비원자성, 운영 조회 index와 Mongo `_class`, OpenAPI Validation 오류 schema, UserFactory의 시스템 시간 결합은 이번 주석 작업 범위 밖의 기존 후속 항목으로 남는다.
+- 다음 작업: 사용자가 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하고, 구현 변경 시 관련 주석의 정확성도 함께 확인한다. Jira 댓글 초안은 최종 보고에만 제시하며 별도 승인 전에는 등록하거나 상태를 변경하지 않는다.

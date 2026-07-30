@@ -45,6 +45,7 @@ public class SignupService {
 				request.nickname().trim()
 		);
 
+		// 사전 중복 검사 이후의 동시 가입은 MongoDB 고유 인덱스로 다시 차단한다.
 		try {
 			User savedUser = userRepository.save(user);
 			return SignupResponse.from(savedUser);

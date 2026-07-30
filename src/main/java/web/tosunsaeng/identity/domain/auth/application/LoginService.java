@@ -57,6 +57,7 @@ public class LoginService {
 			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
 		}
 
+		// 사용자와 비밀번호 검증이 끝난 뒤에만 인증 토큰을 발급한다.
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
 		return authResponseConverter.toLoginResponse(

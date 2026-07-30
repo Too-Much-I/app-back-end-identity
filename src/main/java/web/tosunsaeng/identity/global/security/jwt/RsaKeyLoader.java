@@ -22,6 +22,7 @@ public class RsaKeyLoader {
 	private static final String PRIVATE_KEY_FOOTER = "-----END PRIVATE KEY-----";
 	private static final String PUBLIC_KEY_HEADER = "-----BEGIN PUBLIC KEY-----";
 	private static final String PUBLIC_KEY_FOOTER = "-----END PUBLIC KEY-----";
+	// 오류에는 키 위치나 내용을 포함하지 않는 고정 메시지를 사용한다.
 	private static final String PRIVATE_KEY_ERROR =
 			"RSA private key could not be loaded from the configured resource.";
 	private static final String PUBLIC_KEY_ERROR =
@@ -53,6 +54,7 @@ public class RsaKeyLoader {
 			throw new IllegalStateException(PRIVATE_KEY_ERROR);
 		} finally {
 			if (encoded != null) {
+				// 파싱에 사용한 Private Key 바이트는 처리 직후 메모리에서 지운다.
 				Arrays.fill(encoded, (byte) 0);
 			}
 		}

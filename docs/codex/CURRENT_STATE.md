@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 도메인 중심 구조와 OpenAPI 리팩토링의 병합 전 필수 수정·staging·재검증 완료, 사용자 commit 대기
+- 현재 단계: 도메인 중심 리팩토링 main 병합 후 핵심 인증·보안 코드의 한 줄 주석 보강과 회귀 검증 완료, 사용자 검토 대기
 - 상태 기준일: 2026-07-30
 
 ## 완료
@@ -112,15 +112,15 @@
 - 리팩토링 신규 파일과 기존 삭제를 함께 stage해 104개 논리 변경 파일, rename 68개, untracked 0개 상태를 구성하고 삭제 전용 index 문제를 해소
 - 관련 테스트와 기존 signup·login·reissue·logout·JWT·JWKS 회귀를 포함한 전체 146개 통과, 실패·오류·건너뜀 0개이며 `./gradlew build` 성공
 - 실제 JAR 기동으로 health·Swagger/OpenAPI 200, 공개·보호 operation 구분, malformed JSON 400, 미존재 경로 404, 무인증 보호 API 401, 공개 로그인 validation 접근과 415를 확인하고 Swagger 비활성 문서 경로의 404를 검증
+- main 병합 후 인증 유스케이스·RefreshSession·JWT·Security·예외 처리의 비자명한 의도에만 한국어 한 줄 주석 25개를 추가하고 실행 코드는 변경하지 않은 채 전체 146개 테스트와 build를 재검증
 
 ## 진행 중
 
-- Jira `TMI-9` — 도메인 중심 리팩토링의 병합 전 필수 수정·staging·재검증 완료, 후속 위험을 인지한 사용자 commit 대기
 - Jira `TMI-10` — `진행 중`, 승인된 Learning Core JWT 연동 이슈 생성과 상태 전환 완료, 구현 미착수
 
 ## 다음 작업
 
-- 사용자가 최종 `git diff --cached --stat`, rename summary와 `git status`를 검토한 뒤 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
+- 사용자가 주석과 작업 기록의 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
 - MongoDB replica set·Transaction 지원 여부를 확인해 RefreshSession 회전과 다중 폐기의 원자성·동시 재발급 통합 테스트를 별도 작업으로 설계
 - 운영 `refresh_sessions`의 `{userId, revokedAt}` 실행계획과 `_class` 외부 소비 여부를 확인하고 필요한 경우에만 승인된 index/migration으로 처리
 - OpenAPI 오류 응답의 일반 오류·Validation 배열 schema 구체화와 UserFactory의 `Clock` 주입·application 이동 여부를 후속 개선으로 검토
@@ -139,8 +139,8 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 병합 전 리뷰 비교 기준은 오래된 로컬 `main`이 아니라 fetch 후 `origin/main`의 `53abd6e`이며 현재 브랜치 `HEAD`도 같은 commit을 가리킴
-- 병합 대상 변경은 104개 논리 파일이 모두 stage된 상태로 관리하며 신규 소스·테스트 untracked 파일과 로컬 키·IDE·build 산출물을 포함하지 않음
+- 현재 작업 기준 브랜치는 `main`이고 HEAD는 리팩토링 PR #10 병합 commit `18e78ea`이며 이번 주석과 작업 기록은 commit·stage하지 않음
+- 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유

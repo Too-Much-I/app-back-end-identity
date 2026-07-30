@@ -28,6 +28,7 @@ public class LogoutAllService {
 	}
 
 	public void logoutAll() {
+		// 인증된 JWT의 사용자 ID로 본인이 소유한 세션만 조회한다.
 		String userId = currentUserProvider.getCurrentUserId();
 		List<RefreshSession> activeSessions = refreshSessionRepository
 				.findAllByUserIdAndRevokedAtIsNull(userId);
