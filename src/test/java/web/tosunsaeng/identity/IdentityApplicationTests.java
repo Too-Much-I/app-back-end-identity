@@ -33,11 +33,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import web.tosunsaeng.identity.common.exception.BusinessException;
-import web.tosunsaeng.identity.common.exception.CommonErrorStatus;
-import web.tosunsaeng.identity.security.jwt.TestRsaKeyConfiguration;
-import web.tosunsaeng.identity.security.refresh.RefreshSessionRepository;
-import web.tosunsaeng.identity.user.repository.UserRepository;
+import web.tosunsaeng.identity.global.exception.BusinessException;
+import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
+import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
+import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -75,6 +75,44 @@ class IdentityApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
 				.andExpect(jsonPath("$.openapi").exists());
+	}
+
+	@Test
+	void openApiDefinesIdentityMetadataAndJwtBearerSchemeWithoutGlobalSecurity() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.info.title").value("토선생 Identity API"))
+				.andExpect(jsonPath("$.info.version").value("1.0.0"))
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+				.andExpect(jsonPath("$.security").doesNotExist());
+	}
+
+	@Test
+	void openApiMarksOnlyProtectedOperationsAsBearerAuthenticated() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/check-email'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/signup'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/reissue'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.security").doesNotExist())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/logout-all'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/users/me'].get.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.components.schemas.SignupRequest.properties.password.format"
+				).value("password"))
+				.andExpect(jsonPath(
+						"$.components.schemas.SignupRequest.properties.password.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.SignupRequest.properties.password.example"
+				).doesNotExist());
 	}
 
 	@Test
