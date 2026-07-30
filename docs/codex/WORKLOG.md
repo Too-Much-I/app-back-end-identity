@@ -426,3 +426,162 @@
 - 결정사항: Spring Security 6.4와 Nimbus에서 exact `typ=JWT` verifier를 적용하고 주입 Clock에 zero-skew 시간 검증을 사용했다. Identity 보호 API도 이번에는 기존 Learning Core audience를 그대로 검증하며 Identity 전용 또는 다중 audience는 도입하지 않았다. scope Claim의 `SCOPE_` 변환은 확인했지만 endpoint별 scope 권한은 강제하지 않았다. 이메일 계정 provider는 최소 `LOCAL` enum으로 저장하고 기존 null 문서는 LOCAL로 해석한다. 공통 Security 오류 코드는 `COMMON_UNAUTHORIZED`와 `COMMON_FORBIDDEN`으로 반환한다. 이번 Jira 작업은 `TMI-9` 읽기 전용 조회뿐이며 댓글 목적은 해당 없음, 댓글·필드·상태 변경은 없음이고 쓰기 승인도 사용하지 않았다.
 - 위험 요소: 현재 Identity 보호 API와 Learning Core가 같은 audience를 사용하므로 토큰 용도 분리 여부를 후속 검토해야 한다. endpoint별 scope 인가가 아직 없고 다중 키 Rotation도 구현되지 않았다. logout-all의 여러 문서 저장은 MongoDB Transaction이 아니므로 중간 실패 시 일부만 반영될 수 있으며 Optimistic Lock 오류를 포함한 저장 오류는 호출자에게 전파된다. 전체 로그아웃 후에도 이미 발급된 Access Token은 만료 시각까지 유효할 수 있어 클라이언트가 성공 즉시 로컬 인증 정보를 삭제해야 한다. 기존 User provider 이행과 소셜 계정 연결 정책도 소셜 로그인 전에 필요하다.
 - 다음 작업: 사용자가 변경을 검토한 뒤 직접 커밋·push하고 PR 병합을 확인한다. Jira 완료 댓글과 상태 변경은 별도 승인 전까지 수행하지 않는다. 다음 Learning Core 작업에서는 Identity JWKS로 RS256 서명·issuer·audience를 로컬 검증하고 검증된 JWT `sub`를 실제 userId로 사용하되 Python AI payload의 `user_id`는 계속 `examId`로 유지한다.
+
+## 2026-07-27 — TMI-9 완료 전환 사전 확인
+
+<!-- codex-turn:019fa213-2031-7663-910f-7323179fabe2 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: 사용자의 Jira 종료 요청에 따라 적용할 변경을 먼저 제시하고, 저장소 규칙상 완료 전환에 필요한 PR의 main 병합 확인과 명시적 승인을 요청한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드, 기존 WORKLOG 항목과 Jira 데이터는 변경하지 않았다.
+- 구현 내용: Jira `TMI-9`에 적용할 변경을 상태 `진행 중`에서 `완료`로의 transition ID `41` 한 건으로 한정하고 댓글·필드는 변경하지 않는다고 사용자에게 제시했다. CURRENT_STATE에는 읽기 전용 재조회 기준 현재 상태, 사용 가능한 완료 전환, PR 병합 확인 및 명시적 승인 대기와 Jira 쓰기 작업 미수행 상태를 반영했다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없어 테스트를 다시 실행하지 않았으며, 직전 구현 작업의 `./gradlew clean test` 결과는 전체 138개 성공, 실패·오류 0개다. 이번 turn에서는 Jira 호출을 수행하지 않았다. 문서 변경 후 `git diff --check`와 지정된 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: PR 병합 확인 전 Jira를 완료로 변경하지 않고, 상태 전환 전에 정확한 변경을 보여주고 명시적 승인을 받는 규칙을 유지했다. Identity의 UUID 사용자 ID, RS256·issuer·audience·JWKS와 Refresh Token 비저장 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 현재 요청만으로 PR의 main 병합 사실을 추정하지 않는다. 수행 예정 Jira 작업은 `TMI-9`의 transition ID `41` 적용뿐이고 댓글 목적과 필드 변경은 해당 없으며, PR 병합 확인과 제시된 전환에 대한 사용자 답변 전까지 Jira 쓰기 승인은 대기 상태다.
+- 위험 요소: PR 병합 여부가 아직 확인되지 않았고 Jira 상태나 사용 가능한 전환은 다른 사용자 또는 워크플로 변경으로 달라질 수 있으므로 실제 전환 직전에 다시 조회해야 한다.
+- 다음 작업: 사용자가 PR의 main 병합과 transition ID `41` 적용을 명시적으로 승인하면 Atlassian 공식 MCP로 상태와 전환을 재확인한 뒤 `TMI-9` 상태만 `완료`로 변경하고 결과를 읽기 전용으로 검증한다. 댓글·필드와 다른 이슈는 변경하지 않는다.
+
+## 2026-07-27 — TMI-9 완료 전환
+
+<!-- codex-turn:019fa216-fccc-7493-8b45-160cb1170d50 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: 사용자가 PR의 main 병합과 사전에 제시한 TMI-9의 `진행 중` → `완료` 전환을 확인·승인한 것을 근거로 Jira 상태만 완료로 변경하고 결과를 검증한다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았다. 외부 Jira에서는 `TMI-9`의 상태만 변경했다.
+- 구현 내용: 전환 직전 Atlassian 공식 MCP로 `TMI-9`가 status ID `10001`의 `진행 중`, Resolution 없음인지 확인하고 transition ID `41`이 사용 가능한 status ID `10003`의 `완료` 전환인지 재확인했다. 필드, update, 댓글과 이력 메타데이터 없이 transition ID `41`만 전송한 뒤 읽기 전용 재조회에서 상태와 Resolution이 모두 `완료`임을 확인했다.
+- 실행한 테스트와 결과: Jira 상태·전환 사전 조회, 상태 전환과 전환 후 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 테스트는 다시 실행하지 않았으며 직전 구현 작업의 `./gradlew clean test`는 전체 138개 성공, 실패·오류 0개였다. 문서 변경 후 `git diff --check`와 현재 turn marker 검사를 실행해 통과했다.
+- 유지한 계약: 사용자 승인 범위인 TMI-9의 상태 전환만 수행하고 설명, 우선순위, 담당자, 라벨, 댓글과 다른 이슈는 변경하지 않았다. Identity의 UUID 사용자 ID, RS256·issuer·audience·JWKS와 Refresh Token 비저장 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 전체 MongoDB URI, RSA Private Key 또는 개인정보를 기록하지 않았다.
+- 결정사항: 사용자의 `해줘` 답변을 직전에 제시한 PR main 병합 확인과 transition ID `41` 적용에 대한 명시적 승인으로 사용했다. 수행한 Jira 작업은 상태 `진행 중` → `완료` 한 건이고 댓글 목적과 필드 변경은 해당 없으며 승인 여부는 승인됨이다.
+- 위험 요소: PR의 main 병합 여부는 사용자 확인을 근거로 했으며 이 turn에서 Git 원격 상태나 전체 테스트를 독립적으로 재검증하지 않았다. Jira 상태는 이후 다른 사용자나 자동화에 의해 변경될 수 있다.
+- 다음 작업: `TMI-9`에 추가 Jira 변경은 별도 요청과 승인 전까지 수행하지 않는다. 다음 Learning Core 작업에서는 Identity JWKS로 RS256 서명·issuer·audience를 로컬 검증하고 검증된 JWT `sub`를 실제 userId로 사용한다.
+
+## 2026-07-27 — Learning Core JWT 연동 Jira Payload 초안
+
+<!-- codex-turn:019fa231-db12-79d3-830e-22bd21b99f75 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- 작업 목표: TMI 프로젝트에 생성할 Learning Core의 Identity JWKS 기반 JWT 인증 연동 `작업` 이슈의 최종 Payload를 검증해 먼저 제시하고, 사용자 승인 전에는 이슈를 생성하지 않는다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았고 Jira 데이터도 변경하지 않았다.
+- 구현 내용: `AGENTS.md`, `docs/codex/CURRENT_STATE.md`와 Identity–Learning Core JWT 계약을 확인했다. Atlassian 공식 MCP의 읽기 전용 호출로 `to-teacher` 사이트의 TMI 프로젝트에 이슈 생성 권한이 있고 `작업` 유형 ID가 `10003`임을 확인했으며, 전체 생성 필드 20개와 `High` 우선순위 ID `2` 지원을 검증했다. 요청받은 배경, 구현 범위, 인증 모드, 설정, 공개·보호 Endpoint, 완료 조건, 범위 제외와 보안 요구사항을 Markdown 설명으로 구성하고 실제 전송 예정 필드를 정리했다.
+- 실행한 테스트와 결과: Jira 접근 가능 리소스, TMI 생성 권한, 이슈 유형과 생성 필드 메타데이터 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: Access Token의 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS 검증, JWT `sub`의 실제 UUID userId 사용, 외부 Request/Response의 userId 비추가, Python AI `user_id = examId`, Learning Core의 RSA Private Key 비보유와 매 요청 Identity 확인 API 미호출 계약을 유지했다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: Jira 설명은 Markdown으로 전송하고 우선순위는 지원이 확인된 `High`를 포함한다. 전송 필드는 프로젝트, `작업` 유형, 제목, 설명과 우선순위로 한정하며 담당자, 상위 항목, 라벨, 스프린트, 상태 전환과 댓글은 포함하지 않는다. 이번 Jira 작업은 읽기 전용 조회뿐이고 쓰기 승인과 이슈 키는 아직 없으며 이슈 생성·수정·댓글·상태 변경은 수행하지 않았다.
+- 위험 요소: Jira 생성 메타데이터나 권한은 실제 생성 시점 전에 변경될 수 있다. 개발용 issuer와 JWKS URL은 로컬 주소이므로 배포 환경에서는 정확히 일치하는 환경변수 값과 HTTPS 주소가 필요하며, Identity와 Learning Core 로컬 통합 테스트에는 두 서비스의 실행 환경이 필요하다.
+- 다음 작업: 사용자가 제시된 최종 Payload를 명시적으로 승인하면 Atlassian 공식 MCP로 TMI `작업` 이슈 한 건만 생성하고 결과 이슈 키를 확인한다. 생성 이후 담당자·라벨·댓글·상태는 별도 요청과 승인 전까지 변경하지 않는다.
+
+## 2026-07-27 — TMI-10 Learning Core JWT 연동 이슈 생성
+
+<!-- codex-turn:019fa261-8113-76c2-b6d0-9dbb9a970074 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-10
+- 작업 목표: 사용자가 승인한 최종 Payload의 제목과 설명을 그대로 사용해 TMI 프로젝트에 Learning Core의 Identity JWKS 기반 JWT 인증 연동 `작업` 이슈를 생성하고 기본 상태를 확인한다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았다. 외부 Jira에는 `TMI-10` 이슈 한 건을 생성했다.
+- 구현 내용: Atlassian 공식 MCP로 승인된 제목과 Markdown 설명, `작업` 유형과 `High` 우선순위만 전송해 `TMI-10`을 생성했다. 담당자, 스프린트, 에픽, 라벨과 생성 시 상태 전환은 전송하지 않았다. 생성 후 읽기 전용 조회에서 제목, `작업` 유형 ID `10003`, `High` 우선순위 ID `2`, 기본 상태 `해야 할 일` ID `10000`, 담당자 없음과 빈 라벨을 확인했다.
+- 실행한 테스트와 결과: Jira 이슈 생성과 생성 후 읽기 전용 검증이 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: 승인된 이슈 설명의 RS256·issuer·audience·JWKS 검증, JWT `sub`의 실제 UUID userId 사용, Python AI `user_id = examId`, 외부 Request/Response의 userId 비추가와 Learning Core의 RSA Private Key 비보유 계약을 유지했다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 Jira나 작업 기록에 추가하지 않았다.
+- 결정사항: 사용자의 명시적 승인을 이슈 생성 한 건에만 사용했다. 사용한 Jira 이슈 키는 `TMI-10`, 수행한 Jira 작업은 이슈 생성, 댓글 목적은 해당 없음, 변경한 상태는 없고 프로젝트 기본 상태 `해야 할 일`을 유지했으며 승인 여부는 승인됨이다. 담당자·스프린트·에픽·라벨·댓글·상태 전환은 적용하지 않았다.
+- 위험 요소: Learning Core 구현과 두 서비스의 로컬 통합 테스트는 아직 수행하지 않았다. Jira의 상태나 필드는 이후 사용자 또는 자동화에 의해 변경될 수 있으며, 현재 Identity 저장소 브랜치는 이전 Identity 작업 키를 유지하고 있어 Learning Core 구현은 대상 저장소에서 `TMI-10`을 기준으로 진행해야 한다.
+- 다음 작업: Learning Core 저장소에서 구현 전에 `TMI-10`을 읽고 설명과 완료 조건을 기준으로 JWT 연동을 구현한다. Jira 댓글·상태·필드 변경은 실행 내용을 먼저 제시하고 별도 승인을 받은 뒤 수행한다.
+
+## 2026-07-27 — TMI-10 상태와 전환 조회
+
+<!-- codex-turn:019fa27f-5e9b-7cc3-9fb7-4b313f8ef246 -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-10
+- 작업 목표: Atlassian 공식 MCP로 `TMI-10`의 제목, 현재 상태와 현재 가능한 상태 전환만 읽기 전용으로 조회하고 Jira를 수정하지 않는다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았고 외부 Jira 데이터도 변경하지 않았다.
+- 구현 내용: `TMI-10`의 제목이 `[Learning Core] Identity JWKS 기반 JWT 인증 연동`, 현재 상태가 status ID `10000`의 `해야 할 일`임을 확인했다. 현재 사용 가능한 전환은 `해야 할 일` ID `11`, `검토 중` ID `31`, `진행 중` ID `21`, `완료` ID `41`로 조회됐다.
+- 실행한 테스트와 결과: Jira 이슈 상세와 사용 가능한 전환의 읽기 전용 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: Jira 조회만 수행하고 이슈 생성·수정·댓글·상태 전환·삭제 호출을 하지 않았다. Identity–Learning Core의 RS256·issuer·audience·JWKS, UUID `sub`, Python AI `user_id = examId` 계약을 변경하지 않았으며 Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 사용자 요청 범위를 제목·현재 상태·가능한 전환 조회로 한정했다. 수행한 Jira 작업은 읽기 전용 조회이고 댓글 목적과 변경한 상태는 해당 없으며 쓰기 승인도 사용하지 않았다. 현재 상태로 되돌아가는 전환 ID `11`도 MCP가 사용 가능하다고 반환했으므로 결과에 포함한다.
+- 위험 요소: Jira의 현재 상태와 사용 가능한 전환은 다른 사용자, 자동화 또는 워크플로 변경에 따라 달라질 수 있으므로 실제 상태 변경 직전에 다시 조회해야 한다.
+- 다음 작업: 상태 전환이나 다른 Jira 변경이 요청되면 적용할 정확한 변경 내용을 먼저 제시하고 명시적 승인을 받은 뒤, 실행 직전에 상태와 전환을 재확인한다.
+
+## 2026-07-27 — TMI-10 진행 중 전환
+
+<!-- codex-turn:019fa285-f6aa-7140-b4b5-ef2a8a4b530c -->
+
+- 날짜: 2026-07-27
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-10
+- 작업 목표: 사용자의 명시적 요청에 따라 방금 확인한 `TMI-10`의 `진행 중` 전환만 적용하고 전환 후 현재 상태만 다시 조회한다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았다. 외부 Jira에서는 `TMI-10`의 상태만 변경했다.
+- 구현 내용: 전환 직전 `TMI-10`이 status ID `10000`의 `해야 할 일`이고 transition ID `21`이 사용 가능한 status ID `10001`의 `진행 중` 전환임을 재확인했다. 필드, update와 이력 메타데이터 없이 transition ID `21`만 전송한 뒤 현재 상태만 읽기 전용으로 조회해 `진행 중`을 확인했다.
+- 실행한 테스트와 결과: Jira 상태·대상 전환 사전 조회, 상태 전환과 전환 후 상태 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: 사용자 승인 범위인 `TMI-10`의 상태 전환만 수행하고 다른 필드·댓글·이슈는 변경하지 않았다. Identity–Learning Core의 RS256·issuer·audience·JWKS, UUID `sub`, Python AI `user_id = examId` 계약을 변경하지 않았으며 Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 사용자의 요청을 직전에 확인해 제시한 `진행 중` transition ID `21` 적용에 대한 명시적 승인으로 사용했다. 수행한 Jira 작업은 `TMI-10` 상태 `해야 할 일` → `진행 중` 한 건이고 댓글 목적은 해당 없으며 승인 여부는 승인됨이다. 다른 필드와 다른 이슈는 변경하지 않았다.
+- 위험 요소: Jira 상태는 이후 다른 사용자나 자동화에 의해 변경될 수 있다. Learning Core 구현과 Identity–Learning Core 로컬 통합 테스트는 아직 수행하지 않았다.
+- 다음 작업: Learning Core 저장소에서 `TMI-10`의 설명과 완료 조건을 기준으로 JWT 연동을 구현한다. Jira 댓글·추가 상태·필드 변경은 실행 내용을 먼저 제시하고 별도 승인을 받은 뒤 수행한다.
+
+## 2026-07-29 — RsaKeyLoader ResourceLoader 주입 모호성 해소
+
+<!-- codex-turn:019faccb-2b87-71e2-9b9a-f0c15eae8291 -->
+
+- 날짜: 2026-07-29
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: IDE가 `RsaKeyLoader` 생성자의 `ResourceLoader` 후보로 `gridFsTemplate`과 `webApplicationContext`를 함께 인식해 표시하는 자동 주입 모호성을 제거하고 기존 RSA Key Resource 로딩 동작을 유지한다.
+- 변경 파일: `src/main/java/web/tosunsaeng/identity/security/jwt/RsaKeyLoader.java`, `src/main/java/web/tosunsaeng/identity/security/jwt/JwtConfiguration.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: `RsaKeyLoader`에서 `@Component`를 제거해 생성자가 일반 `ResourceLoader` 빈 자동 주입 지점으로 해석되지 않게 했다. `JwtConfiguration`에 기존과 같은 이름의 `rsaKeyLoader` Bean을 선언하고 Spring이 유일하게 제공하는 `ApplicationContext`를 생성자에 전달했다. `ApplicationContext`가 `ResourceLoader`를 구현하므로 기존 `file:`·`classpath:` Resource 해석과 Key 로딩 시점은 바꾸지 않았다.
+- 실행한 테스트와 결과: 첫 `./gradlew clean test`는 샌드박스가 사용자 Gradle 캐시의 잠금 파일 접근을 막아 테스트 실행 전에 종료됐다. 필요한 접근 권한으로 같은 명령을 다시 실행해 전체 138개 테스트가 성공했고 실패·오류·건너뜀은 모두 0개였다.
+- 유지한 계약: RSA Private Key는 Identity에만 유지하고 PKCS#8 Private Key·X.509 Public Key, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS와 UUID JWT `sub` 계약을 변경하지 않았다. Jira `TMI-9`의 설명과 완료 조건은 Atlassian 공식 MCP로 읽기 전용 확인만 했고 이슈·댓글·상태·필드는 변경하지 않았다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드나 문서에 기록하지 않았다.
+- 결정사항: 문자열 `@Qualifier`로 특정 구현 이름에 결합하지 않고, 구성 경계인 `JwtConfiguration`에서 목적에 맞는 `ApplicationContext`를 명시적으로 선택했다. `RsaKeyLoader`의 공개 생성자와 `rsaKeyLoader` Bean 이름은 유지했다. 이번 Jira 작업은 읽기 전용 조회뿐이며 댓글 목적, 상태 변경과 쓰기 승인은 해당 없다.
+- 위험 요소: 코드와 Spring 컨텍스트 검증은 통과했지만 IDE가 기존 인덱스를 보존 중이면 경고가 사라지기 전에 Gradle 동기화가 필요할 수 있다.
+- 다음 작업: IDE에서 Gradle 프로젝트를 동기화한 뒤 `RsaKeyLoader` 생성자의 자동 주입 모호성 경고가 제거됐는지 확인한다. Jira 댓글이나 상태 변경은 별도 요청과 승인 전까지 수행하지 않는다.
+
+## 2026-07-29 — Identity 도메인 중심 구조 리팩토링과 OpenAPI 강화
+
+<!-- codex-turn:019faceb-4122-7d02-b431-317cec4545a2 -->
+
+- 날짜: 2026-07-29
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: `web-back-end`의 도메인 중심 배치 방식을 참고하되 Identity의 RS256·JWKS·RefreshSession 보안 계약에 맞게 전체 패키지를 `domain`과 `global`로 재구성하고, 비대해진 AuthService를 유스케이스별로 분리하며 OpenAPI 문서와 회귀 검증을 강화한다.
+- 변경 파일: `.env.example`, `README.md`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, 기존 `src/main/java/web/tosunsaeng/identity/{auth,user,common,config,security}/**`를 이동·재구성한 `src/main/java/web/tosunsaeng/identity/domain/**`와 `global/**` 전체, 대응하는 `src/test/java`의 `domain/**`와 `global/**`, `src/test/java/web/tosunsaeng/identity/IdentityApplicationTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 기존 미커밋 `RsaKeyLoader`·`JwtConfiguration` 수정은 내용 손실 없이 새 `global.security.jwt` 경로로 이동했다.
+- 구현 내용: 두 저장소의 Java/Spring Boot 버전, Gradle 의존성, 패키지, Controller와 URL, AuthService 책임, JWT, RefreshSession, SecurityConfig, springdoc, 공통 응답, 예외 처리, 테스트, 환경설정과 Docker/배포 경로 의존성을 먼저 비교했다. 참고 저장소에서는 `domain`·`global` 배치만 차용하고 대칭키 JWT·전역 Swagger 인증·시험 도메인 코드는 가져오지 않았다. Identity의 Auth와 User 코드를 API/application/DTO/domain/exception으로 이동하고 공통 응답·전역 예외·설정·JWT·현재 사용자·Security Handler를 `global`로 이동했다. `RefreshSession`·`RevocationReason`·Repository는 Auth 도메인에, Refresh Token 난수 생성·해싱·설정은 `global.security.refresh`에 배치했다. 기존 AuthService는 제거하고 이메일 확인·회원가입·로그인·재발급·단일 로그아웃 서비스로 분리했으며 전체 로그아웃 서비스는 유지했다. 다중 토큰 응답 조합은 `AuthResponseConverter`로 통합하고 Auth/User 전용 예외를 기존 BusinessException 하위 타입으로 추가했다.
+- 실행한 테스트와 결과: 변경 전 `./gradlew clean test`에서 138개 전체 성공을 기준선으로 확보했다. global 이동, User 이동, Auth/RefreshSession 이동과 서비스 분리의 각 단계에서 컴파일 또는 전체 테스트를 실행해 모두 성공시켰다. OpenAPI 계약 테스트 2개를 추가한 최종 `./gradlew clean test`는 전체 140개 성공, 실패·오류·건너뜀 0개였고 `./gradlew build`도 `bootJar`, `jar`, `check`, `build`까지 성공했다. 별도 formatter·checkstyle·spotless 플러그인은 build 설정에 없었으며, 최종 `git diff --check`, 이전 패키지 참조·Controller의 Repository 직접 의존·global의 domain 구현 역참조·민감 Swagger 예시 정적 검사를 통과했다.
+- 유지한 계약: 모든 API URL·HTTP Method·요청/응답 JSON 필드·HTTP 상태·BaseResponse의 `isSuccess/code/message/result`·validation null 마스킹을 유지했다. `users`와 `refresh_sessions` collection, Mongo 필드·unique/TTL index·Optimistic Lock, BCrypt, Access/Refresh Token TTL, Opaque Refresh Token Rotation·재사용 탐지·단일/전체 로그아웃 의미를 변경하지 않았다. JWT의 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·UUID `sub`·JWKS와 Learning Core 로컬 검증 계약을 유지했고 실제 `userId`를 외부 요청에 추가하거나 Python AI 서버로 보내지 않았다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·Swagger·문서에 기록하지 않았다.
+- 결정사항: 단일 구현체 서비스에 의미 없는 인터페이스/Impl 계층은 만들지 않았고, AccessTokenIssuer처럼 기술 경계 역할을 하는 기존 포트는 유지했다. MongoTransactionManager가 없는 상태에서 구조 변경과 저장 의미 변경을 섞지 않기 위해 새 `@Transactional`은 추가하지 않았다. OpenAPI `bearerAuth`는 전역 적용하지 않고 보호 API인 `/api/v1/users/me`와 `/api/v1/auth/logout-all`에만 선언했으며 공개 API에는 인증 표시가 없음을 테스트했다. 비밀번호는 Swagger에서 password format과 write-only로 표시하고 예시는 추가하지 않았다. Swagger는 `SWAGGER_ENABLED`로 끌 수 있으며 테스트 프로필은 문서 검증을 위해 활성화한다. Jira `TMI-9`는 구현 전 설명·완료 조건·완료 상태를 Atlassian 공식 MCP로 읽기 전용 확인했으며 댓글·필드·상태와 다른 이슈는 변경하지 않았고 쓰기 승인은 사용하지 않았다.
+- 위험 요소: Java FQCN을 직접 사용하는 외부 모듈이 별도로 있다면 새 `domain`·`global` import 경로로 갱신해야 한다. MongoDB Transaction 부재로 Rotation과 다중 Session 폐기의 부분 실패 위험은 기존과 동일하게 남아 있다. OpenAPI 응답 설명은 후속 오류·보안 정책 변경 시 코드와 함께 갱신해야 하며 운영 배포에서는 필요에 따라 Swagger를 비활성화해야 한다. 현재 브랜치의 원격 추적 참조가 사라진 상태이므로 사용자가 후속 Git 작업 전에 대상 브랜치와 원격 전략을 확인해야 한다.
+- 다음 작업: 사용자가 대규모 이동 diff와 API 문서를 검토한 뒤 직접 커밋·push한다. 패키지 FQCN을 사용하는 별도 모듈이 있으면 import를 갱신하고, 운영 환경에서는 `SWAGGER_ENABLED`, issuer/JWKS URL과 Mongo 데이터 이행·Transaction 정책을 확인한다. Jira 댓글이나 상태 변경은 별도 요청과 명시적 승인 전까지 수행하지 않는다.
+
+## 2026-07-30 — TMI-9 도메인 리팩토링 병합 전 리뷰
+
+<!-- codex-turn:019fb0a8-5cb6-7512-859f-6ce10cd41c7d -->
+
+- 날짜: 2026-07-30
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: 현재 작업 트리의 도메인 중심 패키지 리팩토링, AuthService 분리, JWT·RefreshSession, Security, 공통 응답·예외와 OpenAPI 변경을 최신 원격 main 대비 검토하고 코드 수정 없이 병합 가능 여부를 판정한다.
+- 변경 파일: 리뷰 대상은 rename detection과 untracked 파일을 함께 반영한 103개 논리 파일이며, 이번 리뷰 자체에서는 저장소 규칙에 따라 `docs/codex/CURRENT_STATE.md`와 이 WORKLOG 항목만 변경했다. Java, 설정, 테스트 코드는 수정하지 않았고 기존 WORKLOG 항목도 수정하거나 삭제하지 않았다.
+- 구현 내용: `git fetch origin` 후 로컬 `main`이 최신 기준보다 4 commit 뒤임을 확인해 `origin/main` commit `53abd6e`를 비교 기준으로 사용했다. 현재 `HEAD`도 같은 commit이고 원격 feature ref는 삭제된 상태이며, 작업 트리에는 staged 삭제 52개, unstaged 경로 33개와 untracked 파일 86개가 있어 커밋된 리팩토링 diff가 전혀 없음을 확인했다. 전체 변경을 패키지·Controller·서비스·DTO·Mongo Entity/Repository·JWT·RefreshSession·Security·예외·응답·OpenAPI·설정·테스트·의존성 단위로 검토하고 참고 저장소의 도메인 중심 구조도 비교했다. API URL·Method·JSON·오류 코드, RS256·kid·issuer·audience·UUID subject·TTL, Opaque Refresh Token 해시·rotation·폐기, Mongo collection·필드·index 계약은 유지됨을 확인했다. 병합 차단 Git 상태 외에는 broad 예외 처리의 500 변환, RefreshSession 다중 쓰기의 비원자성, 패키지 의존 방향, 활성 Session 조회 index 부재, OpenAPI 오류 schema 구체성, UserFactory의 Spring 결합을 위험으로 기록했다.
+- 실행한 테스트와 결과: `./gradlew tasks --all`, `./gradlew clean test`, `./gradlew build`, `./gradlew dependencies`, `./gradlew dependencyInsight --dependency springdoc --configuration runtimeClasspath`가 모두 성공했다. 현재 작업 트리는 140개 테스트가 실패·오류·건너뜀 없이 통과했고, 임시로 추출한 `origin/main` 기준선도 138개 테스트가 모두 통과했다. 별도 Checkstyle, Spotless, PMD, JaCoCo, ArchUnit, Sonar task는 없었다. boot JAR의 Start-Class와 Mongo Repository 2개 scan 및 애플리케이션 기동을 확인했다. 실행 중 `/v3/api-docs`와 `/swagger-ui/index.html`은 각각 200이었고 OpenAPI의 bearerAuth, 공개 5개 operation의 무인증 표시, 보호 2개 operation의 Bearer 표시, 비밀번호 write-only와 operationId 비충돌을 확인했다. `SWAGGER_ENABLED=false`에서는 두 문서 경로가 제거되지만 broad 예외 처리 때문에 404 대신 500을 반환함을 확인했다.
+- 유지한 계약: 모든 기존 API URL·HTTP Method·요청/응답 JSON 필드·BaseResponse·오류 코드와 상태, Mongo collection·필드·unique/TTL index·Optimistic Lock, BCrypt, Access/Refresh Token 만료·rotation·로그아웃 의미를 변경하지 않았다. JWT의 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·UUID `sub`·JWKS 공개 키 전용 계약과 Refresh Token 원문 비저장을 확인했다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 읽거나 기록하지 않았다.
+- 결정사항: 현재 상태는 테스트와 build가 성공해도 merge가 전달할 commit이 없으므로 `DO NOT MERGE`로 판정한다. 발견 사항은 BLOCKER 1개, HIGH 0개, MEDIUM 4개, LOW 2개, INFO 1개로 분류하며 기존 main에도 존재한 위험은 신규 회귀와 구분한다. Jira 작업은 키 기록뿐이고 이슈 조회·생성·수정·댓글·상태 전환을 수행하지 않았으며 쓰기 승인도 사용하지 않았다. 코드 수정, commit, push, PR 생성·병합은 수행하지 않았다.
+- 위험 요소: staged 삭제만 커밋하면 기존 핵심 소스가 제거되고, 현재 브랜치를 그대로 병합하면 리팩토링이 전혀 반영되지 않는다. MongoDB transaction 부재로 rotation과 재사용·전체 로그아웃 다중 저장의 부분 실패 가능성이 남고 실제 동시 요청 보안 의미는 replica-set 기반 통합 테스트로 추가 확인해야 한다. 새 Mongo `_class` FQCN은 현재 typed repository에서는 과거 문서를 읽을 수 있으나 외부 `_class` 소비자는 코드만으로 확인할 수 없다.
+- 다음 작업: 사용자가 intended replacement 파일을 모두 stage한 뒤 `git diff --cached --find-renames`를 검토하고 전체 test/build를 다시 실행해 직접 commit·push한다. 병합 전 broad HTTP 예외 매핑을 보완하고, RefreshSession transaction·재사용 정책과 운영 index를 확인하며, 패키지 의존 방향과 OpenAPI 오류 schema 개선 여부를 검토한다. Jira 댓글·상태·필드 변경은 별도 요청과 승인 전까지 수행하지 않는다.
+
+## 2026-07-30 — TMI-9 병합 전 필수 수정과 staged diff 정상화
+
+<!-- codex-turn:019fb139-f416-7b61-94db-33cc722f27d1 -->
+
+- 날짜: 2026-07-30
+- 브랜치: `feat/TMI-9-identity-jwt-auth`
+- Jira: TMI-9
+- 작업 목표: 삭제만 stage되고 신규 리팩토링 파일이 untracked였던 Git 상태를 안전하게 정상화하고, 병합 전 필수 HTTP 예외 문제와 최소 범위 패키지 의존을 수정한 뒤 전체 테스트·build·런타임 계약과 최종 staged diff를 재검증한다.
+- 변경 파일: 기존 도메인 중심 리팩토링의 `src/main/java/**`, `src/test/java/**`, `.env.example`, `README.md`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`과 Codex 기록 문서를 의도한 변경으로 stage했다. 이번 후속 수정은 `global/exception/CommonErrorStatus.java`, `global/exception/GlobalExceptionHandler.java`, `domain/user/exception/UserErrorStatus.java`, `domain/user/application/UserProfileService.java`, `domain/auth/application/LoginService.java`, `domain/auth/application/TokenReissueService.java`, `domain/auth/converter/AuthResponseConverter.java`, 관련 application·Security 테스트와 신규 `DisabledSwaggerIntegrationTests.java`에 한정했다. 기존 WORKLOG 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: 변경 전 `HEAD`와 `origin/main`이 같은 commit이고 index에 삭제 52개만 있으며 신규 86개 파일이 untracked임을 재확인했다. 소스·테스트와 확인된 설정·문서만 명시적으로 stage해 최초 103개 논리 파일의 rename-aware diff를 구성했고, 신규 비활성 Swagger 테스트를 포함한 최종 104개 파일에서 rename 68개와 untracked 0개를 확인했다. `HttpMessageNotReadableException`, `NoResourceFoundException`, `HttpRequestMethodNotSupportedException`, `HttpMediaTypeNotSupportedException`을 내부 메시지나 요청 원문 없이 기존 BaseResponse로 각각 400·404·405·415 변환했다. 계정 비활성 오류를 같은 `ACCOUNT_NOT_ACTIVE` 코드·403·메시지를 유지하면서 User 도메인이 소유하게 했고, converter가 application의 `IssuedRefreshSession` 타입을 역참조하지 않도록 필요한 값만 전달해 패키지 의존 방향을 단방향으로 정리했다.
+- 실행한 테스트와 결과: 변경 관련 대상 테스트를 두 차례 실행해 모두 성공했다. 최종 `./gradlew clean test`는 25개 test suite의 146개 테스트가 성공했고 실패·오류·건너뜀은 모두 0개였다. `./gradlew build`도 bootJar·jar·check·build까지 성공했으며 `git diff --cached --check`를 통과했다. 실제 JAR은 외부 Mongo 의존 health와 자동 index 생성을 검증용으로 비활성화해 기동했고 Repository 2개 scan을 확인했다. Swagger 활성 상태에서 health, `/v3/api-docs`, `/swagger-ui/index.html`은 200이었고 전역 security 없음, 공개 Auth operation 5개의 security 없음과 보호 operation 2개의 bearerAuth를 확인했다. malformed JSON은 400, 미존재 공개 경로는 404, 보호 API 무인증은 401, 공개 로그인 빈 요청은 인증 단계가 아닌 validation 400, 지원하지 않는 media type은 415였다. Swagger 비활성 상태의 문서 두 경로는 공통 오류 구조의 404였다. 권한 기반 403은 실제 scope 제한 endpoint가 없어 런타임 요청은 수행하지 않았고 기존 AccessDeniedHandler 테스트가 403 계약을 검증한다.
+- 유지한 계약: API URL·정상 HTTP Method·요청/응답 JSON 필드, 성공 및 기존 비즈니스 오류, BaseResponse 필드, JWT RS256·`kid`·issuer·audience·UUID `sub`·TTL, Opaque Refresh Token 해시·rotation·폐기, Mongo collection·field·unique/TTL index·Optimistic Lock과 환경변수 이름을 유지했다. 잘못된 JSON·미존재 경로·지원하지 않는 Method·Media Type의 잘못된 500만 의도한 400·404·405·415로 수정했다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·테스트·기록에 추가하지 않았다.
+- 결정사항: MongoDB replica set과 Transaction 지원 여부를 코드에서 확정할 수 없어 RefreshSession rotation·다중 폐기에 TransactionManager를 임의로 추가하지 않았다. 운영 index 상태를 알 수 없어 `{userId, revokedAt}` compound index를 추가하지 않았고 Mongo `_class` migration도 만들지 않았다. OpenAPI 오류 schema는 일반 오류와 Validation 배열을 정확히 표현하려면 문서 전용 wrapper와 다수 annotation 변경이 필요해 LOW 후속으로 유지했다. UserFactory의 Spring·시스템 시간 결합도 기능 회귀가 아니므로 이번 병합 범위에서 제외했다. 필수 parameter와 타입 변환을 사용하는 현재 공개 API가 없어 MissingServletRequestParameter와 MethodArgumentTypeMismatch의 별도 매핑은 추가하지 않았다. Jira 이슈·댓글·상태·필드는 변경하지 않았고 commit·push·merge·PR 생성도 수행하지 않았다.
+- 위험 요소: RefreshSession 기존 폐기와 후속 발급, 재사용 탐지와 logout-all 다중 저장은 Mongo Transaction이 없어 부분 실패 가능성이 남아 있으며 실제 동시 재발급은 replica set 기반 통합 테스트가 필요하다. 운영 DB에 `{userId, revokedAt}` 조회 index가 없으면 활성 Session 조회가 collection scan일 수 있다. 외부 시스템의 Mongo `_class` FQCN 직접 사용 여부, OpenAPI Validation 오류 schema 구체성, UserFactory의 Clock·Spring 결합은 후속 확인이 필요하다. 실제 MongoDB가 없어 로그인·회원가입의 영속 E2E와 운영 index 실행계획은 실행하지 않았다.
+- 다음 작업: 사용자가 `git diff --cached --stat`, `git diff --cached --find-renames --summary`, `git status`를 확인한 뒤 현재 staged 변경을 직접 commit·push한다. 운영 Mongo에서 `refresh_sessions` 실행계획과 `_class` 값을 확인하고, Transaction·동시 재발급 통합 테스트·OpenAPI 오류 wrapper·UserFactory Clock 개선은 별도 승인된 작업으로 진행한다. Jira 댓글이나 상태 변경은 별도 요청과 명시적 승인 전까지 수행하지 않는다.

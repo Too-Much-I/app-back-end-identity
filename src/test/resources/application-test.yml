@@ -25,3 +25,9 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true

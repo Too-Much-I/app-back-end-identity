@@ -24,6 +24,14 @@ Identity Service는 다음 기능을 소유한다.
 - MongoDB
 - 기본 서버 포트: `8081`
 
+## 패키지 구조
+
+- `domain.auth`: 인증 API, 유스케이스, 응답 변환, RefreshSession 도메인과 인증 오류
+- `domain.user`: 사용자 API, 프로필 유스케이스, User 도메인과 사용자 오류
+- `global.config`: Spring Security, 비밀번호 인코더와 OpenAPI 설정
+- `global.security`: JWT·현재 사용자·Refresh Token 기술 구현과 Security 오류 응답
+- `global.response`, `global.exception`: 공통 응답 계약과 전역 HTTP 예외 변환
+
 ## 환경변수
 
 | 이름 | 필수 여부 | 기본값 또는 용도 |
@@ -31,6 +39,7 @@ Identity Service는 다음 기능을 소유한다.
 | `MONGODB_URI` | 필수 | Identity MongoDB 연결 주소 |
 | `MONGODB_DATABASE` | 선택 | `to-teacher-identity` |
 | `SERVER_PORT` | 선택 | `8081` |
+| `SWAGGER_ENABLED` | 선택 | Swagger UI와 OpenAPI 문서 활성화 여부, 기본값 `true` |
 | `AUDIO_POLICY_VERSION` | 선택 | `audio-policy-v1` |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
 | `REFRESH_TOKEN_RANDOM_BYTES` | 선택 | `32` 이상 |
@@ -61,7 +70,7 @@ set +a
 ./gradlew bootRun
 ```
 
-Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http://localhost:8081/v3/api-docs`, health endpoint는 `http://localhost:8081/actuator/health`, Public Key JWKS는 `http://localhost:8081/.well-known/jwks.json`에서 확인할 수 있다. 포트를 변경했다면 URL의 포트도 함께 변경한다.
+Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http://localhost:8081/v3/api-docs`, health endpoint는 `http://localhost:8081/actuator/health`, Public Key JWKS는 `http://localhost:8081/.well-known/jwks.json`에서 확인할 수 있다. 포트를 변경했다면 URL의 포트도 함께 변경한다. 운영 환경에서 API 문서를 노출하지 않을 때는 `SWAGGER_ENABLED=false`로 설정한다.
 
 ## 테스트
 
