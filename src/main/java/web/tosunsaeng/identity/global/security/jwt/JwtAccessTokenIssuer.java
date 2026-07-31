@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -18,21 +19,12 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 
 	private final JwtEncoder jwtEncoder;
 	private final JwtProperties properties;
 	private final Clock clock;
-
-	public JwtAccessTokenIssuer(
-			JwtEncoder jwtEncoder,
-			JwtProperties properties,
-			Clock clock
-	) {
-		this.jwtEncoder = jwtEncoder;
-		this.properties = properties;
-		this.clock = clock;
-	}
 
 	@Override
 	public IssuedAccessToken issue(String userId, Set<String> scopes) {

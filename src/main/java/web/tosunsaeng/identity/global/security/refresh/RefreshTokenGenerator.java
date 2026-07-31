@@ -3,21 +3,15 @@ package web.tosunsaeng.identity.global.security.refresh;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class RefreshTokenGenerator {
 
 	private final RefreshTokenProperties properties;
 	private final SecureRandom secureRandom;
-
-	public RefreshTokenGenerator(
-			RefreshTokenProperties properties,
-			SecureRandom secureRandom
-	) {
-		this.properties = properties;
-		this.secureRandom = secureRandom;
-	}
 
 	public String generate() {
 		byte[] randomValue = new byte[properties.randomBytes()];

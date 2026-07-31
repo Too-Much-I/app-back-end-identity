@@ -1,5 +1,6 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
@@ -11,18 +12,11 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 @Service
+@RequiredArgsConstructor
 public class UserProfileService {
 
 	private final CurrentUserProvider currentUserProvider;
 	private final UserRepository userRepository;
-
-	public UserProfileService(
-			CurrentUserProvider currentUserProvider,
-			UserRepository userRepository
-	) {
-		this.currentUserProvider = currentUserProvider;
-		this.userRepository = userRepository;
-	}
 
 	public UserProfileResponse getCurrentUserProfile() {
 		String userId = currentUserProvider.getCurrentUserId();

@@ -95,6 +95,7 @@ class IdentityApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/check-email'].post.security").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/signup'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.security").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/reissue'].post.security").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.security").doesNotExist())
@@ -113,6 +114,55 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath(
 						"$.components.schemas.SignupRequest.properties.password.example"
 				).doesNotExist());
+	}
+
+	@Test
+	void openApiDocumentsGuestRequestResponseErrorsAndRecoveryLimit() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.summary")
+						.value("Guest 사용자 생성 및 인증"))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
+						.value(org.hamcrest.Matchers.containsString("인증 수단이 아니므로")))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
+						.value(org.hamcrest.Matchers.containsString("복구할 수 없습니다")))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']").exists())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']").exists())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']").exists())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
+						+ ".content['application/json'].examples.AUDIO_CONSENT_REQUIRED.value.code")
+						.value("AUDIO_CONSENT_REQUIRED"))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
+						+ ".content['application/json'].examples.INVALID_REQUEST.value.code")
+						.value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']"
+						+ ".content['application/json'].examples.GUEST_ALREADY_EXISTS.value.code")
+						.value("GUEST_ALREADY_EXISTS"))
+				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.required")
+						.value(org.hamcrest.Matchers.hasItems("installationId", "isAudioConsent")))
+				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.minLength")
+						.value(36))
+				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.maxLength")
+						.value(36))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']"
+						+ ".content['application/json'].example.result.refreshTokenExpiresIn")
+						.value(1_209_600_000));
+	}
+
+	@Test
+	void openApiDeclaresProfileEmailAsStringOrNullForGuestResponses() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.openapi").value("3.1.0"))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.email.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.email.format"
+				).value("email"))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.email.description"
+				).value(org.hamcrest.Matchers.containsString("Guest 사용자는 null")));
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.domain.user.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -72,5 +73,30 @@ class UserControllerTests {
 		assertThat(Arrays.stream(UserController.class.getDeclaredFields()).map(Field::getType))
 				.containsExactly(UserProfileService.class)
 				.doesNotContain(UserRepository.class);
+	}
+
+	@Test
+	void getMeAllowsGuestProfileWithNullEmailAndNoInstallationData() throws Exception {
+		UserProfileResponse profile = new UserProfileResponse(
+				USER_ID,
+				null,
+				"게스트",
+				UserProvider.GUEST,
+				true,
+				Instant.parse("2026-07-30T08:00:00Z")
+		);
+		when(userProfileService.getCurrentUserProfile()).thenReturn(profile);
+
+		mockMvc.perform(get("/api/v1/users/me"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.userId").value(USER_ID))
+				.andExpect(jsonPath("$.result.email").value(nullValue()))
+				.andExpect(jsonPath("$.result.nickname").value("게스트"))
+				.andExpect(jsonPath("$.result.provider").value("GUEST"))
+				.andExpect(jsonPath("$.result.isAudioConsent").value(true))
+				.andExpect(jsonPath("$.result.installationId").doesNotExist())
+				.andExpect(jsonPath("$.result.guestInstallationIdHash").doesNotExist())
+				.andExpect(jsonPath("$.result.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.result.refreshToken").doesNotExist());
 	}
 }

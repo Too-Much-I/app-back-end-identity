@@ -98,6 +98,7 @@ class SecurityIntegrationTests {
 	@ValueSource(strings = {
 			"/api/v1/auth/check-email",
 			"/api/v1/auth/signup",
+			"/api/v1/auth/guest",
 			"/api/v1/auth/login",
 			"/api/v1/auth/reissue",
 			"/api/v1/auth/logout"
@@ -264,6 +265,33 @@ class SecurityIntegrationTests {
 						accessToken.tokenValue(),
 						OTHER_USER_ID
 				);
+	}
+
+	@Test
+	void guestRs256TokenAccessesProtectedProfileWithNullEmail() throws Exception {
+		User guest = userFactory.createGuest(
+				"A".repeat(43),
+				TestRsaKeyConfiguration.TEST_INSTANT
+		);
+		when(userRepository.findById(guest.getUserId())).thenReturn(Optional.of(guest));
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(guest.getUserId(), Set.of());
+
+		MvcResult result = mockMvc.perform(get("/api/v1/users/me")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.userId").value(guest.getUserId()))
+				.andExpect(jsonPath("$.result.email").value(nullValue()))
+				.andExpect(jsonPath("$.result.nickname").value("게스트"))
+				.andExpect(jsonPath("$.result.provider").value("GUEST"))
+				.andExpect(jsonPath("$.result.isAudioConsent").value(true))
+				.andExpect(jsonPath("$.result.installationId").doesNotExist())
+				.andExpect(jsonPath("$.result.guestInstallationIdHash").doesNotExist())
+				.andExpect(jsonPath("$.result.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.result.refreshToken").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain(guest.getGuestInstallationIdHash(), accessToken.tokenValue());
 	}
 
 	@Test

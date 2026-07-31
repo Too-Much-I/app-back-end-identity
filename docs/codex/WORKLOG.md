@@ -601,3 +601,191 @@
 - 결정사항: 코드만으로 목적을 놓치기 쉬운 인증과 보안 경계에만 총 25개의 짧은 한 줄 주석을 추가하고 JavaDoc이나 장문의 설명, 이모지, 자명한 줄별 주석은 사용하지 않았다. Jira `TMI-9`의 설명·완료 조건·완료 상태는 Atlassian 공식 MCP로 읽기 전용 확인했으며 댓글·상태·필드와 다른 이슈는 변경하지 않았다. commit·push·stage도 수행하지 않았다.
 - 위험 요소: 실행 동작의 위험은 새로 추가되지 않았지만 향후 코드 변경 시 주석도 함께 갱신하지 않으면 설명과 구현이 어긋날 수 있다. 기존 RefreshSession 다중 쓰기의 비원자성, 운영 조회 index와 Mongo `_class`, OpenAPI Validation 오류 schema, UserFactory의 시스템 시간 결합은 이번 주석 작업 범위 밖의 기존 후속 항목으로 남는다.
 - 다음 작업: 사용자가 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하고, 구현 변경 시 관련 주석의 정확성도 함께 확인한다. Jira 댓글 초안은 최종 보고에만 제시하며 별도 승인 전에는 등록하거나 상태를 변경하지 않는다.
+
+## 2026-07-30 — TMI-40 Guest 사용자 및 익명 토큰 발급 이슈 생성
+
+<!-- codex-turn:019fb214-02dd-7a42-a13f-ef83cedd21e9 -->
+
+- 날짜: 2026-07-30
+- 브랜치: `feat/TMI-XX-guest-auth`
+- Jira: TMI-40
+- 작업 목표: 저장소 `AGENTS.md`와 현재 TMI 프로젝트의 기존 이슈 작성 형식을 먼저 확인하고, 요청받은 Guest 사용자 및 익명 토큰 발급 요구사항으로 Jira `작업` 이슈를 정확히 한 건 생성한다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았다. 외부 Jira에는 `TMI-40` 이슈 한 건만 생성했다.
+- 구현 내용: 로컬 `AGENTS.md`와 기존 Jira `TMI-6`·`TMI-9`·`TMI-10`의 제목, Markdown 섹션형 설명, 이슈 유형과 우선순위를 읽기 전용으로 확인했다. TMI의 `작업` 유형 ID `10003`, 생성 필드 20개와 `High` 우선순위 ID `2` 지원을 재확인하고 동일 제목의 기존 이슈가 없음을 조회한 뒤, 사용자 요구를 `배경`, `목표`, `API 계약`, `기능 요구사항`, `보안 요구사항`, `완료 조건`, `테스트 요구사항`, `제외 범위`, `기존 계약`, `운영 주의사항`으로 구성해 `TMI-40`을 생성했다. 생성 후 제목, 본문 섹션, 유형, 우선순위, 기본 상태 `해야 할 일`, 담당자 없음, 빈 라벨과 동일 제목 이슈가 한 건뿐임을 읽기 전용으로 검증했다.
+- 실행한 테스트와 결과: Atlassian 공식 MCP의 접근 리소스 조회, 기존 이슈 3건 조회, 이슈 유형·생성 필드 메타데이터 조회, 생성 전 중복 검색, Jira 이슈 한 건 생성, 생성 후 상세·단일 건 검증이 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: RS256 Access Token, UUID JWT `sub`, issuer·`tosunsaeng-learning-core` audience·`kid`·JWKS, Opaque Refresh Token 해시 저장·Rotation·재사용 탐지·단일 및 전체 로그아웃, Learning Core 소유권 검증과 Python AI `user_id = examId` 계약을 이슈에 명시했다. Identity 밖의 시험·Redis·S3·grading 구조 변경은 범위에서 제외했고 Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 Jira나 작업 기록에 추가하지 않았다.
+- 결정사항: 사용자가 제목, 유형, 우선순위, 본문 요구사항을 상세히 제공하면서 정확히 한 건 생성을 명시적으로 요청한 것을 해당 Payload 생성 승인으로 적용했다. 전송 필드는 TMI 프로젝트, `작업` 유형, 승인된 제목·설명과 `High` 우선순위로 제한했다. 수행한 Jira 작업은 `TMI-40` 생성 한 건, 댓글 목적은 해당 없음, 변경한 상태는 없으며 프로젝트 기본 상태 `해야 할 일`을 유지했고 승인 여부는 승인됨이다. 담당자·라벨·상위 항목·스프린트·댓글·상태 전환과 기존 Jira 이슈는 변경하지 않았다.
+- 위험 요소: 네트워크 중복 요청 방지와 설치 ID만으로 기존 Guest 계정 Token을 재발급하지 않는 보안 요구를 동시에 만족할 구체적인 멱등성 증명, 원자성 경계와 재시도 결과는 구현 전에 확정해야 한다. 이메일 nullable unique index의 운영 데이터 이행, Identity–Learning Core 사용자 격리 통합 검증과 앱 삭제·기기 변경 시 Guest 기록 복구 불가 안내도 후속 구현·운영 과제로 남아 있다.
+- 다음 작업: 구현 착수 전에 Atlassian 공식 MCP로 `TMI-40`을 읽고 설명과 완료 조건을 기준으로 설계를 확정한다. Guest의 LOCAL·Google·Apple 승격, 계정 연결과 데이터 병합은 별도 후속 Jira 후보로 유지하며, Jira 댓글·상태·필드 변경은 실행 내용을 먼저 제시하고 별도 승인을 받은 뒤 수행한다.
+
+## 2026-07-30 — TMI-40 진행 중 전환
+
+<!-- codex-turn:019fb21b-6b06-7582-8ca4-f6680b9f6447 -->
+
+- 날짜: 2026-07-30
+- 브랜치: `feat/TMI-XX-guest-auth`
+- Jira: TMI-40
+- 작업 목표: 사용자 요청에 따라 Jira `TMI-40`의 상태를 `해야 할 일`에서 `진행 중`으로 변경하고 다른 Jira 데이터는 수정하지 않는다.
+- 변경 파일: 저장소에서는 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 변경했다. 애플리케이션 코드와 기존 WORKLOG 항목은 수정하지 않았다. 외부 Jira에서는 `TMI-40`의 상태만 변경했다.
+- 구현 내용: Atlassian 공식 MCP의 읽기 전용 조회로 `TMI-40`의 제목과 현재 상태가 status ID `10000`의 `해야 할 일`임을 확인하고, 사용 가능한 `진행 중` 전환이 transition ID `21`과 status ID `10001`을 가리키는지 검증했다. 필드, update와 이력 메타데이터 없이 transition ID `21`만 전송한 뒤 현재 상태를 다시 읽기 전용으로 조회해 `진행 중`을 확인했다.
+- 실행한 테스트와 결과: Jira 상태·전환 사전 조회, transition ID `21` 적용과 전환 후 상태 조회가 모두 성공했다. 애플리케이션 코드 변경이 없어 `./gradlew clean test`는 실행하지 않았으며, 문서 변경 후 `git diff --check`와 현재 turn marker 단일 존재 검사를 통과했다.
+- 유지한 계약: 요청받은 상태 전환 외에 Jira 설명·우선순위·담당자·라벨·댓글과 다른 이슈를 변경하지 않았다. Identity–Learning Core의 RS256·issuer·audience·JWKS·UUID `sub`, Opaque Refresh Token과 Python AI `user_id = examId` 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 사용자의 `해야 할 일 → 진행 중` 요청을 `TMI-40` transition ID `21` 적용에 대한 명시적 승인으로 사용했다. 수행한 Jira 작업은 `TMI-40` 상태 한 건의 변경, 댓글 목적은 해당 없음, 변경한 상태는 `해야 할 일`에서 `진행 중`, 승인 여부는 승인됨이다. 다른 필드·댓글·이슈에는 쓰기 호출을 하지 않았다.
+- 위험 요소: 상태 전환만 완료됐고 Guest 인증 구현과 테스트는 아직 시작하지 않았다. Jira 상태는 이후 다른 사용자나 자동화에 의해 변경될 수 있다.
+- 다음 작업: 구현 전에 `TMI-40`의 설명과 완료 조건을 다시 읽고 Guest 생성 중복 방지와 설치 ID 인증 경계를 확정한다. Jira 댓글·추가 상태·필드 변경은 실행 내용을 먼저 제시하고 별도 승인을 받은 뒤 수행한다.
+
+## 2026-07-30 — TMI-40 Guest 사용자 및 익명 토큰 발급 구현
+
+<!-- codex-turn:019fb220-298b-7313-8638-ace456c5f922 -->
+
+- 날짜: 2026-07-30
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목적: 로그인 화면 없이 설치 단위 Guest 사용자에게 고유 UUID를 부여하고, 기존 RS256 Access Token·Opaque Refresh Token·JWKS·RefreshSession 수명주기를 그대로 재사용하는 `POST /api/v1/auth/guest`를 구현하고 LOCAL 인증 계약과 Learning Core JWT 소유권 계약을 유지한다.
+- 변경 파일: `README.md`, `domain/auth/api/AuthController.java`, `domain/auth/application` Guest 생성·Refresh 발급 관련 파일, Guest Request/Response DTO, `AuthErrorStatus.java`, `domain/user` User·Factory·Provider·프로필 DTO, `global/config/SecurityConfig.java`, `global/exception/GlobalExceptionHandler.java`, 신규 `global/security/guest/GuestInstallationIdHasher.java`, Guest·JWT·Security·User·OpenAPI 관련 테스트, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. Learning Core, 시험·Redis·S3·grading 코드와 환경 Secret 설정은 변경하지 않았다.
+- 구현 내용: `GUEST` Provider와 ACTIVE Guest User Factory를 추가하고 email·normalizedEmail·passwordHash를 null/absent로 허용했으며, 기존 `AudioConsent` 구조에 동의 여부·시각·정책 버전을 저장했다. Guest nickname은 unique 제약이 없는 현재 모델에 맞춰 `게스트`로 고정했고 `/users/me`는 null email과 `provider=GUEST`를 반환하되 설치 식별 정보와 Token 정보를 포함하지 않는다.
+- Guest 중복 요청 정책: 사전 `exists → insert`를 사용하지 않고 Guest 전용 해시를 포함한 단일 User 문서를 삽입한다. `guestInstallationIdHash` partial unique index를 동시성의 최종 방어선으로 삼아 최초 삽입 성공 요청만 Token을 발급하고, duplicate key는 기존 Guest Token 재발급 없이 `GUEST_ALREADY_EXISTS` 409로 변환한다.
+- installationId 보안 정책: Request의 null·빈 값·공백·비정상/UUID v4 아님·과도한 길이를 거부하고 합리적인 길이의 앞뒤 공백은 제거했다. canonical 소문자 UUID에 SHA-256을 적용한 Base64URL 무패딩 해시만 User에 저장하고, 원문·해시를 JWT Claim·프로필·오류 응답·로그에 노출하지 않았으며 validation `rejectedValue`를 마스킹했다. 설치 ID는 중복 방지용이며 인증 자격증명으로 사용하지 않았다.
+- Token 재사용 구조: Guest 전용 Token 포맷을 만들지 않고 기존 `AccessTokenIssuer`, `RefreshSessionIssuer`, `AuthResponseConverter`, `TokenReissueService`, `LogoutService`, `LogoutAllService`를 재사용했다. Access Token은 Guest UUID `sub`와 기존 RS256·issuer·`tosunsaeng-learning-core` audience·`kid`·TTL을 유지하고 설치 ID/해시 Claim을 추가하지 않았다. Refresh Token은 기존 Opaque 원문을 응답으로만 전달하고 DB에는 해시만 저장하며 Rotation·재사용 탐지·멱등 단일/전체 로그아웃을 LOCAL과 같이 적용했다.
+- 이메일 index: LOCAL 정규화 이메일은 `uk_users_normalized_email_present` partial unique index로 계속 중복을 막고, null/absent email을 가진 다수 Guest는 index에서 제외했다. 운영 DB의 기존 index를 애플리케이션이 자동 drop하지 않도록 했고 백업·쓰기 중지·신규 index 검증을 포함한 수동 이행 절차를 README에 기록했다.
+- Swagger·문서: Guest API 요청/성공 예시, validation·`AUDIO_CONSENT_REQUIRED`·`GUEST_ALREADY_EXISTS` 오류 예시, 무인증 operation, 설치 ID의 비자격증명 성격과 응답/Token 유실 복구 제한을 OpenAPI에 반영했다. README에 앱 최초 실행·재실행 흐름, Refresh Token 안전 저장, index 이행, Rate Limit 부재 위험을 추가했다.
+- 추가 테스트: 기준 146개에서 44개 test case를 추가해 총 190개로 늘었다. Guest API/validation/민감 값 마스킹, Guest 모델·null 자격증·동의 메타데이터·Mongo 매핑, 설치 ID 정규화·해시, 서로 다른/동일/동시 설치 요청, 저장 실패, 최초 RefreshSession 해시 저장, Guest reissue·Rotation·재사용 탐지·단일/전체 로그아웃, Guest `/users/me`, RS256·issuer·audience·`kid`·UUID `sub`·Claim 비노출, Security·OpenAPI와 기존 LOCAL/JWKS 회귀를 검증했다.
+- 실행한 테스트와 결과: `./gradlew compileJava`, `./gradlew compileTestJava`, Guest 및 관련 회귀 대상 테스트, 최종 `./gradlew clean test`를 실행했다. 최종 전체 190개가 성공했고 실패·오류·건너뜀은 모두 0개였다. `git diff --check`를 통과했고 Security `permitAll` 범위, partial unique index, duplicate key 409 변환, 민감 로그·하드코딩·Legacy 모드 정적 검색을 확인했다.
+- 유지한 계약: LOCAL 회원가입·로그인·재발급·로그아웃·`/users/me`, BaseResponse·오류 구조, JWT RS256·UUID `sub`·issuer·audience·`kid`·JWKS, Opaque Refresh Token 해시·Rotation·재사용 탐지·단일/전체 로그아웃을 유지했다. Learning Core API, Legacy 고정 UUID 모드, Python AI `user_id=examId`, 시험·Redis·S3·grading 계약을 변경하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·로그·문서에 기록하지 않았다.
+- 결정사항: 별도 GuestIdentity 문서는 MongoTransactionManager가 없는 현 구조에서 User/Identity 중간 실패와 orphan 복구를 추가하므로, 인증 식별 정보를 User의 Guest 전용 해시 필드로 저장해 단일 문서 원자성 경계를 선택했다. 앱 최초 버전은 설치 ID만으로 기존 Guest를 복구하지 않고, 성공 응답 후 Refresh Token을 인증 증명으로 사용한다. 재사용할 Rate Limit 인프라가 없어 Redis/외부 의존성을 추가하지 않았다. Jira `TMI-40`은 구현 전 Atlassian 공식 MCP로 읽기 전용 확인했으며, 이번 구현에서 댓글 목적은 해당 없음, 상태는 기존 `진행 중` 유지, 쓰기 승인은 요청되지 않았고 댓글·필드·상태 쓰기를 수행하지 않았다. Git commit·push·PR도 수행하지 않았다.
+- 위험 요소: 운영·staging은 배포 전 기존 이메일 unique index를 승인된 수동 절차로 partial unique index에 이행해야 한다. 실제 MongoDB 동시 삽입·index 이행과 Learning Core ExamSession 간 403 소유권 격리는 현재 격리 테스트 환경에서 실행하지 못했고 Identity 계약·동시성 시뮬레이션으로 검증했다. Guest User 삽입 후 Token 발급 실패, 응답 유실 또는 Token 분실은 설치 ID만으로 복구할 수 없고 재요청이 409가 될 수 있다. Guest 대량 생성을 막을 Rate Limit과 abuse 관측은 후속 이슈로 남았다.
+- 다음 작업: 사용자가 변경 파일과 전체 190개 테스트 결과를 검토한 뒤 직접 commit·push·PR을 진행한다. 운영·staging MongoDB index 이행, Learning Core Guest 소유권 통합 검증, Guest 생성 Rate Limit, Guest→LOCAL/Google/Apple 계정 연결·데이터 병합을 별도 Jira 이슈 후보로 관리한다. Jira 완료 댓글·상태·필드는 별도 요청과 명시적 승인 전에 변경하지 않는다.
+
+## 2026-07-31 — TMI-40 Guest 인증 main 기준 코드 리뷰
+
+<!-- codex-turn:27995477-23f9-46f3-9b6b-2189156465bd -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: merge base `cf60faadb5a06f5e6cc28243b9e217c38d9b4138`의 `main`과 비교한 Guest 인증 변경을 독립적으로 검토하고, 정확성·보안·회귀에 영향을 주며 작성자가 수정할 우선순위화된 결함만 보고한다.
+- 변경 파일: 리뷰 중 애플리케이션 코드와 테스트는 수정하지 않았고 작업 기록을 위해 `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`만 갱신했다. 임시 컴파일 출력과 테스트 로그는 저장소 밖의 임시 경로에만 생성했다.
+- 구현 내용: tracked diff와 신규 `GuestAuthService`, Guest Request/Response DTO, 설치 ID 해시기 및 신규 테스트를 모두 읽고, 기존 인증·RefreshSession·User·Security 흐름과 Jira `TMI-40` 설명·완료 조건을 대조했다. Guest UUID `sub`, 설치 ID 중복 차단, null LOCAL 자격증, partial unique index, 음성 동의, Token 발급·Rotation·로그아웃, 프로필과 민감 값 비노출 경로를 추적했으며 작성자가 새로 수정할 만한 이산적 코드 결함은 찾지 못했다.
+- 실행한 테스트와 결과: 저장소 기본 명령 `./gradlew clean test`는 관리형 sandbox가 사용자 Gradle cache lock 쓰기와 Gradle의 로컬 lock-listener socket을 허용하지 않아 task 실행 전에 중단됐고, 임시 Gradle home의 wrapper 다운로드도 네트워크 이름 해석 제한으로 진행되지 않았다. 대신 기존 Gradle dependency cache에서 정확한 108개 classpath 항목을 추출해 main·test 전체 Java 소스를 새 임시 출력 경로에 `javac --release 21`로 재컴파일했고 성공했다. 같은 출력으로 JUnit Platform 전체 190개를 실행해 성공 190, 실패·오류·건너뜀 0을 확인했다. `git diff --check`도 통과했고 Spring Data index resolver가 두 index를 의도한 `unique`·`partialFilterExpression` 옵션으로 해석함을 확인했다.
+- 유지한 계약: 실제 사용자 UUID를 JWT `sub`로 사용하고 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS를 유지하는 계약, Opaque Refresh Token 원문을 DB와 로그에 남기지 않는 계약, Learning Core와 Python AI 경계, LOCAL 인증 회귀, Identity 도메인 범위와 외부 인프라를 호출하지 않는 테스트 경계를 검토 과정에서 유지했다. Secret, 실제 Token, Password, RSA Private Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: Jira `TMI-40`은 Atlassian 공식 MCP로 읽기 전용 조회해 구현 범위와 완료 조건만 확인했다. Jira 댓글·필드·상태를 변경하지 않았고 Git stage·commit·push도 수행하지 않았다. User 삽입 후 Token 발급 실패·응답 유실 시 복구 제한, 배포 전 index 수동 이행과 Rate Limit 부재는 코드와 문서에서 명시적으로 선택·기록된 위험이므로 새 결함으로 중복 보고하지 않았다.
+- 위험 요소: 실제 MongoDB의 index 이행·동시 삽입과 Learning Core의 Guest 간 ExamSession 403 격리는 이 저장소의 격리 환경에서 직접 실행하지 못했다. 현재 sandbox에서는 Gradle wrapper 자체의 clean test를 재실행할 수 없었지만, 현재 소스로부터의 독립 재컴파일과 동일한 190개 JUnit 테스트 실행은 성공했다. 기존에 문서화된 Guest orphan 가능성, Guest 생성 abuse와 운영 index 이행은 계속 남는다.
+- 다음 작업: 사용자가 리뷰 결과를 확인한 뒤 직접 commit·push·PR을 진행한다. 운영·staging 배포 전 MongoDB index 이행과 실제 동시 삽입을 검증하고, Learning Core 통합 환경의 Guest 소유권 격리와 Guest 생성 Rate Limit을 후속 작업으로 확인한다. Jira 댓글이나 상태 변경은 내용을 먼저 제시하고 별도 승인을 받은 뒤에만 수행한다.
+- Jira 댓글 초안: `TMI-40` Guest 인증 변경을 main merge base 기준으로 검토했으며 우선순위화할 코드 결함은 발견하지 못했습니다. 애플리케이션 코드는 변경하지 않고 작업 기록 문서만 갱신했습니다. 현재 소스를 임시 경로에 재컴파일한 뒤 전체 190개 테스트가 모두 통과했고, sandbox 제한으로 Gradle wrapper 명령 자체는 task 시작 전에 중단됐습니다. 실제 MongoDB index 이행·동시 삽입, Learning Core Guest 소유권 격리, Guest 생성 Rate Limit은 남은 운영·통합 위험입니다.
+
+## 2026-07-31 — TMI-40 Guest 인증 최종 코드 리뷰
+
+<!-- codex-turn:019fb5a7-6f96-74f0-8d10-46709e7a49a9 -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: `AGENTS.md`, CURRENT_STATE, append-only WORKLOG와 Jira `TMI-40`을 먼저 확인하고 `main` 기준 Guest 인증 변경의 원자성, 동시성, MongoDB index, 보안, Token 계약, 회귀와 테스트 신뢰성을 최종 코드 리뷰한다.
+- 변경 파일: 애플리케이션 코드·테스트·README는 수정하지 않았다. 저장소 작업 기록 규칙에 따라 `docs/codex/CURRENT_STATE.md`만 현재 finding으로 갱신하고 이 항목을 `docs/codex/WORKLOG.md` 끝에 append했다.
+- 구현 내용: `GuestAuthService.authenticate`의 User 저장부터 Access Token 및 RefreshSession 발급까지의 실패 경로, Mongo unique 충돌 변환, partial index 정의와 운영 이행, UUID v4 정규화·SHA-256 Base64URL 해시, Provider·동의·프로필, 기존 Token 수명주기와 Security 범위를 추적했다. User 저장 뒤 Token 발급이 실패하면 rollback·보상·복구 없이 설치 hash가 영구 점유되는 HIGH finding, 모든 unique 충돌이 설치 중복 409로 오분류되는 MEDIUM finding, 생성된 OpenAPI 3.1에서 Guest email null이 표현되지 않는 LOW finding을 확인했다.
+- 실행한 테스트와 결과: `git diff --check`를 통과했다. 승인된 `./gradlew clean test`를 실행해 전체 190개가 성공했고 실패·오류·건너뜀은 모두 0개였다. 로컬 기동으로 생성된 OpenAPI 3.1 schema를 읽기 전용 확인해 `UserProfileResponse.email`이 `type: string`만 갖고 null union이 없음을 재현했다.
+- 유지한 계약: 리뷰 과정에서 애플리케이션 파일, Git stage·commit·push·PR과 Jira 댓글·필드·상태를 변경하지 않았다. RS256·UUID `sub`·issuer·`tosunsaeng-learning-core` audience·`kid`·JWKS, Opaque Refresh Token 해시·Rotation·재사용 탐지·로그아웃, LOCAL 인증과 Learning Core·AI 경계를 변경하지 않았고 Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 정상 생성 후 네트워크 응답 유실은 확정된 409 정책이므로 finding으로 보지 않았지만, 서버 내부 발급 실패는 성공 상태가 아니면서 동일 설치가 영구 복구 불가능해지는 별도 정확성 결함으로 분류했다. 실제 MongoDB 통합 테스트 부재 자체는 finding으로 만들지 않고 DB unique constraint 사용 여부와 예외 분류 코드의 정확성을 기준으로 판단했다.
+- 위험 요소: 운영 MongoDB의 실제 index 이행·동시 삽입과 Learning Core ExamSession 소유권 격리는 격리 테스트에서 직접 실행하지 않았다. 기존 Rate Limit 부재와 정상 응답 유실 후 설치 ID 단독 복구 불가는 문서화된 후속 운영·제품 위험으로 유지한다.
+- 다음 작업: Guest User와 최초 RefreshSession을 트랜잭션 또는 신뢰 가능한 복구 경계로 묶고, Guest hash index 충돌만 409로 변환하며, OpenAPI email null union을 명시한 뒤 각 실패 지점과 비Guest unique 충돌을 재현하는 테스트를 추가한다. 수정 후 사용자가 직접 commit·push·PR을 진행하고 Jira 쓰기는 별도 승인 전 수행하지 않는다.
+
+## 2026-07-31 — Lombok 생성자 주입 검토
+
+<!-- codex-turn:019fb5bd-b395-7792-8a62-133ef9c55307 -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: `@RequiredArgsConstructor`가 현재 명시적 생성자와 `this.field = field` 대입을 대체할 수 있는 범위와 예외를 설명한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 작업 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다.
+- 구현 내용: Lombok이 `final` 또는 `@NonNull` 필드용 생성자를 만들어 일반 Spring Bean 의존성의 명시적 생성자 대입을 제거할 수 있음을 확인했다. 반면 `UserFactory`는 생성자 인자의 `@Value`와 정책 버전 검증이 있어 `@RequiredArgsConstructor`만 적용하면 `String` Bean 주입으로 해석될 수 있으므로 단순 치환 대상이 아님을 구분했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이므로 Gradle 테스트는 실행하지 않았고 문서 변경에 `git diff --check`를 적용한다.
+- 유지한 계약: 기존 생성자 주입, Guest·LOCAL 인증, JWT와 Refresh Token 계약을 변경하지 않았으며 Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 일반 Service의 boilerplate 축소에는 `@RequiredArgsConstructor`를 사용할 수 있지만 설정값 주입·정규화·검증이 있는 생성자는 명시적으로 유지하거나 별도 `@ConfigurationProperties` 타입으로 분리한 뒤 적용한다.
+- 위험 요소: `@Value`를 final 필드에 붙이고 Lombok이 생성한 생성자에 자동 전파될 것으로 가정하면 애플리케이션 컨텍스트 기동이 실패할 수 있다.
+- 다음 작업: 실제 리팩토링 요청이 있을 때 클래스별로 단순 Bean 의존성인지 설정값 검증 경계인지 구분하고 관련 context 테스트를 실행한다.
+
+## 2026-07-31 — UserFactory 제외 Lombok 생성자 주입 적용
+
+<!-- codex-turn:019fb5c0-f83b-7902-9709-a4702b6eb05a -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: 생성자 인자 `@Value`와 정책 버전 검증이 있는 `UserFactory`는 유지하고, 순수 의존성 대입 생성자를 Lombok `@RequiredArgsConstructor`로 전환한다.
+- 변경 파일: `AuthController`, `UserController`, Auth application Service 8개, `JwtAccessTokenIssuer`, `JwksController`, `RsaKeyLoader`, `RefreshTokenGenerator`에 Lombok 생성자 주입을 적용하고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. `UserFactory`는 수정하지 않았다.
+- 구현 내용: 총 15개 클래스에 `@RequiredArgsConstructor`를 추가하고 `final` 필드를 그대로 유지한 채 대입만 수행하던 명시적 생성자를 제거했다. `UserFactory`, 명시적 null 검증을 가진 Security handler, 상위 생성자 호출이 필요한 예외, 값 검증을 가진 validator와 enum 생성자는 유지했다.
+- 실행한 테스트와 결과: `git diff --check`를 통과했고 `./gradlew clean test`가 성공했다. 전체 190개 테스트가 실행되어 실패·오류·건너뜀 없이 모두 통과했으며 Spring 애플리케이션 컨텍스트와 Lombok 생성자 시그니처를 함께 검증했다.
+- 유지한 계약: 생성자 작성 방식만 변경하고 Guest·LOCAL API, Security 공개 범위, JWT RS256·UUID `sub`·issuer·audience·`kid`·JWKS, Opaque Refresh Token 수명주기와 MongoDB 모델을 변경하지 않았다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 단순 `final` Bean 의존성은 Lombok 생성자 주입으로 통일하되, 설정 주입과 정규화·검증처럼 생성자 자체가 도메인 또는 기동 검증 경계인 경우에는 명시적 생성자를 유지한다.
+- 위험 요소: 동작 변경 없는 리팩토링이며 새 위험은 확인되지 않았다. 기존 최종 리뷰의 Guest 생성 원자성, unique 충돌 분류와 OpenAPI null 계약 finding은 별도 수정 대상으로 남아 있다.
+- 다음 작업: 기존 리뷰 finding을 수정한 뒤 전체 테스트를 다시 실행하고 사용자가 변경을 검토해 직접 commit·push·PR을 진행한다. Jira 댓글·필드·상태는 별도 승인 전 변경하지 않는다.
+
+## 2026-07-31 — TMI-40 Guest 인증 최종 리뷰 finding 수정
+
+<!-- codex-turn:8ca39f12-4b37-4313-997c-e264b45e4165 -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목적: 최종 코드 리뷰에서 확인된 HIGH Guest 생성 비원자성, MEDIUM unique 충돌 오분류, LOW Guest 프로필 email OpenAPI null 불일치를 모두 수정하고 기존 LOCAL·JWT·RefreshSession 계약을 회귀 검증한다.
+- HIGH/MEDIUM/LOW review finding: Guest User 저장 후 Access Token 또는 최초 RefreshSession 발급 실패가 설치 hash를 영구 점유하던 HIGH, 모든 `DuplicateKeyException`을 설치 중복 409로 숨기던 MEDIUM, 런타임 `email=null`과 OpenAPI 3.1 string-only schema가 불일치하던 LOW finding을 수정했다.
+- 변경 파일: HIGH는 `GuestAuthService.java`, 신규 `GuestRegistrationTransactionService.java`·`PreparedRefreshSession.java`, `RefreshSessionIssuer.java`, `IssuedRefreshSession.java`, `AuthResponseConverter.java`, 신규 `MongoTransactionConfig.java`·`MongoTransactionCapabilityVerifier.java`와 관련 application/config 테스트를 변경했다. MEDIUM은 `GuestAuthService.java`, `UserRepository.java`, Guest service/controller 테스트를 변경했다. LOW는 `UserProfileResponse.java`, `IdentityApplicationTests.java`를 변경했다. 공통 운영 설명은 `README.md`, 현재 상태와 감사 기록은 `docs/codex/CURRENT_STATE.md` 및 이 WORKLOG 항목에 반영했다.
+- Guest 생성 원자성 해결 방식: Guest UUID와 Access Token, Opaque Refresh Token 및 해시된 RefreshSession Entity를 저장 전에 모두 준비한 뒤, `GuestRegistrationTransactionService.register`의 이름이 지정된 Mongo Transaction에서 User 저장·RefreshSession 저장·응답 구성을 수행한다. Access/Refresh 준비 실패는 영속성 진입 전 전파되고 User 또는 Session 저장과 응답 구성 실패는 Transaction 전체 rollback으로 두 문서가 남지 않아 같은 설치 ID로 재시도할 수 있다.
+- Mongo Transaction 구조: `mongoTransactionManager` 이름의 `MongoTransactionManager` Bean과 명시적인 `@Transactional(transactionManager = "mongoTransactionManager")` 경계를 등록했다. non-test 기동 시 `hello` 결과에서 replica set 또는 sharded topology와 logical session 지원을 확인하며 standalone 또는 확인 실패 환경은 민감한 연결 정보를 포함하지 않는 고정 오류로 기동을 중단한다. 격리 test profile은 외부 MongoDB를 호출하지 않고 manager 부재 시 저장 전 실패하는 경계와 Spring Transaction proxy의 commit/rollback을 검증한다.
+- DuplicateKeyException 분류 정책: 사전 hash 조회는 Token 준비 최적화일 뿐 최종 방어선은 `uk_users_guest_installation_id_hash` partial unique index다. Transaction rollback 뒤 `existsByGuestInstallationIdHash`가 true인 경쟁 삽입만 `GUEST_ALREADY_EXISTS` 409로 변환하고, `_id`·normalizedEmail·알 수 없는 다른 unique 충돌은 원래 persistence 예외로 전파해 안전한 공통 500 응답으로 처리한다. 예외 응답과 로그에는 index 이름, keyValue, 설치 ID 원문·전체 hash 및 문서 내용을 기록하지 않는다.
+- OpenAPI email null 계약: `UserProfileResponse.email`에 OpenAPI 3.1 `type: [string, null]`과 `format: email`을 선언하고 LOCAL·소셜 사용자는 문자열, Guest는 null일 수 있다는 설명을 추가했다. `/v3/api-docs` 생성 결과와 Guest·LOCAL `/users/me` 런타임 응답 계약을 테스트로 맞췄다.
+- Token 재사용 구조: 기존 `AccessTokenIssuer`를 그대로 사용하고 `RefreshSessionIssuer`를 `prepare`와 `savePrepared` 단계로 분리하되 기존 `issue`가 두 단계를 조합하도록 유지했다. Guest 전용 Token 포맷을 만들지 않았고 RS256·issuer·audience·`kid`·UUID `sub`, Opaque Refresh Token 해시 저장, Rotation·재사용 탐지·단일/전체 로그아웃을 변경하지 않았다.
+- 추가 테스트: 직전 전체 190개 대비 순증 19개로 원자성 준비 실패·User/Session 저장 실패·응답 구성 실패·rollback 후 재시도·정상 commit·응답 유실 후 409, manager 등록·미지원 topology fail-fast, Guest hash 경쟁과 비Guest unique 충돌 유지, 오류 정보 비노출, OpenAPI string/null 및 email format을 추가 검증했다.
+- 전체 테스트 결과: 관련 Guest·Transaction·RefreshSession·OpenAPI·Controller 대상 테스트가 먼저 성공했고 `./gradlew clean test`도 성공했다. 전체 209개 테스트가 실행되어 성공 209개, 실패 0개, 오류 0개, 건너뜀 0개다. `git diff --check`, Security permitAll 범위, Mongo partial unique index, Transaction manager 이름과 경계, 민감 로그 및 실제 자격증명 패턴을 정적으로 확인했다.
+- 유지한 계약: `POST /api/v1/auth/guest` Request/Response와 두 Guest 오류, UUID v4 정규화·SHA-256 Base64URL 43자 해시, 설치 ID 단독 복구 금지, LOCAL 회원가입·로그인·재발급·로그아웃·프로필, RS256·issuer·`tosunsaeng-learning-core` audience·기존 `kid`·JWKS, Refresh Rotation·재사용 탐지 및 Learning Core·AI·Redis·S3·grading 경계를 유지했다. `UserFactory`의 설정 주입·검증 생성자도 그대로 유지했다.
+- 결정사항: 서버 내부 준비·저장·응답 구성 실패는 commit 전 rollback하여 재시도를 허용하지만 정상 commit 뒤 네트워크 응답 유실은 기존 확정 정책대로 이미 생성된 Guest로 간주해 동일 설치 재요청에 409를 반환하고 설치 ID만으로 Token을 복구하지 않는다. Jira `TMI-40`은 공식 Atlassian MCP로 읽기 전용 확인했으며 댓글·필드·상태는 변경하지 않았다. Git commit·push·PR도 수행하지 않았다.
+- 위험 요소: 실제 replica set/Atlas를 격리 테스트에서 실행하지 않아 MongoDB의 실제 commit/rollback과 동일 설치 동시 쓰기 경쟁은 staging 배포 전 검증해야 한다. 운영 이메일/Guest index 수동 이행, Guest 생성 Rate Limit, Learning Core ExamSession 소유권 통합 검증과 정상 commit 후 응답 유실·Token 분실 복구 제한은 계속 남는다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·로그·문서에 기록하지 않았다.
+- 다음 작업: 사용자가 수정 내용과 전체 209개 테스트 결과를 검토한 뒤 직접 commit·push·PR을 진행한다. 배포 전 staging replica set Transaction과 index 이행을 검증하고, Rate Limit·Learning Core 소유권 통합·Guest 계정 연결을 후속 Jira 후보로 관리한다. Jira 완료 댓글은 최종 보고의 초안만 검토하고 별도 승인 전 등록하지 않는다.
+
+## 2026-07-31 — TMI-40 리뷰 finding 수정 Stop Hook 기록
+
+<!-- codex-turn:019fb5c4-211d-72f1-ace2-24e9468b3149 -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: Stop Hook이 제공한 현재 turn marker를 append-only WORKLOG에 기록하고 이미 갱신한 CURRENT_STATE와 TMI-40 리뷰 finding 수정 결과를 연결한다.
+- 변경 파일: 이 보완에서는 `docs/codex/WORKLOG.md` 끝에 현재 turn 기록만 append했으며, 애플리케이션 코드와 과거 WORKLOG 항목은 수정하지 않았다. `docs/codex/CURRENT_STATE.md`는 Guest 원자성·중복 분류·OpenAPI null 계약 해결 및 전체 209개 테스트 성공 상태로 이미 갱신돼 있다.
+- 구현 내용: Guest User와 최초 RefreshSession의 Mongo Transaction, Guest installation hash 충돌만 409로 분류하는 정책, OpenAPI 3.1 email string/null 계약을 구현한 현재 작업의 Hook marker를 추가했다.
+- 실행한 테스트와 결과: 직전 `./gradlew clean test`에서 전체 209개가 성공했고 실패·오류·건너뜀은 0개였다. 이 보완은 기록만 append하므로 애플리케이션 테스트를 다시 실행하지 않고 `git diff --check`와 현재 turn marker 단일 존재를 확인한다.
+- 유지한 계약: LOCAL 인증, RS256·issuer·audience·`kid`·JWKS, Opaque Refresh Token 해시·Rotation·재사용 탐지·로그아웃과 Learning Core 경계를 변경하지 않았다.
+- 결정사항: Jira 댓글·필드·상태와 Git commit·push·PR은 변경하지 않았다. 서버 내부 실패는 Transaction rollback 후 재시도 가능하며 정상 commit 이후 응답 유실은 기존 409 정책을 유지한다.
+- 위험 요소: 실제 replica set/Atlas Transaction과 동시 쓰기 경쟁, 운영 index 이행, Rate Limit 및 Learning Core 통합 검증은 staging·후속 작업으로 남는다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 다음 작업: 사용자가 변경 내용을 검토한 뒤 직접 Git 작업을 수행하고, Jira 쓰기는 별도 승인 후 진행한다.
+
+## 2026-07-31 — TMI-40 수정 후 main 기준 코드 리뷰
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: merge base `cf60faadb5a06f5e6cc28243b9e217c38d9b4138`의 `main`과 비교해 Guest 인증 변경 및 직전 리뷰 finding 수정분의 정확성, MongoDB 원자성·동시성, 보안, JWT·RefreshSession 계약과 기존 LOCAL 회귀를 독립적으로 재검토한다.
+- 변경 파일: 애플리케이션 코드·테스트·README는 수정하지 않았다. 작업 기록 규칙에 따라 `docs/codex/CURRENT_STATE.md`를 최신 리뷰 상태로 갱신하고 이 항목을 `docs/codex/WORKLOG.md` 끝에 append했다.
+- 구현 내용: tracked diff와 신규 Guest·Mongo Transaction·설치 ID 해시 파일을 모두 읽고 `GuestAuthService`의 사전 조회·Token 준비·Transaction commit·duplicate 분류 경로, partial unique index와 수동 이행 전제, Guest User의 null 자격증·동의·프로필, 기존 재발급·Rotation·재사용 탐지·로그아웃 및 Security 공개 범위를 추적했다. Atlassian 공식 MCP로 Jira `TMI-40`의 설명·완료 조건·진행 상태를 읽기 전용 확인했으며, 작성자가 추가로 수정할 우선순위화된 코드 결함은 발견하지 않았다.
+- 실행한 테스트와 결과: `git diff --check`를 통과했다. 기본 명령 `./gradlew clean test`는 관리형 sandbox가 사용자 Gradle cache lock 쓰기를 막아 task 실행 전에 종료됐고, 쓰기 가능한 임시 Gradle home과 기존 dependency cache를 사용한 재시도도 Gradle lock listener socket 제한으로 task 실행 전에 종료됐다. 대신 실행 이력에서 현재 의존성 classpath 108개를 추출해 Java 21로 main 71개와 test 32개 소스를 새 임시 경로에 독립 재컴파일했고 성공했다. 같은 출력에서 JUnit Platform 전체 209개를 실행해 성공 209개, 실패·오류·건너뜀 0개를 확인했다.
+- 유지한 계약: 실제 사용자 UUID를 JWT `sub`로 사용하고 RS256·issuer·`tosunsaeng-learning-core` audience·`kid`·JWKS를 유지하는 계약, Opaque Refresh Token 원문을 DB와 로그에 남기지 않는 계약, Guest 설치 ID 원문 비노출과 설치 ID 단독 인증 금지, LOCAL 인증 회귀 및 Learning Core·Python AI 경계를 검토 과정에서 유지했다. 실제 Secret, Token 값, Password, RSA Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 서버 내부 준비·저장 실패의 Transaction rollback, 같은 설치의 경쟁 삽입만 409로 변환하는 정책과 OpenAPI email null 계약 수정이 현재 구현에 반영됐다고 판단했다. 정상 commit 뒤 응답 유실의 409 정책, 배포 전 수동 index 이행, Rate Limit 부재와 실제 Learning Core 소유권 통합 검증은 코드와 문서에 명시된 운영·후속 범위이므로 신규 code finding으로 중복 보고하지 않았다. Jira 댓글·필드·상태와 Git stage·commit·push·PR은 변경하지 않았다.
+- 위험 요소: 격리 환경에서는 실제 replica set/Atlas의 commit·rollback, commit 결과 불확실성과 동일 설치 동시 쓰기, 운영 index 이행 및 Learning Core의 Guest 간 ExamSession 403 격리를 직접 실행하지 못했다. Gradle task 자체는 sandbox 제약으로 재실행하지 못했지만 현재 소스의 독립 재컴파일과 동일한 전체 209개 JUnit 테스트는 성공했다.
+- 다음 작업: 사용자가 리뷰 결과와 변경 내용을 확인한 뒤 직접 commit·push·PR을 진행한다. 배포 전 staging MongoDB Transaction·index 이행과 Learning Core Guest 소유권 격리를 검증하고 Guest 생성 Rate Limit은 후속 Jira 후보로 관리한다. Jira 쓰기는 내용을 먼저 제시하고 별도 승인받기 전 수행하지 않는다.
+- Jira 댓글 초안: `TMI-40` Guest 인증의 수정 후 변경을 main merge base 기준으로 재검토했으며 추가로 우선순위화할 코드 결함은 발견하지 못했습니다. 애플리케이션 코드는 변경하지 않았고 현재 소스를 독립 재컴파일한 뒤 전체 209개 테스트 성공을 확인했습니다. 실제 replica set Transaction·index 이행, Learning Core Guest 소유권 격리와 Rate Limit은 남은 운영·통합 검증 항목입니다.
+
+## 2026-07-31 — TMI-40 이전 HIGH·MEDIUM·LOW 해결 최종 리뷰
+
+<!-- codex-turn:019fb5f3-f851-7e00-b714-9c83e8ef24d2 -->
+
+- 날짜: 2026-07-31
+- 브랜치: `feat/TMI-40-guest-auth`
+- Jira: TMI-40
+- 작업 목표: `main` merge base를 기준으로 이전 HIGH Guest 생성 원자성, MEDIUM `DuplicateKeyException` 분류, LOW OpenAPI email null 계약이 모두 해결됐는지 Transaction 실제 적용·Topology·동시 경쟁·Token·index·기존 API·테스트 신뢰성까지 최종 리뷰한다.
+- 변경 파일: 사용자 요청에 따라 애플리케이션 코드·테스트·README는 수정하지 않았다. 저장소의 필수 감사 규칙에 따라 현재 리뷰 결과만 `docs/codex/CURRENT_STATE.md`에 반영하고 이 항목을 `docs/codex/WORKLOG.md` 끝에 append했다. 과거 WORKLOG 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: `GuestAuthService.authenticate`가 Access Token과 해시된 최초 RefreshSession을 저장 전에 준비하고 별도 Spring Bean의 `GuestRegistrationTransactionService.register`를 프록시 호출하는지 확인했다. 이름이 지정된 Mongo Transaction 안의 User·RefreshSession 저장과 응답 구성, rollback 후 hash 재조회 기반 Guest 중복 분류, 기존 Token 발급·Rotation·로그아웃, OpenAPI 3.1 null union, partial unique index와 운영 이행 순서를 추적했으며 HIGH·MEDIUM·LOW에 보고할 추가 결함은 확인하지 않았다.
+- 실행한 테스트와 결과: `./gradlew clean test`를 실제 재실행해 전체 209개가 성공했고 실패·오류·건너뜀은 모두 0개였다. 테스트 XML에서 합계를 다시 집계하고 Transaction·Guest·OpenAPI·LOCAL·JWKS suite 결과를 확인했으며 `git diff --check`, 민감 로그와 실제 자격증명 패턴, WORKLOG append-only 상태를 정적으로 검사했다.
+- 유지한 계약: RS256·issuer·`tosunsaeng-learning-core` audience·기존 `kid`·Guest UUID `sub`·JWKS, Opaque Refresh Token 해시 저장·Rotation·재사용 탐지·단일/전체 로그아웃, LOCAL 인증과 BaseResponse, Learning Core·Python AI·Redis·S3·grading·시험 경계를 변경하지 않았다.
+- 결정사항: Token 준비 실패는 영속성 이전에 종료되고, User·RefreshSession·응답 구성 실패는 같은 Transaction에서 rollback되며, 정상 commit 후 응답 유실은 기존 409 정책을 유지한다고 판단했다. 동일 hash 경쟁만 rollback 뒤 존재 조회로 Guest 중복 409가 되고 다른 unique/persistence 오류는 안전한 500으로 남는다. Git commit·push·PR과 Jira 댓글·필드·상태 변경은 수행하지 않았다.
+- 위험 요소: 실제 replica set/Atlas의 commit·rollback과 동일 설치 동시 쓰기, 운영 index 이행 및 Learning Core 소유권 격리는 배포·통합 환경의 필수 검증으로 남는다. 이는 문서화된 운영 검증 항목이며 현재 코드의 신규 HIGH·MEDIUM·LOW finding으로 분류하지 않았다. Secret, 실제 Token 값, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 다음 작업: 사용자가 최종 리뷰 결과를 확인한 뒤 직접 commit·push·PR을 진행하고, 배포 전 staging Mongo Transaction과 index 이행을 검증한다. Jira 쓰기는 별도 요청과 승인 전 수행하지 않는다.

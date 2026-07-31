@@ -16,6 +16,11 @@ public enum AuthErrorStatus implements ErrorCode {
 			"AUDIO_CONSENT_REQUIRED",
 			"음성 데이터 수집·이용 동의가 필요합니다."
 	),
+	GUEST_ALREADY_EXISTS(
+			HttpStatus.CONFLICT,
+			"GUEST_ALREADY_EXISTS",
+			"이미 생성된 Guest 사용자입니다."
+	),
 	INVALID_CREDENTIALS(
 			HttpStatus.UNAUTHORIZED,
 			"INVALID_CREDENTIALS",

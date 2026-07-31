@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 @Service
+@RequiredArgsConstructor
 public class TokenReissueService {
 
 	private final RefreshTokenHasher refreshTokenHasher;
@@ -35,24 +37,6 @@ public class TokenReissueService {
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final AuthResponseConverter authResponseConverter;
 	private final Clock clock;
-
-	public TokenReissueService(
-			RefreshTokenHasher refreshTokenHasher,
-			RefreshSessionRepository refreshSessionRepository,
-			UserRepository userRepository,
-			AccessTokenIssuer accessTokenIssuer,
-			RefreshSessionIssuer refreshSessionIssuer,
-			AuthResponseConverter authResponseConverter,
-			Clock clock
-	) {
-		this.refreshTokenHasher = refreshTokenHasher;
-		this.refreshSessionRepository = refreshSessionRepository;
-		this.userRepository = userRepository;
-		this.accessTokenIssuer = accessTokenIssuer;
-		this.refreshSessionIssuer = refreshSessionIssuer;
-		this.authResponseConverter = authResponseConverter;
-		this.clock = clock;
-	}
 
 	public ReissueResponse reissue(ReissueRequest request) {
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());

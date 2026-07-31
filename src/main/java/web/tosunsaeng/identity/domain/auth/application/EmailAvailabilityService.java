@@ -1,5 +1,6 @@
 package web.tosunsaeng.identity.domain.auth.application;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import web.tosunsaeng.identity.domain.auth.dto.response.CheckEmailResponse;
@@ -7,18 +8,11 @@ import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 @Service
+@RequiredArgsConstructor
 public class EmailAvailabilityService {
 
 	private final UserRepository userRepository;
 	private final EmailNormalizer emailNormalizer;
-
-	public EmailAvailabilityService(
-			UserRepository userRepository,
-			EmailNormalizer emailNormalizer
-	) {
-		this.userRepository = userRepository;
-		this.emailNormalizer = emailNormalizer;
-	}
 
 	public CheckEmailResponse checkEmail(String email) {
 		String normalizedEmail = emailNormalizer.normalize(email);

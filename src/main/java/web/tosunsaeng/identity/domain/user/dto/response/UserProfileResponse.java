@@ -13,11 +13,16 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 public record UserProfileResponse(
 		@Schema(description = "Identity 사용자 UUID", format = "uuid")
 		String userId,
-		@Schema(description = "표시용 이메일", example = "user@example.com")
+		@Schema(
+				description = "LOCAL·소셜 사용자는 이메일 문자열이며 Guest 사용자는 null일 수 있습니다.",
+				example = "user@example.com",
+				format = "email",
+				types = {"string", "null"}
+		)
 		String email,
 		@Schema(description = "사용자 닉네임", example = "토스마스터")
 		String nickname,
-		@Schema(description = "계정 인증 제공자", example = "LOCAL")
+		@Schema(description = "계정 인증 제공자", example = "LOCAL", allowableValues = {"LOCAL", "GUEST"})
 		UserProvider provider,
 		@Schema(description = "음성 데이터 수집·이용 동의 상태", example = "true")
 		@JsonProperty("isAudioConsent") boolean isAudioConsent,

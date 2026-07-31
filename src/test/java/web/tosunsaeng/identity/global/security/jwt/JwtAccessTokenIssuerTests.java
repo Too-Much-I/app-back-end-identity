@@ -34,6 +34,7 @@ class JwtAccessTokenIssuerTests {
 	private static final String AUDIENCE = "tosunsaeng-learning-core";
 	private static final String KEY_ID = "identity-test-rsa-key";
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
+	private static final String OTHER_GUEST_USER_ID = "45c05c3f-ae7f-4ca7-af88-3ab8aa8f428e";
 
 	private RSAPublicKey publicKey;
 	private JwtAccessTokenIssuer accessTokenIssuer;
@@ -120,6 +121,9 @@ class JwtAccessTokenIssuerTests {
 				"password",
 				"passwordHash",
 				"rawPassword",
+				"installationId",
+				"installationIdHash",
+				"guestInstallationIdHash",
 				"refreshToken",
 				"d",
 				"p",
@@ -142,6 +146,34 @@ class JwtAccessTokenIssuerTests {
 		assertThat(issuedToken.toString())
 				.contains("tokenValue=redacted")
 				.doesNotContain(issuedToken.tokenValue());
+	}
+
+	@Test
+	void guestTokensKeepExistingRs256ContractAndSeparateOwnershipBySubject() {
+		Jwt firstGuestToken = decodeWith(
+				publicKey,
+				accessTokenIssuer.issue(USER_ID, Set.of()).tokenValue()
+		);
+		Jwt secondGuestToken = decodeWith(
+				publicKey,
+				accessTokenIssuer.issue(OTHER_GUEST_USER_ID, Set.of()).tokenValue()
+		);
+
+		assertThat(firstGuestToken.getHeaders())
+				.containsEntry("alg", "RS256")
+				.containsEntry("kid", KEY_ID);
+		assertThat(firstGuestToken.getIssuer().toString()).isEqualTo(ISSUER);
+		assertThat(firstGuestToken.getAudience()).containsExactly(AUDIENCE);
+		assertThat(firstGuestToken.getSubject()).isEqualTo(USER_ID);
+		assertThat(secondGuestToken.getSubject()).isEqualTo(OTHER_GUEST_USER_ID);
+		assertThat(firstGuestToken.getSubject()).isNotEqualTo(secondGuestToken.getSubject());
+		assertThat(firstGuestToken.getClaims()).doesNotContainKeys(
+				"installationId",
+				"installationIdHash",
+				"guestInstallationIdHash",
+				"refreshToken",
+				"tokenHash"
+		);
 	}
 
 	private JwtProperties properties() {

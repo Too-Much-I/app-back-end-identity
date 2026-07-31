@@ -32,6 +32,7 @@ public class GlobalExceptionHandler {
 			"token",
 			"secret",
 			"credential",
+			"installationid",
 			"authorization",
 			"apikey",
 			"privatekey"
