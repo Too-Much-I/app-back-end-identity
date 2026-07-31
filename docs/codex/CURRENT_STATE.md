@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-40`의 이전 HIGH·MEDIUM·LOW finding 수정분을 `main` merge base 기준으로 최종 집중 리뷰하고 전체 209개 테스트를 재실행했으며, 세 등급 모두 추가 finding 없이 사용자 검토 대기
-- 상태 기준일: 2026-07-31
+- 현재 단계: 도메인 중심 리팩토링 main 병합 후 핵심 인증·보안 코드의 한 줄 주석 보강과 회귀 검증 완료, 사용자 검토 대기
+- 상태 기준일: 2026-07-30
 
 ## 완료
 
@@ -28,9 +28,6 @@
 - 사용자 승인에 따라 `[Learning Core] Identity JWKS 기반 JWT 인증 연동`을 TMI `작업` 이슈 `TMI-10`으로 `High` 우선순위와 기본 상태 `해야 할 일`로 생성하고, 후속 조회에서 제목·유형·우선순위·상태와 담당자 없음·빈 라벨을 확인했으며 스프린트·에픽·상태 전환은 적용하지 않음
 - Atlassian 공식 MCP로 `TMI-10`의 제목과 현재 상태 `해야 할 일`을 읽기 전용 재조회하고 사용 가능한 전환 `해야 할 일` ID `11`, `검토 중` ID `31`, `진행 중` ID `21`, `완료` ID `41`을 확인했으며 Jira는 수정하지 않음
 - Jira `TMI-10`의 현재 상태와 `진행 중` 전환 ID `21` 사용 가능 여부를 재확인한 뒤 사용자 승인에 따라 transition ID `21`만 적용하고, 후속 조회에서 status ID `10001`의 `진행 중`을 확인했으며 다른 필드·댓글·이슈는 수정하지 않음
-- `AGENTS.md`와 기존 `TMI-6`·`TMI-9`·`TMI-10`의 Markdown 섹션형 작성 형식, TMI `작업` 유형 ID `10003`, 생성 필드와 `High` 우선순위 ID `2` 지원을 읽기 전용으로 확인하고 동일 제목의 기존 이슈가 없음을 검증
-- 사용자 요청과 승인에 따라 `[Identity] Guest 사용자 및 익명 토큰 발급`을 TMI `작업` 이슈 `TMI-40`으로 `High` 우선순위와 기본 상태 `해야 할 일`로 정확히 한 건 생성하고, 제목·본문 필수 섹션·유형·우선순위·상태·담당자 없음·빈 라벨과 동일 제목 이슈 단일 건을 후속 읽기 전용 조회로 확인했으며 댓글·상태 전환·다른 필드는 적용하지 않음
-- Jira `TMI-40`의 현재 상태 `해야 할 일`과 사용 가능한 `진행 중` transition ID `21`을 재확인한 뒤 사용자 승인에 따라 해당 전환만 적용하고, 후속 조회에서 status ID `10001`의 `진행 중`을 확인했으며 댓글·필드·다른 이슈는 변경하지 않음
 - 환경변수 기반 애플리케이션 이름, MongoDB 데이터베이스 및 서버 포트 설정
 - Swagger UI `/swagger-ui.html` 및 OpenAPI `/v3/api-docs` 설정과 `SWAGGER_ENABLED` 환경변수 기반 활성화 제어
 - Actuator health endpoint 노출
@@ -116,34 +113,14 @@
 - 관련 테스트와 기존 signup·login·reissue·logout·JWT·JWKS 회귀를 포함한 전체 146개 통과, 실패·오류·건너뜀 0개이며 `./gradlew build` 성공
 - 실제 JAR 기동으로 health·Swagger/OpenAPI 200, 공개·보호 operation 구분, malformed JSON 400, 미존재 경로 404, 무인증 보호 API 401, 공개 로그인 validation 접근과 415를 확인하고 Swagger 비활성 문서 경로의 404를 검증
 - main 병합 후 인증 유스케이스·RefreshSession·JWT·Security·예외 처리의 비자명한 의도에만 한국어 한 줄 주석 25개를 추가하고 실행 코드는 변경하지 않은 채 전체 146개 테스트와 build를 재검증
-- `POST /api/v1/auth/guest`에서 UUID v4 설치 ID와 필수 음성 동의를 검증하고, ACTIVE·GUEST·null LOCAL 자격증·고유 UUID·기존 동의 메타데이터를 가진 User를 생성
-- 정규화한 설치 ID의 SHA-256 Base64URL 무패딩 해시만 User에 저장하고 `uk_users_guest_installation_id_hash` partial unique index로 동시 중복 생성을 차단하며 duplicate key를 `GUEST_ALREADY_EXISTS` 409로 변환
-- Guest 생성 성공 후 기존 RS256 Access Token·Opaque RefreshSession 발급기를 재사용하고 UUID `sub`, issuer·audience·`kid`·TTL·Refresh Token 해시·Rotation·재사용 탐지·단일/전체 로그아웃 계약을 유지
-- LOCAL 이메일 고유성을 null/absent를 제외하는 `uk_users_normalized_email_present` partial unique index로 변경하고, 기존 index를 자동 drop하지 않는 수동 운영 이행 절차를 README에 문서화
-- Guest `/users/me` null email·`provider=GUEST`를 지원하고 설치 ID/해시·Token 정보를 프로필·JWT·오류 응답에 노출하지 않으며 validation 거부 값을 마스킹
-- Guest API의 무인증 호출, 성공·validation·음성 동의·중복 오류 예시와 복구 제한을 OpenAPI에 문서화하고, README에 최초 실행/재실행 흐름·index 이행·Rate Limit 부재 위험을 기록
-- Guest 생성·중복·동시성·Mongo 매핑·JWT 계약·Refresh 수명주기·프로필·Security·OpenAPI와 기존 LOCAL/JWKS 회귀를 포함한 전체 190개 테스트 통과, 실패·오류·건너뜀 0개
-- merge base `cf60faa` 기준 tracked diff와 신규 Guest 파일, Jira `TMI-40` 완료 조건을 최종 검토해 Guest 저장 후 Token 발급 실패의 영구 설치 잠금, 모든 unique 충돌의 Guest 중복 오분류, OpenAPI 3.1의 Guest email null 스키마 불일치를 확인했으며 `./gradlew clean test`의 전체 190개는 통과
-- `UserFactory`의 `@Value`·정책 버전 검증 생성자는 유지하고, 순수한 `final` 필드 대입만 수행하던 Controller·Service·JWT·Refresh 기술 컴포넌트 15개를 Lombok `@RequiredArgsConstructor` 생성자 주입으로 전환한 뒤 전체 190개 테스트 통과
-- Guest UUID·Access Token·Opaque Refresh Token과 해시된 RefreshSession을 영속성 전에 준비하고, 이름이 지정된 `MongoTransactionManager`에서 User·RefreshSession 저장과 응답 구성을 묶어 내부 실패 시 두 문서를 모두 rollback하도록 원자성 finding 해결
-- 운영·staging 시작 시 `hello` 결과의 replica set 또는 sharded topology와 logical session 지원을 확인하고 standalone 또는 확인 실패 환경은 고정된 안전 메시지로 기동을 중단해 Guest 저장이 비원자적으로 실행되지 않도록 구성
-- rollback 뒤 현재 Guest hash 존재 여부를 조회해 해당 설치의 경쟁 삽입만 `GUEST_ALREADY_EXISTS` 409로 변환하고 `_id`·이메일·알 수 없는 unique 충돌은 원래 persistence 오류로 유지
-- OpenAPI 3.1의 `UserProfileResponse.email`을 `type: [string, null]`, `format: email`로 문서화하고 LOCAL·소셜 문자열 및 Guest null 의미를 생성 문서 테스트로 검증
-- 원자성 실패 경로·Transaction 설정·중복 충돌 분류·OpenAPI null 계약 테스트를 순증 19개 추가해 `./gradlew clean test` 전체 209개 통과, 실패·오류·건너뜀 0개
-- merge base `cf60faa`와 Jira `TMI-40` 완료 조건을 기준으로 수정 후 diff를 다시 검토하고 현재 main·test 소스 103개를 독립 재컴파일해 전체 209개 테스트 성공을 확인했으며, 작성자가 추가로 수정할 우선순위화된 코드 finding은 확인하지 않음
-- 이전 HIGH Guest 생성 원자성, MEDIUM Guest duplicate 분류, LOW OpenAPI email null 계약을 트랜잭션 프록시·동시 경쟁·Topology·Token·index·기존 API까지 최종 추적하고 `./gradlew clean test` 전체 209개를 실제 재실행해 HIGH·MEDIUM·LOW 모두 추가 finding 없음 확인
 
 ## 진행 중
 
-- Jira `TMI-40` — `진행 중`, Guest 사용자 및 익명 토큰 구현과 최종 리뷰 finding 수정·문서·전체 테스트 완료, 커밋·PR·Jira 완료 처리 미수행
+- Jira `TMI-10` — `진행 중`, 승인된 Learning Core JWT 연동 이슈 생성과 상태 전환 완료, 구현 미착수
 
 ## 다음 작업
 
-- 사용자가 코드 리뷰 결과와 변경 내용을 확인한 뒤 직접 commit·push·PR을 진행하고, Jira 댓글·상태는 별도 요청과 승인 전까지 변경하지 않음
-- 운영·staging의 실제 replica set 또는 Atlas에서 User·RefreshSession commit/rollback과 동일 설치 동시 삽입 경쟁을 배포 전 검증
-- 운영·staging 배포 전 `uk_users_normalized_email` → partial unique index 수동 이행과 신규 Guest hash unique index를 실제 MongoDB에서 사전 검증
-- Learning Core 통합 환경에서 서로 다른 Guest JWT `sub`로 ExamSession 소유권이 격리되는지 확인하고 Legacy 고정 UUID 모드를 활성화하지 않음
-- 기존 Gateway/Identity 운영 표준에 맞춘 Guest 생성 Rate Limit과 abuse 관측을 후속 Jira로 분리
+- 사용자가 주석과 작업 기록의 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
 - MongoDB replica set·Transaction 지원 여부를 확인해 RefreshSession 회전과 다중 폐기의 원자성·동시 재발급 통합 테스트를 별도 작업으로 설계
 - 운영 `refresh_sessions`의 `{userId, revokedAt}` 실행계획과 `_class` 외부 소비 여부를 확인하고 필요한 경우에만 승인된 index/migration으로 처리
 - OpenAPI 오류 응답의 일반 오류·Validation 배열 schema 구체화와 UserFactory의 `Clock` 주입·application 이동 여부를 후속 개선으로 검토
@@ -159,24 +136,22 @@
 - Jira `TMI-6`은 사용자 확인 기준 main 병합·전체 테스트 성공 후 명시적 승인으로 `완료` 전환됐으며, 추가 댓글이나 상태 변경은 별도 명시적 승인 후 수행
 - Jira `TMI-9`는 사용자 확인·승인 후 transition ID `41`만 적용해 `완료`로 전환됐고 Resolution도 `완료`로 확인했으며, 댓글·필드와 다른 이슈는 변경하지 않음
 - Jira `TMI-10`은 사용자 승인에 따라 `High` 우선순위로 생성한 뒤 별도 승인으로 transition ID `21`만 적용해 `진행 중`으로 전환했으며 담당자·스프린트·에픽·라벨·댓글과 다른 필드는 변경하지 않음
-- Jira `TMI-40`은 사용자가 제공한 상세 요구와 명시적 생성 요청에 따라 `High` 우선순위의 `작업`으로 정확히 한 건 생성하고, 이후 별도 요청에 따라 transition ID `21`만 적용해 `진행 중`으로 전환했으며 담당자·라벨·댓글·다른 필드와 이슈는 변경하지 않음
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 브랜치는 `feat/TMI-40-guest-auth`이며 Guest 코드·테스트·문서만 변경했고 Git commit·push·PR·Jira 댓글·필드·상태 변경은 수행하지 않음
+- 현재 작업 기준 브랜치는 `main`이고 HEAD는 리팩토링 PR #10 병합 commit `18e78ea`이며 이번 주석과 작업 기록은 commit·stage하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
-- 일반 Bean 의존성만 가진 Controller·Service·기술 컴포넌트는 Lombok `@RequiredArgsConstructor`로 `final` 필드 생성자 주입을 사용하고, 생성자 인자 `@Value`와 주입값 검증이 필요한 `UserFactory`는 명시적 생성자를 유지
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유
-- Guest 최초 생성에만 이름이 지정된 `MongoTransactionManager`를 적용하고, 기존 LOCAL 로그인·Rotation·다중 Session 폐기의 저장 의미는 이번 finding 수정에서 변경하지 않음
+- MongoDB TransactionManager가 없는 현재 환경에서는 조회용 `@Transactional(readOnly = true)`나 다중 Session 저장 Transaction을 구조 리팩토링만으로 추가하지 않고 기존 저장 의미를 유지
 - OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`와 `POST /api/v1/auth/logout-all`에만 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화
 - 실제 `userId`는 UUID 문자열
 - User Document는 `users` 컬렉션을 사용하고 UUID 문자열 `userId`를 MongoDB `@Id`로 저장
 - 이메일 정규화는 null 거부, 앞뒤 공백 제거, `Locale.ROOT` 소문자 변환만 수행
 - Provider별 점 제거와 plus addressing 제거는 수행하지 않음
-- `normalizedEmail`은 문자열이 존재하는 LOCAL 문서만 대상으로 하는 partial unique index를 사용하며, Guest의 null/absent email은 index에서 제외
+- `normalizedEmail`은 명시적인 unique index를 사용하며 현재 애플리케이션에서 자동 index 생성을 활성화
 - 비밀번호 해시는 Spring Security의 기본 cost를 사용하는 BCrypt로 생성하고 User에는 `passwordHash`만 저장
 - 회원가입 비밀번호 validation은 8~64자이고, 로그인 입력은 `NotBlank`와 최대 64자만 확인해 가입 복잡도·최소 길이 정책을 다시 적용하지 않음
 - 이메일과 닉네임은 앞뒤 공백을 제거한 값으로 validation하며 비밀번호는 공백을 포함한 입력값을 임의 변환하지 않음
@@ -186,7 +161,7 @@
 - 음성 동의 정책 버전은 `app.consent.audio-policy-version`과 `AUDIO_POLICY_VERSION` 환경변수로 관리
 - 현재 음성 동의 상태는 User 문서 내부의 `AudioConsent`로 저장하고 별도 이력 컬렉션은 만들지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
-- User provider는 `LOCAL`·`GUEST`를 지원하며 기존 null provider 문서는 LOCAL로 해석하고 Guest는 null email·normalizedEmail·passwordHash와 고유 UUID를 사용
+- User provider는 현재 `LOCAL`만 지원하며 신규 이메일 계정에 저장하고 기존 null provider 문서는 LOCAL로 해석
 - Access Token은 RSA Private Key를 가진 Identity에서만 JWT RS256으로 서명
 - Access Token 기본 TTL은 `PT30M`이며 issuer, audience, keyId, TTL과 키 Resource 위치는 환경변수로 교체 가능
 - JWT Header는 `alg=RS256`, `typ=JWT`, 필수 `kid`를 사용
@@ -204,9 +179,6 @@
 - 현재 Identity 보호 API도 기존 `tosunsaeng-learning-core` audience Access Token을 허용하며 Identity 전용 audience 또는 다중 audience는 이번 범위에 도입하지 않음
 - 기본 `scope` 문자열은 Spring Security에서 `SCOPE_` 권한으로 변환하지만 이번 API는 특정 scope를 강제하지 않고 인증 여부만 적용
 - 공개 경로는 지정된 인증 API, JWKS, health와 Swagger/OpenAPI로 제한하고 나머지는 기본적으로 인증
-- Guest 생성은 `POST /api/v1/auth/guest`만 공개하고 `/users/me`·`logout-all`과 다른 보호 경로는 기존 Access Token 인증을 계속 요구
-- `installationId`는 trim 후 canonical UUID v4로 검증하고 소문자 정규화·SHA-256·Base64URL 무패딩 해시만 저장하며 인증 자격증명이나 JWT Claim으로 사용하지 않음
-- 동일 Guest 해시의 사전 exists 조회는 불필요한 Token 준비를 줄이는 최적화로만 사용하고 Mongo partial unique index를 최종 동시성 경계로 삼으며, rollback 뒤 같은 hash 문서가 확인된 경쟁 충돌만 기존 Token 재발급 없는 409로 반환
 - 로그인은 `EmailNormalizer` 조회, BCrypt 일치 확인, `ACTIVE` 상태 확인 순서로 처리하고 실패 시 Access Token 발급기와 RefreshSession 저장소를 호출하지 않음
 - 로그인 Access Token은 `AccessTokenIssuer.issue(userId, empty scopes)`를 호출해 설정된 기본 scope를 사용하며 Service에서 JWT를 직접 조립하지 않음
 - 로그인 응답은 `accessToken`, `refreshToken`, `grantType`, milliseconds 단위 `accessTokenExpiresIn`만 포함하고 내부 사용자·세션 정보를 포함하지 않음
@@ -233,17 +205,11 @@
 
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - 소셜 로그인
-- Guest를 LOCAL·Google·Apple 계정으로 승격·연결하거나 데이터를 병합하는 기능
-- 설치 ID만으로 Guest 계정을 복구하는 기능
 - 사용자 프로필 수정 API
 - 음성 데이터 수집 동의 철회 API와 별도 동의 이력 관리
 
 ## 남아 있는 위험 요소
 
-- 기존 운영 `uk_users_normalized_email` unique index는 다수 Guest의 null/absent email을 막거나 신규 partial index 생성과 충돌할 수 있으므로 README의 승인된 수동 이행 절차가 배포 전 필요하다.
-- 격리된 test profile은 외부 MongoDB를 사용하지 않아 Spring Transaction proxy와 rollback 동기화 단위 테스트로 경계를 검증했다. 실제 replica set/Atlas의 commit·rollback, commit 결과 불확실성 및 동일 설치 경쟁은 staging 배포 전 필수 통합 검증 항목이다.
-- 현재 Identity에 재사용할 Rate Limit 인프라가 없어 Guest 대량 생성·abuse 방어를 후속 이슈로 구현해야 한다.
-- 테스트 환경은 Learning Core 저장소와 실제 MongoDB를 실행하지 않아 Guest JWT `sub`·RS256·issuer·audience·`kid` 계약을 Identity에서 검증했으며 ExamSession 간 403 소유권 격리는 Learning Core 통합 환경에서 추가 확인해야 한다.
 - `RefreshSession`에는 token hash unique와 만료 TTL index만 선언되어 있어 사용자별 미폐기 Session 조회가 운영 데이터 규모에서 collection scan이 되는지는 실제 운영 index와 `explain` 확인이 필요하다.
 - 패키지 이동으로 신규 Mongo 문서의 `_class` FQCN이 바뀔 수 있으므로 외부 시스템이 `_class`를 조회 조건으로 사용하는지는 운영 데이터와 소비자에서 확인해야 한다.
 - OpenAPI 오류 응답은 raw `BaseResponse` schema를 사용해 Validation의 `result` 배열을 완전히 구체화하지 못하므로 문서 전용 wrapper 도입 범위를 후속 검토해야 한다.
@@ -266,7 +232,7 @@
 - Identity 보호 API가 현재 Learning Core audience 토큰을 함께 허용하므로 Identity 전용 audience 또는 다중 audience와 토큰 용도 분리 여부를 후속 검토해야 한다.
 - scope는 `SCOPE_` 권한으로 변환되지만 endpoint별 scope 인가를 강제하지 않으므로 권한 모델 확정 후 세부 정책을 추가해야 한다.
 - MongoDB TTL 삭제는 비동기 정리이므로 만료 문서가 일시적으로 남을 수 있으며 재발급은 계속 `expiresAt`과 폐기 상태를 애플리케이션에서 검사해야 한다.
-- Guest 최초 생성 Transaction은 기존 재발급 흐름까지 확장하지 않았으므로 기존 Session의 Rotation 폐기 저장 이후 Access Token 발급 또는 후속 RefreshSession 저장이 실패하면 사용자가 현재 Session을 잃고 다시 로그인해야 할 수 있다.
+- MongoDB Transaction을 도입하지 않았으므로 기존 Session의 Rotation 폐기 저장 이후 Access Token 발급 또는 후속 RefreshSession 저장이 실패하면 사용자가 현재 Session을 잃고 다시 로그인해야 할 수 있다.
 - 기존 RefreshSession 문서에 `@Version` 또는 회전 패밀리 필드가 없다면 운영 적용 전에 데이터 이행 또는 기존 Session 만료·재로그인 정책이 필요하다.
 - 재사용 탐지에서 여러 활성 Session을 폐기하는 저장은 Transaction으로 묶이지 않으므로 중간 저장 실패 시 일부 Session만 폐기될 가능성이 남아 있다.
 - logout-all의 여러 Session `saveAll`도 Transaction이 아니므로 중간 실패 시 일부 Session만 폐기될 수 있으며 오류는 호출자에게 전파된다.

@@ -636,7 +636,11 @@ class AuthControllerTests {
 
 	@Test
 	void controllerDependsOnServiceRatherThanRepository() {
-		assertThat(Arrays.stream(AuthController.class.getDeclaredFields()).map(Field::getType))
+		Class<?>[] dependencyTypes = Arrays.stream(AuthController.class.getDeclaredFields())
+				.map(Field::getType)
+				.toArray(Class<?>[]::new);
+
+		assertThat(dependencyTypes)
 				.contains(
 						EmailAvailabilityService.class,
 						SignupService.class,
