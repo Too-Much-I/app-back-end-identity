@@ -5,12 +5,28 @@ import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 
+import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
 import web.tosunsaeng.identity.domain.auth.dto.response.LoginResponse;
 import web.tosunsaeng.identity.domain.auth.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 
 @Component
 public class AuthResponseConverter {
+
+	public GuestAuthResponse toGuestAuthResponse(
+			IssuedAccessToken accessToken,
+			String refreshTokenValue,
+			Instant refreshTokenIssuedAt,
+			Instant refreshTokenExpiresAt
+	) {
+		return new GuestAuthResponse(
+				accessToken.tokenValue(),
+				refreshTokenValue,
+				IssuedAccessToken.BEARER_TOKEN_TYPE,
+				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
+				Duration.between(refreshTokenIssuedAt, refreshTokenExpiresAt).toMillis()
+		);
+	}
 
 	public LoginResponse toLoginResponse(
 			IssuedAccessToken accessToken,

@@ -1,5 +1,6 @@
 package web.tosunsaeng.identity.domain.auth.application;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -13,21 +14,12 @@ import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 @Service
+@RequiredArgsConstructor
 public class SignupService {
 
 	private final UserRepository userRepository;
 	private final EmailNormalizer emailNormalizer;
 	private final UserFactory userFactory;
-
-	public SignupService(
-			UserRepository userRepository,
-			EmailNormalizer emailNormalizer,
-			UserFactory userFactory
-	) {
-		this.userRepository = userRepository;
-		this.emailNormalizer = emailNormalizer;
-		this.userFactory = userFactory;
-	}
 
 	public SignupResponse signup(SignupRequest request) {
 		String normalizedEmail = emailNormalizer.normalize(request.email());

@@ -82,12 +82,35 @@ class UserProfileServiceTests {
 						"password",
 						"passwordHash",
 						"normalizedEmail",
+						"installationId",
+						"guestInstallationIdHash",
 						"refreshSession",
 						"tokenHash",
 						"accessToken",
 						"refreshToken",
 						"streakDays"
 				);
+	}
+
+	@Test
+	void mapsActiveGuestToNullEmailProfileWithoutInstallationIdentity() {
+		User guest = user(UserStatus.ACTIVE, true);
+		when(guest.getEmail()).thenReturn(null);
+		when(guest.getNickname()).thenReturn("게스트");
+		when(guest.getProvider()).thenReturn(UserProvider.GUEST);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(guest));
+
+		UserProfileResponse response = userProfileService.getCurrentUserProfile();
+
+		assertThat(response.userId()).isEqualTo(USER_ID);
+		assertThat(response.email()).isNull();
+		assertThat(response.nickname()).isEqualTo("게스트");
+		assertThat(response.provider()).isEqualTo(UserProvider.GUEST);
+		assertThat(response.isAudioConsent()).isTrue();
+		assertThat(response.createdAt()).isEqualTo(CREATED_AT);
+		assertThat(Arrays.stream(UserProfileResponse.class.getRecordComponents())
+				.map(RecordComponent::getName))
+				.doesNotContain("installationId", "guestInstallationIdHash");
 	}
 
 	@Test

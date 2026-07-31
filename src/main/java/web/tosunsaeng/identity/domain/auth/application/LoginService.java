@@ -2,6 +2,7 @@ package web.tosunsaeng.identity.domain.auth.application;
 
 import java.util.Set;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 
 @Service
+@RequiredArgsConstructor
 public class LoginService {
 
 	private final UserRepository userRepository;
@@ -28,22 +30,6 @@ public class LoginService {
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final AuthResponseConverter authResponseConverter;
-
-	public LoginService(
-			UserRepository userRepository,
-			EmailNormalizer emailNormalizer,
-			PasswordEncoder passwordEncoder,
-			AccessTokenIssuer accessTokenIssuer,
-			RefreshSessionIssuer refreshSessionIssuer,
-			AuthResponseConverter authResponseConverter
-	) {
-		this.userRepository = userRepository;
-		this.emailNormalizer = emailNormalizer;
-		this.passwordEncoder = passwordEncoder;
-		this.accessTokenIssuer = accessTokenIssuer;
-		this.refreshSessionIssuer = refreshSessionIssuer;
-		this.authResponseConverter = authResponseConverter;
-	}
 
 	public LoginResponse login(LoginRequest request) {
 		String normalizedEmail = emailNormalizer.normalize(request.email());

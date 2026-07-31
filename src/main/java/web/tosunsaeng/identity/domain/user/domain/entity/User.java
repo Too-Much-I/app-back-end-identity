@@ -19,10 +19,21 @@ public class User {
 
 	private String email;
 
-	@Indexed(name = "uk_users_normalized_email", unique = true)
+	@Indexed(
+			name = "uk_users_normalized_email_present",
+			unique = true,
+			partialFilter = "{ 'normalizedEmail': { '$type': 'string' } }"
+	)
 	private String normalizedEmail;
 
 	private String passwordHash;
+
+	@Indexed(
+			name = "uk_users_guest_installation_id_hash",
+			unique = true,
+			partialFilter = "{ 'guestInstallationIdHash': { '$type': 'string' } }"
+	)
+	private String guestInstallationIdHash;
 
 	private String nickname;
 
@@ -44,6 +55,7 @@ public class User {
 			String email,
 			String normalizedEmail,
 			String passwordHash,
+			String guestInstallationIdHash,
 			String nickname,
 			UserProvider provider,
 			AudioConsent audioConsent,
@@ -52,11 +64,13 @@ public class User {
 			Instant updatedAt
 	) {
 		this.userId = Objects.requireNonNull(userId, "userId must not be null");
-		this.email = Objects.requireNonNull(email, "email must not be null");
-		this.normalizedEmail = Objects.requireNonNull(normalizedEmail, "normalizedEmail must not be null");
-		this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+		this.email = email;
+		this.normalizedEmail = normalizedEmail;
+		this.passwordHash = passwordHash;
+		this.guestInstallationIdHash = guestInstallationIdHash;
 		this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
 		this.provider = Objects.requireNonNull(provider, "provider must not be null");
+		validateProviderFields();
 		this.audioConsent = Objects.requireNonNull(audioConsent, "audioConsent must not be null");
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
@@ -76,6 +90,7 @@ public class User {
 				email,
 				normalizedEmail,
 				passwordHash,
+				null,
 				nickname,
 				UserProvider.LOCAL,
 				audioConsent,
@@ -83,6 +98,51 @@ public class User {
 				createdAt,
 				createdAt
 		);
+	}
+
+	public static User createGuest(
+			String guestInstallationIdHash,
+			String nickname,
+			AudioConsent audioConsent,
+			Instant createdAt
+	) {
+		return new User(
+				UUID.randomUUID().toString(),
+				null,
+				null,
+				null,
+				guestInstallationIdHash,
+				nickname,
+				UserProvider.GUEST,
+				audioConsent,
+				UserStatus.ACTIVE,
+				createdAt,
+				createdAt
+		);
+	}
+
+	private void validateProviderFields() {
+		if (provider == UserProvider.GUEST) {
+			if (email != null || normalizedEmail != null || passwordHash != null) {
+				throw new IllegalArgumentException("Guest credentials must be absent.");
+			}
+			requireGuestInstallationIdHash(guestInstallationIdHash);
+			return;
+		}
+		Objects.requireNonNull(email, "email must not be null");
+		Objects.requireNonNull(normalizedEmail, "normalizedEmail must not be null");
+		Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+	}
+
+	private static String requireGuestInstallationIdHash(String hash) {
+		String requiredHash = Objects.requireNonNull(
+				hash,
+				"guestInstallationIdHash must not be null"
+		);
+		if (!requiredHash.matches("[A-Za-z0-9_-]{43}")) {
+			throw new IllegalArgumentException("Guest installation hash has an invalid format.");
+		}
+		return requiredHash;
 	}
 
 	public String getUserId() {
@@ -99,6 +159,10 @@ public class User {
 
 	public String getPasswordHash() {
 		return passwordHash;
+	}
+
+	public String getGuestInstallationIdHash() {
+		return guestInstallationIdHash;
 	}
 
 	public String getNickname() {

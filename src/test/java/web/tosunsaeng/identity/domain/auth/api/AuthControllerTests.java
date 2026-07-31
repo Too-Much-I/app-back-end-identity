@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import web.tosunsaeng.identity.domain.auth.application.EmailAvailabilityService;
+import web.tosunsaeng.identity.domain.auth.application.GuestAuthService;
 import web.tosunsaeng.identity.domain.auth.application.LoginService;
 import web.tosunsaeng.identity.domain.auth.application.LogoutService;
 import web.tosunsaeng.identity.domain.auth.application.LogoutAllService;
@@ -107,6 +108,9 @@ class AuthControllerTests {
 
 	@MockitoBean
 	private LogoutAllService logoutAllService;
+
+	@MockitoBean
+	private GuestAuthService guestAuthService;
 
 	@Test
 	void checkEmailReturnsAvailableAndNormalizesWhitespaceAndCase() throws Exception {
@@ -299,6 +303,7 @@ class AuthControllerTests {
 		));
 		when(refreshSessionIssuer.issue(user.getUserId())).thenReturn(new IssuedRefreshSession(
 				"test-refresh-value",
+				issuedAt,
 				issuedAt.plus(Duration.ofDays(14))
 		));
 
@@ -475,6 +480,7 @@ class AuthControllerTests {
 		when(refreshSessionIssuer.issueRotated(any(), any(), any(), any(), any()))
 				.thenReturn(new IssuedRefreshSession(
 						"controller-next-refresh-value",
+						currentTime,
 						currentTime.plus(Duration.ofDays(14))
 				));
 

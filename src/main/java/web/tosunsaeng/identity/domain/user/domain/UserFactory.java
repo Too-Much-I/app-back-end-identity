@@ -13,6 +13,8 @@ import web.tosunsaeng.identity.domain.user.domain.entity.User;
 @Component
 public class UserFactory {
 
+	public static final String GUEST_NICKNAME = "게스트";
+
 	private final EmailNormalizer emailNormalizer;
 	private final PasswordEncoder passwordEncoder;
 	private final String audioPolicyVersion;
@@ -43,6 +45,23 @@ public class UserFactory {
 				nickname,
 				audioConsent,
 				createdAt
+		);
+	}
+
+	public User createGuest(String installationIdHash, Instant createdAt) {
+		Instant requiredCreatedAt = Objects.requireNonNull(
+				createdAt,
+				"createdAt must not be null"
+		);
+		AudioConsent audioConsent = AudioConsent.agreed(
+				audioPolicyVersion,
+				requiredCreatedAt
+		);
+		return User.createGuest(
+				installationIdHash,
+				GUEST_NICKNAME,
+				audioConsent,
+				requiredCreatedAt
 		);
 	}
 

@@ -13,9 +13,11 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
+@RequiredArgsConstructor
 public class RsaKeyLoader {
 
 	private static final String PRIVATE_KEY_HEADER = "-----BEGIN PRIVATE KEY-----";
@@ -29,10 +31,6 @@ public class RsaKeyLoader {
 			"RSA public key could not be loaded from the configured resource.";
 
 	private final ResourceLoader resourceLoader;
-
-	public RsaKeyLoader(ResourceLoader resourceLoader) {
-		this.resourceLoader = resourceLoader;
-	}
 
 	public RsaKeyMaterial load(String privateKeyLocation, String publicKeyLocation) {
 		RSAPrivateKey privateKey = loadPrivateKey(resourceLoader.getResource(privateKeyLocation));

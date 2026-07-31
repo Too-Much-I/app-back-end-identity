@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,13 +20,10 @@ import web.tosunsaeng.identity.global.config.OpenApiConfig;
 @Tag(name = "User", description = "인증된 사용자 프로필 API")
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserController {
 
 	private final UserProfileService userProfileService;
-
-	public UserController(UserProfileService userProfileService) {
-		this.userProfileService = userProfileService;
-	}
 
 	@Operation(
 			summary = "내 프로필 조회",

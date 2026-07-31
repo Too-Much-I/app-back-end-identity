@@ -3,27 +3,32 @@ package web.tosunsaeng.identity.domain.auth.api;
 import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.domain.auth.dto.request.CheckEmailRequest;
+import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.dto.request.LoginRequest;
 import web.tosunsaeng.identity.domain.auth.dto.request.LogoutRequest;
 import web.tosunsaeng.identity.domain.auth.dto.request.ReissueRequest;
 import web.tosunsaeng.identity.domain.auth.dto.request.SignupRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.CheckEmailResponse;
+import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
 import web.tosunsaeng.identity.domain.auth.dto.response.LoginResponse;
 import web.tosunsaeng.identity.domain.auth.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.domain.auth.dto.response.SignupResponse;
 import web.tosunsaeng.identity.domain.auth.application.EmailAvailabilityService;
+import web.tosunsaeng.identity.domain.auth.application.GuestAuthService;
 import web.tosunsaeng.identity.domain.auth.application.LoginService;
 import web.tosunsaeng.identity.domain.auth.application.LogoutService;
 import web.tosunsaeng.identity.domain.auth.application.LogoutAllService;
@@ -32,33 +37,19 @@ import web.tosunsaeng.identity.domain.auth.application.TokenReissueService;
 import web.tosunsaeng.identity.global.config.OpenApiConfig;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
-@Tag(name = "Auth", description = "이메일 계정 인증과 로그인 세션 관리 API")
+@Tag(name = "Auth", description = "LOCAL·Guest 계정 인증과 로그인 세션 관리 API")
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
 	private final EmailAvailabilityService emailAvailabilityService;
 	private final SignupService signupService;
+	private final GuestAuthService guestAuthService;
 	private final LoginService loginService;
 	private final TokenReissueService tokenReissueService;
 	private final LogoutService logoutService;
 	private final LogoutAllService logoutAllService;
-
-	public AuthController(
-			EmailAvailabilityService emailAvailabilityService,
-			SignupService signupService,
-			LoginService loginService,
-			TokenReissueService tokenReissueService,
-			LogoutService logoutService,
-			LogoutAllService logoutAllService
-	) {
-		this.emailAvailabilityService = emailAvailabilityService;
-		this.signupService = signupService;
-		this.loginService = loginService;
-		this.tokenReissueService = tokenReissueService;
-		this.logoutService = logoutService;
-		this.logoutAllService = logoutAllService;
-	}
 
 	@Operation(
 			summary = "이메일 중복 확인",
@@ -101,6 +92,115 @@ public class AuthController {
 			@Valid @RequestBody SignupRequest request
 	) {
 		return BaseResponse.success(signupService.signup(request));
+	}
+
+	@Operation(
+			summary = "Guest 사용자 생성 및 인증",
+			description = "설치 UUID를 중복 방지용으로만 사용해 ACTIVE Guest 사용자를 한 번 생성하고 "
+					+ "기존 RS256 Access Token과 Opaque Refresh Token을 발급합니다. "
+					+ "설치 UUID는 인증 수단이 아니므로 이미 생성된 Guest의 Token을 다시 발급하지 않습니다. "
+					+ "응답 유실 또는 Token 분실 시 설치 UUID만으로 계정을 복구할 수 없습니다."
+	)
+	@ApiResponses({
+			@ApiResponse(
+					responseCode = "200",
+					description = "Guest 사용자와 인증 토큰 발급 성공",
+					useReturnTypeSchema = true,
+					content = @Content(
+							examples = @ExampleObject(value = """
+									{
+									  "isSuccess": true,
+									  "code": "SUCCESS",
+									  "message": "요청에 성공했습니다.",
+									  "result": {
+									    "accessToken": "<redacted>",
+									    "refreshToken": "<redacted>",
+									    "grantType": "Bearer",
+									    "accessTokenExpiresIn": 1800000,
+									    "refreshTokenExpiresIn": 1209600000
+									  }
+									}
+									""")
+					)
+			),
+			@ApiResponse(
+					responseCode = "400",
+					description = "설치 UUID 검증 실패 또는 음성 데이터 동의 없음",
+					content = @Content(
+							mediaType = "application/json",
+							schema = @Schema(implementation = BaseResponse.class),
+							examples = {
+									@ExampleObject(
+											name = "AUDIO_CONSENT_REQUIRED",
+											value = """
+													{
+													  "isSuccess": false,
+													  "code": "AUDIO_CONSENT_REQUIRED",
+													  "message": "음성 데이터 수집·이용 동의가 필요합니다.",
+													  "result": null
+													}
+													"""
+									),
+									@ExampleObject(
+											name = "INVALID_REQUEST",
+											value = """
+													{
+													  "isSuccess": false,
+													  "code": "INVALID_REQUEST",
+													  "message": "잘못된 요청입니다.",
+													  "result": [{
+													    "field": "installationId",
+													    "rejectedValue": null,
+													    "reason": "설치 ID는 UUID v4 형식이어야 합니다."
+													  }]
+													}
+													"""
+									)
+							}
+					)
+			),
+			@ApiResponse(
+					responseCode = "409",
+					description = "같은 설치 UUID로 Guest가 이미 생성됨",
+					content = @Content(
+							mediaType = "application/json",
+							schema = @Schema(implementation = BaseResponse.class),
+							examples = @ExampleObject(
+									name = "GUEST_ALREADY_EXISTS",
+									value = """
+											{
+											  "isSuccess": false,
+											  "code": "GUEST_ALREADY_EXISTS",
+											  "message": "이미 생성된 Guest 사용자입니다.",
+											  "result": null
+											}
+											"""
+						)
+					)
+			)
+	})
+	@PostMapping(
+			value = "/guest",
+			consumes = "application/json",
+			produces = "application/json"
+	)
+	public BaseResponse<GuestAuthResponse> guest(
+			@io.swagger.v3.oas.annotations.parameters.RequestBody(
+					required = true,
+					description = "앱 설치 UUID와 필수 음성 데이터 동의",
+					content = @Content(
+							schema = @Schema(implementation = GuestAuthRequest.class),
+							examples = @ExampleObject(value = """
+									{
+									  "installationId": "550e8400-e29b-41d4-a716-446655440000",
+									  "isAudioConsent": true
+									}
+									""")
+					)
+			)
+			@Valid @RequestBody GuestAuthRequest request
+	) {
+		return BaseResponse.success(guestAuthService.authenticate(request));
 	}
 
 	@Operation(

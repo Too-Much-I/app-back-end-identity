@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.domain.auth.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,7 +29,7 @@ class RefreshSessionIssuerTests {
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
 
 	@Test
-	void hashesOpaqueTokenAndStoresInitialSessionUsingInjectedClock() {
+	void preparesHashedInitialSessionBeforeSavingWithInjectedClock() {
 		RefreshTokenGenerator tokenGenerator = mock(RefreshTokenGenerator.class);
 		RefreshSessionRepository repository = mock(RefreshSessionRepository.class);
 		RefreshTokenHasher tokenHasher = new RefreshTokenHasher();
@@ -44,7 +45,18 @@ class RefreshSessionIssuerTests {
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 
-		IssuedRefreshSession issuedSession = issuer.issue(USER_ID);
+		PreparedRefreshSession preparedSession = issuer.prepare(USER_ID);
+
+		verify(repository, never()).save(any());
+		assertThat(preparedSession.session().getUserId()).isEqualTo(USER_ID);
+		assertThat(preparedSession.session().getTokenHash())
+				.isEqualTo(tokenHasher.hash(preparedSession.tokenValue()))
+				.isNotEqualTo(preparedSession.tokenValue());
+		assertThat(preparedSession.toString())
+				.contains("tokenValue=redacted", "session=redacted")
+				.doesNotContain(preparedSession.tokenValue());
+
+		IssuedRefreshSession issuedSession = issuer.savePrepared(preparedSession);
 
 		ArgumentCaptor<RefreshSession> sessionCaptor = ArgumentCaptor.forClass(RefreshSession.class);
 		verify(repository).save(sessionCaptor.capture());
@@ -66,6 +78,26 @@ class RefreshSessionIssuerTests {
 		assertThat(issuedSession.toString())
 				.contains("tokenValue=redacted")
 				.doesNotContain(issuedSession.tokenValue());
+	}
+
+	@Test
+	void tokenGenerationFailureDoesNotStoreRefreshSession() {
+		RefreshTokenGenerator tokenGenerator = mock(RefreshTokenGenerator.class);
+		RefreshSessionRepository repository = mock(RefreshSessionRepository.class);
+		when(tokenGenerator.generate()).thenThrow(
+				new IllegalStateException("test-only token generation failure")
+		);
+		RefreshSessionIssuer issuer = new RefreshSessionIssuer(
+				tokenGenerator,
+				new RefreshTokenHasher(),
+				repository,
+				new RefreshTokenProperties(TTL, 32),
+				Clock.fixed(NOW, ZoneOffset.UTC)
+		);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> issuer.prepare(USER_ID))
+				.isInstanceOf(IllegalStateException.class);
+		verify(repository, never()).save(any());
 	}
 
 	@Test
