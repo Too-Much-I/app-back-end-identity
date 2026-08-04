@@ -1,29 +1,20 @@
 .git
 .github
-.codex
-
 .gradle
 build
 out
-
 .idea
 .vscode
-*.iml
 
 .env
 .env.*
 .local
+.aws
 
-**/*.pem
-**/*.key
-**/*.p12
-**/*.jks
+*.pem
+*.key
+*.p12
+*.pfx
 
-logs
-*.log
-
-docs
 README.md
-AGENTS.md
-
-.DS_Store
+docs
