@@ -13,7 +13,8 @@ server:
 
 app:
   consent:
-    audio-policy-version: ${AUDIO_POLICY_VERSION:audio-policy-v1}
+    privacy-version: ${PRIVACY_CONSENT_VERSION:privacy-v1}
+    term-version: ${TERM_CONSENT_VERSION:term-v1}
   refresh-token:
     ttl: ${REFRESH_TOKEN_TTL:P14D}
     random-bytes: ${REFRESH_TOKEN_RANDOM_BYTES:32}

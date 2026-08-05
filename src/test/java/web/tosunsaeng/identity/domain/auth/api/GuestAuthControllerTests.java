@@ -38,6 +38,8 @@ import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.exception.AuthException;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
+import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 
 @WebMvcTest(AuthController.class)
@@ -46,6 +48,8 @@ import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 class GuestAuthControllerTests {
 
 	private static final String INSTALLATION_ID = "550e8400-e29b-41d4-a716-446655440000";
+	private static final String PRIVACY_VERSION = "privacy-v1";
+	private static final String TERM_VERSION = "term-v1";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -88,7 +92,10 @@ class GuestAuthControllerTests {
 						.content("""
 								{
 								  "installationId": "  550e8400-e29b-41d4-a716-446655440000  ",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								"""))
 				.andExpect(status().isOk())
@@ -113,7 +120,14 @@ class GuestAuthControllerTests {
 	void guestRejectsMissingInstallationIdAndMasksRejectedValue() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"isAudioConsent\":true}"))
+						.content("""
+								{
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
+								}
+								"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
 				.andExpect(jsonPath("$.result[*].field", hasItem("installationId")))
@@ -138,7 +152,10 @@ class GuestAuthControllerTests {
 						.content("""
 								{
 								  "installationId": "%s",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								""".formatted(invalidInstallationId)))
 				.andExpect(status().isBadRequest())
@@ -164,7 +181,10 @@ class GuestAuthControllerTests {
 						.content("""
 								{
 								  "installationId": "%s",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								""".formatted(excessiveValue)))
 				.andExpect(status().isBadRequest())
@@ -178,31 +198,48 @@ class GuestAuthControllerTests {
 	}
 
 	@Test
-	void guestRejectsMissingAudioConsentAsValidationError() throws Exception {
+	void oldAudioOnlyContractIsRejectedBecauseNewConsentsAreRequired() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"installationId\":\"" + INSTALLATION_ID + "\"}"))
+						.content("{\"installationId\":\"" + INSTALLATION_ID
+								+ "\",\"isAudioConsent\":true}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-				.andExpect(jsonPath("$.result[*].field", hasItem("isAudioConsent")));
+				.andExpect(jsonPath("$.result[*].field", hasItem("isPrivacyConsented")))
+				.andExpect(jsonPath("$.result[*].field", hasItem("privacyConsentVersion")))
+				.andExpect(jsonPath("$.result[*].field", hasItem("isTermConsented")))
+				.andExpect(jsonPath("$.result[*].field", hasItem("termConsentVersion")));
 
 		verify(guestAuthService, never()).authenticate(any());
 	}
 
 	@Test
-	void guestRejectsFalseAudioConsentWithExistingDomainError() throws Exception {
+	void guestRejectsFalsePrivacyConsentWithDomainError() throws Exception {
 		when(guestAuthService.authenticate(any(GuestAuthRequest.class))).thenThrow(
-				new AuthException(AuthErrorStatus.AUDIO_CONSENT_REQUIRED)
+				new UserException(UserErrorStatus.PRIVACY_CONSENT_REQUIRED)
 		);
 
 		mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validGuestJson(false)))
+						.content(guestJson(false, PRIVACY_VERSION, true, TERM_VERSION)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.isSuccess").value(false))
-				.andExpect(jsonPath("$.code").value("AUDIO_CONSENT_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("음성 데이터 수집·이용 동의가 필요합니다."))
+				.andExpect(jsonPath("$.code").value("PRIVACY_CONSENT_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("개인정보 처리 동의가 필요합니다."))
 				.andExpect(jsonPath("$.result").value(nullValue()));
+	}
+
+	@Test
+	void guestRejectsBlankConsentVersionsDuringValidation() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/guest")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(guestJson(true, "   ", true, "   ")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[*].field", hasItem("privacyConsentVersion")))
+				.andExpect(jsonPath("$.result[*].field", hasItem("termConsentVersion")));
+
+		verify(guestAuthService, never()).authenticate(any());
 	}
 
 	@Test
@@ -213,7 +250,7 @@ class GuestAuthControllerTests {
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validGuestJson(true)))
+						.content(validGuestJson()))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.code").value("GUEST_ALREADY_EXISTS"))
@@ -234,7 +271,7 @@ class GuestAuthControllerTests {
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validGuestJson(true)))
+						.content(validGuestJson()))
 				.andExpect(status().isInternalServerError())
 				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
@@ -260,7 +297,7 @@ class GuestAuthControllerTests {
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/guest")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validGuestJson(true)))
+						.content(validGuestJson()))
 				.andExpect(status().isInternalServerError())
 				.andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
 				.andExpect(jsonPath("$.result").value(nullValue()))
@@ -274,12 +311,30 @@ class GuestAuthControllerTests {
 		);
 	}
 
-	private String validGuestJson(boolean audioConsent) {
+	private String validGuestJson() {
+		return guestJson(true, PRIVACY_VERSION, true, TERM_VERSION);
+	}
+
+	private String guestJson(
+			boolean privacyConsented,
+			String privacyVersion,
+			boolean termConsented,
+			String termVersion
+	) {
 		return """
 				{
 				  "installationId": "%s",
-				  "isAudioConsent": %s
+				  "isPrivacyConsented": %s,
+				  "privacyConsentVersion": "%s",
+				  "isTermConsented": %s,
+				  "termConsentVersion": "%s"
 				}
-				""".formatted(INSTALLATION_ID, audioConsent);
+				""".formatted(
+				INSTALLATION_ID,
+				privacyConsented,
+				privacyVersion,
+				termConsented,
+				termVersion
+		);
 	}
 }

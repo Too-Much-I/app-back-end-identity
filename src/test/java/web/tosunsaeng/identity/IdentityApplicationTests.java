@@ -106,6 +106,9 @@ class IdentityApplicationTests {
 						"$.paths['/api/v1/users/me'].get.security[0].bearerAuth"
 				).isArray())
 				.andExpect(jsonPath(
+						"$.paths['/api/v1/users/me/consents'].put.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
 						"$.components.schemas.SignupRequest.properties.password.format"
 				).value("password"))
 				.andExpect(jsonPath(
@@ -130,8 +133,11 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
-						+ ".content['application/json'].examples.AUDIO_CONSENT_REQUIRED.value.code")
-						.value("AUDIO_CONSENT_REQUIRED"))
+						+ ".content['application/json'].examples.PRIVACY_CONSENT_REQUIRED.value.code")
+						.value("PRIVACY_CONSENT_REQUIRED"))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
+						+ ".content['application/json'].examples.TERM_CONSENT_REQUIRED.value.code")
+						.value("TERM_CONSENT_REQUIRED"))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
 						+ ".content['application/json'].examples.INVALID_REQUEST.value.code")
 						.value("INVALID_REQUEST"))
@@ -139,7 +145,16 @@ class IdentityApplicationTests {
 						+ ".content['application/json'].examples.GUEST_ALREADY_EXISTS.value.code")
 						.value("GUEST_ALREADY_EXISTS"))
 				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.required")
-						.value(org.hamcrest.Matchers.hasItems("installationId", "isAudioConsent")))
+						.value(org.hamcrest.Matchers.hasItems(
+								"installationId",
+								"isPrivacyConsented",
+								"privacyConsentVersion",
+								"isTermConsented",
+								"termConsentVersion"
+						)))
+				.andExpect(jsonPath(
+						"$.components.schemas.GuestAuthRequest.properties.isAudioConsent"
+				).doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.minLength")
 						.value(36))
 				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.maxLength")
@@ -147,6 +162,36 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']"
 						+ ".content['application/json'].example.result.refreshTokenExpiresIn")
 						.value(1_209_600_000));
+	}
+
+	@Test
+	void openApiDocumentsConsentUpdateAndLegacyProfileNullability() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].put.summary")
+						.value("개인정보 처리방침 및 이용약관 동의 갱신"))
+				.andExpect(jsonPath("$.components.schemas.UserConsentUpdateRequest.required")
+						.value(org.hamcrest.Matchers.hasItems(
+								"isPrivacyConsented",
+								"privacyConsentVersion",
+								"isTermConsented",
+								"termConsentVersion"
+						)))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.privacyConsentVersion.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.privacyConsentedAt.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.termConsentVersion.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.termConsentedAt.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.isAudioConsent"
+				).doesNotExist());
 	}
 
 	@Test

@@ -9,6 +9,7 @@ import web.tosunsaeng.identity.domain.auth.dto.response.SignupResponse;
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -20,6 +21,7 @@ public class SignupService {
 	private final UserRepository userRepository;
 	private final EmailNormalizer emailNormalizer;
 	private final UserFactory userFactory;
+	private final ConsentPolicy consentPolicy;
 
 	public SignupResponse signup(SignupRequest request) {
 		String normalizedEmail = emailNormalizer.normalize(request.email());
@@ -27,9 +29,12 @@ public class SignupService {
 			throw new AuthException(AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		}
 
-		if (!Boolean.TRUE.equals(request.isAudioConsent())) {
-			throw new AuthException(AuthErrorStatus.AUDIO_CONSENT_REQUIRED);
-		}
+		consentPolicy.validate(
+				request.isPrivacyConsented(),
+				request.privacyConsentVersion(),
+				request.isTermConsented(),
+				request.termConsentVersion()
+		);
 
 		User user = userFactory.create(
 				request.email(),

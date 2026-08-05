@@ -2,11 +2,10 @@ package web.tosunsaeng.identity.domain.user.dto.response;
 
 import java.time.Instant;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 
 @Schema(description = "인증된 사용자 프로필")
@@ -24,19 +23,51 @@ public record UserProfileResponse(
 		String nickname,
 		@Schema(description = "계정 인증 제공자", example = "LOCAL", allowableValues = {"LOCAL", "GUEST"})
 		UserProvider provider,
-		@Schema(description = "음성 데이터 수집·이용 동의 상태", example = "true")
-		@JsonProperty("isAudioConsent") boolean isAudioConsent,
+		@Schema(description = "개인정보 처리 동의 상태. 기존 미동의 사용자는 false", example = "true")
+		boolean privacyConsented,
+		@Schema(
+				description = "개인정보 처리 동의 정책 버전. 기존 미동의 사용자는 null",
+				example = "privacy-v1",
+				types = {"string", "null"}
+		)
+		String privacyConsentVersion,
+		@Schema(
+				description = "개인정보 처리 동의 서버 시각. 기존 미동의 사용자는 null",
+				format = "date-time",
+				types = {"string", "null"}
+		)
+		Instant privacyConsentedAt,
+		@Schema(description = "이용약관 동의 상태. 기존 미동의 사용자는 false", example = "true")
+		boolean termConsented,
+		@Schema(
+				description = "이용약관 동의 정책 버전. 기존 미동의 사용자는 null",
+				example = "term-v1",
+				types = {"string", "null"}
+		)
+		String termConsentVersion,
+		@Schema(
+				description = "이용약관 동의 서버 시각. 기존 미동의 사용자는 null",
+				format = "date-time",
+				types = {"string", "null"}
+		)
+		Instant termConsentedAt,
 		@Schema(description = "계정 생성 시각", format = "date-time")
 		Instant createdAt
 ) {
 
 	public static UserProfileResponse from(User user) {
+		UserConsents consents = user.getConsents();
 		return new UserProfileResponse(
 				user.getUserId(),
 				user.getEmail(),
 				user.getNickname(),
 				user.getProvider(),
-				user.getAudioConsent().isAgreed(),
+				consents.isPrivacyConsented(),
+				consents.getPrivacyConsentVersion(),
+				consents.getPrivacyConsentedAt(),
+				consents.isTermConsented(),
+				consents.getTermConsentVersion(),
+				consents.getTermConsentedAt(),
 				user.getCreatedAt()
 		);
 	}

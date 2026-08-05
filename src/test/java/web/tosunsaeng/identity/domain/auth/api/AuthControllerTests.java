@@ -55,6 +55,7 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
@@ -69,6 +70,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 		TokenReissueService.class,
 		LogoutService.class,
 		AuthResponseConverter.class,
+		ConsentPolicy.class,
 		EmailNormalizer.class,
 		UserFactory.class,
 		PasswordConfig.class,
@@ -76,7 +78,10 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 		GlobalExceptionHandler.class,
 		RefreshTokenHasher.class
 })
-@TestPropertySource(properties = "app.consent.audio-policy-version=controller-test-policy-v1")
+@TestPropertySource(properties = {
+		"app.consent.privacy-version=privacy-v1",
+		"app.consent.term-version=term-v1"
+})
 class AuthControllerTests {
 
 	@Autowired
@@ -153,7 +158,10 @@ class AuthControllerTests {
 								  "email": "  Sample.User@EXAMPLE.COM  ",
 								  "password": "test-only-credential",
 								  "nickname": "  토스마스터  ",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								"""))
 				.andExpect(status().isOk())
@@ -161,7 +169,12 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.result.userId").isNotEmpty())
 				.andExpect(jsonPath("$.result.email").value("Sample.User@EXAMPLE.COM"))
 				.andExpect(jsonPath("$.result.nickname").value("토스마스터"))
-				.andExpect(jsonPath("$.result.isAudioConsent").value(true))
+				.andExpect(jsonPath("$.result.privacyConsented").value(true))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.privacyConsentedAt").isNotEmpty())
+				.andExpect(jsonPath("$.result.termConsented").value(true))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.termConsentedAt").isNotEmpty())
 				.andExpect(jsonPath("$.result.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.result.password").doesNotExist())
 				.andExpect(jsonPath("$.result.passwordHash").doesNotExist())
@@ -177,35 +190,66 @@ class AuthControllerTests {
 
 		mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validSignupJson("abcdefgh", true)))
+						.content(validSignupJson("abcdefgh")))
 				.andExpect(status().isOk());
 	}
 
 	@Test
-	void signupRejectsFalseAudioConsent() throws Exception {
+	void signupRejectsFalsePrivacyConsent() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validSignupJson("test-only-credential", false)))
+						.content(signupJson(
+								"test-only-credential",
+								false,
+								"privacy-v1",
+								true,
+								"term-v1"
+						)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.isSuccess").value(false))
-				.andExpect(jsonPath("$.code").value("AUDIO_CONSENT_REQUIRED"))
-				.andExpect(jsonPath("$.message").value("음성 데이터 수집·이용 동의가 필요합니다."));
+				.andExpect(jsonPath("$.code").value("PRIVACY_CONSENT_REQUIRED"))
+				.andExpect(jsonPath("$.message").value("개인정보 처리 동의가 필요합니다."));
 	}
 
 	@Test
-	void signupRejectsMissingAudioConsentAsValidationError() throws Exception {
+	void signupRejectsOldAudioOnlyContractAsValidationError() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
 								  "email": "user@example.com",
 								  "password": "test-only-credential",
-								  "nickname": "테스트닉네임"
+								  "nickname": "테스트닉네임",
+								  "isAudioConsent": true
 								}
 								"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-				.andExpect(jsonPath("$.result[0].field").value("isAudioConsent"));
+				.andExpect(jsonPath("$.result[*].field",
+						org.hamcrest.Matchers.hasItem("isPrivacyConsented")))
+				.andExpect(jsonPath("$.result[*].field",
+						org.hamcrest.Matchers.hasItem("privacyConsentVersion")))
+				.andExpect(jsonPath("$.result[*].field",
+						org.hamcrest.Matchers.hasItem("isTermConsented")))
+				.andExpect(jsonPath("$.result[*].field",
+						org.hamcrest.Matchers.hasItem("termConsentVersion")));
+	}
+
+	@Test
+	void signupRejectsVersionThatDoesNotMatchServerPolicy() throws Exception {
+		when(userRepository.existsByNormalizedEmail("user@example.com")).thenReturn(false);
+
+		mockMvc.perform(post("/api/v1/auth/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(signupJson(
+								"test-only-credential",
+								true,
+								"privacy-old",
+								true,
+								"term-v1"
+						)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("PRIVACY_CONSENT_VERSION_MISMATCH"));
 	}
 
 	@Test
@@ -214,7 +258,7 @@ class AuthControllerTests {
 
 		mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validSignupJson("test-only-credential", true)))
+						.content(validSignupJson("test-only-credential")))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"))
@@ -230,7 +274,7 @@ class AuthControllerTests {
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validSignupJson("test-only-credential", true)))
+						.content(validSignupJson("test-only-credential")))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"))
 				.andExpect(jsonPath("$.result").value(nullValue()))
@@ -251,7 +295,10 @@ class AuthControllerTests {
 								  "email": "invalid-email",
 								  "password": "test-only-credential",
 								  "nickname": "테스트닉네임",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								"""))
 				.andExpect(status().isBadRequest())
@@ -263,7 +310,7 @@ class AuthControllerTests {
 	void signupRejectsShortPasswordAndMasksRejectedValue() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(validSignupJson("short", true)))
+						.content(validSignupJson("short")))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
 				.andExpect(jsonPath("$.result[0].field").value("password"))
@@ -279,7 +326,10 @@ class AuthControllerTests {
 								  "email": "user@example.com",
 								  "password": "test-only-credential",
 								  "nickname": "   ",
-								  "isAudioConsent": true
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
 								}
 								"""))
 				.andExpect(status().isBadRequest())
@@ -652,15 +702,34 @@ class AuthControllerTests {
 				.doesNotContain(UserRepository.class);
 	}
 
-	private String validSignupJson(String password, boolean isAudioConsent) {
+	private String validSignupJson(String password) {
+		return signupJson(password, true, "privacy-v1", true, "term-v1");
+	}
+
+	private String signupJson(
+			String password,
+			boolean privacyConsented,
+			String privacyVersion,
+			boolean termConsented,
+			String termVersion
+	) {
 		return """
 				{
 				  "email": "user@example.com",
 				  "password": "%s",
 				  "nickname": "테스트닉네임",
-				  "isAudioConsent": %s
+				  "isPrivacyConsented": %s,
+				  "privacyConsentVersion": "%s",
+				  "isTermConsented": %s,
+				  "termConsentVersion": "%s"
 				}
-				""".formatted(password, isAudioConsent);
+				""".formatted(
+				password,
+				privacyConsented,
+				privacyVersion,
+				termConsented,
+				termVersion
+		);
 	}
 
 	private String loginJson(String email, String password) {

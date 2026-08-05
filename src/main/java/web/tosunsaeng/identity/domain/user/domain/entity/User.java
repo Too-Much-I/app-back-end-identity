@@ -39,7 +39,7 @@ public class User {
 
 	private UserProvider provider;
 
-	private AudioConsent audioConsent;
+	private UserConsents consents;
 
 	private UserStatus status;
 
@@ -58,7 +58,7 @@ public class User {
 			String guestInstallationIdHash,
 			String nickname,
 			UserProvider provider,
-			AudioConsent audioConsent,
+			UserConsents consents,
 			UserStatus status,
 			Instant createdAt,
 			Instant updatedAt
@@ -71,7 +71,7 @@ public class User {
 		this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
 		this.provider = Objects.requireNonNull(provider, "provider must not be null");
 		validateProviderFields();
-		this.audioConsent = Objects.requireNonNull(audioConsent, "audioConsent must not be null");
+		this.consents = Objects.requireNonNull(consents, "consents must not be null");
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
@@ -82,7 +82,7 @@ public class User {
 			String normalizedEmail,
 			String passwordHash,
 			String nickname,
-			AudioConsent audioConsent,
+			UserConsents consents,
 			Instant createdAt
 	) {
 		return new User(
@@ -93,7 +93,7 @@ public class User {
 				null,
 				nickname,
 				UserProvider.LOCAL,
-				audioConsent,
+				consents,
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt
@@ -103,7 +103,7 @@ public class User {
 	public static User createGuest(
 			String guestInstallationIdHash,
 			String nickname,
-			AudioConsent audioConsent,
+			UserConsents consents,
 			Instant createdAt
 	) {
 		return new User(
@@ -114,7 +114,7 @@ public class User {
 				guestInstallationIdHash,
 				nickname,
 				UserProvider.GUEST,
-				audioConsent,
+				consents,
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt
@@ -173,8 +173,31 @@ public class User {
 		return provider == null ? UserProvider.LOCAL : provider;
 	}
 
-	public AudioConsent getAudioConsent() {
-		return audioConsent;
+	public UserConsents getConsents() {
+		return consents == null ? UserConsents.unconsented() : consents;
+	}
+
+	public boolean updateConsents(
+			String privacyConsentVersion,
+			String termConsentVersion,
+			Instant consentedAt
+	) {
+		Instant requiredConsentedAt = Objects.requireNonNull(
+				consentedAt,
+				"consentedAt must not be null"
+		);
+		UserConsents currentConsents = getConsents();
+		UserConsents updatedConsents = currentConsents.renew(
+				privacyConsentVersion,
+				termConsentVersion,
+				requiredConsentedAt
+		);
+		if (updatedConsents == currentConsents) {
+			return false;
+		}
+		this.consents = updatedConsents;
+		this.updatedAt = requiredConsentedAt;
+		return true;
 	}
 
 	public UserStatus getStatus() {

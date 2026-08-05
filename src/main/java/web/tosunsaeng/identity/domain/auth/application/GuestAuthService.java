@@ -12,6 +12,7 @@ import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.exception.AuthException;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -25,6 +26,7 @@ public class GuestAuthService {
 
 	private final UserRepository userRepository;
 	private final UserFactory userFactory;
+	private final ConsentPolicy consentPolicy;
 	private final GuestInstallationIdHasher installationIdHasher;
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final RefreshSessionIssuer refreshSessionIssuer;
@@ -36,9 +38,12 @@ public class GuestAuthService {
 				request,
 				"request must not be null"
 		);
-		if (!Boolean.TRUE.equals(requiredRequest.isAudioConsent())) {
-			throw new AuthException(AuthErrorStatus.AUDIO_CONSENT_REQUIRED);
-		}
+		consentPolicy.validate(
+				requiredRequest.isPrivacyConsented(),
+				requiredRequest.privacyConsentVersion(),
+				requiredRequest.isTermConsented(),
+				requiredRequest.termConsentVersion()
+		);
 
 		String installationIdHash = installationIdHasher.hash(
 				requiredRequest.installationId()

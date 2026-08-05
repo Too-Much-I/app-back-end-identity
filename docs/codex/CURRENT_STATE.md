@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 도메인 중심 리팩토링 main 병합 후 핵심 인증·보안 코드의 한 줄 주석 보강과 회귀 검증 완료, 사용자 검토 대기
-- 상태 기준일: 2026-07-30
+- 현재 단계: 개인정보 처리방침·이용약관 동의 계약으로 Guest·LOCAL 생성, 기존 사용자 갱신과 프로필 조회를 전환하고 전체 회귀 검증·작업 기록 완료
+- 상태 기준일: 2026-08-05
 
 ## 완료
 
@@ -52,9 +52,13 @@
 - 이메일과 닉네임의 앞뒤 공백 제거 후 validation 및 기존 `EmailNormalizer` 기반 중복 조회
 - 정규화 이메일 사전 중복 확인과 MongoDB `DuplicateKeyException`의 `EMAIL_ALREADY_EXISTS` 변환
 - 비밀번호 8~64자 길이 정책과 별도 복잡도 정규식 없는 BCrypt 해시 저장
-- `EMAIL_ALREADY_EXISTS`, `AUDIO_CONSENT_REQUIRED` 인증 도메인 오류와 공통 `BaseResponse` 오류 응답
-- User 문서에 `AudioConsent` embedded value object를 저장하고 정책 버전을 환경 설정으로 주입
-- 회원가입 시 동의 상태 `agreed=true`, 정책 버전, 동의 시각 및 null 철회 시각을 원자적으로 저장
+- `EMAIL_ALREADY_EXISTS`, 개인정보·약관 동의 필수 및 정책 버전 불일치 도메인 오류와 공통 `BaseResponse` 오류 응답
+- User 문서에 개인정보 처리방침·이용약관 상태, 버전과 서버 동의 시각을 `UserConsents` embedded 객체 하나로 저장
+- LOCAL 회원가입과 Guest 생성은 두 동의가 true이고 서버 현재 버전과 일치할 때만 진행하며 같은 서버 시각으로 두 동의를 원자적으로 저장
+- Guest 동의가 포함된 User와 최초 RefreshSession 저장은 기존 Mongo Transaction에 함께 참여
+- `POST /api/v1/auth/guest`는 UUID v4 `installationId`와 개인정보·약관 동의 네 필드를 검증해 최초 Guest와 Token을 생성하며, 설치 ID는 인증 수단이 아니므로 동일 설치 재요청은 기존 Token 복구 없이 409로 거절하고 이후 실행은 저장한 Refresh Token으로 `/api/v1/auth/reissue`를 사용
+- `PUT /api/v1/users/me/consents`는 JWT `sub` 사용자만 대상으로 현재 필수 두 정책 동의를 한 User 문서 저장으로 갱신하고, 동일 버전 재요청은 저장과 동의 시각 변경 없이 멱등 성공
+- Guest·LOCAL 생성, 동의 검증·갱신·멱등성, 기존 Mongo 문서 호환, 프로필·Security·OpenAPI와 기존 인증 회귀를 포함한 전체 228개 테스트 성공
 - Repository를 Mock 처리한 Service·Controller 테스트와 전체 44개 테스트 통과
 - 회원가입 성공 응답 및 오류 응답의 해시·정규화 이메일·자격증명·MongoDB 내부 정보 비노출 검증
 - `app.jwt` 기반 issuer, audience, keyId, Access Token TTL, RSA Key Resource 경로 및 기본 scope 설정
@@ -96,7 +100,7 @@
 - 공개 인증 POST 5개, JWKS·health·Swagger/OpenAPI GET만 `permitAll`로 두고 `anyRequest().authenticated()`를 적용하며 Form Login과 Basic 인증은 계속 비활성화
 - Security Filter Chain의 401 `COMMON_UNAUTHORIZED`와 403 `COMMON_FORBIDDEN`을 UTF-8 `BaseResponse` JSON으로 반환하고 내부 JWT 예외나 입력 자격증명을 노출하지 않음
 - `JwtCurrentUserProvider`가 인증된 `JwtAuthenticationToken` 또는 JWT principal의 `sub`만 읽고 canonical UUID로 검증해 내부 사용자 식별자로 제공
-- `GET /api/v1/users/me`에서 JWT `sub`로 User를 조회하고 `ACTIVE` 상태를 확인한 뒤 LOCAL provider와 음성 동의 상태를 전용 DTO로 반환
+- `GET /api/v1/users/me`에서 JWT `sub`로 User를 조회하고 `ACTIVE` 상태를 확인한 뒤 provider와 개인정보·약관 동의 상태·버전·서버 시각을 전용 DTO로 반환
 - User에 최소 `UserProvider.LOCAL` 모델을 추가하고 기존 문서의 null provider는 LOCAL로 읽어 현재 이메일 계정과 호환
 - `POST /api/v1/auth/logout-all`에서 JWT 사용자의 미폐기 RefreshSession만 조회해 같은 Clock 시각과 `LOGOUT_ALL` 사유로 `saveAll`하며 빈 Session 목록과 반복 요청은 성공 처리
 - logout-all은 새 Access Token이나 Refresh Token을 발급하지 않고 Repository 오류를 성공으로 숨기지 않으며 기존 `@Version` Optimistic Lock 구조를 유지
@@ -139,12 +143,12 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`이고 HEAD는 리팩토링 PR #10 병합 commit `18e78ea`이며 이번 주석과 작업 기록은 commit·stage하지 않음
+- 현재 작업 기준 브랜치는 `main`이고 HEAD는 `40595bb`이며 이번 동의 계약 변경은 commit·stage하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유
-- MongoDB TransactionManager가 없는 현재 환경에서는 조회용 `@Transactional(readOnly = true)`나 다중 Session 저장 Transaction을 구조 리팩토링만으로 추가하지 않고 기존 저장 의미를 유지
+- `MongoTransactionManager`는 Guest User와 최초 RefreshSession 저장에 적용하며, 기존 Rotation·재사용 탐지·logout-all의 다중 Session 저장 원자성은 별도 후속 범위로 유지
 - OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`와 `POST /api/v1/auth/logout-all`에만 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화
 - 실제 `userId`는 UUID 문자열
@@ -157,11 +161,12 @@
 - 이메일과 닉네임은 앞뒤 공백을 제거한 값으로 validation하며 비밀번호는 공백을 포함한 입력값을 임의 변환하지 않음
 - 이메일 중복 확인은 가입 여부와 관계없이 성공 응답을 사용하며 `isAvailable`로 결과를 구분
 - 회원가입의 사전 중복과 unique index 저장 충돌은 모두 `EMAIL_ALREADY_EXISTS` 409 오류로 통일
-- 회원가입의 음성 데이터 수집·이용 동의는 반드시 true이며 false는 `AUDIO_CONSENT_REQUIRED` 400 오류로 처리
-- 음성 동의 정책 버전은 `app.consent.audio-policy-version`과 `AUDIO_POLICY_VERSION` 환경변수로 관리
-- 현재 음성 동의 상태는 User 문서 내부의 `AudioConsent`로 저장하고 별도 이력 컬렉션은 만들지 않음
+- 회원가입과 Guest 생성의 개인정보·약관 동의는 모두 반드시 true이며 false와 서버 현재 버전 불일치는 구분된 400 도메인 오류로 처리
+- 현재 정책 버전은 `app.consent.privacy-version`/`PRIVACY_CONSENT_VERSION`과 `app.consent.term-version`/`TERM_CONSENT_VERSION`으로 관리하며 `AUDIO_POLICY_VERSION`은 제거
+- 현재 동의 상태는 User 문서 내부의 `UserConsents`로 저장하고 별도 이력 컬렉션은 만들지 않음
+- 기존 Mongo 문서에 `consents`가 없으면 두 동의를 false, 버전과 시각을 null로 읽고 과거 `audioConsent`를 새 동의로 자동 변환하지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
-- User provider는 현재 `LOCAL`만 지원하며 신규 이메일 계정에 저장하고 기존 null provider 문서는 LOCAL로 해석
+- User provider는 `LOCAL`과 `GUEST`를 지원하며 기존 null provider 문서는 LOCAL로 해석
 - Access Token은 RSA Private Key를 가진 Identity에서만 JWT RS256으로 서명
 - Access Token 기본 TTL은 `PT30M`이며 issuer, audience, keyId, TTL과 키 Resource 위치는 환경변수로 교체 가능
 - JWT Header는 `alg=RS256`, `typ=JWT`, 필수 `kid`를 사용
@@ -206,7 +211,7 @@
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - 소셜 로그인
 - 사용자 프로필 수정 API
-- 음성 데이터 수집 동의 철회 API와 별도 동의 이력 관리
+- 정책 버전별 append-only 동의 감사 이력과 동의 철회 정책
 
 ## 남아 있는 위험 요소
 
@@ -216,11 +221,11 @@
 - `UserFactory`는 Spring `PasswordEncoder`·설정 주입과 `Instant.now()`에 직접 결합되어 있어 `Clock` 주입 및 application 계층 이동 여부를 후속 검토해야 한다.
 - Atlassian MCP는 사용자 계정 권한으로 외부 서비스에 접근하므로 허용 범위와 연결 해제 필요성을 Codex 사용자 설정 및 Atlassian 계정에서 별도로 관리해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
-- 기존 User 문서가 운영 데이터로 존재한다면 필수 embedded 음성 동의 필드 도입 전 데이터 이행 정책이 필요하다.
+- 기존 User 문서는 migration 없이 읽을 수 있지만 새 정책 미동의로 취급되므로 프론트의 재동의 유도와 정책 전환 시점 합의가 필요하다.
 - 기존 User 문서의 provider가 없으면 LOCAL로 읽지만 소셜 로그인 도입 전에는 provider 필드 명시적 이행과 계정 연결 정책이 필요하다.
 - 이메일 중복 확인·회원가입·로그인·재발급·로그아웃 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
 - 비밀번호 복잡도, 유출 비밀번호 차단 및 변경 정책은 제품·보안 명세 확정 후 추가해야 한다.
-- 현재는 최신 음성 동의 상태만 저장하므로 동의 철회와 정책 버전 변경 시 감사 가능한 별도 이력 관리가 필요하다.
+- 현재는 최신 개인정보·약관 동의 상태만 저장하므로 철회와 정책 버전 변경의 전체 감사를 요구하면 append-only 이력 관리가 필요하다.
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.

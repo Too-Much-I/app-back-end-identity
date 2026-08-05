@@ -45,6 +45,7 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenProperties;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
@@ -53,7 +54,8 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 class AuthenticationUseCaseServicesTests {
 
-	private static final String AUDIO_POLICY_VERSION = "test-audio-policy-v3";
+	private static final String PRIVACY_CONSENT_VERSION = "privacy-v1";
+	private static final String TERM_CONSENT_VERSION = "term-v1";
 	private static final String RAW_CREDENTIAL = "test-only-credential";
 	private static final Instant NOW = Instant.parse("2026-07-24T03:04:05Z");
 	private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(14);
@@ -61,6 +63,7 @@ class AuthenticationUseCaseServicesTests {
 	private UserRepository userRepository;
 	private PasswordEncoder passwordEncoder;
 	private UserFactory userFactory;
+	private ConsentPolicy consentPolicy;
 	private AccessTokenIssuer accessTokenIssuer;
 	private RefreshSessionRepository refreshSessionRepository;
 	private RefreshTokenHasher refreshTokenHasher;
@@ -73,10 +76,11 @@ class AuthenticationUseCaseServicesTests {
 		userRepository = mock(UserRepository.class);
 		passwordEncoder = spy(new BCryptPasswordEncoder(4));
 		EmailNormalizer emailNormalizer = new EmailNormalizer();
+		consentPolicy = new ConsentPolicy(PRIVACY_CONSENT_VERSION, TERM_CONSENT_VERSION);
 		userFactory = new UserFactory(
 				emailNormalizer,
 				passwordEncoder,
-				AUDIO_POLICY_VERSION
+				consentPolicy
 		);
 		accessTokenIssuer = mock(AccessTokenIssuer.class);
 		refreshSessionRepository = mock(RefreshSessionRepository.class);
@@ -102,7 +106,8 @@ class AuthenticationUseCaseServicesTests {
 		signupService = new SignupService(
 				userRepository,
 				emailNormalizer,
-				userFactory
+				userFactory,
+				consentPolicy
 		);
 		loginService = new LoginService(
 				userRepository,
@@ -149,7 +154,7 @@ class AuthenticationUseCaseServicesTests {
 	}
 
 	@Test
-	void createsActiveUserWithNormalizedEmailHashNicknameAndAudioConsent() {
+	void createsActiveUserWithNormalizedEmailHashNicknameAndBothConsents() {
 		when(userRepository.existsByNormalizedEmail("sample.user@example.com")).thenReturn(false);
 		when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -157,7 +162,10 @@ class AuthenticationUseCaseServicesTests {
 				"  Sample.User@EXAMPLE.COM  ",
 				RAW_CREDENTIAL,
 				"  토스마스터  ",
-				true
+				true,
+				PRIVACY_CONSENT_VERSION,
+				true,
+				TERM_CONSENT_VERSION
 		));
 
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -171,20 +179,31 @@ class AuthenticationUseCaseServicesTests {
 		assertThat(UUID.fromString(savedUser.getUserId()).toString()).isEqualTo(savedUser.getUserId());
 		assertThat(savedUser.getStatus()).isEqualTo(UserStatus.ACTIVE);
 		assertThat(savedUser.getNickname()).isEqualTo("토스마스터");
-		assertThat(savedUser.getAudioConsent().isAgreed()).isTrue();
-		assertThat(savedUser.getAudioConsent().getPolicyVersion()).isEqualTo(AUDIO_POLICY_VERSION);
-		assertThat(savedUser.getAudioConsent().getAgreedAt()).isNotNull();
-		assertThat(savedUser.getAudioConsent().getWithdrawnAt()).isNull();
+		assertThat(savedUser.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(savedUser.getConsents().getPrivacyConsentVersion())
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(savedUser.getConsents().getPrivacyConsentedAt())
+				.isEqualTo(savedUser.getCreatedAt());
+		assertThat(savedUser.getConsents().isTermConsented()).isTrue();
+		assertThat(savedUser.getConsents().getTermConsentVersion())
+				.isEqualTo(TERM_CONSENT_VERSION);
+		assertThat(savedUser.getConsents().getTermConsentedAt())
+				.isEqualTo(savedUser.getCreatedAt());
 
 		assertThat(response.userId()).isEqualTo(savedUser.getUserId());
 		assertThat(response.email()).isEqualTo("Sample.User@EXAMPLE.COM");
 		assertThat(response.nickname()).isEqualTo("토스마스터");
-		assertThat(response.isAudioConsent()).isTrue();
+		assertThat(response.privacyConsented()).isTrue();
+		assertThat(response.privacyConsentVersion()).isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(response.privacyConsentedAt()).isEqualTo(savedUser.getCreatedAt());
+		assertThat(response.termConsented()).isTrue();
+		assertThat(response.termConsentVersion()).isEqualTo(TERM_CONSENT_VERSION);
+		assertThat(response.termConsentedAt()).isEqualTo(savedUser.getCreatedAt());
 		assertThat(response.createdAt()).isEqualTo(savedUser.getCreatedAt());
 	}
 
 	@Test
-	void rejectsSignupWhenAudioConsentIsFalse() {
+	void rejectsSignupWhenPrivacyConsentIsFalse() {
 		when(userRepository.existsByNormalizedEmail("user@example.com")).thenReturn(false);
 
 		BusinessException exception = catchThrowableOfType(
@@ -192,7 +211,29 @@ class AuthenticationUseCaseServicesTests {
 				() -> signupService.signup(signupRequest(false))
 		);
 
-		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.AUDIO_CONSENT_REQUIRED);
+		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.PRIVACY_CONSENT_REQUIRED);
+		verify(userRepository, never()).save(any(User.class));
+	}
+
+	@Test
+	void rejectsSignupWhenTermVersionDoesNotMatchCurrentPolicy() {
+		when(userRepository.existsByNormalizedEmail("user@example.com")).thenReturn(false);
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> signupService.signup(new SignupRequest(
+						"user@example.com",
+						RAW_CREDENTIAL,
+						"테스트닉네임",
+						true,
+						PRIVACY_CONSENT_VERSION,
+						true,
+						"term-old"
+				))
+		);
+
+		assertThat(exception.getErrorCode())
+				.isEqualTo(UserErrorStatus.TERM_CONSENT_VERSION_MISMATCH);
 		verify(userRepository, never()).save(any(User.class));
 	}
 
@@ -333,12 +374,15 @@ class AuthenticationUseCaseServicesTests {
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
 	}
 
-	private SignupRequest signupRequest(Boolean audioConsent) {
+	private SignupRequest signupRequest(Boolean privacyConsented) {
 		return new SignupRequest(
 				"user@example.com",
 				RAW_CREDENTIAL,
 				"테스트닉네임",
-				audioConsent
+				privacyConsented,
+				PRIVACY_CONSENT_VERSION,
+				true,
+				TERM_CONSENT_VERSION
 		);
 	}
 }

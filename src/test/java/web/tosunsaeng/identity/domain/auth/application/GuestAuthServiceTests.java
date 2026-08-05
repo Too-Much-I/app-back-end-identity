@@ -42,12 +42,14 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.guest.GuestInstallationIdHasher;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
@@ -60,12 +62,15 @@ class GuestAuthServiceTests {
 	private static final Instant NOW = Instant.parse("2026-07-30T08:00:00Z");
 	private static final Duration ACCESS_TTL = Duration.ofMinutes(30);
 	private static final Duration REFRESH_TTL = Duration.ofDays(14);
+	private static final String PRIVACY_VERSION = "privacy-v1";
+	private static final String TERM_VERSION = "term-v1";
 
 	private UserRepository userRepository;
 	private AccessTokenIssuer accessTokenIssuer;
 	private RefreshSessionIssuer refreshSessionIssuer;
 	private GuestRegistrationTransactionService registrationTransactionService;
 	private GuestInstallationIdHasher installationIdHasher;
+	private ConsentPolicy consentPolicy;
 	private UserFactory userFactory;
 	private GuestAuthService guestAuthService;
 	private ExecutorService executor;
@@ -77,14 +82,16 @@ class GuestAuthServiceTests {
 		refreshSessionIssuer = mock(RefreshSessionIssuer.class);
 		registrationTransactionService = mock(GuestRegistrationTransactionService.class);
 		installationIdHasher = new GuestInstallationIdHasher();
+		consentPolicy = new ConsentPolicy(PRIVACY_VERSION, TERM_VERSION);
 		userFactory = new UserFactory(
 				new EmailNormalizer(),
 				new BCryptPasswordEncoder(4),
-				"guest-test-audio-policy-v1"
+				consentPolicy
 		);
 		guestAuthService = new GuestAuthService(
 				userRepository,
 				userFactory,
+				consentPolicy,
 				installationIdHasher,
 				accessTokenIssuer,
 				refreshSessionIssuer,
@@ -136,7 +143,12 @@ class GuestAuthServiceTests {
 		assertThat(guest.getPasswordHash()).isNull();
 		assertThat(guest.getNickname()).isEqualTo(UserFactory.GUEST_NICKNAME);
 		assertThat(guest.getCreatedAt()).isEqualTo(NOW);
-		assertThat(guest.getAudioConsent().getAgreedAt()).isEqualTo(NOW);
+		assertThat(guest.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(guest.getConsents().getPrivacyConsentVersion()).isEqualTo(PRIVACY_VERSION);
+		assertThat(guest.getConsents().getPrivacyConsentedAt()).isEqualTo(NOW);
+		assertThat(guest.getConsents().isTermConsented()).isTrue();
+		assertThat(guest.getConsents().getTermConsentVersion()).isEqualTo(TERM_VERSION);
+		assertThat(guest.getConsents().getTermConsentedAt()).isEqualTo(NOW);
 		assertThat(guest.getGuestInstallationIdHash())
 				.isEqualTo(installationIdHasher.hash(INSTALLATION_ID))
 				.hasSize(43)
@@ -165,16 +177,80 @@ class GuestAuthServiceTests {
 	}
 
 	@Test
-	void falseAudioConsentDoesNotPrepareOrPersistAnything() {
+	void falsePrivacyConsentDoesNotPrepareOrPersistAnything() {
 		BusinessException exception = catchThrowableOfType(
 				BusinessException.class,
-				() -> guestAuthService.authenticate(new GuestAuthRequest(INSTALLATION_ID, false))
+				() -> guestAuthService.authenticate(new GuestAuthRequest(
+						INSTALLATION_ID,
+						false,
+						PRIVACY_VERSION,
+						true,
+						TERM_VERSION
+				))
 		);
 
-		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.AUDIO_CONSENT_REQUIRED);
+		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.PRIVACY_CONSENT_REQUIRED);
 		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
 		verify(accessTokenIssuer, never()).issue(anyString(), any());
 		verify(refreshSessionIssuer, never()).prepare(anyString());
+		verify(registrationTransactionService, never()).register(any(), any(), any());
+	}
+
+	@Test
+	void falseTermConsentDoesNotPrepareOrPersistAnything() {
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> guestAuthService.authenticate(new GuestAuthRequest(
+						INSTALLATION_ID,
+						true,
+						PRIVACY_VERSION,
+						false,
+						TERM_VERSION
+				))
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.TERM_CONSENT_REQUIRED);
+		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
+		verify(accessTokenIssuer, never()).issue(anyString(), any());
+		verify(refreshSessionIssuer, never()).prepare(anyString());
+		verify(registrationTransactionService, never()).register(any(), any(), any());
+	}
+
+	@Test
+	void mismatchedConsentVersionDoesNotCreateGuest() {
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> guestAuthService.authenticate(new GuestAuthRequest(
+						INSTALLATION_ID,
+						true,
+						"privacy-old",
+						true,
+						TERM_VERSION
+				))
+		);
+
+		assertThat(exception.getErrorCode())
+				.isEqualTo(UserErrorStatus.PRIVACY_CONSENT_VERSION_MISMATCH);
+		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
+		verify(registrationTransactionService, never()).register(any(), any(), any());
+	}
+
+	@Test
+	void mismatchedTermVersionDoesNotCreateGuest() {
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> guestAuthService.authenticate(new GuestAuthRequest(
+						INSTALLATION_ID,
+						true,
+						PRIVACY_VERSION,
+						true,
+						"term-old"
+				))
+		);
+
+		assertThat(exception.getErrorCode())
+				.isEqualTo(UserErrorStatus.TERM_CONSENT_VERSION_MISMATCH);
+		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
 		verify(registrationTransactionService, never()).register(any(), any(), any());
 	}
 
@@ -369,6 +445,12 @@ class GuestAuthServiceTests {
 	}
 
 	private GuestAuthRequest validRequest(String installationId) {
-		return new GuestAuthRequest(installationId, true);
+		return new GuestAuthRequest(
+				installationId,
+				true,
+				PRIVACY_VERSION,
+				true,
+				TERM_VERSION
+		);
 	}
 }

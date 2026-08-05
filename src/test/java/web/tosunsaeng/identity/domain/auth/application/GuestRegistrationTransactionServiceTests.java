@@ -36,8 +36,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import web.tosunsaeng.identity.domain.auth.converter.AuthResponseConverter;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
-import web.tosunsaeng.identity.domain.user.domain.entity.AudioConsent;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 
@@ -255,7 +255,7 @@ class GuestRegistrationTransactionServiceTests {
 		return User.createGuest(
 				"A".repeat(43),
 				"게스트",
-				AudioConsent.agreed("test-audio-policy-v1", NOW),
+				UserConsents.consented("privacy-v1", "term-v1", NOW),
 				NOW
 		);
 	}
@@ -264,7 +264,7 @@ class GuestRegistrationTransactionServiceTests {
 		return User.createGuest(
 				"B".repeat(43),
 				"게스트",
-				AudioConsent.agreed("test-audio-policy-v1", NOW),
+				UserConsents.consented("privacy-v1", "term-v1", NOW),
 				NOW
 		);
 	}

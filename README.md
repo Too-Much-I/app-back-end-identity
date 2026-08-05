@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -12,7 +12,7 @@ Identity Service는 다음 기능을 소유한다.
 - 비밀번호 해시
 - Access Token 발급과 Refresh Token 세션
 - 로그아웃
-- 음성 데이터 수집 동의
+- 개인정보 처리방침 및 이용약관 동의
 
 시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다.
 
@@ -40,7 +40,8 @@ Identity Service는 다음 기능을 소유한다.
 | `MONGODB_DATABASE` | 선택 | `to-teacher-identity` |
 | `SERVER_PORT` | 선택 | `8081` |
 | `SWAGGER_ENABLED` | 선택 | Swagger UI와 OpenAPI 문서 활성화 여부, 기본값 `true` |
-| `AUDIO_POLICY_VERSION` | 선택 | `audio-policy-v1` |
+| `PRIVACY_CONSENT_VERSION` | 선택 | 서버가 현재 허용하는 개인정보 처리 동의 버전, 기본값 `privacy-v1` |
+| `TERM_CONSENT_VERSION` | 선택 | 서버가 현재 허용하는 이용약관 동의 버전, 기본값 `term-v1` |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
 | `REFRESH_TOKEN_RANDOM_BYTES` | 선택 | `32` 이상 |
 | `JWT_ISSUER` | 선택 | `http://localhost:8081` |
@@ -97,7 +98,7 @@ Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http:/
 ```text
 앱 최초 실행
 → UUID v4 installationId 생성
-→ 음성 데이터 수집·이용 동의
+→ 현재 개인정보 처리방침 및 이용약관 확인·동의
 → POST /api/v1/auth/guest
 → Access/Refresh Token을 클라이언트 안전 저장소에 저장
 → Learning Core API 호출
@@ -116,6 +117,70 @@ Access Token 또는 Refresh Token 준비, User 저장, RefreshSession 저장이�
 Transaction commit 후 네트워크에서 응답을 잃거나 클라이언트가 Token을 분실하면 Guest는 이미 정상 생성된 상태다. 같은 `installationId` 재요청은 `409 GUEST_ALREADY_EXISTS`이며 설치 ID만으로 기존 Guest 계정이나 Token을 복구하지 않는다. 앱 삭제나 기기 변경에서도 기록 복구가 제한될 수 있다. 정상 응답으로 받은 Refresh Token이 이후 인증 상태를 증명하며, 복구·계정 연결은 별도 후속 기능으로 다룬다.
 
 현재 서비스에는 재사용할 Rate Limit 인프라가 없으므로 Guest 대량 생성 방어는 남은 위험이다. 이 작업에서 Redis나 외부 의존성을 추가하지 않았으며, 기존 Gateway 또는 향후 Identity Rate Limit 표준을 확정한 뒤 후속 이슈로 적용해야 한다.
+
+### 개인정보 처리방침 및 이용약관 동의
+
+Guest 생성과 LOCAL 회원가입은 개인정보 처리 동의와 이용약관 동의를 모두 필수로 받는다. 클라이언트가 보낸 두 버전은 서버 설정의 현재 버전과 정확히 일치해야 하며, 동의 시각은 요청에서 받지 않고 서버 `Instant`로 기록한다. 기존 `isAudioConsent` 계약은 지원하지 않는다.
+
+Guest 최초 생성 요청 예시는 다음과 같다.
+
+```shell
+curl -X POST \
+  "${IDENTITY_BASE_URL}/api/v1/auth/guest" \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "installationId": "550e8400-e29b-41d4-a716-446655440000",
+    "isPrivacyConsented": true,
+    "privacyConsentVersion": "privacy-v1",
+    "isTermConsented": true,
+    "termConsentVersion": "term-v1"
+  }'
+```
+
+`POST /api/v1/auth/signup`도 이메일·비밀번호·닉네임과 함께 같은 네 개의 동의 필드를 요구한다. Guest와 LOCAL 신규 User는 `users` 문서의 한 embedded 객체에 다음 형태로 저장된다.
+
+```json
+{
+  "consents": {
+    "privacyConsented": true,
+    "privacyConsentVersion": "privacy-v1",
+    "privacyConsentedAt": "서버가 기록한 UTC 시각",
+    "termConsented": true,
+    "termConsentVersion": "term-v1",
+    "termConsentedAt": "서버가 기록한 UTC 시각"
+  }
+}
+```
+
+인증된 기존 사용자는 다음 API로 현재 필수 버전에 다시 동의한다. 사용자 식별자는 요청이 아니라 검증된 JWT `sub`만 사용한다.
+
+```shell
+curl -X PUT \
+  "${IDENTITY_BASE_URL}/api/v1/users/me/consents" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "isPrivacyConsented": true,
+    "privacyConsentVersion": "privacy-v1",
+    "isTermConsented": true,
+    "termConsentVersion": "term-v1"
+  }'
+```
+
+두 동의는 같은 User 문서의 단일 MongoDB 저장으로 함께 반영된다. 동일 버전에 이미 동의한 요청은 저장을 반복하지 않고 기존 동의 시각을 유지한다. 한 버전만 변경되면 변경된 정책의 동의 시각만 서버 현재 시각으로 갱신한다.
+
+MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한 파괴적 migration이나 index 변경은 없다. 기존 문서에 `consents`가 없으면 프로필에서 두 동의는 `false`, 버전과 시각은 `null`로 반환하며 현재 정책에 다시 동의해야 한다. 과거 `audioConsent` 값은 개인정보 처리 동의로 자동 변환하지 않고 읽기에서 무시한다. 운영 배포 전에는 기존 사용자에게 재동의를 요청하는 앱 흐름과 정책 버전 전환 시점을 확정해야 한다.
+
+### ECS Task Definition 환경변수 전환
+
+이 저장소에는 ECS Task Definition 파일이 없으므로 배포 인프라의 새 Task Definition revision에서 다음 값을 직접 변경한다.
+
+1. `PRIVACY_CONSENT_VERSION`을 현재 배포할 개인정보 처리방침 버전으로 추가한다.
+2. `TERM_CONSENT_VERSION`을 현재 배포할 이용약관 버전으로 추가한다.
+3. 더 이상 읽지 않는 `AUDIO_POLICY_VERSION`을 제거한다.
+4. 새 revision을 staging에 먼저 배포해 Guest 생성, LOCAL 회원가입, 동의 갱신과 프로필 응답을 확인한 뒤 production에 적용한다.
+
+이번 변경은 구 `isAudioConsent` 요청과 호환되지 않는 계약 변경이다. 새 프론트도 구 서버에서는 필수 음성 동의가 없어 실패하므로, ECS 환경변수를 포함한 백엔드 revision과 새 요청을 보내는 프론트를 같은 전환 창에 배포해야 한다. 이미 배포된 구 앱을 계속 지원해야 한다면 강제 업데이트 또는 별도의 명시적 과도기 API 계약이 선행되어야 하며, 설치 식별자만으로 기존 Guest를 복구하는 방식으로 우회하지 않는다.
 
 ### MongoDB Transaction 요구사항
 
@@ -160,10 +225,11 @@ Guest User는 `email`/`normalizedEmail` 필드가 없으므로 LOCAL 이메일 �
 - `GET /actuator/health`
 - Swagger UI와 OpenAPI 경로
 
-그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
+그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`, `PUT /api/v1/users/me/consents`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
 
 ## 아직 구현되지 않은 기능
 
 - 소셜 로그인
-- 사용자 프로필 수정과 음성 데이터 수집 동의 철회 API
+- 사용자 프로필 수정
+- 정책 버전별 append-only 동의 감사 이력
 - 다중 Active/Retiring Key를 지원하는 Key Rotation

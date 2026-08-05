@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,6 +49,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -202,6 +204,10 @@ class SecurityIntegrationTests {
 	@Test
 	void protectedEndpointsReturnSafeBaseResponseWhenAccessTokenIsMissing() throws Exception {
 		assertUnauthorized(mockMvc.perform(get("/api/v1/users/me")).andReturn());
+		assertUnauthorized(mockMvc.perform(put("/api/v1/users/me/consents")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
 		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/logout-all")).andReturn());
 	}
 
@@ -245,7 +251,12 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.result.email").value("Profile.User@Example.com"))
 				.andExpect(jsonPath("$.result.nickname").value("토스마스터"))
 				.andExpect(jsonPath("$.result.provider").value("LOCAL"))
-				.andExpect(jsonPath("$.result.isAudioConsent").value(true))
+				.andExpect(jsonPath("$.result.privacyConsented").value(true))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.privacyConsentedAt").isNotEmpty())
+				.andExpect(jsonPath("$.result.termConsented").value(true))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.termConsentedAt").isNotEmpty())
 				.andExpect(jsonPath("$.result.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.result.password").doesNotExist())
 				.andExpect(jsonPath("$.result.passwordHash").doesNotExist())
@@ -283,7 +294,8 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.result.email").value(nullValue()))
 				.andExpect(jsonPath("$.result.nickname").value("게스트"))
 				.andExpect(jsonPath("$.result.provider").value("GUEST"))
-				.andExpect(jsonPath("$.result.isAudioConsent").value(true))
+				.andExpect(jsonPath("$.result.privacyConsented").value(true))
+				.andExpect(jsonPath("$.result.termConsented").value(true))
 				.andExpect(jsonPath("$.result.installationId").doesNotExist())
 				.andExpect(jsonPath("$.result.guestInstallationIdHash").doesNotExist())
 				.andExpect(jsonPath("$.result.accessToken").doesNotExist())
@@ -292,6 +304,42 @@ class SecurityIntegrationTests {
 
 		assertThat(result.getResponse().getContentAsString())
 				.doesNotContain(guest.getGuestInstallationIdHash(), accessToken.tokenValue());
+	}
+
+	@Test
+	void consentUpdateUsesJwtSubjectAndCannotModifyAnotherUser() throws Exception {
+		User user = userFactory.create(
+				"consent.user@example.com",
+				"integration-test-credential",
+				"동의사용자"
+		);
+		ReflectionTestUtils.setField(user, "consents", null);
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		when(userRepository.save(user)).thenReturn(user);
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+
+		MvcResult result = mockMvc.perform(put("/api/v1/users/me/consents")
+						.queryParam("userId", OTHER_USER_ID)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.privacyConsented").value(true))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.termConsented").value(true))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
+				.andReturn();
+
+		verify(userRepository).findById(user.getUserId());
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain(OTHER_USER_ID, accessToken.tokenValue());
 	}
 
 	@Test

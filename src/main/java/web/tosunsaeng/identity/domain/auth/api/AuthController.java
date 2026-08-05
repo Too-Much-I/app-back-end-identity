@@ -72,13 +72,13 @@ public class AuthController {
 
 	@Operation(
 			summary = "일반 이메일 회원가입",
-			description = "이메일 계정과 음성 데이터 수집·이용 동의 상태를 생성합니다."
+			description = "이메일 계정과 현재 개인정보 처리방침·이용약관 동의 상태를 생성합니다."
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "회원가입 성공"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "입력값 검증 또는 음성 데이터 동의 실패",
+					description = "입력값 검증, 필수 동의 누락 또는 현재 정책 버전 불일치",
 					content = @Content(schema = @Schema(implementation = BaseResponse.class))
 			),
 			@ApiResponse(
@@ -97,6 +97,7 @@ public class AuthController {
 	@Operation(
 			summary = "Guest 사용자 생성 및 인증",
 			description = "설치 UUID를 중복 방지용으로만 사용해 ACTIVE Guest 사용자를 한 번 생성하고 "
+					+ "서버의 현재 개인정보 처리방침과 이용약관 버전 동의를 저장한 뒤 "
 					+ "기존 RS256 Access Token과 Opaque Refresh Token을 발급합니다. "
 					+ "설치 UUID는 인증 수단이 아니므로 이미 생성된 Guest의 Token을 다시 발급하지 않습니다. "
 					+ "응답 유실 또는 Token 분실 시 설치 UUID만으로 계정을 복구할 수 없습니다."
@@ -125,21 +126,32 @@ public class AuthController {
 			),
 			@ApiResponse(
 					responseCode = "400",
-					description = "설치 UUID 검증 실패 또는 음성 데이터 동의 없음",
+					description = "설치 UUID 검증 실패, 필수 동의 누락 또는 현재 정책 버전 불일치",
 					content = @Content(
 							mediaType = "application/json",
 							schema = @Schema(implementation = BaseResponse.class),
 							examples = {
 									@ExampleObject(
-											name = "AUDIO_CONSENT_REQUIRED",
+											name = "PRIVACY_CONSENT_REQUIRED",
 											value = """
 													{
 													  "isSuccess": false,
-													  "code": "AUDIO_CONSENT_REQUIRED",
-													  "message": "음성 데이터 수집·이용 동의가 필요합니다.",
+													  "code": "PRIVACY_CONSENT_REQUIRED",
+													  "message": "개인정보 처리 동의가 필요합니다.",
 													  "result": null
 													}
 													"""
+									),
+									@ExampleObject(
+										name = "TERM_CONSENT_REQUIRED",
+										value = """
+												{
+												  "isSuccess": false,
+												  "code": "TERM_CONSENT_REQUIRED",
+												  "message": "이용약관 동의가 필요합니다.",
+												  "result": null
+												}
+												"""
 									),
 									@ExampleObject(
 											name = "INVALID_REQUEST",
@@ -187,13 +199,16 @@ public class AuthController {
 	public BaseResponse<GuestAuthResponse> guest(
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
 					required = true,
-					description = "앱 설치 UUID와 필수 음성 데이터 동의",
+					description = "앱 설치 UUID와 현재 필수 개인정보 처리방침·이용약관 동의",
 					content = @Content(
 							schema = @Schema(implementation = GuestAuthRequest.class),
 							examples = @ExampleObject(value = """
 									{
 									  "installationId": "550e8400-e29b-41d4-a716-446655440000",
-									  "isAudioConsent": true
+									  "isPrivacyConsented": true,
+									  "privacyConsentVersion": "privacy-v1",
+									  "isTermConsented": true,
+									  "termConsentVersion": "term-v1"
 									}
 									""")
 					)

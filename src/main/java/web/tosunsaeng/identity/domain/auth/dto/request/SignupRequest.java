@@ -28,14 +28,28 @@ public record SignupRequest(
 		@Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하여야 합니다.")
 		String nickname,
 
-		@Schema(description = "음성 데이터 수집·이용 동의 여부", example = "true")
-		@NotNull(message = "음성 데이터 수집·이용 동의 여부는 필수입니다.")
-		Boolean isAudioConsent
+		@Schema(description = "개인정보 처리 동의 여부", example = "true")
+		@NotNull(message = "개인정보 처리 동의 여부는 필수입니다.")
+		Boolean isPrivacyConsented,
+
+		@Schema(description = "개인정보 처리 동의 정책 버전", example = "privacy-v1")
+		@NotBlank(message = "개인정보 처리 동의 버전은 필수입니다.")
+		String privacyConsentVersion,
+
+		@Schema(description = "이용약관 동의 여부", example = "true")
+		@NotNull(message = "이용약관 동의 여부는 필수입니다.")
+		Boolean isTermConsented,
+
+		@Schema(description = "이용약관 정책 버전", example = "term-v1")
+		@NotBlank(message = "이용약관 동의 버전은 필수입니다.")
+		String termConsentVersion
 ) {
 
 	public SignupRequest {
 		email = trimNullable(email);
 		nickname = trimNullable(nickname);
+		privacyConsentVersion = trimNullable(privacyConsentVersion);
+		termConsentVersion = trimNullable(termConsentVersion);
 	}
 
 	private static String trimNullable(String value) {

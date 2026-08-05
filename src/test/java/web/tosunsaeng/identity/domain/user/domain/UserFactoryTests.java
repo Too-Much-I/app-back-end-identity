@@ -24,7 +24,8 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 
 class UserFactoryTests {
 
-	private static final String AUDIO_POLICY_VERSION = "test-audio-policy-v1";
+	private static final String PRIVACY_CONSENT_VERSION = "privacy-v1";
+	private static final String TERM_CONSENT_VERSION = "term-v1";
 	private static final String GUEST_INSTALLATION_HASH = "A".repeat(43);
 	private static final Instant GUEST_CREATED_AT = Instant.parse("2026-07-30T08:00:00Z");
 
@@ -32,7 +33,7 @@ class UserFactoryTests {
 	private final UserFactory userFactory = new UserFactory(
 			new EmailNormalizer(),
 			passwordEncoder,
-			AUDIO_POLICY_VERSION
+			new ConsentPolicy(PRIVACY_CONSENT_VERSION, TERM_CONSENT_VERSION)
 	);
 
 	@Test
@@ -51,7 +52,7 @@ class UserFactoryTests {
 	}
 
 	@Test
-	void createsActiveGuestWithoutEmailOrPasswordAndWithConsentMetadata() {
+	void createsActiveGuestWithoutEmailOrPasswordAndWithBothConsentMetadata() {
 		User guest = userFactory.createGuest(GUEST_INSTALLATION_HASH, GUEST_CREATED_AT);
 
 		assertThat(UUID.fromString(guest.getUserId()).toString()).isEqualTo(guest.getUserId());
@@ -62,10 +63,13 @@ class UserFactoryTests {
 		assertThat(guest.getPasswordHash()).isNull();
 		assertThat(guest.getNickname()).isEqualTo(UserFactory.GUEST_NICKNAME);
 		assertThat(guest.getGuestInstallationIdHash()).isEqualTo(GUEST_INSTALLATION_HASH);
-		assertThat(guest.getAudioConsent().isAgreed()).isTrue();
-		assertThat(guest.getAudioConsent().getPolicyVersion()).isEqualTo(AUDIO_POLICY_VERSION);
-		assertThat(guest.getAudioConsent().getAgreedAt()).isEqualTo(GUEST_CREATED_AT);
-		assertThat(guest.getAudioConsent().getWithdrawnAt()).isNull();
+		assertThat(guest.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(guest.getConsents().getPrivacyConsentVersion())
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(guest.getConsents().getPrivacyConsentedAt()).isEqualTo(GUEST_CREATED_AT);
+		assertThat(guest.getConsents().isTermConsented()).isTrue();
+		assertThat(guest.getConsents().getTermConsentVersion()).isEqualTo(TERM_CONSENT_VERSION);
+		assertThat(guest.getConsents().getTermConsentedAt()).isEqualTo(GUEST_CREATED_AT);
 		assertThat(guest.getCreatedAt()).isEqualTo(GUEST_CREATED_AT);
 		assertThat(guest.getUpdatedAt()).isEqualTo(GUEST_CREATED_AT);
 	}
@@ -119,6 +123,16 @@ class UserFactoryTests {
 		);
 		assertThat(firstDocument.getString("guestInstallationIdHash"))
 				.isNotEqualTo(secondDocument.getString("guestInstallationIdHash"));
+		org.bson.Document storedConsents = firstDocument.get("consents", org.bson.Document.class);
+		assertThat(storedConsents.getBoolean("privacyConsented")).isTrue();
+		assertThat(storedConsents.getString("privacyConsentVersion"))
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(storedConsents.get("privacyConsentedAt")).isNotNull();
+		assertThat(storedConsents.getBoolean("termConsented")).isTrue();
+		assertThat(storedConsents.getString("termConsentVersion"))
+				.isEqualTo(TERM_CONSENT_VERSION);
+		assertThat(storedConsents.get("termConsentedAt")).isNotNull();
+		assertThat(firstDocument).doesNotContainKey("audioConsent");
 	}
 
 	@Test
@@ -158,13 +172,44 @@ class UserFactoryTests {
 	}
 
 	@Test
-	void createsAgreedAudioConsentWithConfiguredPolicyVersion() {
+	void createsPrivacyAndTermConsentsWithConfiguredVersionsAndSameServerTime() {
 		User user = createUser();
 
-		assertThat(user.getAudioConsent().isAgreed()).isTrue();
-		assertThat(user.getAudioConsent().getPolicyVersion()).isEqualTo(AUDIO_POLICY_VERSION);
-		assertThat(user.getAudioConsent().getAgreedAt()).isNotNull();
-		assertThat(user.getAudioConsent().getWithdrawnAt()).isNull();
+		assertThat(user.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(user.getConsents().getPrivacyConsentVersion())
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(user.getConsents().getPrivacyConsentedAt()).isEqualTo(user.getCreatedAt());
+		assertThat(user.getConsents().isTermConsented()).isTrue();
+		assertThat(user.getConsents().getTermConsentVersion()).isEqualTo(TERM_CONSENT_VERSION);
+		assertThat(user.getConsents().getTermConsentedAt()).isEqualTo(user.getCreatedAt());
+	}
+
+	@Test
+	void legacyMongoDocumentWithoutConsentsIsReadAsUnconsented() {
+		MongoCustomConversions customConversions = MongoCustomConversions.create(adapter -> {
+		});
+		MongoMappingContext mappingContext = new MongoMappingContext();
+		mappingContext.setSimpleTypeHolder(customConversions.getSimpleTypeHolder());
+		mappingContext.afterPropertiesSet();
+		MappingMongoConverter converter = new MappingMongoConverter(
+				NoOpDbRefResolver.INSTANCE,
+				mappingContext
+		);
+		converter.setCustomConversions(customConversions);
+		converter.afterPropertiesSet();
+		org.bson.Document legacyDocument = new org.bson.Document();
+		converter.write(createUser(), legacyDocument);
+		legacyDocument.remove("consents");
+		legacyDocument.put("audioConsent", new org.bson.Document("agreed", true));
+
+		User legacyUser = converter.read(User.class, legacyDocument);
+
+		assertThat(legacyUser.getConsents().isPrivacyConsented()).isFalse();
+		assertThat(legacyUser.getConsents().getPrivacyConsentVersion()).isNull();
+		assertThat(legacyUser.getConsents().getPrivacyConsentedAt()).isNull();
+		assertThat(legacyUser.getConsents().isTermConsented()).isFalse();
+		assertThat(legacyUser.getConsents().getTermConsentVersion()).isNull();
+		assertThat(legacyUser.getConsents().getTermConsentedAt()).isNull();
 	}
 
 	@Test
@@ -203,7 +248,7 @@ class UserFactoryTests {
 	void storesOnlyInstallationHashFieldRatherThanRawInstallationId() {
 		assertThat(Arrays.stream(User.class.getDeclaredFields()).map(Field::getName))
 				.contains("guestInstallationIdHash")
-				.doesNotContain("installationId", "guestInstallationId");
+				.doesNotContain("installationId", "guestInstallationId", "audioConsent");
 	}
 
 	private User createUser() {

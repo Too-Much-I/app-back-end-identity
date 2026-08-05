@@ -26,7 +26,7 @@ Identity Service가 소유하는 기능은 다음과 같다.
 - Refresh Token 세션
 - 로그아웃
 - 사용자 프로필
-- 음성 데이터 수집 동의
+- 개인정보 처리방침 및 이용약관 동의
 
 Identity Service가 소유하지 않는 기능은 다음과 같다.
 

@@ -15,6 +15,26 @@ public enum UserErrorStatus implements ErrorCode {
 			HttpStatus.FORBIDDEN,
 			"ACCOUNT_NOT_ACTIVE",
 			"활성 상태가 아닌 계정은 로그인할 수 없습니다."
+	),
+	PRIVACY_CONSENT_REQUIRED(
+			HttpStatus.BAD_REQUEST,
+			"PRIVACY_CONSENT_REQUIRED",
+			"개인정보 처리 동의가 필요합니다."
+	),
+	PRIVACY_CONSENT_VERSION_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"PRIVACY_CONSENT_VERSION_MISMATCH",
+			"현재 개인정보 처리 동의 버전과 일치하지 않습니다."
+	),
+	TERM_CONSENT_REQUIRED(
+			HttpStatus.BAD_REQUEST,
+			"TERM_CONSENT_REQUIRED",
+			"이용약관 동의가 필요합니다."
+	),
+	TERM_CONSENT_VERSION_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"TERM_CONSENT_VERSION_MISMATCH",
+			"현재 이용약관 동의 버전과 일치하지 않습니다."
 	);
 
 	private final HttpStatus httpStatus;

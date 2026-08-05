@@ -3,12 +3,11 @@ package web.tosunsaeng.identity.domain.user.domain;
 import java.time.Instant;
 import java.util.Objects;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import web.tosunsaeng.identity.domain.user.domain.entity.AudioConsent;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 
 @Component
 public class UserFactory {
@@ -17,16 +16,16 @@ public class UserFactory {
 
 	private final EmailNormalizer emailNormalizer;
 	private final PasswordEncoder passwordEncoder;
-	private final String audioPolicyVersion;
+	private final ConsentPolicy consentPolicy;
 
 	public UserFactory(
 			EmailNormalizer emailNormalizer,
 			PasswordEncoder passwordEncoder,
-			@Value("${app.consent.audio-policy-version}") String audioPolicyVersion
+			ConsentPolicy consentPolicy
 	) {
 		this.emailNormalizer = emailNormalizer;
 		this.passwordEncoder = passwordEncoder;
-		this.audioPolicyVersion = requireAudioPolicyVersion(audioPolicyVersion);
+		this.consentPolicy = Objects.requireNonNull(consentPolicy, "consentPolicy must not be null");
 	}
 
 	public User create(String email, String rawPassword, String nickname) {
@@ -36,14 +35,14 @@ public class UserFactory {
 				Objects.requireNonNull(rawPassword, "rawPassword must not be null")
 		);
 		Instant createdAt = Instant.now();
-		AudioConsent audioConsent = AudioConsent.agreed(audioPolicyVersion, createdAt);
+		UserConsents consents = consentPolicy.consentedAt(createdAt);
 
 		return User.create(
 				email.trim(),
 				normalizedEmail,
 				passwordHash,
 				nickname,
-				audioConsent,
+				consents,
 				createdAt
 		);
 	}
@@ -53,26 +52,12 @@ public class UserFactory {
 				createdAt,
 				"createdAt must not be null"
 		);
-		AudioConsent audioConsent = AudioConsent.agreed(
-				audioPolicyVersion,
-				requiredCreatedAt
-		);
+		UserConsents consents = consentPolicy.consentedAt(requiredCreatedAt);
 		return User.createGuest(
 				installationIdHash,
 				GUEST_NICKNAME,
-				audioConsent,
+				consents,
 				requiredCreatedAt
 		);
-	}
-
-	private String requireAudioPolicyVersion(String policyVersion) {
-		String requiredPolicyVersion = Objects.requireNonNull(
-				policyVersion,
-				"audioPolicyVersion must not be null"
-		).trim();
-		if (requiredPolicyVersion.isEmpty()) {
-			throw new IllegalArgumentException("audioPolicyVersion must not be blank");
-		}
-		return requiredPolicyVersion;
 	}
 }

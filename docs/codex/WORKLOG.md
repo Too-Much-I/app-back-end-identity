@@ -601,3 +601,63 @@
 - 결정사항: 코드만으로 목적을 놓치기 쉬운 인증과 보안 경계에만 총 25개의 짧은 한 줄 주석을 추가하고 JavaDoc이나 장문의 설명, 이모지, 자명한 줄별 주석은 사용하지 않았다. Jira `TMI-9`의 설명·완료 조건·완료 상태는 Atlassian 공식 MCP로 읽기 전용 확인했으며 댓글·상태·필드와 다른 이슈는 변경하지 않았다. commit·push·stage도 수행하지 않았다.
 - 위험 요소: 실행 동작의 위험은 새로 추가되지 않았지만 향후 코드 변경 시 주석도 함께 갱신하지 않으면 설명과 구현이 어긋날 수 있다. 기존 RefreshSession 다중 쓰기의 비원자성, 운영 조회 index와 Mongo `_class`, OpenAPI Validation 오류 schema, UserFactory의 시스템 시간 결합은 이번 주석 작업 범위 밖의 기존 후속 항목으로 남는다.
 - 다음 작업: 사용자가 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하고, 구현 변경 시 관련 주석의 정확성도 함께 확인한다. Jira 댓글 초안은 최종 보고에만 제시하며 별도 승인 전에는 등록하거나 상태를 변경하지 않는다.
+
+## 2026-08-05 — 음성 데이터 동의 저장 구조 확인
+
+<!-- codex-turn:019fd09c-20d1-7021-ba46-89473c4bcc38 -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: 현재 LOCAL 회원가입과 Guest 생성에서 음성 데이터 수집·이용 동의가 검증되고 MongoDB에 저장되며 외부 응답으로 노출되는 구조를 코드 변경 없이 확인해 설명한다.
+- 변경 파일: 애플리케이션 코드는 수정하지 않았고 저장소 작업 기록을 위해 `docs/codex/CURRENT_STATE.md`와 `docs/codex/WORKLOG.md`만 변경했다. 기존 WORKLOG 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: `AudioConsent`가 별도 컬렉션이 아니라 `users` 문서의 embedded 객체로 저장되며 `agreed`, `policyVersion`, `agreedAt`, `withdrawnAt`을 보유함을 확인했다. LOCAL과 Guest 생성 모두 동의가 정확히 true일 때 같은 Factory 경로로 `agreed=true`, 설정된 정책 버전, 사용자 생성 시각과 null 철회 시각을 구성한다. 외부 회원가입·프로필 응답은 현재 동의 여부만 반환하고 내부 정책 버전과 시각은 노출하지 않는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 소스 분석 작업이므로 `./gradlew clean test`는 실행하지 않았다. 관련 Entity, Factory, LOCAL·Guest application service, Request·Response DTO와 기존 테스트 assertion을 정적으로 확인했다.
+- 유지한 계약: 동의 누락의 validation 400과 false의 `AUDIO_CONSENT_REQUIRED` 400, User 문서 저장 구조, Guest 생성 Transaction, 기존 인증·토큰 계약을 변경하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 현재 구현은 최신 상태 하나를 User 문서에 저장하는 모델이며 정책 버전별 append-only 감사 이력 모델로 설명하지 않는다. `withdrawnAt`은 모델에 준비돼 있지만 현재 철회 API나 상태 변경 경로는 없다.
+- 위험 요소: 정책 버전 갱신에 따른 재동의, 동의 철회, 변경 이력 감사가 필요해지면 별도 이력 모델과 이행 정책이 필요하다. 기존 User 문서에 `audioConsent`가 없다면 프로필 조회 등에서 null 처리 또는 데이터 이행이 필요할 수 있다.
+- 다음 작업: 제품 요구가 확정되면 동의 철회 API, 정책 버전별 재동의와 append-only 이력 보존을 별도 범위로 설계한다.
+
+## 2026-08-05 — Guest 최초 인증 요청 의미 확인
+
+<!-- codex-turn:019fd0aa-ee8d-7ae2-9c95-abb16e593a4a -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: Guest 인증 요청의 `installationId`와 `isAudioConsent` 검증 역할 및 최초 생성 이후 재인증 흐름을 코드 변경 없이 확인해 설명한다.
+- 변경 파일: 애플리케이션 코드는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`와 `docs/codex/WORKLOG.md`만 갱신했다. 기존 WORKLOG 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: `POST /api/v1/auth/guest`가 필수 UUID v4 설치 식별자와 필수 음성 동의 값을 받고, 동의가 정확히 true인 신규 설치에만 Guest User와 Token을 생성함을 확인했다. 설치 식별자는 중복 방지 용도이며 인증 자격 증명이 아니므로 동일 값이 이미 존재하면 Token을 재발급하지 않고 `GUEST_ALREADY_EXISTS` 409를 반환한다. 정상 발급 이후에는 보관한 Refresh Token으로 기존 `/api/v1/auth/reissue`를 사용한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 확인 작업이므로 `./gradlew clean test`는 실행하지 않았다. Controller, Request validation과 Guest application service 흐름을 정적으로 확인했다.
+- 유지한 계약: UUID v4 검증, 음성 동의 필수 정책, 설치 식별자 해시 저장, 동일 설치 409 정책, 기존 Token 재발급 흐름을 변경하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 사용자 표현의 “Guest 로그인”은 최초 호출에서는 Guest 생성과 최초 Token 발급을 의미하며, 이미 생성된 Guest의 인증 복구를 설치 식별자로 수행하는 API는 아니다.
+- 위험 요소: 최초 생성 commit 후 응답이 유실되거나 클라이언트가 Refresh Token을 분실하면 설치 식별자만으로 기존 Guest를 복구할 수 없다.
+- 다음 작업: 앱은 최초 성공 응답의 Refresh Token을 안전하게 저장하고 이후 실행부터 `/api/v1/auth/reissue`를 호출해야 한다.
+
+## 2026-08-05 — 개인정보 처리방침 및 이용약관 동의 계약 전환
+
+<!-- codex-turn:019fd0aa-ee8d-7ae2-9c95-abb16e593a4a -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: Guest와 LOCAL 회원가입의 기존 음성 데이터 동의 계약을 개인정보 처리방침·이용약관 동의로 교체하고, 서버 정책 버전 검증·서버 동의 시각 저장·기존 사용자 갱신 API와 프로필 조회 계약을 구현한다.
+- 변경 파일: `domain.auth`의 Guest·회원가입 Controller, Service, Request/Response와 인증 오류, `domain.user`의 `User`, `UserFactory`, 신규 `UserConsents`·`ConsentPolicy`·`UserConsentService`·동의 Request/Response, User Controller·프로필 DTO·사용자 오류를 변경했다. 기존 `AudioConsent`를 제거하고 관련 API·application·domain·Security·OpenAPI 테스트를 수정·추가했다. `application.yml`, 테스트 설정, `.env.example`, `README.md`, `AGENTS.md`, `docs/codex/CURRENT_STATE.md`와 이 WORKLOG 항목을 갱신했으며 과거 WORKLOG 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: `POST /api/v1/auth/guest`와 `POST /api/v1/auth/signup`이 개인정보·약관 동의 여부 true와 서버 현재 버전을 각각 검증하도록 변경했다. 두 상태·버전·서버 `Instant`를 `users.consents` embedded 객체 한 건으로 저장한다. `PUT /api/v1/users/me/consents`는 JWT `sub` 사용자를 조회해 두 동의를 한 User 저장으로 갱신하며 동일 버전 재요청에서는 저장과 기존 시각 변경을 생략한다. `GET /api/v1/users/me`와 회원가입 응답은 두 동의 상태·버전·시각을 반환한다. `isAudioConsent`, `AudioConsent`, `AUDIO_CONSENT_REQUIRED`와 실행 설정의 기존 음성 정책 변수를 제거했다.
+- 실행한 테스트와 결과: 핵심 도메인·Guest·회원가입·프로필·동의 API·Security·OpenAPI 대상 테스트를 먼저 실행해 성공했다. 최종 `./gradlew clean test`는 32개 test suite의 228개 테스트가 성공했고 실패·오류·건너뜀은 모두 0개였다. `git diff --check`, main 소스와 실행 설정의 구 음성 동의 심볼 제거, 새 정책 환경변수 연결, 동의 갱신 경로가 공개 목록에 없고 `anyRequest().authenticated()`에 의해 보호됨을 확인했다.
+- 유지한 계약: 동일 설치 ID의 `GUEST_ALREADY_EXISTS`, Guest UUID와 설치 ID 해시 정책, RS256·issuer·audience·scope·JWT `sub`, Opaque Refresh Token·Rotation·재사용 탐지·로그아웃, Learning Core와 AI 계약을 변경하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·문서·로그에 기록하지 않았다.
+- 결정사항: MongoDB 스키마리스 특성을 사용해 파괴적 migration이나 새 index는 추가하지 않는다. 새 `consents` 필드가 없는 문서는 개인정보·약관 모두 false와 null 버전·시각으로 읽고 과거 `audioConsent`를 새 동의로 자동 변환하지 않는다. 저장소에 ECS Task Definition 파일이 없어 임의 파일을 만들지 않고 README에 새 revision에서 두 환경변수를 추가하고 기존 변수를 제거하는 절차를 기록했다. 구 요청은 호환 필드로 유지하지 않고 새 계약으로 전환한다.
+- 위험 요소: 구 앱과 새 백엔드, 새 앱과 구 백엔드는 각각 필수 요청 필드가 달라 호환되지 않으므로 프론트와 ECS revision을 같은 전환 창에 배포하거나 강제 업데이트 정책이 필요하다. 기존 사용자는 새 정책에 미동의로 보이므로 프로필 결과에 따른 재동의 UX가 필요하다. 현재는 최신 동의 상태만 저장하므로 정책 버전별 append-only 감사 이력과 철회 이력은 남지 않는다. 격리 테스트는 실제 운영 MongoDB를 호출하지 않았다.
+- 다음 작업: staging ECS Task Definition에 현재 개인정보·약관 버전을 명시하고 기존 음성 정책 변수를 제거한 뒤, Guest·LOCAL 생성, 기존 사용자 재동의, 프로필 응답과 기존 Token 수명 주기를 실제 배포 topology에서 검증한다.
+
+## 2026-08-05 — 개인정보·약관 동의 계약 작업 기록 보정
+
+<!-- codex-turn:019fd0ac-9476-72d2-93e3-d0361a5074db -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: 개인정보 처리방침·이용약관 동의 계약 구현 작업의 현재 turn 감사 marker를 append-only 규칙에 맞게 보완한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 앞선 구현 기록과 소스는 변경하지 않고 현재 turn marker를 포함한 보정 기록을 파일 끝에 추가했다.
+- 실행한 테스트와 결과: 앞선 최종 `./gradlew clean test`에서 228개 테스트가 모두 성공했고 실패·오류·건너뜀은 0개였다. 이번 보정은 문서만 변경했으며 `git diff --check`로 확인한다.
+- 유지한 계약: 개인정보·약관 동의 API, 기존 인증·JWT·Refresh Token·Guest 중복 정책을 변경하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 과거 WORKLOG 항목은 수정하거나 삭제하지 않고 누락된 현재 turn marker를 새 항목으로만 보완한다.
+- 위험 요소: 코드 위험은 추가되지 않았다. 실제 MongoDB 및 ECS 배포 검증은 앞선 기록의 운영 후속 항목으로 유지한다.
+- 다음 작업: 사용자가 변경 사항을 검토한 뒤 staging 환경변수와 프론트 요청 전환 순서를 확정한다.

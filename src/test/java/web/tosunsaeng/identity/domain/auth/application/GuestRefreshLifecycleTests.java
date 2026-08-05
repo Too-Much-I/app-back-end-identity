@@ -29,8 +29,8 @@ import web.tosunsaeng.identity.domain.auth.dto.request.ReissueRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
-import web.tosunsaeng.identity.domain.user.domain.entity.AudioConsent;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.exception.BusinessException;
@@ -239,7 +239,11 @@ class GuestRefreshLifecycleTests {
 		return User.createGuest(
 				installationHash,
 				UserFactory.GUEST_NICKNAME,
-				AudioConsent.agreed("guest-test-audio-policy-v1", NOW.minusSeconds(60)),
+				UserConsents.consented(
+						"privacy-v1",
+						"term-v1",
+						NOW.minusSeconds(60)
+				),
 				NOW.minusSeconds(60)
 		);
 	}
