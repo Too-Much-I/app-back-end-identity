@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 개인정보 처리방침·이용약관 동의 계약으로 Guest·LOCAL 생성, 기존 사용자 갱신과 프로필 조회를 전환하고 전체 회귀 검증·작업 기록 완료
+- 현재 단계: 개인정보 처리방침·이용약관 동의 계약 전환과 malformed JSON 보안 테스트의 IDE 파서 호환 수정 및 전체 회귀 검증 완료
 - 상태 기준일: 2026-08-05
 
 ## 완료
@@ -112,6 +112,7 @@
 - OpenAPI 제목·설명·버전과 `bearerAuth` JWT 스키마를 추가하고 Auth·User·JWKS Tag, API 응답, DTO Schema를 문서화하며 보호 API 두 개에만 Bearer 요구사항 적용
 - 공개 API의 Swagger 인증 표시 부재, 보호 API의 Bearer 표시, 비밀번호 write-only와 비밀번호 예시 부재를 `/v3/api-docs` 계약 테스트로 검증
 - malformed JSON, 미존재 리소스, 지원하지 않는 Method와 Media Type을 각각 안전한 공통 400·404·405·415 응답으로 변환하고 요청 원문·내부 예외 정보를 노출하지 않도록 전역 예외 처리 보완
+- malformed JSON 보안 테스트의 미완성 JSON 문자열을 지역 변수로 분리해 IDE 파서 혼동을 줄이면서 기존 400 응답·민감 입력 비노출 검증 의미를 유지
 - 계정 활성 상태 오류 소유권을 User 도메인으로 일원화하고 converter의 application 내부 결과 타입 역참조를 제거해 Auth → User와 application → converter의 단방향 의존으로 정리
 - 리팩토링 신규 파일과 기존 삭제를 함께 stage해 104개 논리 변경 파일, rename 68개, untracked 0개 상태를 구성하고 삭제 전용 index 문제를 해소
 - 관련 테스트와 기존 signup·login·reissue·logout·JWT·JWKS 회귀를 포함한 전체 146개 통과, 실패·오류·건너뜀 0개이며 `./gradlew build` 성공

@@ -117,10 +117,11 @@ class SecurityIntegrationTests {
 	@Test
 	void malformedJsonReturnsSafeBadRequestWithoutEchoingRequestContent() throws Exception {
 		String requestOnlySensitiveValue = "request-only-sensitive-value";
+		String malformedJson = "{\"password\":\"%s\"".formatted(requestOnlySensitiveValue);
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"password\":\"" + requestOnlySensitiveValue + "\""))
+						.content(malformedJson))
 				.andExpect(status().isBadRequest())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$.isSuccess").value(false))

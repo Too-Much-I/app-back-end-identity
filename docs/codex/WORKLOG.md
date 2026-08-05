@@ -661,3 +661,18 @@
 - 결정사항: 과거 WORKLOG 항목은 수정하거나 삭제하지 않고 누락된 현재 turn marker를 새 항목으로만 보완한다.
 - 위험 요소: 코드 위험은 추가되지 않았다. 실제 MongoDB 및 ECS 배포 검증은 앞선 기록의 운영 후속 항목으로 유지한다.
 - 다음 작업: 사용자가 변경 사항을 검토한 뒤 staging 환경변수와 프론트 요청 전환 순서를 확정한다.
+
+## 2026-08-05 — malformed JSON 테스트 문자열 파서 호환 수정
+
+<!-- codex-turn:019fd0be-d651-7260-b3aa-63f800198205 -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: `SecurityIntegrationTests`의 의도적으로 닫히지 않은 JSON 조립 표현에서 IDE가 표시한 Java 구문 오류를 테스트 의미 변경 없이 해소한다.
+- 변경 파일: `src/test/java/web/tosunsaeng/identity/global/config/SecurityIntegrationTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 민감 입력값을 포함한 malformed JSON을 별도 지역 변수에서 `String.formatted`로 구성하고 MockMvc의 `content`에는 해당 변수만 전달하도록 분리했다. 닫는 중괄호가 없는 요청을 보내는 기존 보안 테스트 의도는 유지했다.
+- 실행한 테스트와 결과: 대상 `SecurityIntegrationTests`가 성공했고, 최종 `./gradlew clean test`에서 32개 test suite의 228개 테스트가 성공했으며 실패·오류·건너뜀은 모두 0개였다. `git diff --check`도 통과했다.
+- 유지한 계약: malformed JSON의 공통 400 오류 응답과 요청 민감값·내부 예외 비노출 검증, 기존 인증·동의·JWT·Refresh Token 계약을 변경하지 않았다. Secret, 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 테스트 입력은 정상 JSON으로 바꾸지 않고 파서가 명확하게 해석할 수 있도록 문자열 생성과 MockMvc 체인을 분리하는 최소 수정만 적용했다. 기존 작업 트리의 다른 변경은 수정하거나 제거하지 않았다.
+- 위험 요소: Gradle 컴파일에서는 기존 표현도 유효했으므로 IDE에 오류 표시가 남으면 프로젝트 동기화 또는 인덱스 갱신이 필요할 수 있다.
+- 다음 작업: IDE에서 Gradle 프로젝트를 다시 동기화한 뒤 해당 파일의 오류 표시가 사라졌는지 확인하고, 사용자가 현재 미커밋 변경을 검토한다.
