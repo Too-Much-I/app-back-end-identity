@@ -39,7 +39,6 @@ import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
-import web.tosunsaeng.identity.domain.auth.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
