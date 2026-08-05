@@ -109,6 +109,9 @@ class IdentityApplicationTests {
 						"$.paths['/api/v1/users/me/consents'].put.security[0].bearerAuth"
 				).isArray())
 				.andExpect(jsonPath(
+						"$.paths['/api/v1/users/me/consents'].get.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
 						"$.components.schemas.SignupRequest.properties.password.format"
 				).value("password"))
 				.andExpect(jsonPath(
@@ -165,11 +168,36 @@ class IdentityApplicationTests {
 	}
 
 	@Test
-	void openApiDocumentsConsentUpdateAndLegacyProfileNullability() throws Exception {
+	void openApiDocumentsConsentStatusReadUpdateAndLegacyNullability() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].get.summary")
+						.value("개인정보 처리방침 및 이용약관 동의 상태 조회"))
+				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].get.requestBody")
+						.doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].put.summary")
 						.value("개인정보 처리방침 및 이용약관 동의 갱신"))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserConsentStatusResponse.properties.privacy"
+				).exists())
+				.andExpect(jsonPath(
+						"$.components.schemas.UserConsentStatusResponse.properties.terms"
+				).exists())
+				.andExpect(jsonPath(
+						"$.components.schemas.ConsentPolicyStatusResponse.properties.currentVersion.type"
+				).value("string"))
+				.andExpect(jsonPath(
+						"$.components.schemas.ConsentPolicyStatusResponse.properties.consented.type"
+				).value("boolean"))
+				.andExpect(jsonPath(
+						"$.components.schemas.ConsentPolicyStatusResponse.properties.consentedVersion.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.ConsentPolicyStatusResponse.properties.consentedAt.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.ConsentPolicyStatusResponse.properties.requiresConsent.type"
+				).value("boolean"))
 				.andExpect(jsonPath("$.components.schemas.UserConsentUpdateRequest.required")
 						.value(org.hamcrest.Matchers.hasItems(
 								"isPrivacyConsented",

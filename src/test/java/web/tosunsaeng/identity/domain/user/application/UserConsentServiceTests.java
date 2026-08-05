@@ -17,6 +17,9 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
@@ -24,7 +27,9 @@ import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.UserConsentUpdateRequest;
+import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentResponse;
+import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusResponse;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
@@ -52,6 +57,187 @@ class UserConsentServiceTests {
 				consentPolicy,
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
+	}
+
+	@Test
+	void getsCurrentConsentStatusUsingOnlyJwtSubjectWithMatchingVersions() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		verify(currentUserProvider).getCurrentUserId();
+		verify(userRepository).findById(user.getUserId());
+		verify(userRepository, never()).save(any(User.class));
+		assertThat(response.privacy().currentVersion()).isEqualTo(PRIVACY_VERSION);
+		assertThat(response.privacy().consented()).isTrue();
+		assertThat(response.privacy().consentedVersion()).isEqualTo(PRIVACY_VERSION);
+		assertThat(response.privacy().consentedAt()).isEqualTo(PREVIOUS_AT);
+		assertThat(response.privacy().requiresConsent()).isFalse();
+		assertThat(response.terms().currentVersion()).isEqualTo(TERM_VERSION);
+		assertThat(response.terms().consented()).isTrue();
+		assertThat(response.terms().consentedVersion()).isEqualTo(TERM_VERSION);
+		assertThat(response.terms().consentedAt()).isEqualTo(PREVIOUS_AT);
+		assertThat(response.terms().requiresConsent()).isFalse();
+	}
+
+	@Test
+	void differentPrivacyVersionRequiresOnlyPrivacyConsent() {
+		User user = localUser(UserConsents.consented(
+				"privacy-v1",
+				TERM_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().requiresConsent()).isTrue();
+		assertThat(response.terms().requiresConsent()).isFalse();
+	}
+
+	@Test
+	void differentTermVersionRequiresOnlyTermConsent() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				"term-v1",
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().requiresConsent()).isFalse();
+		assertThat(response.terms().requiresConsent()).isTrue();
+	}
+
+	@Test
+	void falseConsentRequiresBothConsents() {
+		User user = localUser(UserConsents.unconsented());
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().consented()).isFalse();
+		assertThat(response.privacy().requiresConsent()).isTrue();
+		assertThat(response.terms().consented()).isFalse();
+		assertThat(response.terms().requiresConsent()).isTrue();
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(strings = {"", " "})
+	void nullOrBlankStoredVersionRequiresConsent(String storedVersion) {
+		UserConsents consents = UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				PREVIOUS_AT
+		);
+		ReflectionTestUtils.setField(consents, "privacyConsentVersion", storedVersion);
+		User user = localUser(consents);
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().consented()).isTrue();
+		assertThat(response.privacy().consentedVersion()).isEqualTo(storedVersion);
+		assertThat(response.privacy().requiresConsent()).isTrue();
+		assertThat(response.terms().requiresConsent()).isFalse();
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(strings = {"", " "})
+	void nullOrBlankStoredTermVersionRequiresConsent(String storedVersion) {
+		UserConsents consents = UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				PREVIOUS_AT
+		);
+		ReflectionTestUtils.setField(consents, "termConsentVersion", storedVersion);
+		User user = localUser(consents);
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().requiresConsent()).isFalse();
+		assertThat(response.terms().consented()).isTrue();
+		assertThat(response.terms().consentedVersion()).isEqualTo(storedVersion);
+		assertThat(response.terms().requiresConsent()).isTrue();
+	}
+
+	@Test
+	void versionComparisonUsesExactStringEquality() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION.toUpperCase(java.util.Locale.ROOT),
+				TERM_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().requiresConsent()).isTrue();
+	}
+
+	@Test
+	void legacyUserWithoutConsentFieldsIsReturnedAsUnconsented() {
+		User user = localUser(UserConsents.unconsented());
+		ReflectionTestUtils.setField(user, "consents", null);
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentStatusResponse response = userConsentService.getCurrentConsentStatus();
+
+		assertThat(response.privacy().consented()).isFalse();
+		assertThat(response.privacy().consentedVersion()).isNull();
+		assertThat(response.privacy().consentedAt()).isNull();
+		assertThat(response.privacy().requiresConsent()).isTrue();
+		assertThat(response.terms().consented()).isFalse();
+		assertThat(response.terms().consentedVersion()).isNull();
+		assertThat(response.terms().consentedAt()).isNull();
+		assertThat(response.terms().requiresConsent()).isTrue();
+	}
+
+	@Test
+	void consentStatusReturnsExistingUserNotFoundError() {
+		when(currentUserProvider.getCurrentUserId()).thenReturn("missing-user-id");
+		when(userRepository.findById("missing-user-id")).thenReturn(Optional.empty());
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				userConsentService::getCurrentConsentStatus
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.USER_NOT_FOUND);
+	}
+
+	@Test
+	void consentStatusResponseDoesNotExposeUserOrInstallationIdentifiers() {
+		assertThat(Arrays.stream(UserConsentStatusResponse.class.getRecordComponents())
+				.map(RecordComponent::getName))
+				.containsExactly("privacy", "terms")
+				.doesNotContain("userId", "installationId", "guestInstallationIdHash");
+		assertThat(Arrays.stream(ConsentPolicyStatusResponse.class.getRecordComponents())
+				.map(RecordComponent::getName))
+				.containsExactly(
+						"currentVersion",
+						"consented",
+						"consentedVersion",
+						"consentedAt",
+						"requiresConsent"
+				);
 	}
 
 	@Test

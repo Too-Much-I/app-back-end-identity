@@ -25,10 +25,14 @@ import org.springframework.http.MediaType;
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.domain.user.application.UserConsentService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
+import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentResponse;
+import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserProfileResponse;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.application.UserProfileService;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
+import web.tosunsaeng.identity.domain.user.exception.UserException;
 
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -84,6 +88,61 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.result.streakDays").doesNotExist());
 
 		verify(userProfileService).getCurrentUserProfile();
+	}
+
+	@Test
+	void getConsentsReturnsCurrentVersionsAndConsentRequirements() throws Exception {
+		UserConsentStatusResponse response = new UserConsentStatusResponse(
+				new ConsentPolicyStatusResponse(
+						"privacy-v2",
+						true,
+						"privacy-v1",
+						CONSENTED_AT,
+						true
+				),
+				new ConsentPolicyStatusResponse(
+						"term-v1",
+						true,
+						"term-v1",
+						CONSENTED_AT,
+						false
+				)
+		);
+		when(userConsentService.getCurrentConsentStatus()).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/users/me/consents"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.code").value("SUCCESS"))
+				.andExpect(jsonPath("$.result.privacy.currentVersion").value("privacy-v2"))
+				.andExpect(jsonPath("$.result.privacy.consented").value(true))
+				.andExpect(jsonPath("$.result.privacy.consentedVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.privacy.consentedAt")
+						.value("2026-08-05T00:00:00Z"))
+				.andExpect(jsonPath("$.result.privacy.requiresConsent").value(true))
+				.andExpect(jsonPath("$.result.terms.currentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.terms.consented").value(true))
+				.andExpect(jsonPath("$.result.terms.consentedVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.terms.consentedAt")
+						.value("2026-08-05T00:00:00Z"))
+				.andExpect(jsonPath("$.result.terms.requiresConsent").value(false))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.installationId").doesNotExist());
+
+		verify(userConsentService).getCurrentConsentStatus();
+	}
+
+	@Test
+	void getConsentsReturnsExistingUserNotFoundErrorShape() throws Exception {
+		when(userConsentService.getCurrentConsentStatus())
+				.thenThrow(new UserException(UserErrorStatus.USER_NOT_FOUND));
+
+		mockMvc.perform(get("/api/v1/users/me/consents"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.isSuccess").value(false))
+				.andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."))
+				.andExpect(jsonPath("$.result").value(nullValue()));
 	}
 
 	@Test

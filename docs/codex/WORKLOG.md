@@ -676,3 +676,18 @@
 - 결정사항: 테스트 입력은 정상 JSON으로 바꾸지 않고 파서가 명확하게 해석할 수 있도록 문자열 생성과 MockMvc 체인을 분리하는 최소 수정만 적용했다. 기존 작업 트리의 다른 변경은 수정하거나 제거하지 않았다.
 - 위험 요소: Gradle 컴파일에서는 기존 표현도 유효했으므로 IDE에 오류 표시가 남으면 프로젝트 동기화 또는 인덱스 갱신이 필요할 수 있다.
 - 다음 작업: IDE에서 Gradle 프로젝트를 다시 동기화한 뒤 해당 파일의 오류 표시가 사라졌는지 확인하고, 사용자가 현재 미커밋 변경을 검토한다.
+
+## 2026-08-05 — 로그인 사용자 동의 상태 조회 API
+
+<!-- codex-turn:019fd0cd-6c23-7b52-b4d5-fac37154a935 -->
+
+- 날짜: 2026-08-05
+- 브랜치: `main`
+- 작업 목표: 프론트가 인증된 사용자의 저장 동의 버전과 서버의 현재 필수 개인정보 처리방침·이용약관 버전을 비교해 재동의 필요 여부를 판단할 수 있는 조회 API를 추가한다.
+- 변경 파일: `UserController`, `UserConsentService`, 신규 `UserConsentStatusResponse`·`ConsentPolicyStatusResponse`, `application.yml`, `README.md`, `IdentityApplicationTests`, `UserControllerTests`, `UserConsentServiceTests`, `SecurityIntegrationTests`, 신규 `ConsentPolicyTests`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. `.env.example`의 기존 두 정책 버전 예시는 이미 새 필수 설정명과 일치해 그대로 유지했다.
+- 구현 내용: 인증이 필요한 `GET /api/v1/users/me/consents`를 추가해 검증된 JWT `sub`의 ACTIVE 사용자만 조회한다. 개인정보 처리방침과 이용약관별로 서버 `currentVersion`, 저장된 `consented`·`consentedVersion`·`consentedAt`, 정확한 문자열 일치 기반 `requiresConsent`를 중첩 응답으로 반환한다. 저장 동의가 false이거나 버전이 null·공백이거나 현재 버전과 다르면 재동의가 필요하다. 기존 PUT 갱신과 동일한 사용자 조회·오류 경로를 재사용한다.
+- 실행한 테스트와 결과: 서비스·Controller·Security·OpenAPI·설정 fail-fast 대상 테스트 66개를 실행해 성공했다. 최종 `./gradlew clean test`는 33개 test suite의 249개 테스트가 성공했고 실패·오류·건너뜀은 모두 0개였다. `git diff --check`도 통과했다.
+- 유지한 계약: 기존 Guest·LOCAL 생성, 로그인·재발급·단일·전체 로그아웃, 프로필, JWT issuer·audience·scope·`sub`, RS256, Opaque Refresh Token과 Rotation 계약을 변경하지 않았다. GET 동의 조회 경로는 공개 목록에 추가하지 않았고 요청에서 사용자나 설치 식별자를 받지 않는다. 실제 자격증명, 실제 Key, 전체 MongoDB URI와 개인정보를 코드·문서·기록에 추가하지 않았다.
+- 결정사항: 기존 User 문서에 `consents`가 없으면 `User.getConsents()`의 기존 fallback을 재사용해 두 정책을 미동의, 버전·시각 null, 재동의 필요로 반환하고 과거 음성 동의를 자동 변환하지 않는다. 정책 버전 환경변수의 애플리케이션 기본값을 제거해 누락 시 placeholder 해석에서, 공백 시 `ConsentPolicy` 검증에서 기동 실패하도록 했다. MongoDB 저장 구조와 index는 변경하지 않았다.
+- 위험 요소: 정책 버전 변경 전에 ECS Task Definition과 프론트에 같은 버전을 배포해야 하며 불일치 시 신규 가입·Guest 생성·동의 갱신 요청이 400으로 거절될 수 있다. 격리 테스트는 실제 운영 MongoDB나 배포 환경을 호출하지 않았다.
+- 다음 작업: ECS Task Definition에 두 필수 정책 버전을 비공백 값으로 설정하고 staging에서 로그인·Guest 인증 후 GET 조회, 재동의 화면, PUT 갱신, 재조회 흐름을 검증한다. 사용자가 미커밋 diff를 검토한 뒤 commit과 push를 직접 수행한다.

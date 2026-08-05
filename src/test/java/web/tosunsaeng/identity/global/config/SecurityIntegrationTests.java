@@ -205,6 +205,7 @@ class SecurityIntegrationTests {
 	@Test
 	void protectedEndpointsReturnSafeBaseResponseWhenAccessTokenIsMissing() throws Exception {
 		assertUnauthorized(mockMvc.perform(get("/api/v1/users/me")).andReturn());
+		assertUnauthorized(mockMvc.perform(get("/api/v1/users/me/consents")).andReturn());
 		assertUnauthorized(mockMvc.perform(put("/api/v1/users/me/consents")
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{}"))
@@ -308,6 +309,41 @@ class SecurityIntegrationTests {
 	}
 
 	@Test
+	void consentStatusReadUsesJwtSubjectAndCannotReadAnotherUser() throws Exception {
+		User user = userFactory.create(
+				"consent.reader@example.com",
+				"integration-test-credential",
+				"동의조회사용자"
+		);
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+
+		MvcResult result = mockMvc.perform(get("/api/v1/users/me/consents")
+						.queryParam("userId", OTHER_USER_ID)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.privacy.currentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.privacy.consented").value(true))
+				.andExpect(jsonPath("$.result.privacy.consentedVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.privacy.requiresConsent").value(false))
+				.andExpect(jsonPath("$.result.terms.currentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.terms.consented").value(true))
+				.andExpect(jsonPath("$.result.terms.consentedVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.terms.requiresConsent").value(false))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.installationId").doesNotExist())
+				.andReturn();
+
+		verify(userRepository).findById(user.getUserId());
+		assertThat(result.getResponse().getContentAsString()).doesNotContain(
+				OTHER_USER_ID,
+				user.getPasswordHash(),
+				user.getNormalizedEmail(),
+				accessToken.tokenValue()
+		);
+	}
+
+	@Test
 	void consentUpdateUsesJwtSubjectAndCannotModifyAnotherUser() throws Exception {
 		User user = userFactory.create(
 				"consent.user@example.com",
@@ -401,7 +437,7 @@ class SecurityIntegrationTests {
 		);
 
 		for (String invalidToken : invalidTokens) {
-			MvcResult result = mockMvc.perform(get("/__security-test/authorities")
+			MvcResult result = mockMvc.perform(get("/api/v1/users/me/consents")
 							.header(HttpHeaders.AUTHORIZATION, "Bearer " + invalidToken))
 					.andExpect(status().isUnauthorized())
 					.andReturn();

@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의 상태 조회·갱신, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -40,8 +40,8 @@ Identity Service는 다음 기능을 소유한다.
 | `MONGODB_DATABASE` | 선택 | `to-teacher-identity` |
 | `SERVER_PORT` | 선택 | `8081` |
 | `SWAGGER_ENABLED` | 선택 | Swagger UI와 OpenAPI 문서 활성화 여부, 기본값 `true` |
-| `PRIVACY_CONSENT_VERSION` | 선택 | 서버가 현재 허용하는 개인정보 처리 동의 버전, 기본값 `privacy-v1` |
-| `TERM_CONSENT_VERSION` | 선택 | 서버가 현재 허용하는 이용약관 동의 버전, 기본값 `term-v1` |
+| `PRIVACY_CONSENT_VERSION` | 필수 | 서버의 현재 필수 개인정보 처리방침 버전. 누락·공백이면 기동 실패 |
+| `TERM_CONSENT_VERSION` | 필수 | 서버의 현재 필수 이용약관 버전. 누락·공백이면 기동 실패 |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
 | `REFRESH_TOKEN_RANDOM_BYTES` | 선택 | `32` 이상 |
 | `JWT_ISSUER` | 선택 | `http://localhost:8081` |
@@ -152,7 +152,53 @@ curl -X POST \
 }
 ```
 
-인증된 기존 사용자는 다음 API로 현재 필수 버전에 다시 동의한다. 사용자 식별자는 요청이 아니라 검증된 JWT `sub`만 사용한다.
+로그인 또는 Guest 인증을 마친 사용자는 다음 API로 저장된 동의 상태와 서버의 현재 필수 버전을 조회한다. 요청 파라미터나 본문으로 사용자를 선택하지 않으며 검증된 JWT `sub`만 사용한다.
+
+```shell
+curl -X GET \
+  "${IDENTITY_BASE_URL}/api/v1/users/me/consents" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H 'Accept: application/json'
+```
+
+```json
+{
+  "isSuccess": true,
+  "code": "SUCCESS",
+  "message": "요청에 성공했습니다.",
+  "result": {
+    "privacy": {
+      "currentVersion": "privacy-v2",
+      "consented": true,
+      "consentedVersion": "privacy-v1",
+      "consentedAt": "2026-08-05T07:00:00Z",
+      "requiresConsent": true
+    },
+    "terms": {
+      "currentVersion": "term-v1",
+      "consented": true,
+      "consentedVersion": "term-v1",
+      "consentedAt": "2026-08-05T07:00:00Z",
+      "requiresConsent": false
+    }
+  }
+}
+```
+
+`requiresConsent`는 저장된 동의가 false이거나 저장 버전이 null·공백이거나 현재 필수 버전과 정확히 일치하지 않으면 true다. 버전의 대소 관계나 대소문자를 보정하지 않는다. 기존 MongoDB 문서에 `consents`가 없으면 두 정책 모두 `consented=false`, 버전과 시각은 null, `requiresConsent=true`로 반환한다. 과거 음성 동의는 새 개인정보 처리방침 동의로 자동 변환하지 않는다.
+
+프론트는 로그인 또는 Guest 인증 후 다음 순서로 사용한다.
+
+```text
+GET /api/v1/users/me/consents
+→ privacy.requiresConsent 또는 terms.requiresConsent 확인
+→ 하나라도 true이면 새로운 동의 화면 표시
+→ 사용자 동의 후 PUT /api/v1/users/me/consents 호출
+```
+
+신규 Guest는 아직 Access Token이 없으므로 GET 조회를 먼저 호출할 수 없다. 앱에 포함된 현재 필수 버전으로 동의받은 뒤 기존 `POST /api/v1/auth/guest` 흐름을 사용한다.
+
+인증된 사용자는 다음 API로 현재 필수 버전에 다시 동의한다.
 
 ```shell
 curl -X PUT \
@@ -169,16 +215,16 @@ curl -X PUT \
 
 두 동의는 같은 User 문서의 단일 MongoDB 저장으로 함께 반영된다. 동일 버전에 이미 동의한 요청은 저장을 반복하지 않고 기존 동의 시각을 유지한다. 한 버전만 변경되면 변경된 정책의 동의 시각만 서버 현재 시각으로 갱신한다.
 
-MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한 파괴적 migration이나 index 변경은 없다. 기존 문서에 `consents`가 없으면 프로필에서 두 동의는 `false`, 버전과 시각은 `null`로 반환하며 현재 정책에 다시 동의해야 한다. 과거 `audioConsent` 값은 개인정보 처리 동의로 자동 변환하지 않고 읽기에서 무시한다. 운영 배포 전에는 기존 사용자에게 재동의를 요청하는 앱 흐름과 정책 버전 전환 시점을 확정해야 한다.
+MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한 파괴적 migration이나 index 변경은 없다. 기존 문서에 `consents`가 없으면 프로필과 동의 상태 조회에서 두 동의는 `false`, 버전과 시각은 `null`로 반환하며 현재 정책에 다시 동의해야 한다. 과거 `audioConsent` 값은 개인정보 처리 동의로 자동 변환하지 않고 읽기에서 무시한다. 운영 배포 전에는 기존 사용자에게 재동의를 요청하는 앱 흐름과 정책 버전 전환 시점을 확정해야 한다.
 
 ### ECS Task Definition 환경변수 전환
 
 이 저장소에는 ECS Task Definition 파일이 없으므로 배포 인프라의 새 Task Definition revision에서 다음 값을 직접 변경한다.
 
-1. `PRIVACY_CONSENT_VERSION`을 현재 배포할 개인정보 처리방침 버전으로 추가한다.
-2. `TERM_CONSENT_VERSION`을 현재 배포할 이용약관 버전으로 추가한다.
+1. 필수 `PRIVACY_CONSENT_VERSION`을 현재 배포할 개인정보 처리방침 버전으로 추가한다.
+2. 필수 `TERM_CONSENT_VERSION`을 현재 배포할 이용약관 버전으로 추가한다.
 3. 더 이상 읽지 않는 `AUDIO_POLICY_VERSION`을 제거한다.
-4. 새 revision을 staging에 먼저 배포해 Guest 생성, LOCAL 회원가입, 동의 갱신과 프로필 응답을 확인한 뒤 production에 적용한다.
+4. 새 revision을 staging에 먼저 배포해 Guest 생성, LOCAL 회원가입, 동의 상태 조회·갱신과 프로필 응답을 확인한 뒤 production에 적용한다.
 
 이번 변경은 구 `isAudioConsent` 요청과 호환되지 않는 계약 변경이다. 새 프론트도 구 서버에서는 필수 음성 동의가 없어 실패하므로, ECS 환경변수를 포함한 백엔드 revision과 새 요청을 보내는 프론트를 같은 전환 창에 배포해야 한다. 이미 배포된 구 앱을 계속 지원해야 한다면 강제 업데이트 또는 별도의 명시적 과도기 API 계약이 선행되어야 하며, 설치 식별자만으로 기존 Guest를 복구하는 방식으로 우회하지 않는다.
 
@@ -225,7 +271,7 @@ Guest User는 `email`/`normalizedEmail` 필드가 없으므로 LOCAL 이메일 �
 - `GET /actuator/health`
 - Swagger UI와 OpenAPI 경로
 
-그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`, `PUT /api/v1/users/me/consents`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
+그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
 
 ## 아직 구현되지 않은 기능
 
