@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: 인증된 사용자의 개인정보 처리방침·이용약관 동의 상태 조회 API 구현과 전체 회귀 검증 완료
-- 상태 기준일: 2026-08-05
+- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴 API, `WITHDRAWN` tombstone, 전체 RefreshSession 폐기, Guest·LOCAL 신규 계정 재가입과 동시성 방어 구현 및 전체 회귀 검증 완료
+- 상태 기준일: 2026-08-07
 
 ## 완료
 
@@ -40,6 +40,12 @@
 - `.env.example`, 실제 환경 파일 ignore 및 README 실행·경계 문서
 - 외부 인프라를 호출하지 않는 Bootstrap 테스트 9개 통과
 - `users` 컬렉션의 UUID `userId` 기반 User Document와 `ACTIVE`, `SUSPENDED`, `WITHDRAWN` 상태 모델
+- Jira `TMI-75` Task(작업)·High 이슈 범위로 보호된 `POST /api/v1/users/withdraw`를 구현했으며 Jira 상태·댓글·필드는 변경하지 않음
+- 회원 탈퇴는 JWT `sub`, 요청 Refresh Token 해시의 Session 소유권·미폐기·미만료 상태를 검증하고 LOCAL만 현재 비밀번호를 재확인하며 GUEST는 비밀번호 없이 처리
+- User 문서는 삭제하지 않고 `WITHDRAWN` tombstone으로 유지하며 서버 UTC `withdrawnAt`·`updatedAt`, 익명 nickname을 기록하고 email·normalizedEmail·passwordHash·guestInstallationIdHash는 Mongo `$unset`, 기존 userId·provider·createdAt·consents는 유지
+- User tombstone 조건부 update와 사용자별 모든 미폐기 RefreshSession의 `ACCOUNT_WITHDRAWN` 폐기는 기존 `mongoTransactionManager` Transaction 하나로 처리하고, 충돌 시 최신 상태를 확인해 멱등 성공하거나 한 번 안전하게 재시도한 뒤 남은 충돌은 `WITHDRAWAL_CONFLICT` 409로 변환
+- User 탈퇴 CAS와 동의 ACTIVE+updatedAt partial update로 stale User 전체 저장이 WITHDRAWN을 ACTIVE로 되돌리는 경로를 차단
+- Guest 탈퇴 후 같은 installationId는 기존 WITHDRAWN User를 복구하지 않고 새 UUID·RefreshSession을 생성하며, LOCAL 탈퇴 후 같은 이메일도 새 UUID로 가입 가능하고 ACTIVE Guest 중복 409는 유지
 - 원본 대소문자를 보존하면서 앞뒤 공백을 제거한 표시용 이메일과 `Locale.ROOT` 소문자 정규화 이메일 분리
 - `normalizedEmail`의 `uk_users_normalized_email` unique index 및 MongoDB 자동 index 생성 설정
 - BCrypt `PasswordEncoder` Bean과 평문을 Entity에 전달하지 않는 최소 `UserFactory`
@@ -59,7 +65,7 @@
 - `POST /api/v1/auth/guest`는 UUID v4 `installationId`와 개인정보·약관 동의 네 필드를 검증해 최초 Guest와 Token을 생성하며, 설치 ID는 인증 수단이 아니므로 동일 설치 재요청은 기존 Token 복구 없이 409로 거절하고 이후 실행은 저장한 Refresh Token으로 `/api/v1/auth/reissue`를 사용
 - `GET /api/v1/users/me/consents`는 JWT `sub`의 ACTIVE 사용자만 조회해 서버 현재 필수 버전, 저장된 동의 상태·버전·시각과 정확한 문자열 비교 기반 `requiresConsent`를 개인정보·약관별로 반환
 - `PUT /api/v1/users/me/consents`는 JWT `sub` 사용자만 대상으로 현재 필수 두 정책 동의를 한 User 문서 저장으로 갱신하고, 동일 버전 재요청은 저장과 동의 시각 변경 없이 멱등 성공
-- Guest·LOCAL 생성, 동의 상태 조회·검증·갱신·멱등성, 기존 Mongo 문서 호환, 프로필·Security·OpenAPI와 기존 인증 회귀를 포함한 전체 249개 테스트 성공
+- Guest·LOCAL 생성, 동의·프로필·탈퇴, Guest·LOCAL 재가입, Transaction rollback, Security·OpenAPI, JWT·JWKS와 기존 인증 회귀를 포함한 38개 suite의 전체 284개 테스트 성공
 - Repository를 Mock 처리한 Service·Controller 테스트와 전체 44개 테스트 통과
 - 회원가입 성공 응답 및 오류 응답의 해시·정규화 이메일·자격증명·MongoDB 내부 정보 비노출 검증
 - `app.jwt` 기반 issuer, audience, keyId, Access Token TTL, RSA Key Resource 경로 및 기본 scope 설정
@@ -93,6 +99,7 @@
 - 존재하지 않는 Refresh Token은 `INVALID_REFRESH_TOKEN` 401, `expiresAt <= Clock`은 `REFRESH_TOKEN_EXPIRED` 401, 비활성 사용자는 기존 `ACCOUNT_NOT_ACTIVE` 403 정책 적용
 - `POST /api/v1/auth/logout`에서 활성·미만료 Session만 `LOGOUT` 사유로 폐기하고 없는·이미 폐기된·만료된 Refresh Token은 성공 처리하는 멱등 흐름 구현
 - 재발급·로그아웃 Request의 `NotBlank`와 최대 512자 제한, Refresh Token validation 값 마스킹 및 Request·Response 문자열 redaction 적용
+- `POST /api/v1/auth/logout`은 Bearer 인증 없이 요청한 Opaque Refresh Token의 해시로 세션 한 건을 찾고, 활성·미만료 세션만 현재 시각과 `LOGOUT` 사유로 폐기하며 없는·이미 폐기된·만료된 세션은 200 성공으로 멱등 처리
 - Reissue 응답의 Access Token·Refresh Token 만료 기간을 milliseconds로 반환하고 내부 사용자·세션·해시·비밀번호 관련 필드를 외부 응답에 포함하지 않음
 - 실제 Atlas와 운영 키를 사용하지 않는 Service·Controller·도메인 회귀 테스트를 포함해 전체 97개 통과, 실패·오류·건너뜀 0개
 - RefreshSession 원문 필드·Access Token 영속화·민감 로그·운영 자격증명 하드코딩 부재와 외부 응답 내부 필드 비노출 검증
@@ -122,10 +129,13 @@
 
 ## 진행 중
 
-- Jira `TMI-10` — `진행 중`, 승인된 Learning Core JWT 연동 이슈 생성과 상태 전환 완료, 구현 미착수
+- Jira `TMI-75` — Jira 상태는 `해야 할 일`로 유지한 채 `feat/TMI-75-user-withdrawal` 브랜치의 구현·테스트·문서 변경 완료, commit·push·PR 미수행
 
 ## 다음 작업
 
+- 사용자가 TMI-75 미커밋 diff를 검토한 뒤 commit·push·PR을 직접 수행하고, Jira 댓글·상태 변경은 별도 승인 후 진행
+- staging replica set에서 회원 탈퇴 User/Session 실제 Transaction rollback, custom repository fragment 연결과 Guest·LOCAL 재가입을 운영 index 조건으로 검증
+- `UserWithdrawn` outbox와 Learning Core 시험·결과 데이터 삭제 또는 익명화, stateless Access Token의 서비스 간 즉시 폐기는 별도 이슈로 설계
 - 사용자가 동의 상태 조회 API와 문서의 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
 - ECS Task Definition에 필수 개인정보 처리방침·이용약관 버전을 비공백 값으로 설정한 뒤 staging에서 GET 조회와 PUT 갱신 흐름을 검증
 - MongoDB replica set·Transaction 지원 여부를 확인해 RefreshSession 회전과 다중 폐기의 원자성·동시 재발급 통합 테스트를 별도 작업으로 설계
@@ -146,13 +156,14 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`이고 HEAD는 `231e06d`이며 이번 동의 상태 조회 API 변경은 commit·stage하지 않음
+- 현재 작업 기준 브랜치는 `feat/TMI-75-user-withdrawal`, HEAD는 `a98dbfa`이며 TMI-75 변경은 commit·stage하지 않았고 기존 `.github/workflows/deploy-staging.yml` 사용자 변경은 건드리지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유
-- `MongoTransactionManager`는 Guest User와 최초 RefreshSession 저장에 적용하며, 기존 Rotation·재사용 탐지·logout-all의 다중 Session 저장 원자성은 별도 후속 범위로 유지
-- OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`와 `POST /api/v1/auth/logout-all`에 operation 단위로 적용
+- `MongoTransactionManager`는 Guest User·최초 RefreshSession 생성과 회원 탈퇴 User tombstone·전체 RefreshSession 폐기에 적용하며, 기존 Rotation·재사용 탐지·logout-all의 다중 Session 저장 원자성은 별도 후속 범위로 유지
+- 회원 탈퇴의 즉시 제거 범위는 User의 email·normalizedEmail·passwordHash·guestInstallationIdHash `$unset`과 nickname 익명화이며, User 문서·userId·provider·createdAt·동의 기록은 보존한다. RefreshSession 문서는 즉시 삭제하지 않고 모두 `ACCOUNT_WITHDRAWN`으로 폐기하며 만료 시 TTL 정리 대상이 되고, Learning Core 데이터와 기존 stateless Access Token은 이 API가 직접 삭제·폐기하지 않는다.
+- OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`, `POST /api/v1/users/withdraw`와 `POST /api/v1/auth/logout-all`에 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화
 - 실제 `userId`는 UUID 문자열
 - User Document는 `users` 컬렉션을 사용하고 UUID 문자열 `userId`를 MongoDB `@Id`로 저장
@@ -198,7 +209,7 @@
 - 토큰을 보유하는 내부 발급 결과와 로그인 응답의 문자열 표현은 토큰 값을 redaction 처리
 - 재발급은 폐기 사유 확인 후 `expiresAt <= Clock`을 만료로 판정하고, 사용자 상태 확인 뒤 기존 Session의 Optimistic Lock 저장이 성공한 요청만 후속 토큰을 발급
 - Rotation 재사용 탐지는 해당 사용자의 미폐기 RefreshSession 전체를 폐기하며 LOGOUT 또는 다른 폐기 사유는 일반 `INVALID_REFRESH_TOKEN`으로 구분
-- 단일 로그아웃은 한 RefreshSession을 `LOGOUT`, 전체 로그아웃은 현재 JWT 사용자의 미폐기 RefreshSession 전체를 `LOGOUT_ALL`로 폐기
+- 단일 로그아웃은 요청 Refresh Token에 해당하는 한 RefreshSession을 `LOGOUT`, 전체 로그아웃은 현재 JWT 사용자의 미폐기 RefreshSession 전체를 `LOGOUT_ALL`로 폐기
 - 로그아웃은 Access Token 블랙리스트를 만들지 않으므로 기존 Access Token은 만료 시각까지 유효할 수 있으며 클라이언트는 성공 즉시 로컬 두 토큰을 삭제
 - 로컬 키는 저장소에서 무시하고 테스트 키는 매 테스트 런타임에 메모리에서 생성
 - Learning Core `audience`는 `tosunsaeng-learning-core`
@@ -218,7 +229,7 @@
 
 ## 남아 있는 위험 요소
 
-- `RefreshSession`에는 token hash unique와 만료 TTL index만 선언되어 있어 사용자별 미폐기 Session 조회가 운영 데이터 규모에서 collection scan이 되는지는 실제 운영 index와 `explain` 확인이 필요하다.
+- `RefreshSession`의 사용자별 미폐기 조회를 위한 `{userId, revokedAt}` compound index 계약을 추가했지만 운영 배포 전 실제 index 생성 상태와 데이터 규모별 `explain`을 확인해야 한다.
 - 패키지 이동으로 신규 Mongo 문서의 `_class` FQCN이 바뀔 수 있으므로 외부 시스템이 `_class`를 조회 조건으로 사용하는지는 운영 데이터와 소비자에서 확인해야 한다.
 - OpenAPI 오류 응답은 raw `BaseResponse` schema를 사용해 Validation의 `result` 배열을 완전히 구체화하지 못하므로 문서 전용 wrapper 도입 범위를 후속 검토해야 한다.
 - `UserFactory`는 Spring `PasswordEncoder`·설정 주입과 `Instant.now()`에 직접 결합되어 있어 `Clock` 주입 및 application 계층 이동 여부를 후속 검토해야 한다.
@@ -245,6 +256,10 @@
 - 재사용 탐지에서 여러 활성 Session을 폐기하는 저장은 Transaction으로 묶이지 않으므로 중간 저장 실패 시 일부 Session만 폐기될 가능성이 남아 있다.
 - logout-all의 여러 Session `saveAll`도 Transaction이 아니므로 중간 실패 시 일부 Session만 폐기될 수 있으며 오류는 호출자에게 전파된다.
 - 단일·전체 로그아웃은 Access Token을 즉시 무효화하지 않으므로 클라이언트의 로컬 토큰 삭제와 짧은 Access Token TTL을 함께 유지해야 한다.
+- 회원 탈퇴도 stateless Access Token을 즉시 폐기하지 않으므로 기존 Token은 설정된 최대 TTL까지 Learning Core에서 암호학적으로 유효할 수 있으며 서비스 간 즉시 폐기는 별도 계약이 필요하다.
+- 격리 test profile은 외부 MongoDB를 사용하지 않아 Spring Transaction proxy rollback을 검증했지만 실제 Atlas·replica set의 다중 collection rollback과 custom repository fragment wiring은 staging에서 재검증해야 한다.
+- Identity 회원 탈퇴는 Learning Core 데이터를 직접 삭제하지 않으며 `UserWithdrawn` outbox와 시험·결과 데이터 삭제 또는 익명화 정책은 아직 구현되지 않았다.
+- 같은 활성 RefreshSession의 단건 로그아웃이 정확히 동시에 실행되면 `@Version` 저장 충돌을 `LogoutService`가 별도로 멱등 성공으로 변환하지 않아 한 요청이 일반 500으로 끝날 수 있으므로 동시성 정책과 예외 변환을 후속 검토해야 한다.
 - 자격증명 실패의 외부 code와 message는 통일했지만 사용자 부재 경로와 BCrypt 검증 경로의 실행 시간 차이에 대한 완화 정책은 rate limit·관측 기준과 함께 검토해야 한다.
 - Java 패키지 경로가 전면 변경됐으므로 이 저장소 내부 테스트는 통과했지만, 패키지 FQCN을 직접 참조하는 별도 모듈이 존재한다면 새 `domain`·`global` 경로로 import를 갱신해야 한다.
 - OpenAPI 응답 설명은 런타임 계약을 보조하는 문서이므로 후속 API 오류 코드나 보안 정책 변경 시 Controller 어노테이션과 문서 계약 테스트를 함께 갱신해야 한다.

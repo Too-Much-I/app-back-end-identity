@@ -16,6 +16,21 @@ public enum UserErrorStatus implements ErrorCode {
 			"ACCOUNT_NOT_ACTIVE",
 			"활성 상태가 아닌 계정은 로그인할 수 없습니다."
 	),
+	WITHDRAWAL_PASSWORD_REQUIRED(
+			HttpStatus.BAD_REQUEST,
+			"WITHDRAWAL_PASSWORD_REQUIRED",
+			"LOCAL 회원 탈퇴에는 현재 비밀번호가 필요합니다."
+	),
+	WITHDRAWAL_CONFLICT(
+			HttpStatus.CONFLICT,
+			"WITHDRAWAL_CONFLICT",
+			"회원 탈퇴 처리 중 사용자 정보가 변경되었습니다. 다시 시도해 주세요."
+	),
+	USER_UPDATE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"USER_UPDATE_CONFLICT",
+			"사용자 정보가 동시에 변경되었습니다. 다시 시도해 주세요."
+	),
 	PRIVACY_CONSENT_REQUIRED(
 			HttpStatus.BAD_REQUEST,
 			"PRIVACY_CONSENT_REQUIRED",

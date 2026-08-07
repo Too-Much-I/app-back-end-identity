@@ -112,6 +112,9 @@ class IdentityApplicationTests {
 						"$.paths['/api/v1/users/me/consents'].get.security[0].bearerAuth"
 				).isArray())
 				.andExpect(jsonPath(
+						"$.paths['/api/v1/users/withdraw'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
 						"$.components.schemas.SignupRequest.properties.password.format"
 				).value("password"))
 				.andExpect(jsonPath(
@@ -120,6 +123,40 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath(
 						"$.components.schemas.SignupRequest.properties.password.example"
 				).doesNotExist());
+	}
+
+	@Test
+	void openApiDocumentsProviderSpecificWithdrawalWithoutTargetSelectors() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.summary")
+						.value("회원 탈퇴"))
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.description")
+						.value(org.hamcrest.Matchers.containsString("LOCAL")))
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.description")
+						.value(org.hamcrest.Matchers.containsString("GUEST")))
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.responses['200']")
+						.exists())
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.responses['400']")
+						.exists())
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.responses['401']")
+						.exists())
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.responses['404']")
+						.exists())
+				.andExpect(jsonPath("$.paths['/api/v1/users/withdraw'].post.responses['409']")
+						.exists())
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.required")
+						.value(org.hamcrest.Matchers.contains("refreshToken")))
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.properties.refreshToken.writeOnly")
+						.value(true))
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.properties.password.writeOnly")
+						.value(true))
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.properties.userId")
+						.doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.properties.installationId")
+						.doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.WithdrawRequest.properties.isConfirmed")
+						.doesNotExist());
 	}
 
 	@Test

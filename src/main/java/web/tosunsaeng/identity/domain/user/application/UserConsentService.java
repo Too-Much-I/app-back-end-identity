@@ -46,13 +46,24 @@ public class UserConsentService {
 		User user = getCurrentActiveUser();
 
 		Instant consentedAt = clock.instant();
+		Instant expectedUpdatedAt = user.getUpdatedAt();
 		boolean changed = user.updateConsents(
 				consentPolicy.getPrivacyConsentVersion(),
 				consentPolicy.getTermConsentVersion(),
 				consentedAt
 		);
-		User persistedUser = changed ? userRepository.save(user) : user;
-		return UserConsentResponse.from(persistedUser);
+		if (!changed) {
+			return UserConsentResponse.from(user);
+		}
+		if (!userRepository.updateConsentsIfActive(user, expectedUpdatedAt)) {
+			User latestUser = userRepository.findById(user.getUserId())
+					.orElseThrow(() -> new UserException(UserErrorStatus.USER_NOT_FOUND));
+			if (latestUser.getStatus() != UserStatus.ACTIVE) {
+				throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
+			}
+			throw new UserException(UserErrorStatus.USER_UPDATE_CONFLICT);
+		}
+		return UserConsentResponse.from(user);
 	}
 
 	private User getCurrentActiveUser() {

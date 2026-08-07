@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의 상태 조회·갱신, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의 상태 조회·갱신, 회원 탈퇴, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -88,6 +88,7 @@ Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http:/
 - `POST /api/v1/auth/reissue`는 기존 RefreshSession을 폐기한 뒤 Access Token과 Refresh Token을 모두 Rotation한다. 만료 여부는 MongoDB TTL 삭제 시점에 의존하지 않고 애플리케이션에서 직접 검증한다.
 - `POST /api/v1/auth/logout`은 RefreshSession을 멱등적으로 폐기하며 Access Token 블랙리스트를 만들지 않는다.
 - `POST /api/v1/auth/logout-all`은 인증된 사용자의 활성 RefreshSession 전체를 `LOGOUT_ALL` 사유로 멱등적으로 폐기한다.
+- `POST /api/v1/users/withdraw`는 JWT subject와 현재 RefreshSession 소유권을 확인하고 LOCAL 비밀번호를 재검증한 뒤 User tombstone과 모든 활성 Session 폐기를 원자적으로 저장한다.
 
 단일 또는 전체 로그아웃 전에 발급된 Access Token은 자체 만료 시각까지 유효할 수 있다. 클라이언트는 로그아웃 성공 직후 로컬 Access Token과 Refresh Token을 모두 삭제해야 한다.
 
@@ -117,6 +118,54 @@ Access Token 또는 Refresh Token 준비, User 저장, RefreshSession 저장이�
 Transaction commit 후 네트워크에서 응답을 잃거나 클라이언트가 Token을 분실하면 Guest는 이미 정상 생성된 상태다. 같은 `installationId` 재요청은 `409 GUEST_ALREADY_EXISTS`이며 설치 ID만으로 기존 Guest 계정이나 Token을 복구하지 않는다. 앱 삭제나 기기 변경에서도 기록 복구가 제한될 수 있다. 정상 응답으로 받은 Refresh Token이 이후 인증 상태를 증명하며, 복구·계정 연결은 별도 후속 기능으로 다룬다.
 
 현재 서비스에는 재사용할 Rate Limit 인프라가 없으므로 Guest 대량 생성 방어는 남은 위험이다. 이 작업에서 Redis나 외부 의존성을 추가하지 않았으며, 기존 Gateway 또는 향후 Identity Rate Limit 표준을 확정한 뒤 후속 이슈로 적용해야 한다.
+
+### 회원 탈퇴
+
+`POST /api/v1/users/withdraw`는 Bearer Access Token이 필요한 보호 API다. 탈퇴 대상은 요청 값이 아닌 검증된 JWT `sub`로만 식별하며, 요청에는 현재 Refresh Token과 Provider별 재인증 정보만 전달한다.
+
+LOCAL 요청:
+
+```shell
+curl -X POST \
+  "${IDENTITY_BASE_URL}/api/v1/users/withdraw" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "refreshToken": "<current-refresh-token>",
+    "password": "<current-password>"
+  }'
+```
+
+GUEST 요청:
+
+```shell
+curl -X POST \
+  "${IDENTITY_BASE_URL}/api/v1/users/withdraw" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "refreshToken": "<current-refresh-token>"
+  }'
+```
+
+요청 DTO에는 `userId`, `installationId`, `isConfirmed`가 없다. LOCAL은 현재 비밀번호를 기존 PasswordEncoder로 확인하며 GUEST는 비밀번호를 사용하지 않는다. 두 Provider 모두 Refresh Token 해시로 찾은 Session이 JWT subject 사용자 소유이고 미폐기·미만료인지 확인한다. 다른 사용자 Session, 만료·폐기 Session과 비밀번호 불일치는 외부에서 세부 원인을 구분하지 않는 `401 INVALID_WITHDRAWAL_CREDENTIALS`로 처리한다.
+
+탈퇴 Transaction은 User를 물리 삭제하지 않고 다음 tombstone으로 갱신한다.
+
+```text
+status = WITHDRAWN
+withdrawnAt = 서버 UTC 시각
+updatedAt = withdrawnAt
+nickname = 탈퇴한 사용자
+email / normalizedEmail / passwordHash / guestInstallationIdHash = unset
+userId / provider / createdAt / consents = 유지
+```
+
+같은 Transaction에서 해당 userId의 모든 미폐기 RefreshSession을 동일 시각과 `ACCOUNT_WITHDRAWN` 사유로 폐기한다. 조건부 User update가 기존 `status`와 `updatedAt`을 비교하므로 동시에 변경된 User를 조용히 덮어쓰지 않는다. 충돌 시 최신 User를 다시 읽어 WITHDRAWN이면 멱등 성공하고, 아직 탈퇴 전 상태이면 자격 증명을 다시 검증해 한 번 재시도한 뒤에도 충돌하면 `409 WITHDRAWAL_CONFLICT`를 반환한다. 동의 갱신도 ACTIVE 상태와 `updatedAt`이 일치할 때 `consents` 필드만 partial update하여 오래된 User 객체가 WITHDRAWN 상태를 ACTIVE로 복구하지 못한다.
+
+Guest 탈퇴는 `guestInstallationIdHash` unique 점유를 해제한다. 이후 같은 installationId로 Guest 인증하면 기존 WITHDRAWN User를 복구하지 않고 새 UUID와 새 RefreshSession을 생성한다. 반면 ACTIVE Guest가 점유 중인 installationId 요청은 기존처럼 `409 GUEST_ALREADY_EXISTS`다. LOCAL도 이메일 필드를 unset하므로 문자열에만 적용되는 partial unique index에서 기존 이메일 점유가 해제되어 새 User로 재가입할 수 있다.
+
+이미 WITHDRAWN인 사용자가 아직 유효한 Access Token으로 같은 API를 다시 호출하면 기존 `withdrawnAt`을 반환하는 200 멱등 성공이다. 탈퇴 성공 후에는 모든 Refresh Token이 즉시 재발급 불가능해지며 클라이언트는 Access/Refresh Token을 모두 삭제해야 한다. Access Token은 stateless JWT이므로 기본 `PT30M` TTL 또는 배포 설정의 만료 시각 전까지 Learning Core 같은 외부 검증 서비스에서 암호학적으로 유효할 수 있다. 이번 범위에는 denylist나 introspection을 추가하지 않는다.
 
 ### 개인정보 처리방침 및 이용약관 동의
 
@@ -230,7 +279,7 @@ MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한
 
 ### MongoDB Transaction 요구사항
 
-Guest User와 최초 RefreshSession은 `MongoTransactionManager`를 사용하는 하나의 Transaction으로 저장한다. 운영·staging과 Guest 흐름을 실행하는 로컬 MongoDB는 replica set 또는 transaction을 지원하는 Atlas·sharded topology여야 하며 logical session도 지원해야 한다.
+Guest User와 최초 RefreshSession 저장, 그리고 회원 탈퇴의 User tombstone과 전체 RefreshSession 폐기는 `MongoTransactionManager`를 사용하는 Transaction으로 각각 묶는다. 운영·staging과 Guest·탈퇴 흐름을 실행하는 로컬 MongoDB는 replica set 또는 transaction을 지원하는 Atlas·sharded topology여야 하며 logical session도 지원해야 한다.
 
 애플리케이션 시작 시 민감한 연결 정보를 출력하지 않는 `hello` 명령으로 transaction 가능 topology와 logical session 지원을 확인한다. standalone MongoDB이거나 기능 확인에 실패하면 고정된 설정 오류로 기동을 중단하므로 Guest 저장이 조용히 비원자적으로 실행되지 않는다.
 
@@ -239,6 +288,7 @@ Guest User와 최초 RefreshSession은 `MongoTransactionManager`를 사용하는
 1. staging MongoDB의 `hello` 결과에 replica set 식별자 또는 transaction 지원 router 정보와 logical session 지원이 있는지 운영 도구로 확인한다.
 2. User 저장 또는 RefreshSession 저장 실패를 주입해 두 collection 모두 문서가 남지 않고 같은 설치 ID 재시도가 성공하는지 검증한다.
 3. 정상 생성은 User와 RefreshSession이 함께 commit되고, commit 이후 응답 유실을 가정한 재요청은 409인지 확인한다.
+4. 회원 탈퇴에서 User 조건부 update 또는 Session 저장 실패를 주입해 두 collection 변경이 모두 rollback되는지 확인한다.
 
 격리된 `test` profile은 외부 MongoDB 자동 설정을 사용하지 않으므로 실제 replica set transaction을 호출하지 않는다. 단위 테스트에서 Spring Transaction proxy의 commit·rollback 경계와 모든 실패 전파를 검증하며, 실제 Mongo transaction은 staging 배포 전 필수로 재검증한다.
 
@@ -257,6 +307,8 @@ Guest User는 `email`/`normalizedEmail` 필드가 없으므로 LOCAL 이메일 �
 
 `uk_users_guest_installation_id_hash` 충돌만 `409 GUEST_ALREADY_EXISTS`로 변환한다. `_id`, 이메일 또는 알 수 없는 다른 unique index 충돌은 내부 persistence 오류로 처리하며 index 이름, keyValue, 설치 ID 해시와 문서 내용은 응답이나 로그에 노출하지 않는다.
 
+회원 탈퇴의 활성 Session 조회를 위해 `refresh_sessions`에는 `ix_refresh_sessions_user_id_revoked_at` 비고유 compound index가 필요하다. 애플리케이션은 annotation으로 index 계약을 선언하지만, 운영에서는 새 revision 기동 전에 staging에서 데이터 규모와 build 시간을 확인하고 승인된 방식으로 `{ userId: 1, revokedAt: 1 }` index를 먼저 생성·검증한다. 기존 index를 자동 삭제하지 않는다.
+
 ## API 인증 정책
 
 다음 경로는 Access Token 없이 접근할 수 있다.
@@ -271,7 +323,7 @@ Guest User는 `email`/`normalizedEmail` 필드가 없으므로 LOCAL 이메일 �
 - `GET /actuator/health`
 - Swagger UI와 OpenAPI 경로
 
-그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
+그 밖의 경로는 기본적으로 인증이 필요하다. `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`, `POST /api/v1/users/withdraw`와 `POST /api/v1/auth/logout-all`은 RS256 서명, `typ`, `kid`, 만료·활성 시각, issuer와 audience 검증을 통과한 Access Token만 허용한다. 사용자 식별자는 Request 값이 아니라 검증된 JWT `sub`의 UUID만 사용한다.
 
 ## 아직 구현되지 않은 기능
 
@@ -279,3 +331,5 @@ Guest User는 `email`/`normalizedEmail` 필드가 없으므로 LOCAL 이메일 �
 - 사용자 프로필 수정
 - 정책 버전별 append-only 동의 감사 이력
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
+- `UserWithdrawn` outbox 발행과 Learning Core 시험·결과 데이터 삭제 또는 익명화
+- 탈퇴 즉시 외부 서비스의 기존 stateless Access Token까지 차단하는 서비스 간 폐기 계약

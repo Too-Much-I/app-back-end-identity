@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,10 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.domain.user.application.UserConsentService;
 import web.tosunsaeng.identity.domain.user.application.UserProfileService;
+import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.dto.request.UserConsentUpdateRequest;
+import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserProfileResponse;
+import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.global.config.OpenApiConfig;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
@@ -34,6 +38,7 @@ public class UserController {
 
 	private final UserProfileService userProfileService;
 	private final UserConsentService userConsentService;
+	private final UserWithdrawalService userWithdrawalService;
 
 	@Operation(
 			summary = "내 프로필 조회",
@@ -141,5 +146,49 @@ public class UserController {
 			@Valid @RequestBody UserConsentUpdateRequest request
 	) {
 		return BaseResponse.success(userConsentService.updateConsents(request));
+	}
+
+	@Operation(
+			summary = "회원 탈퇴",
+			description = "검증된 Access Token의 subject와 현재 Refresh Token 소유권으로 "
+					+ "탈퇴 대상을 확인합니다. LOCAL은 현재 비밀번호가 필요하고 GUEST는 "
+					+ "비밀번호를 생략합니다. 탈퇴 성공 시 모든 RefreshSession이 폐기되며 "
+					+ "클라이언트는 보유한 Access/Refresh Token을 즉시 삭제해야 합니다. "
+					+ "기존 stateless Access Token은 만료 전까지 외부 서비스에서 "
+					+ "암호학적으로 유효할 수 있습니다."
+	)
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "회원 탈퇴 또는 멱등 확인 성공"),
+			@ApiResponse(
+					responseCode = "400",
+					description = "요청 검증 실패 또는 LOCAL 비밀번호 누락",
+					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+			),
+			@ApiResponse(
+					responseCode = "401",
+					description = "Access Token 인증 실패 또는 탈퇴 자격 검증 실패",
+					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+			),
+			@ApiResponse(
+					responseCode = "404",
+					description = "사용자를 찾을 수 없음",
+					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+			),
+			@ApiResponse(
+					responseCode = "409",
+					description = "동시 사용자 변경 충돌",
+					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+			)
+	})
+	@PostMapping(
+			value = "/withdraw",
+			consumes = "application/json",
+			produces = "application/json"
+	)
+	public BaseResponse<WithdrawResponse> withdraw(
+			@Valid @RequestBody WithdrawRequest request
+	) {
+		return BaseResponse.success(userWithdrawalService.withdraw(request));
 	}
 }

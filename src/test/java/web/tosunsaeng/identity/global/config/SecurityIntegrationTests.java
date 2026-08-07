@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.global.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,6 +63,9 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
+import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -95,6 +99,9 @@ class SecurityIntegrationTests {
 
 	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private UserWithdrawalService userWithdrawalService;
 
 	@ParameterizedTest
 	@ValueSource(strings = {
@@ -211,6 +218,41 @@ class SecurityIntegrationTests {
 					.content("{}"))
 				.andReturn());
 		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/logout-all")).andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/users/withdraw")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"refreshToken\":\"security-test-value\"}"))
+				.andReturn());
+	}
+
+	@Test
+	void withdrawalEndpointRequiresJwtAndAcceptsValidAccessToken() throws Exception {
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		when(userWithdrawalService.withdraw(any()))
+				.thenReturn(new WithdrawResponse(
+						UserStatus.WITHDRAWN,
+						TestRsaKeyConfiguration.TEST_INSTANT
+				));
+
+		mockMvc.perform(post("/api/v1/users/withdraw")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"security-test-value\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.status").value("WITHDRAWN"));
+	}
+
+	@Test
+	void withdrawalEndpointRejectsMalformedBearerToken() throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/v1/users/withdraw")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer malformed-test-value")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"security-test-value\"}"))
+				.andExpect(status().isUnauthorized())
+				.andReturn();
+
+		assertUnauthorized(result);
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain("malformed-test-value");
 	}
 
 	@Test
@@ -352,7 +394,7 @@ class SecurityIntegrationTests {
 		);
 		ReflectionTestUtils.setField(user, "consents", null);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		when(userRepository.save(user)).thenReturn(user);
+		when(userRepository.updateConsentsIfActive(any(), any())).thenReturn(true);
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
 
 		MvcResult result = mockMvc.perform(put("/api/v1/users/me/consents")

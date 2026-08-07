@@ -2,9 +2,11 @@ package web.tosunsaeng.identity.domain.user.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,19 +22,24 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.http.MediaType;
 
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.domain.user.application.UserConsentService;
+import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserProfileResponse;
+import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.application.UserProfileService;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
+import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.exception.AuthException;
 
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -50,6 +57,9 @@ class UserControllerTests {
 
 	@MockitoBean
 	private UserConsentService userConsentService;
+
+	@MockitoBean
+	private UserWithdrawalService userWithdrawalService;
 
 	@Test
 	void getMeDelegatesToServiceAndWrapsDedicatedProfileDto() throws Exception {
@@ -152,8 +162,95 @@ class UserControllerTests {
 				.toArray(Class<?>[]::new);
 
 		assertThat(dependencyTypes)
-				.containsExactlyInAnyOrder(UserProfileService.class, UserConsentService.class)
+				.containsExactlyInAnyOrder(
+						UserProfileService.class,
+						UserConsentService.class,
+						UserWithdrawalService.class
+				)
 				.doesNotContain(UserRepository.class);
+	}
+
+	@Test
+	void withdrawDelegatesJwtScopedRequestAndReturnsTombstoneResult() throws Exception {
+		Instant withdrawnAt = Instant.parse("2026-08-07T01:23:45Z");
+		when(userWithdrawalService.withdraw(org.mockito.ArgumentMatchers.any()))
+				.thenReturn(new WithdrawResponse(
+						web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.WITHDRAWN,
+						withdrawnAt
+				));
+
+		mockMvc.perform(post("/api/v1/users/withdraw")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "refreshToken": "controller-test-refresh-value",
+								  "password": "controller-test-password"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.isSuccess").value(true))
+				.andExpect(jsonPath("$.code").value("SUCCESS"))
+				.andExpect(jsonPath("$.result.status").value("WITHDRAWN"))
+				.andExpect(jsonPath("$.result.withdrawnAt").value("2026-08-07T01:23:45Z"))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.refreshToken").doesNotExist())
+				.andExpect(jsonPath("$.result.password").doesNotExist());
+
+		verify(userWithdrawalService).withdraw(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void guestWithdrawalAllowsMissingPasswordButRefreshTokenRemainsRequired() throws Exception {
+		when(userWithdrawalService.withdraw(org.mockito.ArgumentMatchers.any()))
+				.thenReturn(new WithdrawResponse(
+						web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.WITHDRAWN,
+						Instant.parse("2026-08-07T01:23:45Z")
+				));
+
+		mockMvc.perform(post("/api/v1/users/withdraw")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "refreshToken": "controller-test-refresh-value"
+								}
+								"""))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/v1/users/withdraw")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[0].field").value("refreshToken"))
+				.andExpect(jsonPath("$.result[0].rejectedValue").value(nullValue()));
+	}
+
+	@Test
+	void withdrawalCredentialAndLocalPasswordErrorsUseDocumentedSafeContracts()
+			throws Exception {
+		doThrow(new AuthException(AuthErrorStatus.INVALID_WITHDRAWAL_CREDENTIALS))
+				.when(userWithdrawalService)
+				.withdraw(org.mockito.ArgumentMatchers.any());
+
+		MvcResult credentialFailure = mockMvc.perform(post("/api/v1/users/withdraw")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"invalid-test-value\"}"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_WITHDRAWAL_CREDENTIALS"))
+				.andExpect(jsonPath("$.result").value(nullValue()))
+				.andReturn();
+		assertThat(credentialFailure.getResponse().getContentAsString())
+				.doesNotContain("invalid-test-value");
+
+		doThrow(new UserException(UserErrorStatus.WITHDRAWAL_PASSWORD_REQUIRED))
+				.when(userWithdrawalService)
+				.withdraw(org.mockito.ArgumentMatchers.any());
+		mockMvc.perform(post("/api/v1/users/withdraw")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"valid-shape-test-value\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_REQUIRED"))
+				.andExpect(jsonPath("$.result").value(nullValue()));
 	}
 
 	@Test

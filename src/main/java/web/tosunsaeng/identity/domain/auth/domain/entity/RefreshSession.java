@@ -6,12 +6,17 @@ import java.util.UUID;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
 
 @Document(collection = "refresh_sessions")
+@CompoundIndex(
+		name = "ix_refresh_sessions_user_id_revoked_at",
+		def = "{ 'userId': 1, 'revokedAt': 1 }"
+)
 public class RefreshSession {
 
 	@Id
@@ -148,6 +153,10 @@ public class RefreshSession {
 
 	public void revokeForReuse(Instant revokedAt) {
 		revoke(revokedAt, RevocationReason.REUSE_DETECTED, null);
+	}
+
+	public void withdrawAccount(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.ACCOUNT_WITHDRAWN, null);
 	}
 
 	public boolean isRevoked() {

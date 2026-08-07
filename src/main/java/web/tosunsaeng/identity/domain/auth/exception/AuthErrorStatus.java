@@ -35,6 +35,11 @@ public enum AuthErrorStatus implements ErrorCode {
 			HttpStatus.UNAUTHORIZED,
 			"REFRESH_TOKEN_REUSE_DETECTED",
 			"이미 사용된 Refresh Token"
+	),
+	INVALID_WITHDRAWAL_CREDENTIALS(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_WITHDRAWAL_CREDENTIALS",
+			"회원 탈퇴 인증 정보가 올바르지 않습니다."
 	);
 
 	private final HttpStatus httpStatus;
