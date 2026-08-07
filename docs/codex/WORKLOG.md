@@ -1088,3 +1088,49 @@
 - 결정사항: 공통 HTTP 로그와 예상 밖 ERROR 소유권은 filter 한 곳에 두고 Controller·Repository·Entity에는 중복 로그를 추가하지 않았다. 기본 stdout 포맷은 Spring Boot ECS 구조화 로그로 두되 `LOGGING_STRUCTURED_FORMAT_CONSOLE` 환경변수로 조정할 수 있게 했고, 정상 4xx는 ERROR가 아닌 완료 로그로 분류한다. Git commit·push와 Jira 댓글·상태·필드 변경은 수행하지 않았다.
 - 위험 요소: 애플리케이션의 예상 밖 5xx ERROR는 한 건으로 제한했지만 Servlet container나 외부 APM이 같은 오류를 별도로 수집할 수 있으므로 staging에서 logger category와 error dispatch를 확인해야 한다. 안전한 오류 문맥은 원본 message를 의도적으로 제외하므로 상세 진단에는 재현·메트릭·추적 도구가 추가로 필요하다. 구조화 로그 보존 기간·대시보드·알림 임계값은 아직 운영 수집 플랫폼에 연결하지 않았다.
 - 다음 작업: staging stdout 수집에서 ECS 파싱, requestId 검색, route template과 민감정보 비노출, 예상 밖 5xx 중복 여부를 확인한다. event·outcome·errorCode·provider 같은 낮은 cardinality 필드를 사용해 대시보드·메트릭·알림과 보존 정책을 별도 운영 작업으로 확정한다. 사용자가 diff를 검토한 뒤 commit·push를 직접 수행한다.
+
+## 2026-08-07 — ECS 실행 로그 동작 확인
+
+<!-- codex-turn:019fdb14-8160-7e93-a04f-8ddcf14fda84 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main` (`a5802ad`)
+- 작업 목표: 사용자가 제공한 실제 기동 로그가 구조화 운영 로그 구현으로 의도된 출력인지 구분하고 보안·노이즈 관점의 후속 조치를 확인한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `logging.structured.format.console=ecs`는 사용자 정의 이벤트만이 아니라 root logger를 사용하는 Spring Boot·Tomcat·MongoDB 드라이버의 콘솔 로그 전체를 ECS 한 줄 JSON으로 직렬화하므로 제공된 형식 자체는 의도된 결과임을 확인했다. 사용자 정의 `mongodb.transaction_capability.verified` event의 event·outcome·topology·sessionsSupported 필드도 정상 출력됐다.
+- 구현 내용: 제공된 출력에는 실제 API 호출이 없어 `http.request.completed`나 인증·사용자 상태 전이 event가 없고, 정상 health·Swagger/OpenAPI·JWKS 요청은 원래 노이즈 제외 대상이다. 종료 코드 130과 SIGINT 표시는 IDE 중지 또는 Ctrl+C로 종료했을 때의 정상적인 외부 인터럽트 결과로 분류했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 런타임 로그 분석이므로 새 테스트와 `./gradlew clean test`는 실행하지 않았다. 제공된 ECS 필드와 현재 구조화 로그 설정·사용자 정의 기동 event를 대조했다.
+- 유지한 계약: 제공된 출력의 계정 식별자, 클러스터 주소와 topology 세부값을 문서에 복사하지 않았고 Password, Token, 실제 Key와 전체 MongoDB URI를 기록하지 않았다. JWT·RefreshSession·API 응답과 Transaction 계약은 변경하지 않았다.
+- 결정사항: ECS JSON 출력 자체는 로그 수집기에 적합한 의도된 동작으로 유지한다. 다만 제3자 logger의 INFO 범위는 사용자 정의 로그의 민감정보 제한과 별개이므로, 명시적 구현 요청 없이 이번 확인에서 logger level을 변경하지 않았다. Git commit·push와 Jira 변경도 수행하지 않았다.
+- 위험 요소: MongoDB 드라이버 INFO가 비밀번호 원문이나 전체 연결 URI를 출력하지 않더라도 계정 식별자와 클러스터 endpoint·topology를 노출할 수 있으며, 모든 framework INFO를 수집하면 비용과 검색 노이즈가 증가한다. 외부에 공유하거나 장기 보존하기 전에 수집 접근 권한과 logger category를 제한해야 한다.
+- 다음 작업: 사용자가 요청하면 기본 root INFO는 유지하면서 `org.mongodb.driver`만 WARN으로 낮추는 설정과 테스트·문서를 추가한다. 애플리케이션 event만 보고 싶다면 별도 환경에서 root WARN과 `web.tosunsaeng.identity` INFO 조합의 운영상 손실도 함께 검토한다.
+
+## 2026-08-07 — LogoutAllService AssertJ 타입 추론 오류 수정
+
+<!-- codex-turn:019fdb18-4b54-7bf0-b40f-21473016dcbe -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main` (`a5802ad`)
+- 작업 목표: `LogoutAllService`가 Token issuer에 의존하지 않는지 확인하는 reflection 테스트의 AssertJ `doesNotContain` IDE 해석 오류를 검증 의미 변경 없이 해결한다.
+- 변경 파일: `src/test/java/web/tosunsaeng/identity/domain/auth/application/LogoutAllServiceTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `Stream<Class<?>>`를 `assertThat`에 바로 전달하면 wildcard capture 때문에 IDE가 `Class<AccessTokenIssuer>`와 `Class<RefreshSessionIssuer>` varargs를 같은 요소 타입으로 추론하지 못할 수 있음을 확인했다. reflection 결과를 먼저 `List<Class<?>> dependencyTypes`로 수집해 AssertJ 요소 타입을 명시적으로 고정한 뒤 기존 `doesNotContain` 검증을 유지했다.
+- 실행한 테스트와 결과: `./gradlew test --tests 'web.tosunsaeng.identity.domain.auth.application.LogoutAllServiceTests'`와 `./gradlew clean test`가 모두 성공했다. 전체 40개 suite·292개 테스트가 실행됐고 실패·오류·건너뜀은 모두 0개였다.
+- 유지한 계약: LogoutAllService가 Access Token이나 RefreshSession 발급기에 의존하지 않고 현재 JWT 사용자의 기존 RefreshSession만 폐기하는 계약을 그대로 검증한다. JWT·Refresh Token·로그·API 응답·Transaction 동작은 변경하지 않았으며 Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: IDE inspection을 억제하거나 raw type cast를 추가하지 않고 Java 제네릭 타입을 지역 변수에 명시해 Gradle compiler와 IDE가 동일하게 해석하도록 했다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: 기능 변경은 없으며 현재 알려진 추가 위험은 없다. 클래스 필드 구조를 변경하면 이 architecture 성격의 reflection 테스트도 의도에 맞게 함께 갱신해야 한다.
+- 다음 작업: 사용자가 IDE에서 Gradle project reload 후 오류 표시가 사라졌는지 확인하고 변경을 검토한 뒤 commit·push를 직접 수행한다.
+
+## 2026-08-07 — LogoutAllService wildcard capture 최종 제거
+
+<!-- codex-turn:019fdb20-0f45-7f42-a34b-981517a5d0dd -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main` (`a5802ad`)
+- 작업 목표: 앞선 `List<Class<?>>` 지역 변수에도 남아 있던 `Class<capture<?>>` 대입 오류를 제거하고 IDE와 Java compiler가 모두 명확히 해석하는 테스트로 정리한다.
+- 변경 파일: `src/test/java/web/tosunsaeng/identity/domain/auth/application/LogoutAllServiceTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 앞선 중간 수정 기록은 그대로 보존했다.
+- 구현 내용: `Field#getType()` 결과를 Stream에서 List로 변환하는 과정 자체가 wildcard capture를 유지하므로 `List<Class<?>>` 대입을 제거했다. 선언 필드를 바로 순회하는 Java Stream `anyMatch`에서 각 field type을 `AccessTokenIssuer.class`와 `RefreshSessionIssuer.class`에 비교하고, 의존성 존재 여부 boolean이 false인지 AssertJ로 검증한다.
+- 실행한 테스트와 결과: `./gradlew clean test`가 성공했다. 전체 40개 suite·292개 테스트가 실행됐고 실패·오류·건너뜀은 모두 0개였으며 test source compile도 정상 완료됐다.
+- 유지한 계약: LogoutAllService가 Access Token 또는 RefreshSession 발급기에 직접 의존하지 않는다는 기존 architecture 검증 의미를 유지했다. JWT·Refresh Token·로그·API 응답과 Transaction 동작은 변경하지 않았으며 Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 명시적 cast, raw type, suppression 또는 wildcard collection 대입을 사용하지 않고 boolean predicate로 제네릭 경계를 제거했다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: 기능 변경은 없으며 현재 알려진 추가 위험은 없다. 테스트는 정확한 field type을 비교하므로 향후 wrapper나 상속 기반 의존성까지 금지하려면 `isAssignableFrom` 기준으로 별도 강화해야 한다.
+- 다음 작업: 사용자가 IDE에서 이 테스트의 오류 표시가 제거됐는지 확인하고 변경을 검토한 뒤 commit·push를 직접 수행한다.

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -152,8 +151,14 @@ class LogoutAllServiceTests {
 
 	@Test
 	void serviceHasNoTokenIssuerDependency() {
-		assertThat(Arrays.stream(LogoutAllService.class.getDeclaredFields()).map(Field::getType))
-				.doesNotContain(AccessTokenIssuer.class, RefreshSessionIssuer.class);
+		boolean hasTokenIssuerDependency = Arrays.stream(
+				LogoutAllService.class.getDeclaredFields()
+		).anyMatch(field ->
+				field.getType() == AccessTokenIssuer.class
+						|| field.getType() == RefreshSessionIssuer.class
+		);
+
+		assertThat(hasTokenIssuerDependency).isFalse();
 	}
 
 	private RefreshSession activeSession(String userId, String tokenHash) {
