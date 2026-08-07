@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Instant;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
@@ -20,6 +22,8 @@ import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 @Service
 @RequiredArgsConstructor
 public class UserConsentService {
+
+	private static final Logger log = LoggerFactory.getLogger(UserConsentService.class);
 
 	private final CurrentUserProvider currentUserProvider;
 	private final UserRepository userRepository;
@@ -53,6 +57,12 @@ public class UserConsentService {
 				consentedAt
 		);
 		if (!changed) {
+			log.atDebug()
+					.addKeyValue("event", "user.consents.updated")
+					.addKeyValue("outcome", "unchanged")
+					.addKeyValue("userId", user.getUserId())
+					.addKeyValue("provider", user.getProvider())
+					.log("User consents already current");
 			return UserConsentResponse.from(user);
 		}
 		if (!userRepository.updateConsentsIfActive(user, expectedUpdatedAt)) {
@@ -63,7 +73,15 @@ public class UserConsentService {
 			}
 			throw new UserException(UserErrorStatus.USER_UPDATE_CONFLICT);
 		}
-		return UserConsentResponse.from(user);
+		UserConsentResponse response = UserConsentResponse.from(user);
+		log.atInfo()
+				.addKeyValue("event", "user.consents.updated")
+				.addKeyValue("outcome", "updated")
+				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("provider", user.getProvider())
+				.addKeyValue("consentedAt", consentedAt)
+				.log("User consents updated");
+		return response;
 	}
 
 	private User getCurrentActiveUser() {

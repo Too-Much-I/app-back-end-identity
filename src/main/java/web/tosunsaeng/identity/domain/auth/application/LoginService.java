@@ -3,6 +3,8 @@ package web.tosunsaeng.identity.domain.auth.application;
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 @Service
 @RequiredArgsConstructor
 public class LoginService {
+
+	private static final Logger log = LoggerFactory.getLogger(LoginService.class);
 
 	private final UserRepository userRepository;
 	private final EmailNormalizer emailNormalizer;
@@ -46,9 +50,16 @@ public class LoginService {
 		// 사용자와 비밀번호 검증이 끝난 뒤에만 인증 토큰을 발급한다.
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
-		return authResponseConverter.toLoginResponse(
+		LoginResponse response = authResponseConverter.toLoginResponse(
 				accessToken,
 				refreshSession.tokenValue()
 		);
+		log.atInfo()
+				.addKeyValue("event", "auth.login.succeeded")
+				.addKeyValue("outcome", "authenticated")
+				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("provider", user.getProvider())
+				.log("Identity login succeeded");
+		return response;
 	}
 }

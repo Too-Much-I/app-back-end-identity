@@ -11,6 +11,11 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+logging:
+  structured:
+    format:
+      console: ${LOGGING_STRUCTURED_FORMAT_CONSOLE:ecs}
+
 app:
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}

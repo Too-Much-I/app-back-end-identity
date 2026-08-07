@@ -28,6 +28,7 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
+import web.tosunsaeng.identity.support.LogCapture;
 
 @SuppressWarnings("unchecked")
 class LogoutAllServiceTests {
@@ -60,7 +61,18 @@ class LogoutAllServiceTests {
 		when(refreshSessionRepository.findAllByUserIdAndRevokedAtIsNull(USER_ID))
 				.thenReturn(activeSessions);
 
-		logoutAllService.logoutAll();
+		try (LogCapture logs = LogCapture.forClass(LogoutAllService.class)) {
+			logoutAllService.logoutAll();
+			assertThat(logs.events("auth.logout_all.completed")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome"))
+								.isEqualTo("sessions_revoked");
+						assertThat(LogCapture.value(event, "userId")).isEqualTo(USER_ID);
+						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(2);
+						assertThat(LogCapture.rendered(event))
+								.doesNotContain("first-test-hash", "second-test-hash");
+					});
+		}
 
 		verify(currentUserProvider).getCurrentUserId();
 		verify(refreshSessionRepository).findAllByUserIdAndRevokedAtIsNull(USER_ID);

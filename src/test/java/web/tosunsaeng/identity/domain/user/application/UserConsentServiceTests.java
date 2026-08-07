@@ -33,6 +33,7 @@ import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusRespons
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
+import web.tosunsaeng.identity.support.LogCapture;
 
 class UserConsentServiceTests {
 
@@ -248,7 +249,21 @@ class UserConsentServiceTests {
 		ReflectionTestUtils.setField(user, "consents", null);
 		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		UserConsentResponse response = userConsentService.updateConsents(validRequest());
+		UserConsentResponse response;
+		try (LogCapture logs = LogCapture.forClass(UserConsentService.class)) {
+			response = userConsentService.updateConsents(validRequest());
+			assertThat(logs.events("user.consents.updated")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome")).isEqualTo("updated");
+						assertThat(LogCapture.value(event, "userId"))
+								.isEqualTo(user.getUserId());
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								"user@example.com",
+								"test-only-password-hash",
+								"테스트사용자"
+						);
+					});
+		}
 
 		verify(currentUserProvider).getCurrentUserId();
 		verify(userRepository).findById(user.getUserId());
