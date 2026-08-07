@@ -43,6 +43,7 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenProperties;
+import web.tosunsaeng.identity.support.LogCapture;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
@@ -157,15 +158,27 @@ class AuthenticationUseCaseServicesTests {
 		when(userRepository.existsByNormalizedEmail("sample.user@example.com")).thenReturn(false);
 		when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		SignupResponse response = signupService.signup(new SignupRequest(
-				"  Sample.User@EXAMPLE.COM  ",
-				RAW_CREDENTIAL,
-				"  토스마스터  ",
-				true,
-				PRIVACY_CONSENT_VERSION,
-				true,
-				TERM_CONSENT_VERSION
-		));
+		SignupResponse response;
+		try (LogCapture logs = LogCapture.forClass(SignupService.class)) {
+			response = signupService.signup(new SignupRequest(
+					"  Sample.User@EXAMPLE.COM  ",
+					RAW_CREDENTIAL,
+					"  토스마스터  ",
+					true,
+					PRIVACY_CONSENT_VERSION,
+					true,
+					TERM_CONSENT_VERSION
+			));
+			assertThat(logs.events("identity.user.registered")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome")).isEqualTo("created");
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								RAW_CREDENTIAL,
+								"Sample.User@EXAMPLE.COM",
+								"토스마스터"
+						);
+					});
+		}
 
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		verify(userRepository).save(userCaptor.capture());
@@ -286,10 +299,20 @@ class AuthenticationUseCaseServicesTests {
 		when(accessTokenIssuer.issue(user.getUserId(), Set.of()))
 				.thenReturn(issuedAccessToken);
 
-		LoginResponse response = loginService.login(new LoginRequest(
-				"  LOGIN.User@EXAMPLE.COM  ",
-				RAW_CREDENTIAL
-		));
+		LoginResponse response;
+		try (LogCapture logs = LogCapture.forClass(LoginService.class)) {
+			response = loginService.login(new LoginRequest(
+					"  LOGIN.User@EXAMPLE.COM  ",
+					RAW_CREDENTIAL
+			));
+			assertThat(logs.events("auth.login.succeeded")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "userId"))
+								.isEqualTo(user.getUserId());
+						assertThat(LogCapture.rendered(event))
+								.doesNotContain(RAW_CREDENTIAL, "Login.User@example.com");
+					});
+		}
 
 		verify(userRepository).findByNormalizedEmail("login.user@example.com");
 		verify(passwordEncoder).matches(RAW_CREDENTIAL, user.getPasswordHash());

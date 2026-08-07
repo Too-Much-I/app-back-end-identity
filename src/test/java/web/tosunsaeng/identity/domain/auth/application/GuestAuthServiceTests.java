@@ -54,6 +54,7 @@ import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.guest.GuestInstallationIdHasher;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.support.LogCapture;
 
 class GuestAuthServiceTests {
 
@@ -119,7 +120,20 @@ class GuestAuthServiceTests {
 
 	@Test
 	void preparesActiveGuestAndExistingTokensBeforeTransactionalRegistration() {
-		GuestAuthResponse response = guestAuthService.authenticate(validRequest(INSTALLATION_ID));
+		GuestAuthResponse response;
+		try (LogCapture logs = LogCapture.forClass(GuestAuthService.class)) {
+			response = guestAuthService.authenticate(validRequest(INSTALLATION_ID));
+			assertThat(logs.events("identity.guest.registered")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "provider")).isEqualTo(UserProvider.GUEST);
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								INSTALLATION_ID,
+								installationIdHasher.hash(INSTALLATION_ID),
+								response.accessToken(),
+								response.refreshToken()
+						);
+					});
+		}
 
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		ArgumentCaptor<IssuedAccessToken> accessCaptor = ArgumentCaptor.forClass(

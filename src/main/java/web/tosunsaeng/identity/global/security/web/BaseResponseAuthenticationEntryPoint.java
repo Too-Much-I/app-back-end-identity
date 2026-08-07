@@ -14,6 +14,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
+import web.tosunsaeng.identity.global.observability.RequestLogContext;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
 public final class BaseResponseAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -30,6 +31,7 @@ public final class BaseResponseAuthenticationEntryPoint implements Authenticatio
 			HttpServletResponse response,
 			AuthenticationException authenticationException
 	) throws IOException {
+		RequestLogContext.recordErrorCode(request, CommonErrorStatus.UNAUTHORIZED.getCode());
 		response.setStatus(CommonErrorStatus.UNAUTHORIZED.getHttpStatus().value());
 		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);

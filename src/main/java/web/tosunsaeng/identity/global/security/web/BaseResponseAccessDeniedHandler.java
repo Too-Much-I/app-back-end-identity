@@ -14,6 +14,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
+import web.tosunsaeng.identity.global.observability.RequestLogContext;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
 public final class BaseResponseAccessDeniedHandler implements AccessDeniedHandler {
@@ -30,6 +31,7 @@ public final class BaseResponseAccessDeniedHandler implements AccessDeniedHandle
 			HttpServletResponse response,
 			AccessDeniedException accessDeniedException
 	) throws IOException {
+		RequestLogContext.recordErrorCode(request, CommonErrorStatus.FORBIDDEN.getCode());
 		response.setStatus(CommonErrorStatus.FORBIDDEN.getHttpStatus().value());
 		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);

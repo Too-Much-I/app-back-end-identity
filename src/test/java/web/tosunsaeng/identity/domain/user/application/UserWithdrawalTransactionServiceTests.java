@@ -112,13 +112,19 @@ class UserWithdrawalTransactionServiceTests {
 		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId()))
 				.thenReturn(List.of(credential, second, third));
 
-		WithdrawResponse response = service.withdraw(user, CREDENTIAL_HASH, WITHDRAWN_AT);
+		WithdrawalTransactionResult result = service.withdraw(
+				user,
+				CREDENTIAL_HASH,
+				WITHDRAWN_AT
+		);
+		WithdrawResponse response = result.response();
 
 		assertThat(AopUtils.isAopProxy(service)).isTrue();
 		assertThat(transactionManager.commits).isEqualTo(1);
 		assertThat(transactionManager.rollbacks).isZero();
 		assertThat(response.status()).isEqualTo(UserStatus.WITHDRAWN);
 		assertThat(response.withdrawnAt()).isEqualTo(WITHDRAWN_AT);
+		assertThat(result.revokedSessionCount()).isEqualTo(3);
 		assertThat(persistedTombstone.get().getEmail()).isNull();
 		assertThat(persistedTombstone.get().getNormalizedEmail()).isNull();
 		assertThat(persistedTombstone.get().getPasswordHash()).isNull();

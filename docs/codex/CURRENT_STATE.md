@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴 API, `WITHDRAWN` tombstone, 전체 RefreshSession 폐기, Guest·LOCAL 신규 계정 재가입과 동시성 방어 구현 및 전체 회귀 검증 완료
+- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 Identity 전체 핵심 흐름의 구조화 운영 로그 구현 완료; requestId 상관관계, 예상 밖 5xx 단일 ERROR, 주요 상태 전이와 전체 40개 suite·292개 테스트 검증 완료
 - 상태 기준일: 2026-08-07
 
 ## 완료
@@ -126,14 +126,20 @@
 - 관련 테스트와 기존 signup·login·reissue·logout·JWT·JWKS 회귀를 포함한 전체 146개 통과, 실패·오류·건너뜀 0개이며 `./gradlew build` 성공
 - 실제 JAR 기동으로 health·Swagger/OpenAPI 200, 공개·보호 operation 구분, malformed JSON 400, 미존재 경로 404, 무인증 보호 API 401, 공개 로그인 validation 접근과 415를 확인하고 Swagger 비활성 문서 경로의 404를 검증
 - main 병합 후 인증 유스케이스·RefreshSession·JWT·Security·예외 처리의 비자명한 의도에만 한국어 한 줄 주석 25개를 추가하고 실행 코드는 변경하지 않은 채 전체 146개 테스트와 build를 재검증
+- 환경변수로 조정 가능한 ECS 구조화 stdout과 `X-Request-ID` 검증·생성·응답 전달·MDC 정리를 구현하고, HTTP 완료 로그에 event·outcome·requestId·method·route template·status·duration·errorCode를 기록하며 health·Swagger/OpenAPI·JWKS 정상 요청은 제외
+- 예상 밖 5xx의 단일 ERROR 소유자를 요청 완료 filter로 두고, `GlobalExceptionHandler`는 원본 message·Throwable 없이 예외·cause 타입과 최대 24개 stack frame의 안전한 오류 문맥만 request attribute로 전달하며 `errorLogged` guard로 ERROR/Error dispatch 중복을 방지
+- 회원가입·Guest 생성·로그인·Refresh Token 재발급·재사용 탐지·동시 Rotation 거절·단일/전체 로그아웃·동의 갱신·회원 탈퇴 성공/멱등/충돌과 Mongo Transaction capability 검증을 저장 또는 transactional proxy 반환 이후의 구조화 상태 전이 이벤트로 기록
+- 요청 로그와 상태 전이 로그의 레벨·필드·MDC 정리·민감값 비노출, 예상 밖 5xx ERROR 1건과 INFO 0건, BusinessException ERROR 0건, Security 401 requestId 전파를 포함해 전체 40개 suite·292개 테스트 성공
 
 ## 진행 중
 
-- Jira `TMI-75` — Jira 상태는 `해야 할 일`로 유지한 채 `feat/TMI-75-user-withdrawal` 브랜치의 구현·테스트·문서 변경 완료, commit·push·PR 미수행
+- Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
 
 ## 다음 작업
 
-- 사용자가 TMI-75 미커밋 diff를 검토한 뒤 commit·push·PR을 직접 수행하고, Jira 댓글·상태 변경은 별도 승인 후 진행
+- staging 로그 수집기에서 ECS JSON 파싱, requestId 검색, route template 보존, 민감정보 마스킹과 Servlet container·APM의 예상 밖 5xx 중복 기록 여부를 확인
+- event·outcome·errorCode·provider 같은 낮은 cardinality 필드 기반 대시보드·메트릭·알림 임계값과 로그 보존 기간을 실제 운영 수집 경로에 맞춰 확정
+- TMI-75의 `해야 할 일 → 완료` 전환 ID `41` 적용 내용을 확인한 뒤 사용자가 최종 승인하면 상태 전환만 수행하고 상태·Resolution을 재조회
 - staging replica set에서 회원 탈퇴 User/Session 실제 Transaction rollback, custom repository fragment 연결과 Guest·LOCAL 재가입을 운영 index 조건으로 검증
 - `UserWithdrawn` outbox와 Learning Core 시험·결과 데이터 삭제 또는 익명화, stateless Access Token의 서비스 간 즉시 폐기는 별도 이슈로 설계
 - 사용자가 동의 상태 조회 API와 문서의 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
@@ -156,12 +162,15 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `feat/TMI-75-user-withdrawal`, HEAD는 `a98dbfa`이며 TMI-75 변경은 commit·stage하지 않았고 기존 `.github/workflows/deploy-staging.yml` 사용자 변경은 건드리지 않음
+- 현재 작업 기준 브랜치는 `feat/logging`, HEAD는 `05342da`이며 TMI-75 PR #14가 main에 병합된 상태에서 운영 로깅 코드·테스트·문서를 변경했고 commit·push는 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유
 - `MongoTransactionManager`는 Guest User·최초 RefreshSession 생성과 회원 탈퇴 User tombstone·전체 RefreshSession 폐기에 적용하며, 기존 Rotation·재사용 탐지·logout-all의 다중 Session 저장 원자성은 별도 후속 범위로 유지
+- 운영 로그는 Controller·Repository·Entity에 중복 추가하지 않고 공통 요청 완료 경계와 application service의 실제 상태 변경 완료 지점에 기록하며, Transaction 성공 이벤트는 transactional proxy 반환 이후에만 남김
+- 로그 공통 필드는 `event`, `outcome`, `requestId`, route template, status, duration, 안전한 경우의 `userId`·provider·errorCode·처리 건수로 제한하고 userId는 메트릭 tag로 사용하지 않으며 실제 자격증명·개인정보·Token·Hash·Header·Key·DB URI와 요청/응답 본문은 기록하지 않음
+- 예상 밖 5xx는 요청 완료 filter가 application ERROR의 단일 소유자이며, Service·Controller·`GlobalExceptionHandler`는 같은 예외를 ERROR로 중복 기록하지 않는다. Handler 또는 filter 바깥에서 탈출한 예외는 안전한 오류 문맥을 request attribute에 넣고 `errorLogged` guard로 ERROR/Error dispatch 중복을 막으며, 실패 요청에는 별도 INFO 완료 로그를 남기지 않음
 - 회원 탈퇴의 즉시 제거 범위는 User의 email·normalizedEmail·passwordHash·guestInstallationIdHash `$unset`과 nickname 익명화이며, User 문서·userId·provider·createdAt·동의 기록은 보존한다. RefreshSession 문서는 즉시 삭제하지 않고 모두 `ACCOUNT_WITHDRAWN`으로 폐기하며 만료 시 TTL 정리 대상이 되고, Learning Core 데이터와 기존 stateless Access Token은 이 API가 직접 삭제·폐기하지 않는다.
 - OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`, `POST /api/v1/users/withdraw`와 `POST /api/v1/auth/logout-all`에 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화
@@ -222,6 +231,7 @@
 
 ## 아직 구현되지 않은 것
 
+- 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - 소셜 로그인
 - 사용자 프로필 수정 API
@@ -243,7 +253,8 @@
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.
-- 예외 타입만 기록하는 현재 정책을 보완할 운영 관측성 기준이 필요하다.
+- 예상 밖 오류 로그는 민감정보 비노출을 위해 exception/cause 타입과 message 없는 최대 24개 stack frame만 보존하므로 원본 예외 message가 필요한 진단은 재현·메트릭·추적 도구와 함께 수행해야 한다.
+- 요청 filter가 application ERROR를 한 번만 기록해도 Servlet container나 외부 APM이 별도로 같은 Throwable을 기록할 수 있으므로, 실제 배포 후 logger category와 error dispatch를 확인해야 전체 수집 화면의 중복 여부를 판단할 수 있다.
 - 운영 RSA Key의 생성·주입·파일 권한·백업·교체는 저장소 밖의 Secret 관리 및 배포 절차로 확정해야 한다.
 - 현재 JWKS는 단일 Active Key만 제공하므로 Rotation 전에 복수 Public Key 제공과 캐시 전파 기간을 구현해야 한다.
 - 배포 환경의 `issuer`와 Learning Core 검증 설정이 정확히 일치해야 하며 HTTPS 배포 URL과 환경별 값을 함께 확정해야 한다.

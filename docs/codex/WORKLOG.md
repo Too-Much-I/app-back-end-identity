@@ -858,3 +858,233 @@
 - 결정사항: 현재 회원 탈퇴를 완전한 전 시스템 물리 삭제로 설명하지 않고, Identity 인증 자격과 직접 식별자를 제거한 익명 tombstone 및 Session 폐기로 설명한다. 클라이언트는 성공 즉시 보유 Access/Refresh Token을 삭제해야 한다.
 - 위험 요소: 보존된 userId와 동의 기록은 법적 보존·삭제 기간 정책이 별도로 필요하다. 기존 stateless Access Token은 만료 전까지 외부 서비스에서 암호학적으로 유효할 수 있고, Learning Core 데이터 삭제·익명화는 outbox와 소비자 구현 전까지 자동 수행되지 않는다.
 - 다음 작업: 법무·제품 정책으로 동의 기록과 tombstone 보존 기간을 확정하고, `UserWithdrawn` outbox 및 Learning Core 후속 정리와 서비스 간 Access Token 즉시 폐기가 필요하면 별도 이슈로 구현한다.
+
+## 2026-08-07 — 단건 로그아웃 처리 흐름 확인
+
+<!-- codex-turn:019fd9ec-9e6a-7972-9f24-081c1335def6 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 현재 단건 로그아웃 API가 요청을 인증하고 RefreshSession을 폐기하며 반복·만료·오류 상황을 처리하는 방식을 코드와 테스트 근거로 확인해 설명한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml`의 사용자 변경은 건드리지 않았다.
+- 구현 내용: `POST /api/v1/auth/logout`은 공개 POST 경로이며 요청 본문의 Opaque Refresh Token을 SHA-256 기반 해시로 변환해 `RefreshSession` 한 건을 조회한다. 활성·미만료 세션이면 공용 Clock의 현재 시각을 `lastUsedAt`과 `revokedAt`에 기록하고 사유를 `LOGOUT`으로 저장한다. 세션이 없거나 이미 폐기됐거나 만료됐으면 저장 없이 성공하며 응답은 공통 성공 구조의 null 결과다. 로그아웃된 세션의 재발급은 일반 유효하지 않은 Refresh Token 오류가 되고 Access Token은 blacklist가 없어 자체 만료까지 남을 수 있다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석 작업이므로 새 테스트나 `./gradlew clean test`는 실행하지 않았다. `LogoutService`, `AuthController`, `LogoutRequest`, `RefreshSession`, `SecurityConfig`, 재발급 서비스와 기존 Service·Controller·Guest 수명 주기 테스트를 정적으로 확인했다.
+- 유지한 계약: 단건 로그아웃의 공개 경로, Refresh Token 원문 비저장, 해시 조회, 멱등 성공, `LOGOUT` 사유, 공통 응답, Guest·LOCAL 공통 세션 흐름과 기존 전체 로그아웃 계약을 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 단건 로그아웃은 사용자 전체가 아니라 제출한 Refresh Token의 세션 한 건만 대상으로 하며, Access Token의 즉시 폐기 기능으로 설명하지 않는다. 클라이언트는 성공 응답을 받으면 로컬 Access Token과 Refresh Token을 모두 삭제해야 한다.
+- 위험 요소: 같은 활성 세션에 대한 정확한 동시 로그아웃에서는 두 요청이 모두 폐기 전 상태를 읽은 뒤 `@Version` 충돌이 발생할 수 있고, 현재 서비스는 이를 멱등 성공으로 변환하지 않아 한 요청이 일반 500이 될 가능성이 있다. Repository 조회·저장 장애도 숨기지 않고 일반 서버 오류로 전파된다.
+- 다음 작업: 제품이 동시 단건 로그아웃까지 강한 멱등성을 요구하면 `OptimisticLockingFailureException`을 안전한 성공으로 변환할지, 저장 후 세션 상태를 재확인할지 별도 구현과 동시성 테스트로 확정한다.
+
+## 2026-08-07 — 회원 탈퇴 구현 상태 확인
+
+<!-- codex-turn:019fd9ec-9e6a-7972-9f24-081c1335def6 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 현재 Identity에 회원 탈퇴 요청, 상태 전이, Session 폐기와 사용자 정보 정리 흐름이 구현돼 있는지 확인한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml`의 사용자 변경은 건드리지 않았다.
+- 구현 내용: `UserStatus.WITHDRAWN` enum과 비활성 계정을 로그인·재발급·프로필·동의 기능에서 거절하는 방어는 존재하지만, ACTIVE 사용자를 WITHDRAWN으로 전환하는 도메인 메서드·application service·Controller endpoint와 사용자 삭제·익명화 구현은 없음을 확인했다. 탈퇴 시 전체 RefreshSession 폐기, 동의 기록 처리와 관련 서비스 연동도 구현돼 있지 않다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석 작업이므로 새 테스트나 `./gradlew clean test`는 실행하지 않았다. User 상태 모델·Entity, Auth/User Controller, 로그인·재발급·프로필·동의 서비스와 관련 테스트를 정적으로 확인했다.
+- 유지한 계약: 기존 로그인·Guest·재발급·로그아웃·프로필·동의와 JWT 계약을 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 현재 `WITHDRAWN`은 이미 그 상태인 문서를 차단할 수 있는 모델 값일 뿐, 사용자에게 제공되는 회원 탈퇴 기능으로 간주하지 않는다.
+- 위험 요소: 운영 DB를 수동으로 WITHDRAWN으로 바꿔도 기존 Access Token은 자체 만료까지 다른 서비스에서 유효할 수 있고, RefreshSession 전체 폐기와 개인정보 보존·삭제 정책이 자동 적용되지 않는다.
+- 다음 작업: 회원 탈퇴를 구현하려면 Bearer 인증 endpoint, 재인증 요구 여부, WITHDRAWN 전이, 전체 Session 폐기, Access Token 잔여 수명, LOCAL·Guest 데이터 익명화·보존 기간과 Learning Core 데이터 처리 정책을 먼저 확정한다.
+
+## 2026-08-07 — 회원 탈퇴 구현 상태 확인 감사 기록
+
+<!-- codex-turn:019fd9f0-2cbf-7391-845b-408b37e3f030 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 회원 탈퇴 기능의 현재 구현 여부를 확인하고 이번 turn의 감사 기록을 올바른 marker로 남긴다.
+- 변경 파일: 애플리케이션 코드와 테스트는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml` 변경은 건드리지 않았다.
+- 구현 내용: `WITHDRAWN` 상태 모델과 비활성 사용자 차단은 있으나 회원 탈퇴 endpoint, ACTIVE 상태 전이, 전체 Session 폐기, 사용자 정보 삭제·익명화와 관련 서비스 연동은 구현되지 않았음을 확인했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 확인 작업이므로 테스트를 새로 실행하지 않았다.
+- 유지한 계약: 기존 인증·로그아웃·프로필·동의·JWT 계약을 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: `WITHDRAWN` enum의 존재만으로 회원 탈퇴 기능이 구현된 것으로 보지 않는다.
+- 위험 요소: 수동 상태 변경만으로는 기존 Access Token의 잔여 수명과 전체 Session, 개인정보 처리 정책이 해결되지 않는다.
+- 다음 작업: 회원 탈퇴 요구사항을 별도 범위로 확정한 뒤 상태 전이·Session 폐기·데이터 보존 및 익명화 정책과 테스트를 함께 구현한다.
+
+## 2026-08-07 — 회원 탈퇴 API 설계 초안
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 구현에 착수하지 않고 현재 Identity·JWT·MongoDB·Learning Core 경계를 유지하는 회원 탈퇴 API 계약과 기능·원자성·데이터 처리 계획을 설계한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml` 변경과 과거 WORKLOG 항목은 건드리지 않았다.
+- 구현 내용: 보호된 사용자 탈퇴 endpoint가 JWT `sub`, 현재 RefreshSession 소유권과 provider별 재인증을 확인한 뒤 Mongo Transaction에서 User를 익명화된 `WITHDRAWN` tombstone으로 전환하고 모든 RefreshSession을 `ACCOUNT_WITHDRAWN` 사유로 폐기하는 초안을 마련했다. 동일 요청은 기존 탈퇴 시각을 반환하는 멱등 성공으로 설계하고, Learning Core 소유 데이터는 userId와 발생 시각만 담은 transaction outbox 이벤트로 비동기·재시도 가능하게 연동하는 방향을 제안했다.
+- 실행한 테스트와 결과: 설계·분석 작업이므로 새 테스트와 `./gradlew clean test`는 실행하지 않았다. User·RefreshSession 모델, MongoTransactionManager, 기존 Guest transaction, Security/JWT 계약과 Identity–Learning Core 계약을 정적으로 확인했다.
+- 유지한 계약: JWT `sub` 사용자 식별, RS256·issuer·audience·scope, JWKS 오프라인 검증, Refresh Token 원문 비저장, Identity와 Learning Core의 도메인 소유권, AI `user_id=examId` 계약을 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 기본 권장안은 물리 삭제보다 UUID·상태·최소 감사 메타데이터만 남기는 tombstone과 즉시 자격증명 익명화이며, Access Token denylist를 이번 API에 직접 도입하지 않고 기존 최대 TTL 동안의 잔여 유효성을 명시한다. LOCAL 비밀번호 재확인, Guest RefreshSession 증명, 복구 유예와 데이터 보존 기간은 구현 전 확정 항목으로 둔다.
+- 위험 요소: User에 낙관적 잠금이 없어 탈퇴와 동의 갱신이 경합하면 stale save 위험이 있으므로 조건부 update 또는 version migration이 필요하다. Learning Core는 JWT를 독립 검증하므로 이미 발급된 Access Token의 즉시 차단은 별도 cross-service revocation 설계 없이는 보장할 수 없다. outbox 인프라가 없으므로 전체 데이터 삭제 완료를 동기 응답으로 보장할 수도 없다.
+- 다음 작업: 제품·법무 결정을 확정한 뒤 API DTO·오류 코드, User 상태 전이·익명화, `ACCOUNT_WITHDRAWN` Session 폐기, transaction/outbox, 동시성·회귀 테스트와 운영 migration을 하나의 승인된 구현 이슈로 작성한다.
+
+## 2026-08-07 — 회원 탈퇴 API 설계 감사 기록
+
+<!-- codex-turn:019fd9f3-390b-76e2-a876-ee4bbd97b674 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 회원 탈퇴 API 설계 결과를 현재 turn marker와 함께 append-only 감사 기록으로 남긴다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 workflow 변경은 건드리지 않았다.
+- 구현 내용: JWT `sub`와 현재 RefreshSession 소유권, LOCAL 재인증, Guest 세션 증명, 익명화된 `WITHDRAWN` tombstone, 전체 Session의 `ACCOUNT_WITHDRAWN` 폐기, Mongo Transaction과 Learning Core outbox 연동을 권장 설계로 정리했다. 실제 endpoint·도메인 메서드·저장 로직은 구현하지 않았다.
+- 실행한 테스트와 결과: 설계 문서화만 수행했으므로 테스트를 실행하지 않았다.
+- 유지한 계약: 기존 인증·JWT·Refresh Token·로그아웃과 Identity–Learning Core 도메인 경계를 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 물리 삭제보다 UUID와 최소 감사 메타데이터를 유지하는 익명화 tombstone을 기본안으로 두고, 이미 발급된 Access Token의 즉시 무효화는 별도 cross-service 설계로 분리한다.
+- 위험 요소: 동시 User 갱신 방어, 개인정보·동의 기록 보존 기간, 재가입, 복구 유예, Learning Core 데이터 삭제와 Access Token 잔여 유효성은 구현 전 확정이 필요하다.
+- 다음 작업: 제품·법무 결정과 서비스 간 삭제 계약을 확정한 뒤 별도 승인된 구현 이슈로 진행한다.
+
+## 2026-08-07 — Guest Session 및 탈퇴 후 재가입 동작 확인
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: Guest가 실제 RefreshSession을 보유하는지와 탈퇴 후 동일 installationId 요청이 기존 계정 복구 또는 신규 Guest 생성으로 처리되는지 현재 구현과 권장 설계를 구분해 확인한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml` 변경은 건드리지 않았다.
+- 구현 내용: `GuestAuthService`가 Guest UUID로 Access Token과 RefreshSession을 준비하고 `GuestRegistrationTransactionService`가 User와 초기 RefreshSession을 Mongo Transaction 안에서 저장하므로 Guest도 실제 Session 문서를 가진다. 현재 회원 탈퇴 전이는 구현되지 않았으며, User 상태만 `WITHDRAWN`으로 바꾸고 설치 ID 해시를 유지하면 동일 installationId 재요청은 상태와 무관한 존재 확인에 걸려 `GUEST_ALREADY_EXISTS` 409가 된다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 분석 작업이므로 새 테스트와 전체 테스트는 실행하지 않았다. Guest 인증·Transaction·RefreshSession 발급 및 설치 ID 중복 판정 코드를 확인했다.
+- 유지한 계약: installationId를 인증 증명이나 기존 계정 복구 키로 사용하지 않는 정책, Guest·LOCAL 공통 Refresh Token Session과 기존 중복 Guest 409 계약을 변경하지 않았다. 실제 인증 정보, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 탈퇴 기능 구현 시 기존 `WITHDRAWN` Guest를 복구하지 않고, 탈퇴 Transaction에서 기존 Session을 폐기하고 `guestInstallationIdHash` 점유를 안전하게 해제한 뒤 동일 설치의 다음 Guest 인증은 새 UUID와 새 RefreshSession을 만드는 정책을 권장한다. 이는 아직 구현된 동작이 아니다.
+- 위험 요소: 현 상태에서 운영 DB의 Guest를 수동으로 `WITHDRAWN` 처리하면 설치 ID 해시가 계속 점유되어 해당 설치가 409 상태에 머물 수 있다.
+- 다음 작업: 회원 탈퇴 구현 범위에서 설치 ID 해시 해제, 기존 Session 전체 폐기, 신규 Guest UUID 생성 및 동시성·원자성 테스트를 명시적으로 포함한다.
+
+## 2026-08-07 — Guest Session 및 탈퇴 후 재가입 확인 감사 기록
+
+<!-- codex-turn:019fd9ff-a418-7411-9d5e-6689720eb78f -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: Guest의 실제 RefreshSession 보유 여부와 탈퇴 후 동일 installationId 재사용 시 현재 동작을 확인한 이번 turn의 감사 기록을 남긴다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 workflow 변경은 건드리지 않았다.
+- 구현 내용: Guest User와 초기 RefreshSession이 Mongo Transaction에서 함께 저장되고 기존 재발급·로그아웃 흐름을 공유함을 확인했다. 현재 탈퇴 기능은 미구현이며 설치 ID 해시가 남은 `WITHDRAWN` 문서는 동일 installationId 요청을 기존 계정 복구나 신규 생성 없이 409로 막는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 확인이므로 테스트는 실행하지 않았고 `git diff --check`를 통과했다.
+- 유지한 계약: installationId를 인증 또는 계정 복구 수단으로 사용하지 않는 정책과 기존 Guest 중복 요청 409 계약을 변경하지 않았다. Secret, Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 향후 탈퇴 구현에서는 기존 Guest를 복구하지 않고 Session 폐기와 설치 ID 해시 점유 해제를 원자적으로 수행한 뒤 재가입 시 새 UUID와 새 RefreshSession을 생성하는 방식을 권장한다.
+- 위험 요소: 현재 상태에서 Guest 문서만 수동으로 `WITHDRAWN` 처리하면 설치 ID 해시가 계속 점유되어 해당 설치가 신규 Guest를 만들 수 없다.
+- 다음 작업: 회원 탈퇴 구현 이슈에 설치 ID 해제, Session 전체 폐기, 신규 Guest 생성과 경쟁 상황 검증을 포함한다.
+
+## 2026-08-07 — 회원 탈퇴 Jira 생성 준비
+
+<!-- codex-turn:019fda0c-7acf-7f83-89f8-072124e9277d -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: LOCAL·GUEST 회원 탈퇴와 tombstone, 전체 RefreshSession 폐기, Guest 재가입 정책을 구현할 Jira 이슈 생성을 준비한다.
+- 변경 파일: 애플리케이션 코드는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml` 변경은 건드리지 않았다.
+- 구현 내용: Atlassian 공식 MCP로 Jira 프로젝트와 기존 이슈 형식을 조회하려 했으나 OAuth refresh credential이 유효하지 않아 조회·생성이 중단됐다. 저장소 규칙에 따라 실제 생성 전에 사용자에게 제목, 유형, 우선순위와 본문 초안을 제시하고 승인을 받을 준비를 했다.
+- 실행한 테스트와 결과: 코드 변경이 없으므로 테스트는 실행하지 않았다. Jira 쓰기 작업도 수행되지 않았다.
+- 유지한 계약: Jira에 Secret, Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않는 규칙과 생성 전 사전 승인 절차를 유지했다.
+- 결정사항: 제안 이슈는 Task·High 우선순위, 제목 `[Identity] LOCAL·GUEST 회원 탈퇴 및 재가입 처리`, 대상 저장소 `Too-Much-I/app-back-end-identity`로 구성하고, 기존 인증·JWT·Learning Core 계약을 유지하는 범위로 작성한다.
+- 위험 요소: Atlassian 연결을 재인증하기 전에는 Jira 이슈를 생성하거나 기존 프로젝트 필드·작성 형식을 재검증할 수 없다.
+- 다음 작업: 사용자가 Jira 연결을 복구하고 아래 생성 초안을 승인하면 정확히 한 개의 이슈를 생성한 뒤 생성 결과만 보고한다.
+
+## 2026-08-07 — 회원 탈퇴 Jira 이슈 생성
+
+<!-- codex-turn:019fda15-6233-7651-804d-b865b4d93db7 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- Jira: TMI-75
+- 작업 목표: LOCAL·GUEST 회원 탈퇴와 Guest 재가입 정책 구현을 추적하는 Jira 이슈를 승인된 내용으로 생성한다.
+- 변경 파일: 애플리케이션 코드는 수정하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 기존 `.github/workflows/deploy-staging.yml` 변경은 건드리지 않았다.
+- 구현 내용: Atlassian 공식 MCP에서 TMI-40의 작성 형식과 TMI 프로젝트 Task 생성 메타데이터를 확인한 뒤 `[Identity] LOCAL·GUEST 회원 탈퇴 및 재가입 처리` 이슈를 작업(Task), High 우선순위로 정확히 한 개 생성했다. 본문에는 JWT sub·RefreshSession 소유권 검증, Provider별 재인증, WITHDRAWN tombstone, 인증 식별자 제거, 모든 Session 폐기, Mongo Transaction, Guest 신규 UUID 재가입, 테스트·문서·운영 주의사항과 제외 범위를 포함했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 생성 작업이므로 테스트는 실행하지 않았다. 생성 후 TMI-75를 다시 조회해 제목, 유형, High 우선순위, 해야 할 일 상태와 본문 반영을 확인했다.
+- 유지한 계약: 기존 Jira 이슈의 상태·필드·댓글을 변경하지 않았고 TMI-75에도 Secret, Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다. Git commit과 push를 수행하지 않았다.
+- 결정사항: 이슈 유형은 프로젝트의 실제 명칭인 `작업`, 우선순위는 `High`, 초기 상태는 기본값인 `해야 할 일`로 두었다. Jira 생성은 사용자가 초안을 확인하고 명시적으로 승인한 뒤 수행했다.
+- 위험 요소: stateless Access Token의 잔여 유효성, Learning Core 데이터 정리와 outbox, 운영 MongoDB Transaction·index 검증은 TMI-75 본문에 구현 주의사항 또는 후속 범위로 명시했다.
+- 다음 작업: 사용자가 구현 착수를 요청하면 TMI-75를 먼저 읽고 저장소 상태와 브랜치를 확인한 뒤 코드·테스트·문서 작업을 진행한다. Jira 상태 변경이나 댓글 등록은 별도 승인 없이는 수행하지 않는다.
+
+## 2026-08-07 — TMI-75 LOCAL·GUEST 회원 탈퇴 구현
+
+<!-- codex-turn:019fda19-0bcc-7450-98b9-eb203bfc732c -->
+
+- 날짜: 2026-08-07
+- 브랜치: `feat/TMI-75-user-withdrawal`
+- Jira: TMI-75
+- 작업 목표: JWT `sub`와 현재 RefreshSession 소유권을 기반으로 LOCAL·GUEST 회원 탈퇴를 처리하고, User tombstone·전체 Session 폐기·Guest 및 LOCAL 신규 계정 재가입을 기존 MongoDB 인증 구조 안에서 구현한다.
+- 변경 파일: `User`, `RefreshSession`, `RevocationReason`, `UserRepository`와 custom fragment, 신규 `UserWithdrawalService`·`UserWithdrawalTransactionService`, 탈퇴 Request·Response, `UserController`, Auth·User 오류 코드, `UserConsentService`, 관련 도메인·application·Controller·Security·OpenAPI·수명 주기 테스트, `README.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 기존 `.github/workflows/deploy-staging.yml` 사용자 변경은 수정하지 않았다.
+- 구현 내용: 보호된 `POST /api/v1/users/withdraw`가 JWT subject 사용자만 조회하고, Refresh Token 원문을 저장하지 않은 채 기존 SHA-256 해시 방식으로 Session 존재·소유권·미폐기·미만료를 확인한다. LOCAL은 기존 `PasswordEncoder`로 현재 비밀번호를 재검증하고 GUEST는 비밀번호를 요구하지 않는다. 이미 WITHDRAWN이면 기존 시각으로 200 멱등 성공하며 ACTIVE와 SUSPENDED는 탈퇴할 수 있다.
+- 구현 내용: 기존 `mongoTransactionManager`가 적용된 별도 Spring Bean 안에서 User를 `WITHDRAWN` tombstone으로 조건부 갱신하고 해당 userId의 모든 미폐기 RefreshSession을 같은 시각과 `ACCOUNT_WITHDRAWN` 사유로 폐기한다. tombstone은 userId·provider·createdAt·consents를 유지하고 nickname을 익명화하며 email·normalizedEmail·passwordHash·guestInstallationIdHash를 Mongo `$unset`한다. User update 또는 Session 저장이 실패하면 Runtime 예외로 Transaction 전체가 rollback된다.
+- 구현 내용: User의 기존 `status`와 `updatedAt`을 비교하는 partial update를 사용해 stale 전체 문서 저장을 피하고, 탈퇴 충돌은 최신 상태가 WITHDRAWN이면 멱등 성공, 아니면 자격 증명을 다시 확인해 한 번 재시도한 뒤 `WITHDRAWAL_CONFLICT` 409로 처리한다. 동의 갱신도 ACTIVE+updatedAt 조건의 partial update로 바꿔 탈퇴와 경합한 오래된 요청이 WITHDRAWN을 ACTIVE로 되돌리지 못하게 했다.
+- 구현 내용: Guest 탈퇴에서 installation hash의 unique 점유를 해제해 같은 installationId의 다음 Guest 인증이 기존 tombstone을 복구하지 않고 새 UUID와 새 RefreshSession을 생성하도록 했다. ACTIVE Guest의 기존 중복 409는 유지하며 LOCAL 탈퇴도 이메일 unique 점유를 해제해 같은 이메일의 신규 UUID 가입이 가능하다. 활성 Session 조회용 `{ userId: 1, revokedAt: 1 }` compound index 계약을 추가했다.
+- 실행한 테스트와 결과: 최종 `./gradlew clean test`가 성공했다. 38개 test suite의 284개 테스트가 실행됐고 실패·오류·건너뜀은 모두 0개였다. Guest 탈퇴 후 같은 installationId로 새 userId·새 RefreshSession 생성, 세 개의 기존 Session 전체 `ACCOUNT_WITHDRAWN` 폐기와 모든 기존 Refresh Token 재발급 실패, LOCAL 동일 이메일 재가입, 다른 사용자 Session 격리, LOCAL·GUEST·SUSPENDED·멱등 탈퇴, User/Session 실패 rollback, Spring Transaction proxy와 지정 manager, Security 401, OpenAPI, 로그인·Guest·Rotation·로그아웃·JWT·JWKS 회귀를 검증했다.
+- 유지한 계약: User 물리 삭제, Refresh Token 원문 저장·로그, Guest 비밀번호 요구, WITHDRAWN 계정 복구, Access Token denylist, OAuth 재인증, Learning Core 직접 삭제와 outbox 임의 추가를 하지 않았다. RS256·JWT `sub`·issuer·audience·scope·JWKS, Opaque Refresh Token Rotation, 기존 인증·프로필·동의 API와 AI `user_id=examId` 계약을 유지했다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: User에 `@Version`을 새로 추가하지 않고 기존 문서와 호환되는 status+updatedAt compare-and-set partial update를 선택했다. 동의 기록은 법적 보존 가능성을 고려해 tombstone 안에 유지한다. Jira TMI-75의 댓글·필드·상태는 변경하지 않았고 Git commit·push·PR도 수행하지 않았다.
+- 위험 요소: 격리 test profile은 실제 MongoDB를 연결하지 않으므로 Spring Transaction proxy의 rollback 경계는 검증했지만 replica set에서의 다중 collection rollback, custom repository fragment 연결과 index 실행계획은 staging에서 확인해야 한다. 자동 index 생성이 켜져 있어도 운영에서는 새 revision 전에 `{ userId: 1, revokedAt: 1 }` index를 승인된 절차로 선생성·검증해야 한다. 탈퇴 전 Access Token은 기본 `PT30M` 또는 배포 TTL 만료 전까지 Learning Core 같은 외부 서비스에서 암호학적으로 유효할 수 있다.
+- 다음 작업: staging replica set에서 실제 Transaction 실패 주입, Guest·LOCAL 재가입과 compound index를 검증한다. `UserWithdrawn` outbox와 Learning Core 데이터 삭제·익명화, 서비스 간 Access Token 즉시 폐기는 별도 이슈로 설계한다. 사용자가 diff를 검토한 뒤 commit·push·PR을 직접 수행하며 Jira 댓글·상태 변경은 별도 승인 후 진행한다.
+
+## 2026-08-07 — TMI-75 회원 탈퇴 데이터 제거 범위 확인
+
+<!-- codex-turn:019fda63-121d-7ec1-bc5a-803ca732239a -->
+
+- 날짜: 2026-08-07
+- 브랜치: `feat/TMI-75-user-withdrawal`
+- Jira: TMI-75
+- 작업 목표: 회원 탈퇴 시 즉시 제거·익명화되는 정보와 보존되거나 Identity 범위 밖에 남는 정보를 현재 구현 기준으로 확인해 설명한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록과 기존 `.github/workflows/deploy-staging.yml` 사용자 변경은 건드리지 않았다.
+- 구현 내용: User 문서는 물리 삭제하지 않고 email·normalizedEmail·passwordHash·guestInstallationIdHash를 Mongo `$unset`하며 nickname을 익명 값으로 교체한다. userId·provider·status·createdAt·updatedAt·withdrawnAt과 개인정보 처리방침·이용약관 동의 기록은 tombstone에 유지한다. RefreshSession 문서도 즉시 삭제하지 않고 모든 미폐기 Session을 같은 시각의 `ACCOUNT_WITHDRAWN` 상태로 폐기하며 기존 TTL 만료 후 비동기 정리 대상이 된다.
+- 실행한 테스트와 결과: 코드 변경이 없는 범위 확인 작업이므로 새 테스트나 전체 테스트를 다시 실행하지 않았다. 직전 최종 `./gradlew clean test`의 38개 suite·284개 테스트 성공 결과를 유지하며, User partial update·tombstone 도메인 로직·Session 전체 폐기 코드를 정적으로 재확인했다.
+- 유지한 계약: 동의 기록은 임의 삭제하지 않고 Learning Core 시험·결과, S3·AI 등 Identity 비소유 데이터도 직접 삭제하지 않는다. Refresh Token 원문은 애초에 서버에 저장하지 않으며 Access Token denylist를 추가하지 않았다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: 현재 회원 탈퇴를 완전한 전 시스템 물리 삭제로 설명하지 않고, Identity 인증 자격과 직접 식별자를 제거한 익명 tombstone 및 Session 폐기로 설명한다. 클라이언트는 성공 즉시 보유 Access/Refresh Token을 삭제해야 한다.
+- 위험 요소: 보존된 userId와 동의 기록은 법적 보존·삭제 기간 정책이 별도로 필요하다. 기존 stateless Access Token은 만료 전까지 외부 서비스에서 암호학적으로 유효할 수 있고, Learning Core 데이터 삭제·익명화는 outbox와 소비자 구현 전까지 자동 수행되지 않는다.
+- 다음 작업: 법무·제품 정책으로 동의 기록과 tombstone 보존 기간을 확정하고, `UserWithdrawn` outbox 및 Learning Core 후속 정리와 서비스 간 Access Token 즉시 폐기가 필요하면 별도 이슈로 구현한다.
+
+## 2026-08-07 — TMI-75 회원 탈퇴 관측 로그 검토
+
+<!-- codex-turn:019fdac4-7aeb-7f92-8a10-84dd77940f65 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `feat/TMI-75-user-withdrawal`
+- Jira: TMI-75
+- 작업 목표: 회원 탈퇴 로직의 운영 동작을 확인할 로그 추가가 적절한지 현재 로깅·Transaction 구조를 근거로 검토하고 안전한 관측 범위를 제안한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 애플리케이션은 전역 예외 처리에서 예상하지 못한 예외 타입만 기록하며 회원 탈퇴 전용 성공·멱등·충돌·실패 로그와 메트릭은 없다. 별도 Transaction Service의 proxy 호출이 반환된 뒤에만 commit이 완료되므로 외부 `UserWithdrawalService`에서 성공 로그를 남기고, 내부 결과에 폐기 Session 수를 포함해 전달하는 방식을 권장했다. idempotent·conflict retry·rejected·failed 이벤트는 성공 이벤트와 구분하고 예외를 숨기지 않고 다시 전파해야 한다.
+- 실행한 테스트와 결과: 분석·설계 작업이므로 새 테스트와 `./gradlew clean test`는 실행하지 않았다. 기존 로거 사용처, 회원 탈퇴 application·Transaction 호출 경계, Actuator 의존성과 현재 health endpoint 노출만 정적으로 확인했다.
+- 유지한 계약: Access Token, Refresh Token 원문, Authorization Header, password·passwordHash, email, installationId 원문·해시, token hash와 User 전체 문서는 로그에 포함하지 않는 기존 보안 계약을 유지한다. 로그는 API 응답이나 Transaction 결과를 변경하지 않고 예외를 성공으로 변환하지 않는다. Secret, 실제 Token, Password, 실제 Key, 전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: INFO에는 commit 이후 `event`, `userId`, `provider`, `withdrawnAt`, `revokedSessionCount`, `outcome`만 허용하고, 멱등 성공은 별도 outcome으로 구분한다. WARN은 충돌 재시도·최종 충돌·자격 검증 거절의 외부 오류 코드 수준으로 제한하며 세부 자격 실패 원인은 기록하지 않는다. 메트릭에는 provider·outcome·errorCode 같은 낮은 cardinality만 사용하고 userId는 태그로 사용하지 않는다.
+- 위험 요소: Transaction 내부에서 commit 전에 완료 로그를 기록하면 실제 rollback·commit 실패와 로그가 불일치할 수 있다. 고유 userId를 메트릭 tag로 사용하면 cardinality가 폭증하고, 인증 실패 WARN을 무제한 기록하면 로그 비용·abuse 증폭 문제가 생길 수 있다. 일반 운영 로그는 법적 감사 원장을 대체하지 않는다.
+- 다음 작업: 사용자가 구현을 요청하면 내부 Transaction 결과에 폐기 Session 수를 안전하게 전달하고 commit 이후 구조화 로그를 추가한다. 테스트에서는 성공·멱등·재시도·rollback별 이벤트와 민감값 비노출을 검증하고, 메트릭·CloudWatch 경보는 현재 운영 수집 경로를 확인한 뒤 별도 범위로 연결한다.
+
+## 2026-08-07 — Identity 전체 운영 로깅 도입 계획
+
+<!-- codex-turn:019fdac9-85f2-7100-8b2e-e57fd4204035 -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 현재 Identity 인증·세션·사용자 로직이 운영에서 정상 동작하는지 확인할 수 있도록 로그를 추가할 위치, 이벤트, 레벨, 민감정보 경계와 구현 순서를 계획한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 애플리케이션 로거가 `GlobalExceptionHandler`의 예상 밖 예외 타입 기록 한 곳뿐이고 requestId·route·duration·도메인 상태 전이 로그가 없음을 확인했다. 1차는 구조화 stdout과 MDC requestId·HTTP 완료·중앙 예외/Security 결과, 2차는 회원가입·Guest 생성·로그인·Token 재발급/재사용·로그아웃·회원 탈퇴, 3차는 동의 갱신·Transaction 기동 검증과 대시보드/알림으로 나누었다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 분석 작업이므로 `./gradlew clean test`는 실행하지 않았다. 주요 Controller·application service·Transaction 경계·전역 예외/Security handler·Actuator 및 logging 설정 부재를 확인했고 문서 변경은 `git diff --check`를 통과했다.
+- 유지한 계약: JWT `sub`의 실제 UUID 사용자 식별, RS256·issuer·audience·JWKS, Refresh Token 원문 비저장, 사용자/Session Transaction과 기존 API 응답 계약을 변경하지 않았다. Password, Access/Refresh Token, Authorization Header, email·nickname, installationId 원문·해시, token hash, JWT 본문, 실제 Key와 전체 MongoDB URI를 로그 계획에서 제외했다.
+- 결정사항: 공통 요청 완료 로그는 Controller별 중복 로그 대신 새 observability filter 한 곳에서 route template·status·duration·errorCode를 기록하고, 비즈니스 로그는 application service의 저장 완료 또는 transactional proxy 반환 이후 상태 전이만 기록한다. INFO는 정상 상태 전이, WARN은 Refresh Token 재사용·동시성 최종 충돌 같은 주의 사건, ERROR는 예상 밖 내부 오류와 stack trace에 사용하며 정상 4xx에는 stack trace를 남기지 않는다.
+- 위험 요소: Transaction 내부에서 성공을 기록하면 rollback 또는 commit 실패와 불일치할 수 있고, 요청/응답·Header·Token/Hash를 기록하면 자격증명이 노출된다. userId·requestId·세션 식별자를 메트릭 tag로 사용하거나 모든 인증 실패를 WARN으로 남기면 cardinality와 로그 비용이 급증하며, 운영 로그는 법적 감사 이력을 대신하지 않는다.
+- 다음 작업: 사용자가 구현을 요청하면 1차 기반부터 작은 PR 단위로 적용하고, ListAppender/MockMvc 기반으로 이벤트 필드·MDC 정리·민감 테스트 값 비노출·실패 시 성공 이벤트 부재를 검증한 뒤 `./gradlew clean test`를 실행한다. 로그 수집 플랫폼이 확정되면 stdout JSON 형식과 보존 기간·대시보드·알림 임계값을 연결한다.
+
+## 2026-08-07 — 예상 밖 5xx 단일 ERROR 기록 방식 구체화
+
+<!-- codex-turn:019fdad0-e86f-7fb0-97e2-60e584cb6a6b -->
+
+- 날짜: 2026-08-07
+- 브랜치: `main`
+- 작업 목표: 전체 로깅 계획의 “예상 밖 5xx는 ERROR 한 번만 기록”이 실제 코드에서 어떤 소유권과 흐름으로 구현되는지 구체화한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 새 요청 완료 filter를 application ERROR의 단일 소유자로 둔다. Service·Controller는 예외를 기록한 뒤 다시 던지지 않고 그대로 전파하며, `GlobalExceptionHandler`는 예상 밖 예외를 500 응답으로 변환하면서 예외 type과 message를 제외한 제한된 stack frame 같은 안전한 문맥을 request attribute에 저장하되 직접 로그하지 않는다. filter는 chain 종료 시 해당 문맥 또는 탈출 예외를 확인해 평소 INFO 완료 로그 대신 route·status·duration·requestId를 포함한 ERROR 한 건만 기록한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설계 설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. 현재 `GlobalExceptionHandler`의 단일 `log.error` 위치와 제안한 filter·handler 책임 분리를 정적으로 재확인했고 문서 변경은 `git diff --check`를 통과했다.
+- 유지한 계약: 기존 공통 500 응답과 예외 전파 의미를 변경하지 않으며 Password, Token, Authorization Header, 개인정보, Token/installation hash, JWT 본문, 실제 Key와 전체 MongoDB URI를 오류 로그에 포함하지 않는다. 원본 예외 message를 그대로 로깅하지 않는 정책을 유지한다.
+- 결정사항: “한 번”은 동일 요청의 예상 밖 실패에 대해 애플리케이션이 생성하는 ERROR event가 정확히 한 건이라는 뜻이다. 5xx 요청에는 별도 INFO 완료 event를 만들지 않고, `errorLogged` request attribute와 error dispatch 제외로 중복을 막는다. 이미 commit된 비즈니스 상태 전이 INFO/WARN은 같은 예외를 중복 기록한 것이 아니므로 별도 사건으로 유지할 수 있다.
+- 위험 요소: filter 밖에서 Servlet container 또는 외부 APM이 같은 Throwable을 별도 기록할 수 있어 전체 플랫폼 로그까지 한 건임을 코드만으로 보장할 수는 없다. raw Throwable을 로거에 전달하면 예외 message나 cause에 자격증명·URI가 포함될 수 있고, async/error dispatch를 잘못 처리하면 중복 ERROR가 생길 수 있다.
+- 다음 작업: 구현 시 `OncePerRequestFilter`, 안전한 failure context, errorCode/route request attribute와 단일 emit guard를 추가하고 MockMvc·ListAppender로 예상 밖 RuntimeException ERROR 1건, BusinessException ERROR 0건, 5xx INFO 완료 0건, MDC 정리와 민감 테스트 값 비노출을 검증한 뒤 `./gradlew clean test`를 실행한다.
+
+## 2026-08-07 — Identity 구조화 운영 로그 구현
+
+<!-- codex-turn:019fdad7-4fd9-79f0-97ff-08aba2ef29db -->
+
+- 날짜: 2026-08-07
+- 브랜치: `feat/logging` (`05342da` 기준, commit·push 미수행)
+- 작업 목표: 계획한 requestId 기반 HTTP 완료 로그와 예상 밖 5xx 단일 ERROR 소유권을 구현하고, Identity의 주요 인증·세션·사용자 상태 전이를 민감정보 없이 운영에서 추적할 수 있게 한다.
+- 변경 파일: 신규 `global/observability/RequestLoggingFilter.java`·`RequestLogContext.java`, `GlobalExceptionHandler`, Security 401/403 handler, Auth의 signup·guest·login·reissue·logout·logout-all application service, User의 consent·withdrawal application/transaction service와 신규 `WithdrawalTransactionResult`, `MongoTransactionCapabilityVerifier`, `application.yml`, `.env.example`, `README.md`, 관련 application·Security·observability 테스트와 신규 `support/LogCapture`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다.
+- 구현 내용: `X-Request-ID`는 `[A-Za-z0-9._-]{1,64}`만 재사용하고 없거나 잘못되면 UUID를 생성해 응답 Header와 MDC에 넣은 뒤 요청 종료 시 정리한다. 공통 filter는 route template·method·status·duration·outcome·errorCode를 `http.request.completed` INFO로 기록하되 health·Swagger/OpenAPI·JWKS 정상 요청은 제외한다.
+- 구현 내용: 예상 밖 5xx는 `http.request.failed` ERROR 한 건만 남기고 같은 요청의 INFO 완료 로그는 만들지 않는다. `GlobalExceptionHandler`는 직접 ERROR를 남기지 않고 원본 예외 message·raw Throwable 없이 exception/cause 타입과 message 없는 최대 24개 stack frame만 request attribute로 전달하며, `errorLogged` guard와 error dispatch 제외로 애플리케이션 중복 기록을 막는다. Business·Validation·Security 401/403은 공통 errorCode만 요청 로그에 전달한다.
+- 구현 내용: 회원가입·Guest 생성·로그인, Refresh Token 재발급·재사용 탐지·동시 Rotation 거절, 단일·전체 로그아웃, 동의 갱신, 회원 탈퇴 성공·멱등·충돌과 Mongo Transaction capability 기동 검증을 구조화 이벤트로 추가했다. 성공 이벤트는 저장 완료 또는 transactional proxy 반환 이후에만 기록하고, 회원 탈퇴 Transaction 결과에는 실제 폐기 Session 수를 포함해 외부 service가 commit 이후 기록하도록 했다.
+- 실행한 테스트와 결과: `./gradlew clean test`가 성공했다. 40개 test suite의 292개 테스트가 실행됐고 실패·오류·건너뜀은 모두 0개였다. 예상 밖 5xx의 ERROR 1건·INFO 0건, BusinessException ERROR 0건, requestId 생성·전파·MDC 정리, Security 401의 filter 통과, 민감 테스트 문자열·자격증명·개인정보·Token/Hash 비노출, 저장 완료 이벤트·회원 탈퇴 폐기 Session 수와 ECS 설정의 Spring Context 기동을 검증했다.
+- 유지한 계약: JWT `sub`의 실제 UUID, RS256·issuer·audience·JWKS, Opaque Refresh Token 해시 저장, 기존 API 응답과 Transaction 경계를 변경하지 않았다. Password, Access/Refresh Token, Authorization Header, email·nickname, installationId 원문·해시, token hash, JWT 본문, 실제 Key, 전체 MongoDB URI와 요청/응답 본문을 로그나 작업 기록에 넣지 않았다. userId는 허용된 상태 전이 로그에서만 사용하고 메트릭 tag로 사용하지 않는다.
+- 결정사항: 공통 HTTP 로그와 예상 밖 ERROR 소유권은 filter 한 곳에 두고 Controller·Repository·Entity에는 중복 로그를 추가하지 않았다. 기본 stdout 포맷은 Spring Boot ECS 구조화 로그로 두되 `LOGGING_STRUCTURED_FORMAT_CONSOLE` 환경변수로 조정할 수 있게 했고, 정상 4xx는 ERROR가 아닌 완료 로그로 분류한다. Git commit·push와 Jira 댓글·상태·필드 변경은 수행하지 않았다.
+- 위험 요소: 애플리케이션의 예상 밖 5xx ERROR는 한 건으로 제한했지만 Servlet container나 외부 APM이 같은 오류를 별도로 수집할 수 있으므로 staging에서 logger category와 error dispatch를 확인해야 한다. 안전한 오류 문맥은 원본 message를 의도적으로 제외하므로 상세 진단에는 재현·메트릭·추적 도구가 추가로 필요하다. 구조화 로그 보존 기간·대시보드·알림 임계값은 아직 운영 수집 플랫폼에 연결하지 않았다.
+- 다음 작업: staging stdout 수집에서 ECS 파싱, requestId 검색, route template과 민감정보 비노출, 예상 밖 5xx 중복 여부를 확인한다. event·outcome·errorCode·provider 같은 낮은 cardinality 필드를 사용해 대시보드·메트릭·알림과 보존 정책을 별도 운영 작업으로 확정한다. 사용자가 diff를 검토한 뒤 commit·push를 직접 수행한다.

@@ -34,6 +34,7 @@ import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
+import web.tosunsaeng.identity.support.LogCapture;
 
 class UserWithdrawalServiceTests {
 
@@ -80,9 +81,24 @@ class UserWithdrawalServiceTests {
 				user,
 				refreshTokenHasher.hash(REFRESH_VALUE),
 				NOW
-		)).thenReturn(expected);
+		)).thenReturn(new WithdrawalTransactionResult(expected, 1));
 
-		WithdrawResponse response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, PASSWORD));
+		WithdrawResponse response;
+		try (LogCapture logs = LogCapture.forClass(UserWithdrawalService.class)) {
+			response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, PASSWORD));
+			assertThat(logs.events("user.withdrawal.completed")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome")).isEqualTo("withdrawn");
+						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(1);
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								REFRESH_VALUE,
+								refreshTokenHasher.hash(REFRESH_VALUE),
+								PASSWORD,
+								user.getEmail(),
+								user.getPasswordHash()
+						);
+					});
+		}
 
 		assertThat(response).isEqualTo(expected);
 		verify(passwordEncoder).matches(PASSWORD, user.getPasswordHash());
@@ -98,7 +114,8 @@ class UserWithdrawalServiceTests {
 		User guest = guestUser();
 		stubCurrentUser(guest, activeSession(guest.getUserId()));
 		WithdrawResponse expected = WithdrawResponse.from(guest.toWithdrawnTombstone(NOW));
-		when(transactionService.withdraw(any(), any(), any())).thenReturn(expected);
+		when(transactionService.withdraw(any(), any(), any()))
+				.thenReturn(new WithdrawalTransactionResult(expected, 1));
 
 		WithdrawResponse response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, null));
 
@@ -195,7 +212,8 @@ class UserWithdrawalServiceTests {
 		stubCurrentUser(user, activeSession(user.getUserId()));
 		when(passwordEncoder.matches(PASSWORD, user.getPasswordHash())).thenReturn(true);
 		WithdrawResponse expected = WithdrawResponse.from(user.toWithdrawnTombstone(NOW));
-		when(transactionService.withdraw(any(), any(), any())).thenReturn(expected);
+		when(transactionService.withdraw(any(), any(), any()))
+				.thenReturn(new WithdrawalTransactionResult(expected, 1));
 
 		WithdrawResponse response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, PASSWORD));
 
@@ -250,7 +268,7 @@ class UserWithdrawalServiceTests {
 				NOW
 		)).thenThrow(new web.tosunsaeng.identity.domain.user.exception.UserException(
 				UserErrorStatus.WITHDRAWAL_CONFLICT
-		)).thenReturn(expected);
+		)).thenReturn(new WithdrawalTransactionResult(expected, 1));
 
 		WithdrawResponse response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, null));
 

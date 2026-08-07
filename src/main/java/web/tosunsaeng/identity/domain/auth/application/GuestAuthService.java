@@ -5,6 +5,8 @@ import java.util.Objects;
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 @Service
 @RequiredArgsConstructor
 public class GuestAuthService {
+
+	private static final Logger log = LoggerFactory.getLogger(GuestAuthService.class);
 
 	private final UserRepository userRepository;
 	private final UserFactory userFactory;
@@ -62,11 +66,19 @@ public class GuestAuthService {
 				guestUser.getUserId()
 		);
 		try {
-			return registrationTransactionService.register(
+			GuestAuthResponse response = registrationTransactionService.register(
 					guestUser,
 					accessToken,
 					refreshSession
 			);
+			// Transaction proxy가 반환된 뒤에만 Guest와 최초 Session 생성을 완료로 기록한다.
+			log.atInfo()
+					.addKeyValue("event", "identity.guest.registered")
+					.addKeyValue("outcome", "created")
+					.addKeyValue("userId", guestUser.getUserId())
+					.addKeyValue("provider", guestUser.getProvider())
+					.log("Identity guest registered");
+			return response;
 		} catch (DuplicateKeyException exception) {
 			// Transaction rollback 뒤 현재 hash가 존재할 때만 설치 중복으로 분류한다.
 			if (userRepository.existsByGuestInstallationIdHash(installationIdHash)) {

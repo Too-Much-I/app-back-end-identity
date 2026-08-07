@@ -27,7 +27,7 @@ public class UserWithdrawalTransactionService {
 	private final RefreshSessionRepository refreshSessionRepository;
 
 	@Transactional(transactionManager = "mongoTransactionManager")
-	public WithdrawResponse withdraw(
+	public WithdrawalTransactionResult withdraw(
 			User currentUser,
 			String credentialTokenHash,
 			Instant withdrawnAt
@@ -64,7 +64,10 @@ public class UserWithdrawalTransactionService {
 			}
 		}
 
-		return WithdrawResponse.from(tombstone);
+		return new WithdrawalTransactionResult(
+				WithdrawResponse.from(tombstone),
+				activeSessions.size()
+		);
 	}
 
 	private void validateCredentialSession(

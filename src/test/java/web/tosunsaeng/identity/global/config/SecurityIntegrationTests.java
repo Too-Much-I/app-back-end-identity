@@ -59,6 +59,7 @@ import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.global.security.jwt.JwtConfiguration;
 import web.tosunsaeng.identity.global.security.jwt.JwtProperties;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
+import web.tosunsaeng.identity.global.observability.RequestLoggingFilter;
 import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
@@ -222,6 +223,17 @@ class SecurityIntegrationTests {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"refreshToken\":\"security-test-value\"}"))
 				.andReturn());
+	}
+
+	@Test
+	void requestLoggingFilterWrapsSecurityFailureAndEchoesSafeRequestId() throws Exception {
+		String requestId = "security-request-123";
+
+		mockMvc.perform(get("/api/v1/users/me")
+						.header(RequestLoggingFilter.REQUEST_ID_HEADER, requestId))
+				.andExpect(status().isUnauthorized())
+				.andExpect(header().string(RequestLoggingFilter.REQUEST_ID_HEADER, requestId))
+				.andExpect(jsonPath("$.code").value("COMMON_UNAUTHORIZED"));
 	}
 
 	@Test

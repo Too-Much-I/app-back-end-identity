@@ -6,9 +6,8 @@ import java.util.Set;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.servlet.http.HttpServletRequest;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -20,11 +19,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import web.tosunsaeng.identity.global.response.BaseResponse;
+import web.tosunsaeng.identity.global.observability.RequestLogContext;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 	private static final Set<String> SENSITIVE_FIELD_FRAGMENTS = Set.of(
 			"password",
 			"passwd",
@@ -40,63 +39,75 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<BaseResponse<List<ValidationErrorDetail>>> handleMethodArgumentNotValid(
-			MethodArgumentNotValidException exception
+			MethodArgumentNotValidException exception,
+			HttpServletRequest request
 	) {
 		List<ValidationErrorDetail> errors = exception.getBindingResult().getFieldErrors().stream()
 				.map(this::toValidationErrorDetail)
 				.toList();
 
-		return errorResponse(CommonErrorStatus.INVALID_REQUEST, errors);
+		return errorResponse(request, CommonErrorStatus.INVALID_REQUEST, errors);
 	}
 
 	@ExceptionHandler(ConstraintViolationException.class)
 	public ResponseEntity<BaseResponse<List<ValidationErrorDetail>>> handleConstraintViolation(
-			ConstraintViolationException exception
+			ConstraintViolationException exception,
+			HttpServletRequest request
 	) {
 		List<ValidationErrorDetail> errors = exception.getConstraintViolations().stream()
 				.map(this::toValidationErrorDetail)
 				.toList();
 
-		return errorResponse(CommonErrorStatus.INVALID_REQUEST, errors);
+		return errorResponse(request, CommonErrorStatus.INVALID_REQUEST, errors);
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<BaseResponse<Void>> handleHttpMessageNotReadable(
-			HttpMessageNotReadableException exception
+			HttpMessageNotReadableException exception,
+			HttpServletRequest request
 	) {
-		return errorResponse(CommonErrorStatus.INVALID_REQUEST, null);
+		return errorResponse(request, CommonErrorStatus.INVALID_REQUEST, null);
 	}
 
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<BaseResponse<Void>> handleNoResourceFound(
-			NoResourceFoundException exception
+			NoResourceFoundException exception,
+			HttpServletRequest request
 	) {
-		return errorResponse(CommonErrorStatus.NOT_FOUND, null);
+		return errorResponse(request, CommonErrorStatus.NOT_FOUND, null);
 	}
 
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
 	public ResponseEntity<BaseResponse<Void>> handleHttpRequestMethodNotSupported(
-			HttpRequestMethodNotSupportedException exception
+			HttpRequestMethodNotSupportedException exception,
+			HttpServletRequest request
 	) {
-		return errorResponse(CommonErrorStatus.METHOD_NOT_ALLOWED, null);
+		return errorResponse(request, CommonErrorStatus.METHOD_NOT_ALLOWED, null);
 	}
 
 	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
 	public ResponseEntity<BaseResponse<Void>> handleHttpMediaTypeNotSupported(
-			HttpMediaTypeNotSupportedException exception
+			HttpMediaTypeNotSupportedException exception,
+			HttpServletRequest request
 	) {
-		return errorResponse(CommonErrorStatus.UNSUPPORTED_MEDIA_TYPE, null);
+		return errorResponse(request, CommonErrorStatus.UNSUPPORTED_MEDIA_TYPE, null);
 	}
 
 	@ExceptionHandler(BusinessException.class)
-	public ResponseEntity<BaseResponse<Void>> handleBusinessException(BusinessException exception) {
-		return errorResponse(exception.getErrorCode(), null);
+	public ResponseEntity<BaseResponse<Void>> handleBusinessException(
+			BusinessException exception,
+			HttpServletRequest request
+	) {
+		return errorResponse(request, exception.getErrorCode(), null);
 	}
 
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<BaseResponse<Void>> handleUnexpectedException(Exception exception) {
-		log.error("Unhandled exception type: {}", exception.getClass().getName());
-		return errorResponse(CommonErrorStatus.INTERNAL_SERVER_ERROR, null);
+	public ResponseEntity<BaseResponse<Void>> handleUnexpectedException(
+			Exception exception,
+			HttpServletRequest request
+	) {
+		RequestLogContext.recordUnexpectedFailure(request, exception);
+		return errorResponse(request, CommonErrorStatus.INTERNAL_SERVER_ERROR, null);
 	}
 
 	private ValidationErrorDetail toValidationErrorDetail(FieldError error) {
@@ -137,7 +148,12 @@ public class GlobalExceptionHandler {
 				: reason;
 	}
 
-	private <T> ResponseEntity<BaseResponse<T>> errorResponse(ErrorCode errorCode, T result) {
+	private <T> ResponseEntity<BaseResponse<T>> errorResponse(
+			HttpServletRequest request,
+			ErrorCode errorCode,
+			T result
+	) {
+		RequestLogContext.recordErrorCode(request, errorCode.getCode());
 		return ResponseEntity
 				.status(errorCode.getHttpStatus())
 				.body(BaseResponse.failure(errorCode, result));

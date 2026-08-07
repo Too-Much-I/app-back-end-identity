@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +32,8 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 @RequiredArgsConstructor
 public class TokenReissueService {
 
+	private static final Logger log = LoggerFactory.getLogger(TokenReissueService.class);
+
 	private final RefreshTokenHasher refreshTokenHasher;
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final UserRepository userRepository;
@@ -46,7 +50,17 @@ public class TokenReissueService {
 
 		// 회전된 토큰이 재사용되면 탈취 가능성에 대비해 활성 세션을 모두 폐기한다.
 		if (currentSession.getRevocationReason() == RevocationReason.ROTATED) {
-			revokeActiveSessionsForReuse(currentSession.getUserId(), currentTime);
+			int revokedSessionCount = revokeActiveSessionsForReuse(
+					currentSession.getUserId(),
+					currentTime
+			);
+			log.atWarn()
+					.addKeyValue("event", "auth.refresh.reuse_detected")
+					.addKeyValue("outcome", "active_sessions_revoked")
+					.addKeyValue("userId", currentSession.getUserId())
+					.addKeyValue("revokedSessionCount", revokedSessionCount)
+					.addKeyValue("errorCode", AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED.getCode())
+					.log("Refresh Token reuse detected");
 			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
 		}
 		if (currentSession.isRevoked()) {
@@ -69,6 +83,12 @@ public class TokenReissueService {
 			// 낙관적 잠금으로 동일한 Refresh Token의 동시 회전을 차단한다.
 			refreshSessionRepository.save(currentSession);
 		} catch (OptimisticLockingFailureException exception) {
+			log.atInfo()
+					.addKeyValue("event", "auth.refresh.reissue.rejected")
+					.addKeyValue("outcome", "concurrent_rotation_rejected")
+					.addKeyValue("userId", currentSession.getUserId())
+					.addKeyValue("errorCode", AuthErrorStatus.INVALID_REFRESH_TOKEN.getCode())
+					.log("Concurrent Refresh Token rotation rejected");
 			throw invalidRefreshToken();
 		}
 
@@ -81,15 +101,21 @@ public class TokenReissueService {
 				currentSession.getSessionId(),
 				currentTime
 		);
-		return authResponseConverter.toReissueResponse(
+		ReissueResponse response = authResponseConverter.toReissueResponse(
 				accessToken,
 				refreshSession.tokenValue(),
 				refreshSession.expiresAt(),
 				currentTime
 		);
+		log.atInfo()
+				.addKeyValue("event", "auth.refresh.reissued")
+				.addKeyValue("outcome", "rotated")
+				.addKeyValue("userId", currentSession.getUserId())
+				.log("Refresh Token reissued");
+		return response;
 	}
 
-	private void revokeActiveSessionsForReuse(String userId, Instant currentTime) {
+	private int revokeActiveSessionsForReuse(String userId, Instant currentTime) {
 		List<RefreshSession> activeSessions = refreshSessionRepository
 				.findAllByUserIdAndRevokedAtIsNull(userId)
 				.stream()
@@ -99,6 +125,7 @@ public class TokenReissueService {
 		if (!activeSessions.isEmpty()) {
 			refreshSessionRepository.saveAll(activeSessions);
 		}
+		return activeSessions.size();
 	}
 
 	private AuthException invalidRefreshToken() {

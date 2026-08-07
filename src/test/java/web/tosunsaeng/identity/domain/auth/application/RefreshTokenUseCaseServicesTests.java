@@ -41,6 +41,7 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenProperties;
+import web.tosunsaeng.identity.support.LogCapture;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
@@ -116,9 +117,20 @@ class RefreshTokenUseCaseServicesTests {
 		when(accessTokenIssuer.issue(USER_ID, Set.of())).thenReturn(accessToken);
 		when(refreshTokenGenerator.generate()).thenReturn(NEXT_REFRESH_VALUE);
 
-		ReissueResponse response = tokenReissueService.reissue(
-				new ReissueRequest(CURRENT_REFRESH_VALUE)
-		);
+		ReissueResponse response;
+		try (LogCapture logs = LogCapture.forClass(TokenReissueService.class)) {
+			response = tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE));
+			assertThat(logs.events("auth.refresh.reissued")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome")).isEqualTo("rotated");
+						assertThat(LogCapture.value(event, "userId")).isEqualTo(USER_ID);
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								CURRENT_REFRESH_VALUE,
+								NEXT_REFRESH_VALUE,
+								refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)
+						);
+					});
+		}
 
 		verify(refreshSessionRepository).findByTokenHash(
 				refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)
@@ -243,10 +255,23 @@ class RefreshTokenUseCaseServicesTests {
 		when(refreshSessionRepository.saveAll(any()))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		BusinessException exception = catchThrowableOfType(
-				BusinessException.class,
-				() -> tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE))
-		);
+		BusinessException exception;
+		try (LogCapture logs = LogCapture.forClass(TokenReissueService.class)) {
+			exception = catchThrowableOfType(
+					BusinessException.class,
+					() -> tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE))
+			);
+			assertThat(logs.events("auth.refresh.reuse_detected")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(2);
+						assertThat(LogCapture.value(event, "errorCode"))
+								.isEqualTo("REFRESH_TOKEN_REUSE_DETECTED");
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								CURRENT_REFRESH_VALUE,
+								refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)
+						);
+					});
+		}
 
 		assertThat(exception.getErrorCode())
 				.isEqualTo(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
@@ -326,7 +351,19 @@ class RefreshTokenUseCaseServicesTests {
 		when(refreshSessionRepository.findByTokenHash(any()))
 				.thenReturn(Optional.of(session));
 
-		logoutService.logout(new LogoutRequest(CURRENT_REFRESH_VALUE));
+		try (LogCapture logs = LogCapture.forClass(LogoutService.class)) {
+			logoutService.logout(new LogoutRequest(CURRENT_REFRESH_VALUE));
+			assertThat(logs.events("auth.logout.completed")).singleElement()
+					.satisfies(event -> {
+						assertThat(LogCapture.value(event, "outcome"))
+								.isEqualTo("session_revoked");
+						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(1);
+						assertThat(LogCapture.rendered(event)).doesNotContain(
+								CURRENT_REFRESH_VALUE,
+								refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)
+						);
+					});
+		}
 
 		verify(refreshSessionRepository).findByTokenHash(
 				refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)

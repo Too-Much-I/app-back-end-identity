@@ -30,6 +30,7 @@ Identity Service는 다음 기능을 소유한다.
 - `domain.user`: 사용자 API, 프로필 유스케이스, User 도메인과 사용자 오류
 - `global.config`: Spring Security, 비밀번호 인코더와 OpenAPI 설정
 - `global.security`: JWT·현재 사용자·Refresh Token 기술 구현과 Security 오류 응답
+- `global.observability`: requestId 상관관계, 안전한 오류 문맥과 구조화 HTTP 완료 로그
 - `global.response`, `global.exception`: 공통 응답 계약과 전역 HTTP 예외 변환
 
 ## 환경변수
@@ -40,6 +41,7 @@ Identity Service는 다음 기능을 소유한다.
 | `MONGODB_DATABASE` | 선택 | `to-teacher-identity` |
 | `SERVER_PORT` | 선택 | `8081` |
 | `SWAGGER_ENABLED` | 선택 | Swagger UI와 OpenAPI 문서 활성화 여부, 기본값 `true` |
+| `LOGGING_STRUCTURED_FORMAT_CONSOLE` | 선택 | stdout 구조화 로그 형식, 기본값 `ecs` |
 | `PRIVACY_CONSENT_VERSION` | 필수 | 서버의 현재 필수 개인정보 처리방침 버전. 누락·공백이면 기동 실패 |
 | `TERM_CONSENT_VERSION` | 필수 | 서버의 현재 필수 이용약관 버전. 누락·공백이면 기동 실패 |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
@@ -72,6 +74,14 @@ set +a
 ```
 
 Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http://localhost:8081/v3/api-docs`, health endpoint는 `http://localhost:8081/actuator/health`, Public Key JWKS는 `http://localhost:8081/.well-known/jwks.json`에서 확인할 수 있다. 포트를 변경했다면 URL의 포트도 함께 변경한다. 운영 환경에서 API 문서를 노출하지 않을 때는 `SWAGGER_ENABLED=false`로 설정한다.
+
+## 운영 로그
+
+애플리케이션은 기본적으로 ECS 형식의 구조화 JSON을 stdout에 기록한다. 안전한 `X-Request-ID`가 들어오면 응답과 MDC에 이어서 사용하고, 없거나 허용 문자와 64자 제한을 벗어나면 서버 UUID로 교체한다. API 요청 완료 로그에는 `event`, `outcome`, `requestId`, HTTP method, route template, status, duration과 오류 code만 포함한다. health·Swagger/OpenAPI·JWKS의 정상 요청은 반복 노이즈를 줄이기 위해 완료 로그에서 제외한다.
+
+예상 밖 5xx는 요청 filter가 `http.request.failed` ERROR 한 건만 기록하고 별도 INFO 완료 로그를 만들지 않는다. 예외 원문 message와 raw Throwable 대신 예외 type, 제한된 cause type과 message 없는 stack frame만 남긴다. 회원가입·Guest 생성·로그인·Token Rotation·재사용 탐지·로그아웃·동의 갱신·회원 탈퇴는 실제 저장 또는 Transaction commit 이후의 별도 상태 전이 event로 기록한다.
+
+Password, Access/Refresh Token, Authorization Header, 이메일·닉네임, installationId와 그 hash, Token hash, JWT 본문, 실제 Key와 MongoDB URI 및 요청·응답 본문은 로그에 기록하지 않는다. `userId`는 필요한 상태 전이 로그에만 사용하고 metric tag에는 사용하지 않는다.
 
 ## 테스트
 

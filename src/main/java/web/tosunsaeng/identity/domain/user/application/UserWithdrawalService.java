@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Instant;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 public class UserWithdrawalService {
 
 	private static final int MAX_WITHDRAWAL_ATTEMPTS = 2;
+	private static final Logger log = LoggerFactory.getLogger(UserWithdrawalService.class);
 
 	private final CurrentUserProvider currentUserProvider;
 	private final UserRepository userRepository;
@@ -40,7 +43,9 @@ public class UserWithdrawalService {
 		String userId = currentUserProvider.getCurrentUserId();
 		User user = findUser(userId);
 		if (user.getStatus() == UserStatus.WITHDRAWN) {
-			return WithdrawResponse.from(user);
+			WithdrawResponse response = WithdrawResponse.from(user);
+			logWithdrawalCompleted(user, response, "already_withdrawn", 0, 0);
+			return response;
 		}
 
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
@@ -50,22 +55,73 @@ public class UserWithdrawalService {
 			validateProviderCredential(user, request.password());
 
 			try {
-				return transactionService.withdraw(user, tokenHash, withdrawnAt);
+				WithdrawalTransactionResult result = transactionService.withdraw(
+						user,
+						tokenHash,
+						withdrawnAt
+				);
+				logWithdrawalCompleted(
+						user,
+						result.response(),
+						"withdrawn",
+						result.revokedSessionCount(),
+						attempt
+				);
+				return result.response();
 			} catch (UserException exception) {
 				if (exception.getErrorCode() != UserErrorStatus.WITHDRAWAL_CONFLICT) {
 					throw exception;
 				}
 				User latestUser = findUser(userId);
 				if (latestUser.getStatus() == UserStatus.WITHDRAWN) {
-					return WithdrawResponse.from(latestUser);
+					logWithdrawalConflict(userId, "concurrent_completion_detected", attempt);
+					WithdrawResponse response = WithdrawResponse.from(latestUser);
+					logWithdrawalCompleted(
+							latestUser,
+							response,
+							"concurrent_idempotent",
+							0,
+							attempt
+					);
+					return response;
 				}
 				if (attempt == MAX_WITHDRAWAL_ATTEMPTS) {
+					logWithdrawalConflict(userId, "rejected", attempt);
 					throw exception;
 				}
+				logWithdrawalConflict(userId, "retrying", attempt);
 				user = latestUser;
 			}
 		}
 		throw new IllegalStateException("Withdrawal attempt limit must be positive.");
+	}
+
+	private void logWithdrawalCompleted(
+			User user,
+			WithdrawResponse response,
+			String outcome,
+			int revokedSessionCount,
+			int attempt
+	) {
+		log.atInfo()
+				.addKeyValue("event", "user.withdrawal.completed")
+				.addKeyValue("outcome", outcome)
+				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("provider", user.getProvider())
+				.addKeyValue("withdrawnAt", response.withdrawnAt())
+				.addKeyValue("revokedSessionCount", revokedSessionCount)
+				.addKeyValue("attempt", attempt)
+				.log("User withdrawal completed");
+	}
+
+	private void logWithdrawalConflict(String userId, String outcome, int attempt) {
+		log.atWarn()
+				.addKeyValue("event", "user.withdrawal.conflict")
+				.addKeyValue("outcome", outcome)
+				.addKeyValue("userId", userId)
+				.addKeyValue("attempt", attempt)
+				.addKeyValue("errorCode", UserErrorStatus.WITHDRAWAL_CONFLICT.getCode())
+				.log("User withdrawal conflict");
 	}
 
 	private User findUser(String userId) {
