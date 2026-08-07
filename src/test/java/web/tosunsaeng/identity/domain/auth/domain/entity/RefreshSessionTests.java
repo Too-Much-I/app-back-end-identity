@@ -10,6 +10,7 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -29,6 +30,8 @@ class RefreshSessionTests {
 		Indexed expiresAtIndex = RefreshSession.class
 				.getDeclaredField("expiresAt")
 				.getAnnotation(Indexed.class);
+		CompoundIndex userRevocationIndex = RefreshSession.class
+				.getAnnotation(CompoundIndex.class);
 
 		assertThat(document.collection()).isEqualTo("refresh_sessions");
 		assertThat(sessionId.isAnnotationPresent(Id.class)).isTrue();
@@ -37,6 +40,9 @@ class RefreshSessionTests {
 		assertThat(tokenHashIndex.name()).isEqualTo("uk_refresh_sessions_token_hash");
 		assertThat(expiresAtIndex.name()).isEqualTo("ttl_refresh_sessions_expires_at");
 		assertThat(expiresAtIndex.expireAfter()).isEqualTo("0s");
+		assertThat(userRevocationIndex.name())
+				.isEqualTo("ix_refresh_sessions_user_id_revoked_at");
+		assertThat(userRevocationIndex.def()).contains("userId", "revokedAt");
 	}
 
 	@Test
@@ -172,5 +178,25 @@ class RefreshSessionTests {
 
 		assertThat(initializedFamilyId).isEqualTo(session.getRotationFamilyId());
 		assertThat(initializedFamilyId).isNotBlank();
+	}
+
+	@Test
+	void accountWithdrawalUsesDedicatedReasonAndOneServerTimestamp() {
+		Instant createdAt = Instant.parse("2026-07-24T09:10:11Z");
+		Instant withdrawnAt = createdAt.plusSeconds(40);
+		RefreshSession session = RefreshSession.create(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86",
+				"withdrawal-test-token-hash",
+				createdAt,
+				createdAt.plus(Duration.ofDays(14))
+		);
+
+		session.withdrawAccount(withdrawnAt);
+
+		assertThat(session.getRevocationReason())
+				.isEqualTo(RevocationReason.ACCOUNT_WITHDRAWN);
+		assertThat(session.getRevokedAt()).isEqualTo(withdrawnAt);
+		assertThat(session.getLastUsedAt()).isEqualTo(withdrawnAt);
+		assertThat(session.getReplacedBySessionId()).isNull();
 	}
 }

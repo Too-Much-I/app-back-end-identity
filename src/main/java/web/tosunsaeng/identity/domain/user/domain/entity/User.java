@@ -14,6 +14,8 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 @Document(collection = "users")
 public class User {
 
+	public static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
+
 	@Id
 	private String userId;
 
@@ -47,6 +49,8 @@ public class User {
 
 	private Instant updatedAt;
 
+	private Instant withdrawnAt;
+
 	private User() {
 	}
 
@@ -61,7 +65,8 @@ public class User {
 			UserConsents consents,
 			UserStatus status,
 			Instant createdAt,
-			Instant updatedAt
+			Instant updatedAt,
+			Instant withdrawnAt
 	) {
 		this.userId = Objects.requireNonNull(userId, "userId must not be null");
 		this.email = email;
@@ -70,11 +75,12 @@ public class User {
 		this.guestInstallationIdHash = guestInstallationIdHash;
 		this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
 		this.provider = Objects.requireNonNull(provider, "provider must not be null");
-		validateProviderFields();
 		this.consents = Objects.requireNonNull(consents, "consents must not be null");
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
+		this.withdrawnAt = withdrawnAt;
+		validateProviderFields();
 	}
 
 	public static User create(
@@ -96,7 +102,8 @@ public class User {
 				consents,
 				UserStatus.ACTIVE,
 				createdAt,
-				createdAt
+				createdAt,
+				null
 		);
 	}
 
@@ -117,11 +124,24 @@ public class User {
 				consents,
 				UserStatus.ACTIVE,
 				createdAt,
-				createdAt
+				createdAt,
+				null
 		);
 	}
 
 	private void validateProviderFields() {
+		if (status == UserStatus.WITHDRAWN) {
+			if (email != null
+					|| normalizedEmail != null
+					|| passwordHash != null
+					|| guestInstallationIdHash != null) {
+				throw new IllegalArgumentException(
+						"Withdrawn user credentials must be absent."
+				);
+			}
+			Objects.requireNonNull(withdrawnAt, "withdrawnAt must not be null");
+			return;
+		}
 		if (provider == UserProvider.GUEST) {
 			if (email != null || normalizedEmail != null || passwordHash != null) {
 				throw new IllegalArgumentException("Guest credentials must be absent.");
@@ -132,6 +152,30 @@ public class User {
 		Objects.requireNonNull(email, "email must not be null");
 		Objects.requireNonNull(normalizedEmail, "normalizedEmail must not be null");
 		Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+	}
+
+	public User toWithdrawnTombstone(Instant withdrawalTime) {
+		if (status == UserStatus.WITHDRAWN) {
+			return this;
+		}
+		Instant requiredWithdrawalTime = Objects.requireNonNull(
+				withdrawalTime,
+				"withdrawalTime must not be null"
+		);
+		return new User(
+				userId,
+				null,
+				null,
+				null,
+				null,
+				WITHDRAWN_NICKNAME,
+				getProvider(),
+				getConsents(),
+				UserStatus.WITHDRAWN,
+				createdAt,
+				requiredWithdrawalTime,
+				requiredWithdrawalTime
+		);
 	}
 
 	private static String requireGuestInstallationIdHash(String hash) {
@@ -210,5 +254,9 @@ public class User {
 
 	public Instant getUpdatedAt() {
 		return updatedAt;
+	}
+
+	public Instant getWithdrawnAt() {
+		return withdrawnAt;
 	}
 }

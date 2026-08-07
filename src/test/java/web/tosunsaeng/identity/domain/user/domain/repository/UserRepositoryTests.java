@@ -19,10 +19,10 @@ class UserRepositoryTests {
 
 		when(userRepository.findByNormalizedEmail(normalizedEmail)).thenReturn(Optional.empty());
 		when(userRepository.existsByNormalizedEmail(normalizedEmail)).thenReturn(false);
-
 		assertThat(userRepository.findByNormalizedEmail(normalizedEmail)).isEmpty();
 		assertThat(userRepository.existsByNormalizedEmail(normalizedEmail)).isFalse();
 		assertThat(MongoRepository.class).isAssignableFrom(UserRepository.class);
+		assertThat(UserRepositoryCustom.class).isAssignableFrom(UserRepository.class);
 		verify(userRepository).findByNormalizedEmail(normalizedEmail);
 		verify(userRepository).existsByNormalizedEmail(normalizedEmail);
 	}

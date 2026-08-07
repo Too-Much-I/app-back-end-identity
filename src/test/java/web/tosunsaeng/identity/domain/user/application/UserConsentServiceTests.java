@@ -51,6 +51,8 @@ class UserConsentServiceTests {
 		currentUserProvider = mock(CurrentUserProvider.class);
 		userRepository = mock(UserRepository.class);
 		consentPolicy = new ConsentPolicy(PRIVACY_VERSION, TERM_VERSION);
+		when(userRepository.updateConsentsIfActive(any(User.class), any(Instant.class)))
+				.thenReturn(true);
 		userConsentService = new UserConsentService(
 				currentUserProvider,
 				userRepository,
@@ -246,13 +248,11 @@ class UserConsentServiceTests {
 		ReflectionTestUtils.setField(user, "consents", null);
 		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		when(userRepository.save(user)).thenReturn(user);
-
 		UserConsentResponse response = userConsentService.updateConsents(validRequest());
 
 		verify(currentUserProvider).getCurrentUserId();
 		verify(userRepository).findById(user.getUserId());
-		verify(userRepository).save(user);
+		verify(userRepository).updateConsentsIfActive(user, PREVIOUS_AT);
 		assertThat(response.privacyConsented()).isTrue();
 		assertThat(response.privacyConsentVersion()).isEqualTo(PRIVACY_VERSION);
 		assertThat(response.privacyConsentedAt()).isEqualTo(NOW);
@@ -276,9 +276,32 @@ class UserConsentServiceTests {
 		UserConsentResponse response = userConsentService.updateConsents(validRequest());
 
 		verify(userRepository, never()).save(any(User.class));
+		verify(userRepository, never()).updateConsentsIfActive(any(), any());
 		assertThat(response.privacyConsentedAt()).isEqualTo(PREVIOUS_AT);
 		assertThat(response.termConsentedAt()).isEqualTo(PREVIOUS_AT);
 		assertThat(user.getUpdatedAt()).isEqualTo(previousUpdatedAt);
+	}
+
+	@Test
+	void concurrentWithdrawalPreventsStaleConsentUpdateFromRestoringActiveUser() {
+		User user = localUser(UserConsents.consented("privacy-v1", "term-v1", PREVIOUS_AT));
+		User withdrawn = user.toWithdrawnTombstone(NOW.minusSeconds(1));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId()))
+				.thenReturn(Optional.of(user), Optional.of(withdrawn));
+		when(userRepository.updateConsentsIfActive(any(), any())).thenReturn(false);
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> userConsentService.updateConsents(validRequest())
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
+		verify(userRepository).updateConsentsIfActive(user, PREVIOUS_AT);
+		verify(userRepository, never()).save(any(User.class));
+		assertThat(withdrawn.getStatus()).isEqualTo(
+				web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.WITHDRAWN
+		);
 	}
 
 	@Test
@@ -286,8 +309,6 @@ class UserConsentServiceTests {
 		User user = localUser(UserConsents.consented("privacy-v1", "term-v1", PREVIOUS_AT));
 		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		when(userRepository.save(user)).thenReturn(user);
-
 		UserConsentResponse response = userConsentService.updateConsents(validRequest());
 
 		assertThat(response.privacyConsentVersion()).isEqualTo(PRIVACY_VERSION);
@@ -301,8 +322,6 @@ class UserConsentServiceTests {
 		User user = localUser(UserConsents.consented(PRIVACY_VERSION, "term-v1", PREVIOUS_AT));
 		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		when(userRepository.save(user)).thenReturn(user);
-
 		UserConsentResponse response = userConsentService.updateConsents(validRequest());
 
 		assertThat(response.privacyConsentedAt()).isEqualTo(PREVIOUS_AT);

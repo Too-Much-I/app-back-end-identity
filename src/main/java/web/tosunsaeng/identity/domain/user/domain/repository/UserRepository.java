@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 
-public interface UserRepository extends MongoRepository<User, String> {
+public interface UserRepository extends MongoRepository<User, String>, UserRepositoryCustom {
 
 	Optional<User> findByNormalizedEmail(String normalizedEmail);
 
