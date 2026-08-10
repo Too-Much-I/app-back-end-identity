@@ -16,6 +16,23 @@ logging:
     format:
       console: ${LOGGING_STRUCTURED_FORMAT_CONSOLE:ecs}
 
+sentry:
+  enabled: ${SENTRY_ENABLED:false}
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:local}
+  release: ${SENTRY_RELEASE:}
+  send-default-pii: false
+  max-request-body-size: none
+  attach-server-name: false
+  send-modules: false
+  traces-sample-rate: 0.0
+  profiles-sample-rate: 0.0
+  exception-resolver-order: 1
+  logging:
+    enabled: false
+  logs:
+    enabled: false
+
 app:
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}

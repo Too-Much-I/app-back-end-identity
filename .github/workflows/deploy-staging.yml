@@ -21,6 +21,7 @@ env:
   ECS_SERVICE: tosunsaeng-identity-service
   CONTAINER_NAME: tosunsaeng-identity
   HEALTH_URL: https://identity-staging.to-teacher.com/actuator/health
+  SENTRY_RELEASE: app-back-end-identity@${{ github.sha }}
 
 jobs:
   deploy:

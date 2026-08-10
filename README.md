@@ -42,6 +42,11 @@ Identity Service는 다음 기능을 소유한다.
 | `SERVER_PORT` | 선택 | `8081` |
 | `SWAGGER_ENABLED` | 선택 | Swagger UI와 OpenAPI 문서 활성화 여부, 기본값 `true` |
 | `LOGGING_STRUCTURED_FORMAT_CONSOLE` | 선택 | stdout 구조화 로그 형식, 기본값 `ecs` |
+| `SENTRY_ENABLED` | 선택 | Sentry 오류 전송 활성화 여부, 기본값 `false` |
+| `SENTRY_DSN` | Sentry 활성화 시 필수 | Runtime DSN. 저장소가 아닌 배포 Secret으로 주입 |
+| `SENTRY_ENVIRONMENT` | 선택 | Sentry 환경 이름, 기본값 `local` |
+| `SENTRY_RELEASE` | 운영 배포 시 권장 | 배포마다 고정되는 release 식별자 |
+| `SENTRY_AUTH_TOKEN` | Source context 업로드 시 필수 | Runtime이 아닌 CI build Secret으로만 주입 |
 | `PRIVACY_CONSENT_VERSION` | 필수 | 서버의 현재 필수 개인정보 처리방침 버전. 누락·공백이면 기동 실패 |
 | `TERM_CONSENT_VERSION` | 필수 | 서버의 현재 필수 이용약관 버전. 누락·공백이면 기동 실패 |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
@@ -84,6 +89,14 @@ Swagger UI는 `http://localhost:8081/swagger-ui.html`, OpenAPI 문서는 `http:/
 예상 밖 5xx는 요청 filter가 `http.request.failed` ERROR 한 건만 기록하고 별도 INFO 완료 로그를 만들지 않는다. 예외 원문 message와 raw Throwable 대신 예외 type, 제한된 cause type과 message 없는 stack frame만 남긴다. 회원가입·Guest 생성·로그인·Token Rotation·재사용 탐지·로그아웃·동의 갱신·회원 탈퇴는 실제 저장 또는 Transaction commit 이후의 별도 상태 전이 event로 기록한다.
 
 Password, Access/Refresh Token, Authorization Header, 이메일·닉네임, installationId와 그 hash, Token hash, JWT 본문, 실제 Key와 MongoDB URI 및 요청·응답 본문은 로그에 기록하지 않는다. `userId`는 필요한 상태 전이 로그에만 사용하고 metric tag에는 사용하지 않는다.
+
+## Sentry 오류 수집
+
+Sentry는 기본적으로 꺼져 있으며 실제 DSN은 저장소에 두지 않는다. 운영 환경에서는 `SENTRY_ENABLED=true`, 배포 Secret의 `SENTRY_DSN`, 환경별 `SENTRY_ENVIRONMENT`와 immutable `SENTRY_RELEASE`를 주입한다. Source context 업로드용 `SENTRY_AUTH_TOKEN`은 해당 기능을 승인한 CI build에서만 사용하고 애플리케이션 Runtime에는 전달하지 않는다.
+
+`GlobalExceptionHandler`가 처리한 예상 밖 5xx만 명시적으로 한 번 수집한다. Validation·Business·Security 4xx는 수집하지 않으며 Sentry Logback integration, Sentry Logs, tracing과 profiling은 비활성화해 기존 `http.request.failed` ERROR가 두 번째 Issue가 되지 않게 한다. SDK의 기본 unhandled exception resolver 순서는 변경하지 않는다.
+
+`beforeSend`는 최종 방어선으로 기존 event를 그대로 보내지 않고 새 event를 구성한다. 예외 message, request·response body, URL·query, Header·Cookie, user, breadcrumb, extra, thread, runtime context와 알 수 없는 확장 필드는 제거한다. 전송을 허용하는 정보는 message 없는 예외 type·정제된 stack frame, 검증된 `requestId`, `errorCode`, HTTP method·route template·5xx status, 설정에서 읽은 environment·release와 source context 연결에 필요한 UUID 형식의 JVM debug bundle ID뿐이다. 테스트 프로필은 Sentry를 명시적으로 끄며 통합 테스트는 외부 통신 없이 test transport가 받은 최종 event JSON 전체의 민감정보 비노출과 4xx 0건·handled 5xx 1건을 검증한다.
 
 ## 테스트
 

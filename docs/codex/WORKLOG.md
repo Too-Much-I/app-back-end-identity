@@ -1165,3 +1165,85 @@
 - 결정사항: 운영 자동화는 번역 가능한 message가 아니라 안정적인 event·outcome·errorCode를 사용하고, message는 한국어 운영자가 읽기 쉬운 한글 완결 문장으로 관리한다. 기술 용어인 HTTP·MongoDB·Refresh Token은 기존 표기를 유지했다. Jira 변경과 Git commit·push는 수행하지 않았다.
 - 위험 요소: Spring·Tomcat·MongoDB 등 제3자 framework message는 영어로 남기 때문에 전체 raw JSON은 혼용 언어가 된다. message 문자열을 직접 파싱하는 외부 소비자가 있다면 event 기반으로 전환해야 하며 staging 수집기에서 UTF-8 보존을 확인해야 한다.
 - 다음 작업: staging stdout 수집에서 한글 message가 깨지지 않는지 확인하고 기존 event 기반 검색·대시보드·알림 쿼리가 그대로 동작하는지 검증한다. 사용자가 diff를 검토한 뒤 commit·push를 직접 수행한다.
+
+## 2026-08-10 — Sentry Spring Boot 적용 구성 검토
+
+<!-- codex-turn:019fea67-f9bd-7580-901f-009a5774116b -->
+
+- 날짜: 2026-08-10
+- 브랜치: `main` (`0f0a1aa`)
+- 작업 목표: 제안된 Sentry Gradle plugin·SDK 자동 설치 구성이 Identity Service에 충분한지 공식 문서와 현재 예외·로그 구조를 기준으로 검토한다.
+- 변경 파일: 애플리케이션 코드, `build.gradle`, 설정과 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Sentry 공식 Spring Boot 문서에서 JVM Gradle plugin `6.18.0`과 Spring Boot 버전에 맞는 starter 자동 선택을 확인했으며 Spring Boot 3은 Jakarta starter가 필요하다. 제안한 `autoInstallation`과 환경변수 기반 build 인증 방식은 구조적으로 맞지만, plugin의 source context 업로드와 runtime 오류 전송은 별도이므로 DSN·environment·release·enabled 설정이 추가로 필요하다고 판단했다.
+- 구현 내용: Identity는 `GlobalExceptionHandler`가 예상 밖 Exception까지 500 응답으로 처리하므로 Sentry 기본 unhandled-only 수집만 사용하면 해당 오류가 누락될 수 있다. 공식 `exception-resolver-order`를 최우선으로 바꾸면 `@ExceptionHandler` 처리 예외도 수집되지만 Business·Validation 4xx까지 포함될 수 있고, Sentry Logback integration은 기본적으로 ERROR 로그를 Issue로 보내므로 기존 `http.request.failed`와 원본 예외 수집이 중복될 수 있음을 확인했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 검토 작업이므로 `./gradlew clean test`는 실행하지 않았다. 현재 `build.gradle`, main/test application 설정, catch-all 예외 handler, 단일 ERROR 요청 filter와 Sentry 공식 Spring Boot·Logback 문서를 정적으로 대조했고 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: Sentry 인증 값, DSN, 실제 환경 식별값을 저장소나 작업 기록에 추가하지 않았다. Password, Token, Authorization Header, request body, 개인정보, 실제 Key와 전체 MongoDB URI 비노출 및 예상 밖 5xx 애플리케이션 ERROR 1건 계약을 유지했고 Git commit·push와 Jira 변경을 수행하지 않았다.
+- 결정사항: 제안한 Gradle block만으로 운영 적용이 완료된 것으로 보지 않는다. build 인증 값은 source context 업로드가 필요한 CI에만 주입하고 runtime은 환경변수 설정을 사용하며 test profile은 비활성화한다. SentryAppender issue 전송은 끄고 예상 밖 오류만 명시적 한 경계에서 보내는 방향을 권장하며, expected 4xx는 Sentry Issue에서 제외한다.
+- 위험 요소: `includeSourceContext=true`는 소스 코드를 외부 Sentry 프로젝트로 업로드하므로 저장소 secret 부재뿐 아니라 조직 접근 권한과 보존 정책 승인이 필요하다. raw Throwable은 메시지에 자격증명·endpoint가 포함될 수 있고 request context는 인증 Header·body·개인정보 노출 위험이 있으며, tracing을 1.0으로 시작하면 비용과 데이터 수집량이 급증할 수 있다.
+- 다음 작업: 구현 시 Sentry plugin·runtime 설정, 환경변수 예시, test 비활성화, SentryAppender 중복 차단과 안전한 예상 밖 오류 capture 경계를 함께 추가한다. DSN 없이 전체 테스트가 외부 호출 없이 통과하는지, expected 4xx 0건·예상 밖 5xx 1건·민감 테스트 값 비노출을 검증하고 staging에서 release/environment/source context 연결을 확인한다.
+
+## 2026-08-10 — Sentry DSN 전달·주입 경계 확인
+
+<!-- codex-turn:019fea72-9a40-7f33-81ea-6d4825de92d8 -->
+
+- 날짜: 2026-08-10
+- 브랜치: `main` (`0f0a1aa`)
+- 작업 목표: Sentry 설정 구현에 실제 DSN 전달이 필요한지 확인하고 Secret을 저장소와 대화에 노출하지 않는 작업 방식을 확정한다.
+- 변경 파일: 애플리케이션 코드, Gradle과 runtime 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 실제 DSN 없이도 Gradle plugin, `${SENTRY_DSN}` runtime placeholder, enabled·environment·release·PII·request body·tracing 설정, test profile 비활성화, SentryAppender 중복 방지와 안전한 예상 밖 오류 capture 코드를 모두 구현·테스트할 수 있음을 확인했다. 실제 값은 사용자가 로컬 비추적 환경 파일이나 배포 Secret에 직접 주입하도록 경계를 정했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 작업 방식 확인이므로 `./gradlew clean test`는 실행하지 않았다. 현재 `.env*` ignore와 Secret 비기록 규칙, 앞선 Sentry 연동 설계를 정적으로 재확인했다.
+- 유지한 계약: 실제 DSN, 인증 값, Token, Password, 실제 Key와 전체 MongoDB URI를 요청하거나 기록하지 않았다. Sentry가 비활성화된 test profile과 외부 호출 없는 테스트 원칙, 기존 API·JWT·로그·Transaction 계약을 유지했다.
+- 결정사항: 사용자는 실제 DSN을 채팅으로 제공하지 않는다. 저장소에는 환경변수 이름과 안전한 기본값만 두며 build용 인증 값은 CI secret, runtime DSN은 배포 Secret으로 분리한다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: 실제 DSN을 소스·문서·채팅·일반 로그에 붙여 넣으면 불필요한 외부 노출과 오용 가능성이 생긴다. placeholder 구현만으로 Sentry 연결 성공을 증명할 수는 없으므로 staging Secret 주입 후 별도 확인이 필요하다.
+- 다음 작업: 사용자가 구현을 요청하면 실제 DSN 없이 전체 Sentry 설정과 테스트를 적용한다. 사용자는 완료된 환경변수 contract에 staging DSN·environment·release를 직접 주입하고 Sentry 프로젝트에서 예상 밖 오류 한 건과 expected 4xx 비수집을 확인한다.
+
+## 2026-08-10 — Sentry 안전 적용 계획 수립
+
+<!-- codex-turn:019fea74-8eaf-7553-8b21-92c60ca0d237 -->
+
+- 날짜: 2026-08-10
+- 브랜치: `main` (`0f0a1aa`)
+- 작업 목표: Identity의 catch-all 예외 처리와 단일 ERROR 로그 계약을 유지하면서 Sentry를 안전하게 도입할 구현 순서, 검증 기준과 운영 활성화 경계를 계획한다.
+- 변경 파일: 애플리케이션 코드, Gradle, runtime 설정과 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 1단계에서 Gradle plugin·SDK 버전과 Spring Boot 3 Jakarta starter 자동 설치를 확인하고 source context upload를 CI opt-in으로 분리한다. 2단계에서는 Sentry disabled·빈 DSN·PII false·request body never·trace 0·SentryAppender off의 안전한 runtime 기본값, 환경변수 contract와 test profile 비활성화를 적용한다.
+- 구현 내용: 3단계에서는 공식 unhandled 기본 resolver 순서를 유지하면서 catch-all handler가 처리한 예상 밖 Exception만 명시적으로 capture하고 Business·Validation·Security 4xx는 제외한다. 4단계에서는 request-scoped capture와 `beforeSend` whitelist로 exception message, body, query, Header, cookie, user context를 제거하고 requestId·errorCode·method·route template·status·environment·release만 허용한다.
+- 구현 내용: 5단계에서는 mock 또는 in-memory transport로 expected 4xx 0건, handled unexpected 5xx 1건, SentryAppender 중복 0건, 민감 테스트 값 0건과 기존 애플리케이션 ERROR 1건을 검증하고 전체 테스트를 실행한다. 6단계는 CI source context·immutable release와 staging Secret 주입 검증, 7단계는 errors-only 점진 활성화 후 volume·중복·데이터 검토와 별도 alert/sampling 승인으로 구성했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 작업이므로 `./gradlew clean test`는 실행하지 않았다. 현재 Sentry 공식 문서 검토 결과, `GlobalExceptionHandler`, `RequestLoggingFilter`, main/test 설정과 Secret ignore 경계를 계획에 반영했고 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN, build 인증 값, Token, Password, Authorization Header, 개인정보, 실제 Key와 전체 MongoDB URI를 요청하거나 기록하지 않았다. 예상 밖 5xx 애플리케이션 ERROR 1건, 정상 4xx 비오류 처리, JWT·API·RefreshSession·Transaction 및 외부 호출 없는 test 계약을 유지하는 계획이다.
+- 결정사항: Sentry Issue 수집은 번역 가능한 log message가 아닌 Throwable 기반 오류 event로 분리하되 원본 exception message와 request context는 제거한다. SentryAppender, tracing, profiling과 Sentry Logs는 기본 비활성화하고 source context는 조직 접근·보존 정책 확인 후 CI에서만 활성화한다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: Sentry SDK API에서 exception message를 완전히 정제하면서 stack trace grouping을 유지하는 구현을 버전별로 확인해야 한다. 공식 unhandled 자동 수집과 명시적 handled capture 경계가 Servlet·filter 오류에서 중복되지 않는지 integration test가 필요하며, source upload와 외부 telemetry는 조직의 접근·보존 정책 승인이 필요하다.
+- 다음 작업: 사용자가 구현을 요청하면 1~5단계를 실제 DSN 없이 먼저 적용해 전체 테스트를 통과시키고, 사용자가 staging Secret과 CI build 인증 값을 직접 주입한 뒤 6단계 검증 결과를 확인한다. 운영 활성화와 alert·sampling은 그 결과를 검토한 후 별도로 진행한다.
+
+## 2026-08-10 — Sentry 최종 민감정보 방어선과 단일 Issue 수집 구현
+
+<!-- codex-turn:019feaaa-11c7-7f90-a3dd-a7721a073f32 -->
+
+- 날짜: 2026-08-10
+- 브랜치: `main` (`0f0a1aa` 기준, commit·push 미수행)
+- 작업 목표: Sentry Spring Boot 연동 계획을 구현하되 `beforeSend`를 최종 민감정보 방어선으로 만들고, `GlobalExceptionHandler`가 명시 capture한 예상 밖 Exception이 SDK resolver 또는 logging integration으로 두 번째 Issue를 만들지 않는지 최종 transport 기준으로 검증한다.
+- 변경 파일: `build.gradle`, `.env.example`, `README.md`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, `GlobalExceptionHandler.java`, 신규 `SentryExceptionReporter.java`, 신규 `SentryEventSanitizer.java`, 신규 `SentryCaptureIntegrationTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Sentry JVM Gradle plugin `6.18.0`과 SDK `8.42.0`을 적용해 Spring Boot 3 Jakarta starter를 자동 설치하고, source context는 비공백 build 인증 값이 주입된 CI에서만 활성화하도록 분리했다. Runtime은 기본 disabled·빈 DSN, PII false, request body `NONE`, server name·module 전송 off, tracing·profiling·Sentry Logs off와 `sentry.logging.enabled=false`로 설정했으며 test profile도 명시적으로 비활성화했다.
+- 구현 내용: `GlobalExceptionHandler`의 catch-all 예상 밖 Exception 경계만 Sentry에 명시 capture한다. capture scope를 먼저 비운 뒤 검증된 requestId, errorCode, HTTP method, route template와 500 status만 tag로 추가하며 Validation·Business·Security 4xx는 capture하지 않는다. 공식 unhandled exception resolver의 기본 순서는 앞당기지 않았고 기존 요청 filter의 `http.request.failed` ERROR 한 건 계약을 유지했다.
+- 구현 내용: `beforeSend`는 기존 event를 부분 마스킹하지 않고 새 `SentryEvent`를 생성하는 whitelist로 구현했다. 원본 exception message, request·response body와 URL·query·Header·Cookie, user, breadcrumb, extra, thread, runtime context, fingerprint, module 목록과 unknown 확장 필드는 버리고, event ID·시각·level, 설정에서 읽고 검증한 environment·release, message 없는 exception type과 data/context 없는 stack frame, 허용 tag와 source context 연결용 UUID 형식 JVM debug bundle ID만 옮긴다.
+- 구현 내용: Spring 전체 MVC·Security·Sentry integration을 사용하는 test에서 custom event processor가 예외 message와 request/user/context/unknown 등 모든 민감 위치에 동일한 test-only sentinel을 삽입한다. 외부 통신 없는 custom transport가 `beforeSend` 이후 envelope의 최종 event item JSON 전체를 직접 받아 sentinel 부재를 검사한다. 같은 요청의 handler 명시 capture 후 실제 `http.request.failed` ERROR 로그까지 발생시킨 상태에서 event가 정확히 1건임을 검증하고, expected Business 4xx event 0건 및 Sentry Logback initializer bean 부재도 검증했다.
+- 실행한 테스트와 결과: `dependencyInsight`로 `sentry-spring-boot-jakarta`, `sentry-spring-jakarta`, `sentry-logback`이 모두 `8.42.0`으로 해석됨을 확인했다. 신규 `SentryCaptureIntegrationTests` 3개가 성공했다. 첫 전체 실행에서 request body enum을 잘못 표기한 설정 바인딩 실패를 확인해 SDK 상수에 맞는 `none`으로 수정했고, 최종 `./gradlew clean test`가 전체 41개 suite·295개 테스트, 실패·오류·건너뜀 0개로 성공했다. `git diff --check`도 성공했다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 소스, 설정, 문서와 작업 기록에 넣지 않았다. API·JWT·RefreshSession·Mongo Transaction 계약, expected 4xx 비오류 처리, 예상 밖 5xx 애플리케이션 ERROR 1건과 test 외부 인프라 비호출 원칙을 유지했다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 결정사항: Sentry Issue의 단일 소유자는 MVC catch-all이 처리한 예상 밖 오류에 대한 명시 capture이며 Logback ERROR는 stdout 관측 전용으로 유지한다. 민감정보 안전성은 테스트가 callback 반환 객체만 검사하는 수준이 아니라 SDK의 모든 processor와 `beforeSend`를 지난 뒤 transport가 받은 최종 serialized event 전체로 보증한다. 실제 DSN은 배포 Secret, source context 인증 값은 승인된 CI build Secret으로 분리한다.
+- 위험 요소: whitelist 때문에 원본 exception message와 request context는 Sentry에서 볼 수 없어 진단은 exception type·stack frame·requestId·errorCode 및 안전한 구조화 로그에 의존한다. 실제 Sentry project의 저장·표시·alert, 조직 접근권한·보존정책, immutable release와 source context 연결은 test transport로 검증할 수 없으며 staging 확인이 필요하다. SDK를 올릴 때 event protocol과 callback 순서를 재검증해야 한다.
+- 다음 작업: 사용자가 staging 배포 Secret으로 DSN·environment·release를 직접 주입한 뒤 controlled unexpected 5xx 한 건, expected 4xx 0건, tag·한글 UTF-8·source context·중복과 민감정보 비노출을 Sentry project에서 확인한다. 오류량과 비용을 검토하기 전까지 tracing·profiling·Sentry Logs는 계속 끈다.
+
+## 2026-08-10 — Sentry 배포 환경변수와 Secret 경계 안내
+
+<!-- codex-turn:019feabc-6dfe-79c3-8aca-2179089ddfc3 -->
+
+- 날짜: 2026-08-10
+- 브랜치: `main` (`0f0a1aa` 기준, commit·push 미수행)
+- 작업 목표: 구현된 Sentry 연동을 실제 환경에서 활성화할 때 사용자가 설정해야 하는 값과 Runtime·CI Secret 경계를 명확히 안내한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Runtime에는 `SENTRY_ENABLED=true`, 배포 Secret의 `SENTRY_DSN`, 환경 구분용 `SENTRY_ENVIRONMENT`, 배포마다 고정되는 `SENTRY_RELEASE`가 필요함을 현재 `application.yml`, `.env.example`, `build.gradle`과 README에서 재확인했다. 실제 비밀값으로 반드시 준비할 항목은 DSN이며 environment와 release는 운영 식별값이다.
+- 구현 내용: `SENTRY_AUTH_TOKEN`은 source context 업로드를 사용할 때만 승인된 CI build Secret으로 설정하며 애플리케이션 Runtime에는 넣지 않는다. source context를 사용하지 않으면 이 값은 비워 두고도 오류 event 전송이 가능하다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설정 안내 작업이므로 `./gradlew clean test`는 다시 실행하지 않았다. 기존 최종 결과는 전체 41개 suite·295개 테스트 성공이며, 이번에는 환경변수 참조와 안전한 기본값을 정적으로 확인하고 문서 변경을 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·실제 Key·전체 MongoDB URI를 조회하거나 기록하지 않았다. Sentry 기본 비활성화, test profile 비활성화, Runtime DSN과 CI build 인증 값 분리 및 기존 API·JWT·로그 계약을 유지했다.
+- 결정사항: 운영 오류 수집만 필요하면 Runtime 네 변수만 설정하고 CI 인증 값은 필요하지 않다. source context가 승인된 경우에만 별도의 CI 인증 값을 추가하며 실제 값은 채팅·저장소·일반 로그가 아닌 배포 또는 CI Secret 저장소에서 관리한다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: enabled를 true로 바꾸고 DSN을 누락하거나 잘못 설정하면 event가 전송되지 않는다. release를 가변 문자열이나 매 기동 시각으로 만들면 동일 배포 오류 집계와 source context 연결이 불안정해질 수 있으며, CI 인증 값을 Runtime에 전달하면 불필요한 권한 노출이 생긴다.
+- 다음 작업: staging에 Runtime 네 값을 주입하고 controlled 5xx가 정확히 한 건 수집되는지 확인한다. source context를 사용할 경우에만 CI Secret을 추가하고 업로드·release 연결을 별도로 검증한다.

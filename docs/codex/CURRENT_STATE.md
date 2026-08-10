@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 Identity 전체 핵심 흐름의 구조화 운영 로그 구현·main 병합 완료; machine-readable 영어 식별자를 유지한 애플리케이션 `message` 한글화와 전체 회귀 검증 완료
-- 상태 기준일: 2026-08-08
+- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 구조화 운영 로그 구현·main 병합 완료; Sentry errors-only Runtime 연동, `beforeSend` 최종 민감정보 정제와 단일 Issue 통합 검증까지 구현 완료했으며 실제 DSN을 사용하는 staging 검증은 미수행
+- 상태 기준일: 2026-08-10
 
 ## 완료
 
@@ -133,6 +133,16 @@
 - PR #15의 main 병합 후 실제 애플리케이션 기동에서 Spring Boot의 ECS 설정이 애플리케이션뿐 아니라 Spring·Tomcat·MongoDB 드라이버의 모든 콘솔 로그를 한 줄 JSON으로 변환하고, `mongodb.transaction_capability.verified` 사용자 정의 event가 구조화 필드와 함께 출력되는 것을 확인
 - `LogoutAllService`의 Token issuer 비의존성 테스트에서 `Stream<Class<?>>`와 `List<Class<?>>` 대입 모두에 발생한 wildcard capture 문제를 제거하기 위해 reflection field를 `anyMatch`로 직접 비교하고 boolean을 AssertJ로 검증하며, 같은 두 의존성 부재 의미를 유지한 채 전체 40개 suite·292개 테스트 재통과
 - 애플리케이션이 직접 기록하는 18개 구조화 로그 `message`를 일관된 한글 문장으로 변경하고, 운영 검색 계약인 `event`·`outcome`·`errorCode`와 ECS 표준 key는 영어로 유지했으며 HTTP 정상/실패와 주요 상태 전이의 정확한 한글 message·민감정보 비노출을 테스트
+- Sentry 공식 Spring Boot 문서에서 Gradle plugin `6.18.0`이 Spring Boot 3에 맞는 Jakarta starter를 자동 선택함을 확인하고, runtime DSN·environment·release와 PII·request body·trace sampling·test 비활성 설정이 build plugin 외에 별도로 필요함을 검토
+- 현재 `GlobalExceptionHandler`가 예상 밖 예외까지 처리하므로 Sentry 기본값의 unhandled-only 수집에서는 5xx가 누락될 수 있고, exception resolver 순서를 앞당기면 Business·Validation 4xx까지 수집될 수 있으며 SentryAppender 기본 ERROR issue와 기존 `http.request.failed`가 중복될 수 있음을 확인
+- Sentry 구현에는 실제 DSN 전달이 필요하지 않으며 저장소에는 `${SENTRY_DSN}` placeholder와 비밀값 없는 `.env.example` 이름만 추가하고, 실제 DSN은 사용자가 로컬 비추적 환경 파일 또는 배포 Secret에 직접 주입하는 작업 경계를 확정
+- Sentry 적용을 dependency 확인, 안전한 runtime 기본값, 예상 밖 오류 단일 capture, event 정제, 격리 테스트, CI source context, staging 검증·점진 활성화 순서로 나누고 expected 4xx 0건·unexpected 5xx 1건·민감정보 0건을 완료 조건으로 확정
+- Sentry JVM Gradle plugin `6.18.0`과 SDK `8.42.0`을 적용하고 Spring Boot 3 Jakarta starter·Logback 모듈의 runtime dependency 해석을 확인했으며 source context는 비공백 build 인증 값이 있는 CI에서만 opt-in
+- Runtime은 기본 disabled·빈 DSN, PII false, request body `NONE`, tracing·profiling·Sentry Logs off와 Logback integration off로 구성하고 test profile도 명시적으로 비활성화했으며 실제 값 대신 환경변수 이름만 추가
+- `GlobalExceptionHandler`가 처리한 예상 밖 Exception만 request scope를 비운 뒤 안전한 requestId·errorCode·HTTP method·route template·500 tag와 함께 명시 capture하며 Business·Validation·Security 4xx 및 handler resolver 순서는 변경하지 않음
+- `beforeSend`는 SDK가 조립한 event를 부분 마스킹하지 않고 새 event로 재구성해 exception message, request/response 정보, Header·Cookie·query·body, user, breadcrumb, extra, thread, context, modules와 unknown field를 제거하고 message 없는 예외 type·정제 stack frame, 안전한 tag·설정 environment/release 및 source context용 UUID 형식 JVM debug bundle ID만 유지
+- 실제 Sentry pipeline의 event processor가 모든 민감 위치에 동일 sentinel을 삽입한 뒤 test transport가 받은 최종 event JSON 전체에서 sentinel 0건을 검증하고, 기존 `http.request.failed` ERROR가 발생해도 handled 5xx event 정확히 1건·expected 4xx 0건·Sentry Logback initializer 부재를 확인해 전체 41개 suite·295개 테스트 성공
+- Sentry 배포 시 Runtime에는 `SENTRY_ENABLED=true`, 배포 Secret의 `SENTRY_DSN`, 환경 구분용 `SENTRY_ENVIRONMENT`, 배포 식별용 immutable `SENTRY_RELEASE`를 설정하며 실제 비밀값 성격의 필수 입력은 DSN 하나임을 확인. `SENTRY_AUTH_TOKEN`은 source context 업로드를 승인한 CI build에서만 선택적으로 사용하고 Runtime에는 주입하지 않음
 
 ## 진행 중
 
@@ -140,6 +150,8 @@
 
 ## 다음 작업
 
+- 6단계 CI·staging: Runtime에 enabled·DSN·environment·immutable release를 설정하고, source context를 사용할 때만 build 인증 값을 CI secret으로 제공한 뒤 controlled 오류 1건·4xx 0건·안전한 tag·UTF-8·source mapping을 확인
+- 7단계 운영 활성화: tracing·profiling·Sentry Logs는 0/off로 시작하고 오류 수집만 점진 활성화하며 event volume·중복·민감정보를 확인한 뒤 alert와 sampling을 별도 승인으로 조정
 - staging ECS 수집·표시 과정에서 애플리케이션 한글 `message`의 UTF-8 보존과 `event` 기반 기존 검색·대시보드·알림 쿼리 불변을 확인
 - 운영 수집 전 MongoDB 드라이버 INFO가 계정 식별자와 클러스터 endpoint·topology를 출력하지 않도록 `org.mongodb.driver` logger를 WARN으로 제한할지 확정하고, 필요한 연결 진단 INFO는 로컬에서만 일시 활성화
 - staging 로그 수집기에서 ECS JSON 파싱, requestId 검색, route template 보존, 민감정보 마스킹과 Servlet container·APM의 예상 밖 5xx 중복 기록 여부를 확인
@@ -167,7 +179,7 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`, HEAD는 `61d43de`이며 운영 로깅과 AssertJ 호환성 수정이 반영된 상태에서 애플리케이션 정의 로그 message·관련 테스트·README를 한글화했고 commit·push는 수행하지 않음
+- 현재 작업 기준 브랜치는 `main`, HEAD는 `0f0a1aa`이며 Sentry errors-only 연동과 최종 event 민감정보 정제·단일 Issue 통합 테스트를 구현했고 commit·push는 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
@@ -177,6 +189,9 @@
 - 로그 공통 필드는 `event`, `outcome`, `requestId`, route template, status, duration, 안전한 경우의 `userId`·provider·errorCode·처리 건수로 제한하고 userId는 메트릭 tag로 사용하지 않으며 실제 자격증명·개인정보·Token·Hash·Header·Key·DB URI와 요청/응답 본문은 기록하지 않음
 - 예상 밖 5xx는 요청 완료 filter가 application ERROR의 단일 소유자이며, Service·Controller·`GlobalExceptionHandler`는 같은 예외를 ERROR로 중복 기록하지 않는다. Handler 또는 filter 바깥에서 탈출한 예외는 안전한 오류 문맥을 request attribute에 넣고 `errorLogged` guard로 ERROR/Error dispatch 중복을 막으며, 실패 요청에는 별도 INFO 완료 로그를 남기지 않음
 - 로그 언어는 machine-readable 검색·집계 식별자인 ECS key와 `event`·`outcome`·`errorCode`를 안정적인 영어 계약으로 유지하고, 사람이 읽는 애플리케이션 `message`는 한글을 사용할 수 있으며 대시보드 표시명도 한글로 구성
+- Sentry build plugin의 source context 업로드와 runtime 오류 수집은 별도 책임이며 build 인증 값은 CI에만 두고 runtime에서는 DSN·environment·release를 환경별로 주입한다. SentryAppender issue 전송과 handled exception resolver 순서 변경은 사용하지 않고, 기존 handler가 처리하는 예상 밖 Exception만 명시적으로 capture하며 unhandled 오류는 SDK 기본 경계에 맡김
+- 실제 Sentry DSN이나 인증 값을 채팅·저장소·WORKLOG에 전달하거나 기록하지 않고 환경변수 contract만 구현하며, 연결 확인은 사용자가 배포 Secret을 주입한 staging에서 수행
+- Sentry `beforeSend`는 필드별 blacklist가 아니라 안전한 새 event를 만드는 whitelist 경계로 유지하고 원본 exception message와 모든 request·user·확장 context는 폐기한다. Source context는 경로·파일정보 없이 UUID 형식 JVM debug bundle ID만 허용한다. Logback integration은 계속 끄며 SDK/integration을 포함한 중복 여부는 handler 요청의 최종 transport event 개수로 검증한다.
 - 회원 탈퇴의 즉시 제거 범위는 User의 email·normalizedEmail·passwordHash·guestInstallationIdHash `$unset`과 nickname 익명화이며, User 문서·userId·provider·createdAt·동의 기록은 보존한다. RefreshSession 문서는 즉시 삭제하지 않고 모두 `ACCOUNT_WITHDRAWN`으로 폐기하며 만료 시 TTL 정리 대상이 되고, Learning Core 데이터와 기존 stateless Access Token은 이 API가 직접 삭제·폐기하지 않는다.
 - OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`, `POST /api/v1/users/withdraw`와 `POST /api/v1/auth/logout-all`에 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화
@@ -260,6 +275,7 @@
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.
 - ECS 구조화 설정은 제3자 logger에도 동일하게 적용되며 현재 MongoDB 드라이버 INFO에는 계정 식별자와 클러스터 endpoint·topology가 포함될 수 있으므로 운영 수집 전에 logger level과 보존·접근 정책을 제한해야 한다.
+- Sentry 최종 event는 whitelist로 정제되므로 원본 예외 message와 request context를 운영에서 볼 수 없으며, 문제 분석은 예외 type·stack frame·requestId·errorCode와 별도 안전한 구조화 로그에 의존한다. 실제 Sentry project의 저장·표시·alert 및 CI source context 업로드는 staging Secret·조직 접근권한·보존정책을 적용한 뒤 별도로 검증해야 한다.
 - 예상 밖 오류 로그는 민감정보 비노출을 위해 exception/cause 타입과 message 없는 최대 24개 stack frame만 보존하므로 원본 예외 message가 필요한 진단은 재현·메트릭·추적 도구와 함께 수행해야 한다.
 - 요청 filter가 application ERROR를 한 번만 기록해도 Servlet container나 외부 APM이 별도로 같은 Throwable을 기록할 수 있으므로, 실제 배포 후 logger category와 error dispatch를 확인해야 전체 수집 화면의 중복 여부를 판단할 수 있다.
 - 운영 RSA Key의 생성·주입·파일 권한·백업·교체는 저장소 밖의 Secret 관리 및 배포 절차로 확정해야 한다.

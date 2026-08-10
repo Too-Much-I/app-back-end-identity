@@ -32,3 +32,11 @@ springdoc:
     enabled: true
   api-docs:
     enabled: true
+
+sentry:
+  enabled: false
+  dsn: ""
+  logging:
+    enabled: false
+  logs:
+    enabled: false

@@ -20,9 +20,13 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import web.tosunsaeng.identity.global.response.BaseResponse;
 import web.tosunsaeng.identity.global.observability.RequestLogContext;
+import web.tosunsaeng.identity.global.observability.SentryExceptionReporter;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final SentryExceptionReporter SENTRY_EXCEPTION_REPORTER =
+			new SentryExceptionReporter();
 
 	private static final Set<String> SENSITIVE_FIELD_FRAGMENTS = Set.of(
 			"password",
@@ -107,6 +111,11 @@ public class GlobalExceptionHandler {
 			HttpServletRequest request
 	) {
 		RequestLogContext.recordUnexpectedFailure(request, exception);
+		SENTRY_EXCEPTION_REPORTER.captureUnexpected(
+				exception,
+				request,
+				CommonErrorStatus.INTERNAL_SERVER_ERROR.getCode()
+		);
 		return errorResponse(request, CommonErrorStatus.INTERNAL_SERVER_ERROR, null);
 	}
 

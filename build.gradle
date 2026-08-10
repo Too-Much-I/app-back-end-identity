@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.2'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'io.sentry.jvm.gradle' version '6.18.0'
 }
 
 group = 'web.tosunsaeng'
@@ -15,6 +16,20 @@ java {
 
 repositories {
 	mavenCentral()
+}
+
+def sentryAuthToken = System.getenv('SENTRY_AUTH_TOKEN')
+
+sentry {
+	// Source context는 build 인증 값이 주입된 CI에서만 외부로 업로드한다.
+	includeSourceContext = sentryAuthToken != null && !sentryAuthToken.isBlank()
+	org = 'tmi-99'
+	projectName = 'to-teacher-identity'
+	authToken = sentryAuthToken
+
+	autoInstallation {
+		sentryVersion.set('8.42.0')
+	}
 }
 
 dependencies {
