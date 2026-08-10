@@ -64,6 +64,8 @@ class LogoutAllServiceTests {
 			logoutAllService.logoutAll();
 			assertThat(logs.events("auth.logout_all.completed")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("전체 로그아웃이 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome"))
 								.isEqualTo("sessions_revoked");
 						assertThat(LogCapture.value(event, "userId")).isEqualTo(USER_ID);

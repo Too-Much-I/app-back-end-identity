@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 Identity 전체 핵심 흐름의 구조화 운영 로그 구현·main 병합 완료; requestId 상관관계, 예상 밖 5xx 단일 ERROR, 주요 상태 전이와 로컬 ECS stdout 동작 확인 완료
-- 상태 기준일: 2026-08-07
+- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 Identity 전체 핵심 흐름의 구조화 운영 로그 구현·main 병합 완료; machine-readable 영어 식별자를 유지한 애플리케이션 `message` 한글화와 전체 회귀 검증 완료
+- 상태 기준일: 2026-08-08
 
 ## 완료
 
@@ -132,6 +132,7 @@
 - 요청 로그와 상태 전이 로그의 레벨·필드·MDC 정리·민감값 비노출, 예상 밖 5xx ERROR 1건과 INFO 0건, BusinessException ERROR 0건, Security 401 requestId 전파를 포함해 전체 40개 suite·292개 테스트 성공
 - PR #15의 main 병합 후 실제 애플리케이션 기동에서 Spring Boot의 ECS 설정이 애플리케이션뿐 아니라 Spring·Tomcat·MongoDB 드라이버의 모든 콘솔 로그를 한 줄 JSON으로 변환하고, `mongodb.transaction_capability.verified` 사용자 정의 event가 구조화 필드와 함께 출력되는 것을 확인
 - `LogoutAllService`의 Token issuer 비의존성 테스트에서 `Stream<Class<?>>`와 `List<Class<?>>` 대입 모두에 발생한 wildcard capture 문제를 제거하기 위해 reflection field를 `anyMatch`로 직접 비교하고 boolean을 AssertJ로 검증하며, 같은 두 의존성 부재 의미를 유지한 채 전체 40개 suite·292개 테스트 재통과
+- 애플리케이션이 직접 기록하는 18개 구조화 로그 `message`를 일관된 한글 문장으로 변경하고, 운영 검색 계약인 `event`·`outcome`·`errorCode`와 ECS 표준 key는 영어로 유지했으며 HTTP 정상/실패와 주요 상태 전이의 정확한 한글 message·민감정보 비노출을 테스트
 
 ## 진행 중
 
@@ -139,6 +140,7 @@
 
 ## 다음 작업
 
+- staging ECS 수집·표시 과정에서 애플리케이션 한글 `message`의 UTF-8 보존과 `event` 기반 기존 검색·대시보드·알림 쿼리 불변을 확인
 - 운영 수집 전 MongoDB 드라이버 INFO가 계정 식별자와 클러스터 endpoint·topology를 출력하지 않도록 `org.mongodb.driver` logger를 WARN으로 제한할지 확정하고, 필요한 연결 진단 INFO는 로컬에서만 일시 활성화
 - staging 로그 수집기에서 ECS JSON 파싱, requestId 검색, route template 보존, 민감정보 마스킹과 Servlet container·APM의 예상 밖 5xx 중복 기록 여부를 확인
 - event·outcome·errorCode·provider 같은 낮은 cardinality 필드 기반 대시보드·메트릭·알림 임계값과 로그 보존 기간을 실제 운영 수집 경로에 맞춰 확정
@@ -165,7 +167,7 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`, HEAD는 `a5802ad`이며 운영 로깅 PR #15가 main에 병합된 상태에서 AssertJ IDE 타입 추론 호환성을 위한 테스트 코드만 변경했고 애플리케이션 코드는 변경하지 않음
+- 현재 작업 기준 브랜치는 `main`, HEAD는 `61d43de`이며 운영 로깅과 AssertJ 호환성 수정이 반영된 상태에서 애플리케이션 정의 로그 message·관련 테스트·README를 한글화했고 commit·push는 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
@@ -174,6 +176,7 @@
 - 운영 로그는 Controller·Repository·Entity에 중복 추가하지 않고 공통 요청 완료 경계와 application service의 실제 상태 변경 완료 지점에 기록하며, Transaction 성공 이벤트는 transactional proxy 반환 이후에만 남김
 - 로그 공통 필드는 `event`, `outcome`, `requestId`, route template, status, duration, 안전한 경우의 `userId`·provider·errorCode·처리 건수로 제한하고 userId는 메트릭 tag로 사용하지 않으며 실제 자격증명·개인정보·Token·Hash·Header·Key·DB URI와 요청/응답 본문은 기록하지 않음
 - 예상 밖 5xx는 요청 완료 filter가 application ERROR의 단일 소유자이며, Service·Controller·`GlobalExceptionHandler`는 같은 예외를 ERROR로 중복 기록하지 않는다. Handler 또는 filter 바깥에서 탈출한 예외는 안전한 오류 문맥을 request attribute에 넣고 `errorLogged` guard로 ERROR/Error dispatch 중복을 막으며, 실패 요청에는 별도 INFO 완료 로그를 남기지 않음
+- 로그 언어는 machine-readable 검색·집계 식별자인 ECS key와 `event`·`outcome`·`errorCode`를 안정적인 영어 계약으로 유지하고, 사람이 읽는 애플리케이션 `message`는 한글을 사용할 수 있으며 대시보드 표시명도 한글로 구성
 - 회원 탈퇴의 즉시 제거 범위는 User의 email·normalizedEmail·passwordHash·guestInstallationIdHash `$unset`과 nickname 익명화이며, User 문서·userId·provider·createdAt·동의 기록은 보존한다. RefreshSession 문서는 즉시 삭제하지 않고 모두 `ACCOUNT_WITHDRAWN`으로 폐기하며 만료 시 TTL 정리 대상이 되고, Learning Core 데이터와 기존 stateless Access Token은 이 API가 직접 삭제·폐기하지 않는다.
 - OpenAPI Bearer 스키마는 전역 적용하지 않고 `GET /api/v1/users/me`, `GET`·`PUT /api/v1/users/me/consents`, `POST /api/v1/users/withdraw`와 `POST /api/v1/auth/logout-all`에 operation 단위로 적용
 - Swagger/OpenAPI는 기본 활성화하되 배포 환경에서 `SWAGGER_ENABLED=false`로 비활성화 가능하고 테스트 프로필은 문서 계약 검증을 위해 명시적으로 활성화

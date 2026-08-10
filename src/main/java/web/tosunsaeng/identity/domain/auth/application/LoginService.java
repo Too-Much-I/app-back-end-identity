@@ -59,7 +59,7 @@ public class LoginService {
 				.addKeyValue("outcome", "authenticated")
 				.addKeyValue("userId", user.getUserId())
 				.addKeyValue("provider", user.getProvider())
-				.log("Identity login succeeded");
+				.log("로그인에 성공했습니다");
 		return response;
 	}
 }

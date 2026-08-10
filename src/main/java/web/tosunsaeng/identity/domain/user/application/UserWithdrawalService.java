@@ -111,7 +111,7 @@ public class UserWithdrawalService {
 				.addKeyValue("withdrawnAt", response.withdrawnAt())
 				.addKeyValue("revokedSessionCount", revokedSessionCount)
 				.addKeyValue("attempt", attempt)
-				.log("User withdrawal completed");
+				.log("회원 탈퇴 처리가 완료되었습니다");
 	}
 
 	private void logWithdrawalConflict(String userId, String outcome, int attempt) {
@@ -121,7 +121,7 @@ public class UserWithdrawalService {
 				.addKeyValue("userId", userId)
 				.addKeyValue("attempt", attempt)
 				.addKeyValue("errorCode", UserErrorStatus.WITHDRAWAL_CONFLICT.getCode())
-				.log("User withdrawal conflict");
+				.log("회원 탈퇴 처리 중 충돌이 발생했습니다");
 	}
 
 	private User findUser(String userId) {

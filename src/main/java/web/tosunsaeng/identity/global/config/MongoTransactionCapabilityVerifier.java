@@ -53,6 +53,6 @@ public class MongoTransactionCapabilityVerifier implements ApplicationRunner {
 						hello.getString("setName") != null ? "replica_set" : "sharded"
 				)
 				.addKeyValue("sessionsSupported", true)
-				.log("MongoDB transaction capability verified");
+				.log("MongoDB 트랜잭션 지원을 확인했습니다");
 	}
 }

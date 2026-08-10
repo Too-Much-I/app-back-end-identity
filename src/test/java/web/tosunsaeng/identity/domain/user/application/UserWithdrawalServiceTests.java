@@ -88,6 +88,8 @@ class UserWithdrawalServiceTests {
 			response = service.withdraw(new WithdrawRequest(REFRESH_VALUE, PASSWORD));
 			assertThat(logs.events("user.withdrawal.completed")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("회원 탈퇴 처리가 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("withdrawn");
 						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(1);
 						assertThat(LogCapture.rendered(event)).doesNotContain(

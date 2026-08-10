@@ -58,6 +58,8 @@ class RequestLoggingFilterTests {
 			assertThat(logs.events("http.request.completed")).singleElement()
 					.satisfies(event -> {
 						assertThat(event.getLevel()).isEqualTo(Level.INFO);
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("HTTP 요청 처리가 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("success");
 						assertThat(LogCapture.value(event, "requestId"))
 								.isEqualTo(SAFE_REQUEST_ID);
@@ -115,6 +117,8 @@ class RequestLoggingFilterTests {
 
 			assertThat(logs.events()).singleElement().satisfies(event -> {
 				assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+				assertThat(event.getFormattedMessage())
+						.isEqualTo("예상하지 못한 오류로 HTTP 요청 처리에 실패했습니다");
 				assertThat(LogCapture.value(event, "event")).isEqualTo("http.request.failed");
 				assertThat(LogCapture.value(event, "errorCode"))
 						.isEqualTo("INTERNAL_SERVER_ERROR");

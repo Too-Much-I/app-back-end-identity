@@ -33,6 +33,8 @@ class MongoTransactionCapabilityVerifierTests {
 			assertThat(logs.events("mongodb.transaction_capability.verified"))
 					.singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("MongoDB 트랜잭션 지원을 확인했습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("supported");
 						assertThat(LogCapture.value(event, "topology")).isEqualTo("replica_set");
 						assertThat(LogCapture.value(event, "sessionsSupported")).isEqualTo(true);

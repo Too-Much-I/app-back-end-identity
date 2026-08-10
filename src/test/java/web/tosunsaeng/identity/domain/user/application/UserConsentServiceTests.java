@@ -254,6 +254,8 @@ class UserConsentServiceTests {
 			response = userConsentService.updateConsents(validRequest());
 			assertThat(logs.events("user.consents.updated")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("사용자 동의를 갱신했습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("updated");
 						assertThat(LogCapture.value(event, "userId"))
 								.isEqualTo(user.getUserId());

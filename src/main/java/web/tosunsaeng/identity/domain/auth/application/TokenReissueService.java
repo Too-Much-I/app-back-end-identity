@@ -60,7 +60,7 @@ public class TokenReissueService {
 					.addKeyValue("userId", currentSession.getUserId())
 					.addKeyValue("revokedSessionCount", revokedSessionCount)
 					.addKeyValue("errorCode", AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED.getCode())
-					.log("Refresh Token reuse detected");
+					.log("Refresh Token 재사용을 감지했습니다");
 			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
 		}
 		if (currentSession.isRevoked()) {
@@ -88,7 +88,7 @@ public class TokenReissueService {
 					.addKeyValue("outcome", "concurrent_rotation_rejected")
 					.addKeyValue("userId", currentSession.getUserId())
 					.addKeyValue("errorCode", AuthErrorStatus.INVALID_REFRESH_TOKEN.getCode())
-					.log("Concurrent Refresh Token rotation rejected");
+					.log("동시에 요청된 Refresh Token 재발급을 거절했습니다");
 			throw invalidRefreshToken();
 		}
 
@@ -111,7 +111,7 @@ public class TokenReissueService {
 				.addKeyValue("event", "auth.refresh.reissued")
 				.addKeyValue("outcome", "rotated")
 				.addKeyValue("userId", currentSession.getUserId())
-				.log("Refresh Token reissued");
+				.log("Refresh Token을 재발급했습니다");
 		return response;
 	}
 

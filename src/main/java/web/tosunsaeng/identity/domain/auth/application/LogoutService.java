@@ -33,7 +33,7 @@ public class LogoutService {
 					.addKeyValue("event", "auth.logout.completed")
 					.addKeyValue("outcome", "session_not_found")
 					.addKeyValue("revokedSessionCount", 0)
-					.log("Identity logout completed idempotently");
+					.log("변경할 세션 없이 로그아웃 요청을 처리했습니다");
 			return;
 		}
 
@@ -44,7 +44,7 @@ public class LogoutService {
 					.addKeyValue("outcome", session.isRevoked() ? "already_revoked" : "expired")
 					.addKeyValue("userId", session.getUserId())
 					.addKeyValue("revokedSessionCount", 0)
-					.log("Identity logout completed idempotently");
+					.log("변경할 세션 없이 로그아웃 요청을 처리했습니다");
 			return;
 		}
 
@@ -55,6 +55,6 @@ public class LogoutService {
 				.addKeyValue("outcome", "session_revoked")
 				.addKeyValue("userId", session.getUserId())
 				.addKeyValue("revokedSessionCount", 1)
-				.log("Identity logout completed");
+				.log("로그아웃이 완료되었습니다");
 	}
 }

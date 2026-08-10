@@ -125,6 +125,8 @@ class GuestAuthServiceTests {
 			response = guestAuthService.authenticate(validRequest(INSTALLATION_ID));
 			assertThat(logs.events("identity.guest.registered")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("게스트 사용자 등록이 완료되었습니다");
 						assertThat(LogCapture.value(event, "provider")).isEqualTo(UserProvider.GUEST);
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								INSTALLATION_ID,

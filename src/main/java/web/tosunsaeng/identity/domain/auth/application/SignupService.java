@@ -55,7 +55,7 @@ public class SignupService {
 					.addKeyValue("outcome", "created")
 					.addKeyValue("userId", savedUser.getUserId())
 					.addKeyValue("provider", savedUser.getProvider())
-					.log("Identity user registered");
+					.log("이메일 회원가입이 완료되었습니다");
 			return response;
 		} catch (DuplicateKeyException exception) {
 			throw new AuthException(AuthErrorStatus.EMAIL_ALREADY_EXISTS);

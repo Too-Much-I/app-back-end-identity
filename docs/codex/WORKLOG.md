@@ -1134,3 +1134,34 @@
 - 결정사항: 명시적 cast, raw type, suppression 또는 wildcard collection 대입을 사용하지 않고 boolean predicate로 제네릭 경계를 제거했다. Git commit·push와 Jira 변경은 수행하지 않았다.
 - 위험 요소: 기능 변경은 없으며 현재 알려진 추가 위험은 없다. 테스트는 정확한 field type을 비교하므로 향후 wrapper나 상속 기반 의존성까지 금지하려면 `isAssignableFrom` 기준으로 별도 강화해야 한다.
 - 다음 작업: 사용자가 IDE에서 이 테스트의 오류 표시가 제거됐는지 확인하고 변경을 검토한 뒤 commit·push를 직접 수행한다.
+
+## 2026-08-08 — 구조화 로그 한글화 범위 검토
+
+<!-- codex-turn:019fdf1c-608c-7700-9640-0ea7cc6c75a5 -->
+
+- 날짜: 2026-08-08
+- 브랜치: `main` (`61d43de`)
+- 작업 목표: 영어 구조화 로그의 raw console 가독성을 높이기 위해 한글화할 범위와 유지해야 할 운영 검색 계약을 결정한다.
+- 변경 파일: 애플리케이션 코드와 테스트는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 애플리케이션 정의 로그 message가 영어 문장으로 구성되고, ECS 표준 key와 event·outcome·errorCode가 검색·집계에 사용되는 구조를 확인했다. 사람이 직접 읽는 `message`만 한글 문장으로 바꾸면 framework 영어 로그 사이에서 애플리케이션 이벤트를 구분하기 쉬우면서 기존 검색·대시보드·알림 쿼리를 유지할 수 있다고 판단했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설계 검토이므로 새 테스트와 `./gradlew clean test`는 실행하지 않았다. 애플리케이션의 구조화 로그 호출 지점과 message·key-value 구성을 정적으로 확인했다.
+- 유지한 계약: `event`, `outcome`, `errorCode`, requestId, route, status와 ECS 표준 field 이름은 영어의 안정적인 machine-readable 계약으로 유지한다. Password, Token, Authorization Header, 개인정보, 실제 Key와 전체 MongoDB URI를 message에 추가하지 않으며 JWT·API·Transaction 계약은 변경하지 않았다.
+- 결정사항: 전체 로그를 번역하지 않고 애플리케이션이 직접 작성한 `message`만 한글화하는 방식을 권장한다. Spring·Tomcat·MongoDB 같은 제3자 framework message, 예외 type과 stack frame은 그대로 두며 대시보드의 사용자 표시명은 한글로 구성할 수 있다. 명시적 구현 요청 전에는 로그 문자열을 변경하지 않는다.
+- 위험 요소: event·outcome까지 한글화하면 기존 운영 쿼리·경보와 외부 도구 연동이 깨질 수 있다. message만 한글화해도 framework 로그는 영어로 남으므로 raw JSON 전체를 읽는 불편은 logger level·필터·대시보드로 별도 완화해야 한다.
+- 다음 작업: 사용자가 구현을 요청하면 애플리케이션 정의 message를 일관된 한글 문장으로 변경하고 event·outcome·errorCode 불변, UTF-8 출력, 민감정보 비노출과 전체 회귀 테스트를 검증한다.
+
+## 2026-08-08 — 애플리케이션 구조화 로그 message 한글화
+
+<!-- codex-turn:019fdf21-c981-7773-b3cc-ba8051be5b27 -->
+
+- 날짜: 2026-08-08
+- 브랜치: `main` (`61d43de` 기준, commit·push 미수행)
+- 작업 목표: 운영 검색 계약을 유지하면서 raw ECS 콘솔에서 애플리케이션 로그를 쉽게 구별할 수 있도록 사람이 읽는 message를 한글화한다.
+- 변경 파일: `RequestLoggingFilter`, `MongoTransactionCapabilityVerifier`, Auth의 signup·guest·login·reissue·logout·logout-all service, User의 consent·withdrawal service, `README.md`, 해당 observability·config·Auth·User 테스트, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 애플리케이션이 직접 작성한 18개 로그 message를 HTTP 요청 완료·예상 밖 실패, MongoDB Transaction 지원 확인, 회원가입·게스트 등록·로그인, Refresh Token 재발급·재사용·동시 요청 거절, 단일·전체 로그아웃, 동의 갱신, 회원 탈퇴 완료·충돌 의미에 맞는 한글 문장으로 변경했다. Spring·Tomcat·MongoDB framework 자체 message와 예외 type은 변경하지 않았다.
+- 구현 내용: ECS field name과 `event`, `outcome`, `errorCode`, requestId, route, status 등 machine-readable 값은 모두 기존 영어 계약으로 유지했다. README에 message와 검색 식별자의 언어 경계를 문서화하고 HTTP 정상·예상 밖 실패 및 주요 인증·사용자 상태 전이 테스트에서 정확한 한글 message를 검증했다.
+- 실행한 테스트와 결과: `./gradlew clean test`가 성공했다. 전체 40개 suite·292개 테스트가 실행됐고 실패·오류·건너뜀은 모두 0개였다. 애플리케이션 로그 호출 지점에 영어-only message가 남지 않은 것도 정적으로 확인했으며 `git diff --check`를 통과했다.
+- 유지한 계약: 로그 event 이름·outcome·errorCode와 레벨, 예상 밖 5xx ERROR 1건, requestId·route·duration, 저장/Transaction 이후 상태 전이 시점과 API·JWT·RefreshSession 동작을 변경하지 않았다. Password, Token, Authorization Header, 개인정보, 실제 Key와 전체 MongoDB URI를 message나 작업 기록에 추가하지 않았다.
+- 결정사항: 운영 자동화는 번역 가능한 message가 아니라 안정적인 event·outcome·errorCode를 사용하고, message는 한국어 운영자가 읽기 쉬운 한글 완결 문장으로 관리한다. 기술 용어인 HTTP·MongoDB·Refresh Token은 기존 표기를 유지했다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: Spring·Tomcat·MongoDB 등 제3자 framework message는 영어로 남기 때문에 전체 raw JSON은 혼용 언어가 된다. message 문자열을 직접 파싱하는 외부 소비자가 있다면 event 기반으로 전환해야 하며 staging 수집기에서 UTF-8 보존을 확인해야 한다.
+- 다음 작업: staging stdout 수집에서 한글 message가 깨지지 않는지 확인하고 기존 event 기반 검색·대시보드·알림 쿼리가 그대로 동작하는지 검증한다. 사용자가 diff를 검토한 뒤 commit·push를 직접 수행한다.

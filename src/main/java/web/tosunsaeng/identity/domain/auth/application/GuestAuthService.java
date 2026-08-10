@@ -77,7 +77,7 @@ public class GuestAuthService {
 					.addKeyValue("outcome", "created")
 					.addKeyValue("userId", guestUser.getUserId())
 					.addKeyValue("provider", guestUser.getProvider())
-					.log("Identity guest registered");
+					.log("게스트 사용자 등록이 완료되었습니다");
 			return response;
 		} catch (DuplicateKeyException exception) {
 			// Transaction rollback 뒤 현재 hash가 존재할 때만 설치 중복으로 분류한다.

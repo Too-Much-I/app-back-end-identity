@@ -117,7 +117,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 				.addKeyValue("status", status)
 				.addKeyValue("durationMs", durationMs);
 		addErrorCode(event, request);
-		event.log("HTTP request completed");
+		event.log("HTTP 요청 처리가 완료되었습니다");
 	}
 
 	private void emitUnexpectedFailure(
@@ -145,7 +145,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 					.addKeyValue("causeTypes", failure.causeTypes())
 					.addKeyValue("stackTrace", failure.stackTrace());
 		}
-		event.log("HTTP request failed unexpectedly");
+		event.log("예상하지 못한 오류로 HTTP 요청 처리에 실패했습니다");
 	}
 
 	private void addErrorCode(LoggingEventBuilder event, HttpServletRequest request) {

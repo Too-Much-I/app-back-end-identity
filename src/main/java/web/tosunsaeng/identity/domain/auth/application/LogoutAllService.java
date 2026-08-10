@@ -34,7 +34,7 @@ public class LogoutAllService {
 					.addKeyValue("outcome", "no_active_sessions")
 					.addKeyValue("userId", userId)
 					.addKeyValue("revokedSessionCount", 0)
-					.log("Identity logout-all completed idempotently");
+					.log("변경할 세션 없이 전체 로그아웃 요청을 처리했습니다");
 			return;
 		}
 
@@ -46,6 +46,6 @@ public class LogoutAllService {
 				.addKeyValue("outcome", "sessions_revoked")
 				.addKeyValue("userId", userId)
 				.addKeyValue("revokedSessionCount", activeSessions.size())
-				.log("Identity logout-all completed");
+				.log("전체 로그아웃이 완료되었습니다");
 	}
 }

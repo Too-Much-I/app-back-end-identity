@@ -171,6 +171,8 @@ class AuthenticationUseCaseServicesTests {
 			));
 			assertThat(logs.events("identity.user.registered")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("이메일 회원가입이 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("created");
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								RAW_CREDENTIAL,
@@ -307,6 +309,8 @@ class AuthenticationUseCaseServicesTests {
 			));
 			assertThat(logs.events("auth.login.succeeded")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("로그인에 성공했습니다");
 						assertThat(LogCapture.value(event, "userId"))
 								.isEqualTo(user.getUserId());
 						assertThat(LogCapture.rendered(event))

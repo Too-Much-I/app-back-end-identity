@@ -62,7 +62,7 @@ public class UserConsentService {
 					.addKeyValue("outcome", "unchanged")
 					.addKeyValue("userId", user.getUserId())
 					.addKeyValue("provider", user.getProvider())
-					.log("User consents already current");
+					.log("사용자 동의가 이미 최신 상태입니다");
 			return UserConsentResponse.from(user);
 		}
 		if (!userRepository.updateConsentsIfActive(user, expectedUpdatedAt)) {
@@ -80,7 +80,7 @@ public class UserConsentService {
 				.addKeyValue("userId", user.getUserId())
 				.addKeyValue("provider", user.getProvider())
 				.addKeyValue("consentedAt", consentedAt)
-				.log("User consents updated");
+				.log("사용자 동의를 갱신했습니다");
 		return response;
 	}
 

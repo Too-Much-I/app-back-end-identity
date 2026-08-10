@@ -122,6 +122,8 @@ class RefreshTokenUseCaseServicesTests {
 			response = tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE));
 			assertThat(logs.events("auth.refresh.reissued")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("Refresh Token을 재발급했습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("rotated");
 						assertThat(LogCapture.value(event, "userId")).isEqualTo(USER_ID);
 						assertThat(LogCapture.rendered(event)).doesNotContain(
@@ -263,6 +265,8 @@ class RefreshTokenUseCaseServicesTests {
 			);
 			assertThat(logs.events("auth.refresh.reuse_detected")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("Refresh Token 재사용을 감지했습니다");
 						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(2);
 						assertThat(LogCapture.value(event, "errorCode"))
 								.isEqualTo("REFRESH_TOKEN_REUSE_DETECTED");
@@ -355,6 +359,8 @@ class RefreshTokenUseCaseServicesTests {
 			logoutService.logout(new LogoutRequest(CURRENT_REFRESH_VALUE));
 			assertThat(logs.events("auth.logout.completed")).singleElement()
 					.satisfies(event -> {
+						assertThat(event.getFormattedMessage())
+								.isEqualTo("로그아웃이 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome"))
 								.isEqualTo("session_revoked");
 						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(1);
