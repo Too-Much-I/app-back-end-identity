@@ -108,7 +108,7 @@ public final class SentryEventSanitizer implements SentryOptions.BeforeSendCallb
 		putIfValid(sanitized, "errorCode", tags.get("errorCode"), ERROR_CODE);
 
 		String method = tags.get("http.method");
-		if (HTTP_METHODS.contains(method)) {
+		if (method != null && HTTP_METHODS.contains(method)) {
 			sanitized.put("http.method", method);
 		}
 

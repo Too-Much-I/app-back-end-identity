@@ -1247,3 +1247,184 @@
 - 결정사항: 운영 오류 수집만 필요하면 Runtime 네 변수만 설정하고 CI 인증 값은 필요하지 않다. source context가 승인된 경우에만 별도의 CI 인증 값을 추가하며 실제 값은 채팅·저장소·일반 로그가 아닌 배포 또는 CI Secret 저장소에서 관리한다. Jira 변경과 Git commit·push는 수행하지 않았다.
 - 위험 요소: enabled를 true로 바꾸고 DSN을 누락하거나 잘못 설정하면 event가 전송되지 않는다. release를 가변 문자열이나 매 기동 시각으로 만들면 동일 배포 오류 집계와 source context 연결이 불안정해질 수 있으며, CI 인증 값을 Runtime에 전달하면 불필요한 권한 노출이 생긴다.
 - 다음 작업: staging에 Runtime 네 값을 주입하고 controlled 5xx가 정확히 한 건 수집되는지 확인한다. source context를 사용할 경우에만 CI Secret을 추가하고 업로드·release 연결을 별도로 검증한다.
+
+## 2026-08-11 — Sentry 자동화·staging 테스트 절차 안내
+
+<!-- codex-turn:019fee43-3e94-7b70-b775-c8a1aeae051d -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 구현된 Sentry 연동을 사용자가 직접 검증할 수 있도록 외부 통신 없는 자동화 테스트와 실제 Sentry project를 확인하는 staging smoke test 절차를 구분해 안내한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 자동화 단계에서는 `SentryCaptureIntegrationTests`만 실행해 expected Business 4xx event 0건, handled unexpected 5xx final event 1건, ERROR 로그 이후 중복 event 부재, Logback integration 비활성화와 최종 serialized event 전체의 sentinel 비노출을 검증하고 이후 전체 `clean test`로 회귀를 확인하는 순서를 정리했다.
+- 구현 내용: 실제 project 단계에서는 staging Runtime에 enabled·DSN·environment·immutable release를 주입하고, controlled 5xx 한 건의 event 수·허용 tag·request/user/body 등 민감 context 부재를 확인하며 안전한 Validation 4xx 호출 후 event 수가 늘지 않는지 확인하는 checklist를 정리했다. Source context는 선택적으로 CI build 인증 값을 사용하는 별도 검증으로 분리했다.
+- 구현 내용: 현재 `/test/sentry/business`와 `/test/sentry/unexpected`는 `src/test`의 중첩 Test Controller이므로 실제 애플리케이션 Runtime에는 노출되지 않는다. 실제 dashboard smoke test는 일반 production에 공개하지 않고 기본 비활성, staging 한정, 인증 또는 내부 접근으로 제한된 controlled trigger가 별도로 필요하다고 판단했다.
+- 실행한 테스트와 결과: 절차 안내와 정적 확인 작업이므로 Gradle 테스트나 실제 외부 Sentry 전송은 실행하지 않았다. 기존 기준은 전체 41개 suite·295개 테스트 성공이며, 이번에는 테스트 클래스·환경변수 설정·Runtime Controller 범위를 정적으로 확인하고 문서 변경을 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 요청하거나 기록하지 않았다. test profile 외부 인프라 비호출, production 기본 Sentry 비활성화, 예상 밖 5xx 1건·expected 4xx 0건과 기존 API·JWT·로그 계약을 유지했다.
+- 결정사항: 로직 검증은 test transport로 반복 가능하게 수행하고 실제 DSN 연결은 staging에서만 확인한다. test source endpoint를 Runtime endpoint로 오해하지 않으며, controlled error trigger는 사용자가 별도 구현을 요청하기 전에는 추가하지 않는다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: 실제 5xx를 만들기 위해 MongoDB 장애나 정상 API 코드를 임의로 망가뜨리면 데이터·가용성에 영향을 줄 수 있다. 공개 smoke endpoint는 공격자가 오류 event와 비용을 증폭시킬 수 있으므로 production에 노출하면 안 되며, test transport 성공만으로 실제 DSN·네트워크·Sentry project 권한을 증명할 수는 없다.
+- 다음 작업: 먼저 단독 통합 테스트와 전체 회귀 테스트를 실행한다. Sentry dashboard 연결까지 확인하려면 사용자의 별도 요청과 검토 후 staging 전용 controlled trigger를 구현하거나 이미 존재하는 안전한 내부 오류 유발 경로를 사용해 checklist를 수행한다.
+
+## 2026-08-11 — Sentry 실제 연결 트리거의 배포 경계 결정
+
+<!-- codex-turn:019fee4a-2be2-75d1-9647-ad668f34c08d -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 실제 DSN으로 Sentry 표시를 확인하기 위한 로컬·staging 트리거의 역할과 production 배포 여부를 명확히 결정한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 실제 연결 smoke test가 검증하는 범위를 SDK 초기화, DSN, outbound network, `beforeSend` 이후 event의 Sentry project 표시로 한정했다. `GlobalExceptionHandler`가 처리한 예상 밖 5xx의 정확히 한 건 수집, Logback·SDK integration 중복 부재, expected 4xx 비수집과 최종 event 민감정보 비노출은 외부 통신 없는 기존 `SentryCaptureIntegrationTests`가 담당하도록 검증 책임을 분리했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 배포 경계 검토이므로 Gradle 테스트와 실제 외부 Sentry 전송은 실행하지 않았다. 현재 test source의 `/test/sentry/*` Controller가 Runtime artifact에 포함되지 않는 점과 Sentry 설정·통합 테스트 범위를 정적으로 재확인했으며 기존 기준은 전체 41개 suite·295개 테스트 성공이다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 조회하거나 기록하지 않았다. production 기본 비활성화, expected 4xx 0건·handled unexpected 5xx 1건·민감 sentinel 0건, 기존 API·JWT·로그 계약을 유지했다.
+- 결정사항: 공개 오류 endpoint는 production에 배포하지 않는다. 실제 연결 확인은 공개 Controller 대신 `local` 또는 `staging` profile과 명시적인 opt-in property가 모두 설정될 때 기동 중 한 번만 capture하는 임시 startup runner를 우선하며, staging에서 확인한 뒤 제거해 production artifact에는 포함하지 않는다. 로컬 확인만으로 배포 Secret·배포망 outbound·release/source context 연결까지 증명할 수 없으므로 운영 전 staging smoke test를 별도로 수행한다. Git commit·push와 Jira 변경은 수행하지 않았다.
+- 위험 요소: 오류 endpoint 또는 상시 활성 trigger를 production에 남기면 외부 호출자가 event와 비용을 증폭할 수 있다. startup runner도 반복 재기동 시 event를 만들 수 있으므로 staging 한정 opt-in과 일회성 확인 후 제거가 필요하며, runner는 MVC `GlobalExceptionHandler` 경로를 통과하지 않으므로 그 계약을 실제 연결 smoke 결과로 대체해서는 안 된다.
+- 다음 작업: 사용자가 구현을 요청하면 기본 비활성·non-production 한정 one-shot trigger와 안전한 테스트를 추가하고 로컬 또는 staging에서 한 건을 확인한다. 확인 후 trigger를 제거한 production build로 배포하며, 실제 운영 활성화 전 배포 Secret·outbound network·environment·immutable release와 선택적 source context 연결을 staging에서 검증한다.
+
+## 2026-08-11 — 임시 staging Sentry one-shot smoke trigger 구현
+
+<!-- codex-turn:31dc08fe-df2c-4602-ba12-ddc4c3ef7559 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 공개 오류 endpoint나 정상 비즈니스 경로 훼손 없이 실제 staging DSN·배포망·Sentry project 연결을 한 번 확인하고, 확인 뒤 production 배포 전에 제거할 임시 trigger를 구현한다.
+- 변경 파일: 신규 `src/main/java/web/tosunsaeng/identity/global/observability/SentryStagingSmokeTrigger.java`, `SentryEventSanitizer.java`, `application.yml`, `.env.example`, `README.md`, 신규 `src/test/java/web/tosunsaeng/identity/global/observability/SentryStagingSmokeTriggerConditionTests.java`, `SentryCaptureIntegrationTests.java`, `application-test.yml`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `SentryStagingSmokeTrigger`는 `ApplicationRunner`로 구현하고 `staging & !production & !prod` profile과 기본 false인 `app.sentry.smoke-trigger.enabled`가 모두 충족될 때만 bean이 생성되게 했다. 명시적으로 켠 경우 Sentry enabled, 정확한 `staging` environment, 비공백 DSN, sanitizer와 같은 문자 계약의 비공백 release를 fail-fast로 검사한다.
+- 구현 내용: trigger는 공개 HTTP endpoint를 만들지 않고 전용 message 없는 `SentryStagingSmokeException`을 capture한다. scope를 먼저 비우고 허용된 `errorCode=SENTRY_STAGING_SMOKE_TEST`만 붙이며 `AtomicBoolean`으로 한 JVM에서 최대 한 번만 실행한다. SDK 비활성 또는 빈 event ID는 안전한 고정 오류로 기동을 중단하고, accepted event는 최대 5초 flush한 뒤 `sentry.smoke_trigger.requested` INFO에 event ID만 기록한다.
+- 구현 내용: 비HTTP smoke event에는 `http.method` tag가 없어서 기존 `beforeSend`의 immutable method set에 null을 전달할 때 NPE가 발생하고 event가 폐기되는 문제를 첫 targeted test에서 발견했다. method가 있을 때만 allowlist를 검사하도록 `SentryEventSanitizer`를 null-safe하게 수정했으며, HTTP handler event의 기존 tag 계약은 그대로 유지했다.
+- 구현 내용: 조건 테스트는 staging+opt-in에서만 bean이 생성되고 flag off, production profile, staging+production 복합 profile에서는 생성되지 않는지 검증한다. Sentry disabled, staging이 아닌 environment, 빈 DSN, 허용되지 않은 release는 외부 값 없이 고정 message로 context 기동에 실패하는지 확인한다. 통합 테스트는 trigger를 두 번 호출해도 test transport의 최종 serialized event가 정확히 한 건이며 민감 sentinel·request·user·message·HTTP status가 없고 전용 exception·errorCode만 남는지 검증한다.
+- 실행한 테스트와 결과: 첫 targeted 실행은 smoke event의 누락된 HTTP method 때문에 `beforeSend`가 NPE를 내고 event를 drop하는 것을 확인해 실패했다. null-safe 수정 후 `SentryCaptureIntegrationTests`와 `SentryStagingSmokeTriggerConditionTests`가 성공했고, 최종 `./gradlew clean test`가 전체 42개 suite·304개 테스트, 실패·오류·건너뜀 0개로 성공했다. 실제 외부 Sentry와 Atlas는 호출하지 않았으며 `git diff --check`도 성공했다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 소스·설정·문서·로그에 기록하지 않았다. 기본 Sentry 및 smoke trigger 비활성화, expected 4xx 0건·handled 5xx 1건·Sentry Logback 중복 0건·최종 민감 sentinel 0건과 기존 API·JWT·Mongo Transaction 계약을 유지했다.
+- 결정사항: smoke trigger는 staging 연결성만 검증하며 `GlobalExceptionHandler`의 MVC 경로 검증을 대체하지 않는다. trigger가 포함된 artifact는 staging에만 임시 배포하고 Sentry project 확인 후 trigger 클래스·조건 테스트·설정·환경변수·README 안내를 제거한 새 artifact만 production으로 배포한다. capture 요청 로그는 SDK 수락을 의미할 뿐 실제 network 전달 성공은 Sentry project 화면에서 확인한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: rolling deploy나 여러 staging 인스턴스가 함께 기동하면 인스턴스마다 한 건이 생성될 수 있다. `flush`는 대기만 수행하고 transport 결과를 반환하지 않으므로 event ID 로그만으로 실제 전달을 확정할 수 없으며, staging Secret·outbound network·project 권한·release/source context 연결은 아직 실제 환경에서 검증하지 않았다. 검증 뒤 임시 코드를 제거하지 않으면 이후 staging 재기동마다 추가 event가 생길 수 있다.
+- 다음 작업: staging 배포 Secret에 실제 DSN을 직접 주입하고 `SPRING_PROFILES_ACTIVE=staging`, `SENTRY_ENABLED=true`, `SENTRY_ENVIRONMENT=staging`, immutable `SENTRY_RELEASE`, `SENTRY_SMOKE_TRIGGER_ENABLED=true`로 임시 artifact를 한 번 기동한다. Sentry project에서 event ID·전용 exception·environment·release·errorCode와 민감정보 부재를 확인한 뒤 smoke trigger 관련 코드·테스트·설정·문서를 제거하고 전체 테스트를 다시 실행해 production artifact를 준비한다.
+
+## 2026-08-11 — 임시 staging Sentry trigger 구현 기록 보완
+
+<!-- codex-turn:019fee4e-27ba-7162-8b87-95165c3a83d7 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 실제 staging 연결 확인 뒤 제거할 Sentry one-shot trigger 구현과 검증 결과를 현재 turn 식별자로 기록하고 CURRENT_STATE를 최종 상태와 일치시킨다.
+- 변경 파일: 신규 `SentryStagingSmokeTrigger.java`, `SentryEventSanitizer.java`, `application.yml`, `.env.example`, `README.md`, 신규 `SentryStagingSmokeTriggerConditionTests.java`, `SentryCaptureIntegrationTests.java`, `application-test.yml`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`가 이번 작업 범위다. 이 보완에서는 기존 WORKLOG 항목을 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 endpoint 없이 `staging & !production & !prod` profile과 기본 false opt-in flag를 모두 요구하는 `ApplicationRunner`를 추가했다. 명시적으로 활성화된 경우에만 안전한 설정을 fail-fast로 확인하고 message 없는 전용 exception과 허용된 errorCode를 JVM 기동당 최대 한 번 capture하며, SDK 수락 후 제한된 flush와 event ID INFO만 남긴다.
+- 구현 내용: 비HTTP smoke event에 HTTP method tag가 없는 경우 `beforeSend` allowlist가 null을 처리하지 못해 event를 폐기하던 문제를 발견하고 null-safe하게 수정했다. test transport의 최종 serialized event에서 한 건 수집, 민감 sentinel 부재, request·user·message 부재와 전용 exception·errorCode 보존을 확인했다.
+- 실행한 테스트와 결과: 첫 targeted test에서 `beforeSend` null 처리 실패를 재현한 뒤 수정했으며 관련 테스트가 성공했다. 최종 `./gradlew clean test`는 전체 42개 suite·304개 테스트, 실패·오류·건너뜀 0개로 성공했고 `git diff --check`도 성공했다. 실제 외부 Sentry나 Atlas는 호출하지 않았다.
+- 유지한 계약: 실제 DSN, 인증 값, Password, Access Token, Refresh Token, Authorization Header, 개인정보, 실제 Key와 전체 MongoDB URI를 기록하지 않았다. Sentry와 smoke trigger 기본 비활성화, production profile 차단, expected 4xx 비수집·handled 5xx 단일 Issue·민감정보 최종 정제와 기존 API·JWT·Transaction 계약을 유지했다.
+- 결정사항: trigger가 포함된 artifact는 staging 확인 전용이며 production으로 승격하지 않는다. 실제 project에서 event를 확인한 직후 임시 trigger 코드·조건 테스트·설정·환경변수·README 안내를 제거하고 새 production artifact를 만든다. 요청 로그는 실제 전달 성공을 보증하지 않으므로 Sentry project 화면을 최종 기준으로 사용한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: staging 인스턴스가 여러 개면 인스턴스마다 event 한 건이 생성될 수 있고, 네트워크·project 권한·release/source context 연결은 아직 실제 환경에서 확인하지 않았다. 임시 코드를 제거하지 않으면 이후 staging 재기동 때 추가 event가 생길 수 있다.
+- 다음 작업: 사용자가 staging Secret과 non-secret 환경 식별값을 배포 환경에 직접 설정해 전용 event와 허용 필드만 표시되는지 확인한다. 확인 결과를 받은 뒤 임시 trigger 관련 파일과 설정을 제거하고 전체 테스트를 다시 실행한다.
+
+## 2026-08-11 — staging Sentry smoke trigger 테스트 절차 안내
+
+<!-- codex-turn:019fee6e-099f-7121-864d-e8520a46a524 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 구현된 임시 staging Sentry one-shot trigger를 외부 민감값 노출 없이 자동화와 실제 배포 환경에서 검증하는 순서, 성공 기준과 실패 진단 기준을 안내한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 1단계는 `SentryCaptureIntegrationTests`와 `SentryStagingSmokeTriggerConditionTests` 단독 실행으로 final transport 한 건·민감 sentinel 부재·production profile 차단·fail-fast 설정을 확인하고, 2단계는 전체 `clean test`로 회귀를 확인하도록 정리했다.
+- 구현 내용: 실제 연결 단계는 DSN을 명령줄·저장소·대화에 적지 않고 staging 배포 Secret으로 주입하며, `staging` profile, Sentry enabled, 정확한 staging environment, immutable release와 smoke flag를 설정해 가능하면 단일 인스턴스를 기동하도록 정리했다. HTTP endpoint 호출은 필요하지 않고 startup runner가 기동 중 한 번 capture한다.
+- 구현 내용: 애플리케이션 로그의 `sentry.smoke_trigger.requested` event와 event ID를 찾은 뒤 Sentry project에서 동일 event, `SentryStagingSmokeException`, staging environment, 배포 release, `SENTRY_STAGING_SMOKE_TEST` errorCode와 request·user·message 등 민감 context 부재를 확인한다. 로그는 SDK capture 수락만 의미하므로 dashboard 표시를 실제 성공 기준으로 사용한다.
+- 실행한 테스트와 결과: 이번 작업은 기존 구현의 테스트 절차 안내이므로 Gradle 테스트와 실제 외부 전송을 새로 실행하지 않았다. 직전 최종 기준은 `./gradlew clean test` 전체 42개 suite·304개 테스트, 실패·오류·건너뜀 0개 성공이며 이번 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 요청하거나 기록하지 않았다. test profile 외부 통신 금지, production trigger 차단, Sentry final event allowlist와 기존 API·JWT·로그·Transaction 계약을 유지했다.
+- 결정사항: 실제 연결 확인에는 `SENTRY_AUTH_TOKEN`이 필요하지 않으며 source context를 승인한 CI build에서만 별도로 사용한다. 성공 확인 직후 smoke flag를 false로 되돌려 재기동 event를 막고, 임시 trigger 관련 코드·조건 테스트·설정·환경변수·README 안내를 제거한 새 artifact만 production으로 배포한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: staging 인스턴스 또는 재기동 횟수만큼 event가 생성될 수 있다. 요청 로그가 있지만 dashboard에 event가 없다면 DSN 대상 project, outbound network, firewall·proxy, rate limit과 SDK diagnostic을 staging 내부에서 확인해야 하며 실제 DSN을 일반 로그나 대화에 붙여 넣으면 안 된다.
+- 다음 작업: 사용자가 자동화 테스트를 실행한 뒤 staging 배포 환경에서 one-shot event를 확인한다. 확인된 event ID 자체를 공유할 필요 없이 성공 여부와 표시된 허용 필드만 알려주면 임시 trigger 제거 작업을 진행한다.
+
+## 2026-08-11 — 로컬 Sentry smoke event 미표시 원인 진단
+
+<!-- codex-turn:019fee75-07be-7351-b972-5ec96fbe9a58 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 사용자가 smoke flag를 true로 설정해 로컬 기동했지만 Sentry event가 표시되지 않은 원인을 현재 trigger 조건과 작업 트리 설정을 기준으로 진단한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 사용자가 로컬 시험을 위해 변경한 `application.yml`의 smoke fallback 값은 덮어쓰지 않았으며 WORKLOG의 과거 기록도 수정하거나 삭제하지 않았다.
+- 구현 내용: `SentryStagingSmokeTrigger`가 `staging & !production & !prod` profile과 smoke enabled property를 동시에 요구하므로 기본 또는 local profile에서는 smoke flag가 true여도 bean이 생성되지 않는 것을 정적으로 확인했다. 또한 Runtime Sentry enabled 기본값은 false, environment 기본값은 local이며 trigger가 생성될 때에는 비공백 DSN과 release까지 별도로 필요하다.
+- 구현 내용: 로컬 머신에서 실제 연결을 시험하려면 IDE의 active profiles 또는 `SPRING_PROFILES_ACTIVE`를 staging으로 지정하고, smoke flag 외에도 Sentry enabled, 정확한 staging environment, 비공백 release와 로컬 비추적 또는 Secret 경로의 DSN을 모두 설정해야 한다. 성공 여부는 active staging profile 로그, `sentry.smoke_trigger.requested` event와 Sentry project 표시 순서로 판단한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설정 진단이므로 Gradle 테스트와 실제 외부 Sentry 전송은 실행하지 않았다. 직전 기준은 전체 42개 suite·304개 테스트 성공이며, 현재 annotation과 `application.yml`을 정적으로 확인하고 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·build 인증 값·Password·Access Token·Refresh Token·Authorization Header·개인정보·실제 Key·전체 MongoDB URI를 요청하거나 기록하지 않았다. production profile 차단, 공개 endpoint 부재, Sentry final event 정제와 기존 API·JWT·로그 계약을 유지했다.
+- 결정사항: 이번 미표시는 우선적으로 trigger 실패가 아니라 profile 조건 미충족으로 판단한다. `SENTRY_ENABLED`와 `SENTRY_SMOKE_TRIGGER_ENABLED`은 서로 다른 플래그이며 두 값만 true여도 active staging profile·staging environment·DSN·release가 없으면 정상 capture 조건이 완성되지 않는다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: 현재 작업 트리에서 사용자가 smoke fallback을 true로 바꿔 README·`.env.example`의 기본 false와 불일치한다. staging profile로 이후 기동하면 매 JVM 기동당 event가 생성될 수 있으므로 확인 직후 false로 복구하거나 임시 trigger를 제거해야 한다. 요청 로그가 있는데 dashboard에만 없다면 그때는 DSN 대상 project, environment filter, outbound network·방화벽·proxy·rate limit을 별도로 확인해야 한다.
+- 다음 작업: 사용자는 민감값을 공유하지 않고 IDE에서 active profile과 네 개의 non-secret 동작 조건 및 DSN Secret 주입 여부를 확인해 다시 기동한다. active profile staging 및 smoke 요청 로그 유무를 알려주면, 요청 로그가 없는 경우 설정 경계를 이어서 진단하고 요청 로그가 있는 경우 Sentry project·network 경계를 진단한다.
+
+## 2026-08-11 — 로컬 기동 로그 기반 Sentry trigger 미실행 확정
+
+<!-- codex-turn:019fee7a-98bb-72f3-b465-d886a6101354 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 사용자가 제공한 로컬 애플리케이션 기동 로그로 staging Sentry smoke event가 표시되지 않은 원인을 확정하고 다음 실행 설정을 안내한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 기동 로그가 active Spring profile 없이 default profile로 실행됐음을 확인했다. `SentryStagingSmokeTrigger`는 staging profile을 필수로 요구하므로 bean이 생성되지 않았고, 예상되는 `sentry.smoke_trigger.requested` event도 없어서 Sentry SDK 전송 또는 dashboard 표시 단계까지 도달하지 않았다고 판정했다.
+- 구현 내용: IntelliJ Spring Boot 실행 설정의 Active profiles 또는 환경변수로 staging profile을 지정하고 Sentry enabled·smoke enabled·staging environment·비공백 release와 DSN Secret 주입을 모두 확인해야 한다. 다음 실행에서는 시작 로그의 active staging profile과 smoke 요청 event만 최소 발췌해 확인하도록 범위를 제한했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 로그 진단이므로 Gradle 테스트와 실제 외부 전송은 실행하지 않았다. 직전 기준은 전체 42개 suite·304개 테스트 성공이며 이번 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 제공된 로그의 데이터베이스 계정 식별자나 cluster endpoint·topology를 WORKLOG에 복사하지 않았고 실제 DSN·Password·Token·실제 Key·전체 MongoDB URI도 기록하지 않았다. production profile 차단, 공개 endpoint 부재와 Sentry final event 정제 계약을 유지했다.
+- 결정사항: 이번 실행은 smoke 전송 실패가 아닌 조건부 bean 미생성이다. 정상 재시험의 첫 성공 기준은 시작 로그의 active staging profile이며, 두 번째 기준은 `sentry.smoke_trigger.requested` event다. 이 두 번째 기준까지 충족된 뒤에만 Sentry project·environment filter·network 문제를 조사한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: 전체 MongoDB driver INFO 로그에는 비밀번호 원문이 숨겨져 있어도 계정 식별자와 cluster topology 같은 인프라 정보가 포함될 수 있다. 후속 공유에서는 전체 기동 로그 대신 active profile 한 줄, smoke 요청 event 한 줄 또는 안전한 고정 startup 오류만 제공해야 한다.
+- 다음 작업: 사용자는 IntelliJ 실행 설정에 staging active profile과 필요한 Sentry 환경변수를 설정해 한 번 재기동한다. active staging profile과 smoke 요청 event가 확인되면 Sentry project에서 동일 event ID와 허용 필드를 확인하고 즉시 smoke flag를 false로 되돌린다.
+
+## 2026-08-11 — staging smoke trigger release 검증 실패 진단
+
+<!-- codex-turn:019fee80-d628-71f2-abe3-355deaf2c27f -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: staging profile을 적용한 재실행에서 `SentryStagingSmokeTrigger` bean 생성이 실패한 원인을 제공된 startup 오류로 진단한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 재실행 로그에서 active profile `staging`과 `sentryStagingSmokeTrigger` constructor 진입을 확인했다. 가장 내부 원인은 `sentry.release`가 비어 있거나 허용되지 않는 문자를 포함해 고정 release validation 오류가 발생한 것이며 Sentry capture 이전에 의도적으로 기동을 중단한 fail-fast 동작이다.
+- 구현 내용: constructor 검증 순서상 Sentry enabled, 정확한 staging environment와 비공백 DSN 검사는 이미 통과했다. IntelliJ Runtime 환경변수에 공백 없이 허용 문자만 사용하는 non-secret `SENTRY_RELEASE` 식별자를 추가하면 다음 단계로 진행되며 소스의 기본값을 직접 수정할 필요는 없다.
+- 실행한 테스트와 결과: 코드 변경이 없는 제공 로그 진단이므로 Gradle 테스트와 실제 Sentry 전송은 실행하지 않았다. 직전 자동화 기준은 전체 42개 suite·304개 테스트 성공이며 이번 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 제공된 전체 command line과 database driver 로그의 경로·계정 식별자·cluster endpoint를 기록에 복사하지 않았고 실제 DSN·Password·Token·실제 Key·전체 MongoDB URI도 기록하지 않았다. staging-only trigger, fail-fast와 final event 정제 계약을 유지했다.
+- 결정사항: 이번 오류는 구현 결함이 아니라 필수 release 식별자 누락 또는 형식 불일치다. release는 비밀값이 아니지만 event와 실행 build를 연결해야 하므로 공백 없는 Git SHA 또는 image tag 계열의 안정된 값으로 지정한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: release에 공백이나 허용되지 않는 문자를 넣으면 동일 오류가 반복된다. 현재 trigger는 JVM 기동마다 한 번 실행되므로 release를 고친 다음부터는 재기동 횟수만큼 event가 생길 수 있고 확인 직후 smoke flag를 false로 복구해야 한다. 전체 startup 로그 공유는 인프라 식별자를 노출할 수 있으므로 다음에는 smoke event 또는 가장 안쪽 고정 오류 한 줄만 공유한다.
+- 다음 작업: 사용자는 IntelliJ 환경변수에 안전한 `SENTRY_RELEASE` 값을 추가하고 한 번 재실행한다. `sentry.smoke_trigger.requested` event가 출력되면 Sentry project의 동일 event ID·environment·release·errorCode와 민감 context 부재를 확인하고 smoke flag를 false로 되돌린다.
+
+## 2026-08-11 — Sentry smoke capture 후 project 미표시 진단
+
+<!-- codex-turn:1ea5287c-a110-45d0-a234-c158b2470485 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: active staging profile에서 smoke capture 요청이 성공했지만 Sentry 화면에 event가 표시되지 않는 원인 범위와 안전한 다음 진단 절차를 확정한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 사용자가 로컬 시험 중 변경한 `application.yml` fallback은 덮어쓰지 않았고 WORKLOG의 과거 기록도 수정하거나 삭제하지 않았다.
+- 구현 내용: 제공된 최소 성공 지표에서 active staging profile, 정상 애플리케이션 기동과 비어 있지 않은 event ID를 포함한 `sentry.smoke_trigger.requested`를 확인해 profile·필수 설정·trigger 실행·`beforeSend`·SDK capture 단계가 모두 통과했음을 확정했다.
+- 구현 내용: SDK 8.42.0 소스와 현재 trigger를 확인해 capture가 반환하는 event ID는 로컬 SDK 수락을 나타내고 5초 `flush`는 transport 성공 결과를 반환하지 않는다는 경계를 확인했다. 따라서 남은 원인은 DSN 대상 project 또는 Sentry UI의 project·Issues·environment·시간 필터 불일치와 outbound network·proxy·방화벽·rate limit·ingest 오류다.
+- 구현 내용: Runtime event의 대상은 Gradle Sentry plugin의 source context용 organization/project 설정이 아니라 DSN이 결정한다. UI 확인 뒤에도 미표시라면 실제 DSN을 로그로 출력하지 않도록 `SENTRY_DEBUG=true`와 `SENTRY_DIAGNOSTIC_LEVEL=ERROR`만 임시 적용해 Sentry transport 오류를 한 번 확인하도록 정리했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 제공 로그·설정·SDK 동작 진단이므로 Gradle 테스트와 실제 외부 전송을 새로 실행하지 않았다. 직전 자동화 기준은 전체 42개 suite·304개 테스트 성공이며 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·Password·Token·실제 Key·전체 MongoDB URI와 제공 로그의 인프라 식별자를 기록하거나 재출력하지 않았다. production profile 차단, 공개 endpoint 부재, final event allowlist와 기존 API·JWT·MongoDB 계약을 변경하지 않았다.
+- 결정사항: 현재 결과를 전송 성공이나 구현 실패로 단정하지 않고 capture 이후 transport/UI 경계의 미확정 상태로 본다. Sentry Logs가 비활성화돼 있으므로 Logs가 아니라 Issues에서 확인하며, diagnostic은 DSN이 INFO로 출력될 수 있는 DEBUG level 대신 ERROR level로 제한한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: 동일 DSN처럼 보여도 project별 DSN의 project ID가 다르면 event는 다른 project로 전송된다. smoke fallback이 현재 true라 재기동마다 한 건씩 요청될 수 있고, 전체 SDK debug 로그를 공유하면 DSN이 노출될 수 있다.
+- 다음 작업: 사용자는 Sentry에서 올바른 organization/project, Issues 화면, staging 또는 전체 environment와 최근 시간 범위를 확인하고 event ID 또는 전용 errorCode로 검색한다. 계속 미표시라면 제한된 diagnostic 재기동 후 Sentry transport ERROR 한 줄만 민감값 없이 공유하며, event 확인 즉시 smoke flag를 false로 복구하고 임시 trigger 제거를 진행한다.
+
+## 2026-08-11 — Sentry 미표시 진단 기록 보완
+
+<!-- codex-turn:019fee83-6063-7372-82d8-8c970b2a64ab -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 이번 turn에서 확정한 Sentry smoke capture 이후의 UI·transport 진단 결과를 지정된 작업 식별자로 기록하고 현재 상태를 동기화한다.
+- 변경 파일: 애플리케이션 코드와 설정은 변경하지 않고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 항목은 수정하거나 삭제하지 않았다.
+- 구현 내용: active staging profile과 비어 있지 않은 event ID는 trigger 및 로컬 SDK capture 통과만 증명하며 Sentry 서버 수신을 증명하지 않는다고 판정했다. Runtime 대상 project는 Gradle plugin 설정이 아닌 주입된 DSN이 결정하므로 올바른 project·Issues 화면·environment·시간 범위를 우선 확인하도록 안내했다.
+- 구현 내용: UI 확인 후에도 미표시라면 `SENTRY_DEBUG=true`와 `SENTRY_DIAGNOSTIC_LEVEL=ERROR`로 한 번만 재기동해 transport 오류를 최소 진단한다. INFO/DEBUG diagnostic에서 DSN이 출력될 수 있으므로 ERROR 이외의 전체 diagnostic 공유를 금지하고 민감 URL을 제거한 Sentry 오류 한 줄만 후속 입력으로 사용한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 로그·SDK 동작 진단 및 문서 보완이므로 Gradle 테스트와 외부 전송은 새로 실행하지 않았다. 직전 기준은 전체 42개 suite·304개 테스트 성공이며 이번 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 실제 DSN·Password·Token·Key·전체 MongoDB URI와 인프라 식별자를 기록하지 않았다. staging-only trigger, production profile 차단, final event allowlist와 기존 API·JWT·MongoDB 계약을 변경하지 않았다.
+- 결정사항: 현재 상태는 capture 성공·server 수신 미확정이다. Sentry Logs가 비활성화돼 있으므로 event는 Issues에서 찾고, transport 오류가 없으면 DSN 대상 project와 UI 필터를 우선 재검증한다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: smoke fallback이 현재 true라 재기동마다 event가 요청될 수 있고, diagnostic level을 낮추거나 전체 로그를 공유하면 DSN 또는 인프라 정보가 노출될 수 있다.
+- 다음 작업: 제한된 UI 및 ERROR diagnostic 확인 결과에 따라 DSN project 불일치 또는 network·ingest 오류를 좁힌다. event가 확인되면 smoke flag를 false로 복구하고 임시 trigger 제거 및 전체 테스트를 진행한다.
+
+## 2026-08-11 — Sentry 수신 확인 후 임시 smoke trigger 제거
+
+<!-- codex-turn:019fee8b-66e3-73e0-9697-b4f873e3ceef -->
+
+- 날짜: 2026-08-11
+- 브랜치: `main` (`4b0c762` 기준, commit·push 미수행)
+- 작업 목표: 사용자가 실제 Sentry project 수신을 확인한 one-shot 검증 장치를 제거하고 errors-only Sentry 연동의 안전한 기본 상태로 복원한다.
+- 변경 파일: 임시 `src/main/java/web/tosunsaeng/identity/global/observability/SentryStagingSmokeTrigger.java`와 `src/test/java/web/tosunsaeng/identity/global/observability/SentryStagingSmokeTriggerConditionTests.java`를 제거했다. `.env.example`, `README.md`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, `SentryCaptureIntegrationTests.java`의 smoke 전용 변경을 복원했으며 `SentryEventSanitizer.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Sentry project에서 실제 event 수신이 확인됐으므로 startup runner, 전용 exception·errorCode·flush, profile/flag fail-fast 조건과 관련 조건·transport 테스트를 모두 제거했다. smoke 환경변수와 README 운영 절차도 제거해 임시 기능이 Runtime과 test artifact에 남지 않게 했다.
+- 구현 내용: 로컬 시험 중 바뀐 `application.yml`의 Sentry fallback을 `enabled=false`, `environment=local`로 복원했다. test profile의 smoke override도 제거했으며 main/test 설정과 문서·환경변수 예시에서 smoke 식별자가 0건임을 정적으로 확인했다.
+- 구현 내용: smoke 통합 테스트에서 발견한 비HTTP event의 누락된 `http.method`를 안전하게 처리하는 `SentryEventSanitizer` null check는 일반 event 정제 안정성에 유효하므로 유지했다. 기존 errors-only capture, expected 4xx 제외, handled 5xx 단일 event와 민감정보 whitelist 계약은 변경하지 않았다.
+- 실행한 테스트와 결과: 첫 `./gradlew clean test`는 sandbox의 Gradle cache lock 접근 제한으로 실행 전에 중단됐고, 승인된 재실행은 BUILD SUCCESSFUL이었다. 최종 결과는 41개 suite·295개 테스트, 실패·오류·건너뜀 0개이며 실제 Atlas나 외부 Sentry는 테스트에서 호출하지 않았다. smoke 식별자 정적 검색 0건과 `git diff --check`도 성공했다.
+- 유지한 계약: 실제 DSN·Password·Access Token·Refresh Token·인증 값·실제 Key·전체 MongoDB URI를 소스·문서·로그에 기록하지 않았다. Sentry 기본 비활성화, test 외부 통신 금지, production에 임시 trigger 미포함과 기존 API·JWT·MongoDB Transaction 계약을 유지했다.
+- 결정사항: 실제 연결 확인을 마친 one-shot 검증 코드는 재사용 목적으로 보존하지 않고 제거한다. Runtime Sentry 연동과 final event sanitizer만 유지하며 source context용 build 인증 값은 계속 승인된 CI에만 둔다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
+- 위험 요소: 저장소 밖 IntelliJ 실행 설정에 임시 staging profile·smoke 또는 Sentry diagnostic 환경변수가 남아 있을 수 있으며 Codex가 이를 자동 복원하지 못한다. 배포망·alert·보존정책과 CI source context는 로컬 project 수신 확인으로 검증되지 않았다.
+- 다음 작업: 사용자는 IntelliJ Run Configuration에서 임시 staging·smoke·diagnostic 설정을 제거한다. 이후 staging에서는 trigger 없는 errors-only artifact로 handled 5xx 한 건·expected 4xx 0건·중복 및 민감정보 부재를 검증하고 운영 활성화 범위를 결정한다.
