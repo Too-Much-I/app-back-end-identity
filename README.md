@@ -14,7 +14,7 @@ Identity Service는 다음 기능을 소유한다.
 - 로그아웃
 - 개인정보 처리방침 및 이용약관 동의
 
-시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다.
+시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다. Firebase 인증 broker 목표 구조는 `docs/adr/ADR-001-firebase-authentication-broker.md`, 전체 단계는 `docs/contracts/social-login-implementation-plan.md`를 따른다.
 
 ## 기술 환경
 
@@ -105,6 +105,8 @@ Sentry는 기본적으로 꺼져 있으며 실제 DSN은 저장소에 두지 않
 ```
 
 테스트 프로필은 MongoDB 자동 설정을 제외하므로 Atlas, OAuth Provider 또는 다른 외부 인프라에 연결하지 않는다.
+
+Firebase Stage 0 PoC는 Java 기본 테스트와 분리돼 있다. production Firebase project나 credential 없이 demo project ID와 Auth Emulator만 사용하는 재현 방법은 `poc/firebase-auth/README.md`, 검증 결과와 남은 외부 gate는 `docs/poc/firebase-auth-broker-stage-0.md`를 따른다. Kakao 공개 discovery 테스트는 외부 HTTPS를 사용하므로 별도 opt-in 명령으로만 실행한다.
 
 ## 인증 수명 주기
 
