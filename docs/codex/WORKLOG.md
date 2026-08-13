@@ -1428,3 +1428,393 @@
 - 결정사항: 실제 연결 확인을 마친 one-shot 검증 코드는 재사용 목적으로 보존하지 않고 제거한다. Runtime Sentry 연동과 final event sanitizer만 유지하며 source context용 build 인증 값은 계속 승인된 CI에만 둔다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
 - 위험 요소: 저장소 밖 IntelliJ 실행 설정에 임시 staging profile·smoke 또는 Sentry diagnostic 환경변수가 남아 있을 수 있으며 Codex가 이를 자동 복원하지 못한다. 배포망·alert·보존정책과 CI source context는 로컬 project 수신 확인으로 검증되지 않았다.
 - 다음 작업: 사용자는 IntelliJ Run Configuration에서 임시 staging·smoke·diagnostic 설정을 제거한다. 이후 staging에서는 trigger 없는 errors-only artifact로 handled 5xx 한 건·expected 4xx 0건·중복 및 민감정보 부재를 검증하고 운영 활성화 범위를 결정한다.
+
+## 2026-08-11 — SocialIdentity 모델 단계 구현 계획 수립
+
+<!-- codex-turn:019fef3a-47d0-7af0-9e7b-28ae72bf1a93 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: Google/Apple 로그인 API 구현 전에 외부 SNS 계정과 canonical User를 분리하는 `SocialIdentity` 모델·MongoDB index·Repository 단계의 저장소 기반 구현 계획을 작성한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 `UserProvider(LOCAL, GUEST)`가 User 생성 불변식, 프로필 응답, 탈퇴 자격증명과 로그 분기에 사용됨을 확인했다. 이번 단계에서는 이를 `GOOGLE`·`APPLE`로 확장하거나 전면 분리하지 않고, Auth 도메인의 별도 `SocialProvider(GOOGLE, APPLE)`와 `SocialIdentity` Document를 추가하는 최소 변경안을 확정했다.
+- 구현 내용: `SocialIdentity`는 별도 collection에서 UUID 문자열 id, canonical UUID 문자열 `userId`, provider, case-sensitive opaque `providerSubject`, optional email snapshot, 생성·수정 시각을 보유한다. User와는 `@DBRef` 없이 id로만 연결하고 email은 unique 또는 로그인 조회 기준으로 사용하지 않는다.
+- 구현 내용: `(provider, providerSubject)` unique compound index를 동일 외부 계정의 다중 User 연결을 막는 최종 경계로 두고, `userId` non-unique index와 `findByProviderAndProviderSubject`, `findAllByUserId` Repository 계약을 추가한다. User 존재 여부와 ACTIVE 여부 확인, Guest 실제 승격·병합은 후속 application service 책임으로 남긴다.
+- 구현 내용: 단위 테스트에는 생성·null/blank·UUID 불변식, Google/Apple 동일 subject의 provider별 구분, 한 User의 복수 SNS 연결과 Repository 계약·index metadata 검증을 포함한다. 현재 test profile이 Mongo 자동설정을 제외하므로 실제 duplicate insert 거절까지 증명하려면 외부 Atlas 없이 동작하는 격리 Mongo 테스트 방식을 구현 시 선택해야 한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획·문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. 저장소 코드와 설정을 정적으로 조사했고 `git diff --check`는 성공했다.
+- 유지한 계약: 실제 `userId`는 canonical UUID 문자열로 유지하고 외부 provider subject 및 email과 분리한다. 클라이언트 `userId` 신뢰 금지, JWT `sub`·Access/Refresh Token 흐름 불변, Python AI의 `user_id=examId`, 외부 Provider 호출 금지, Secret·Token·Password·실제 Key·전체 MongoDB URI 비기록 계약을 유지했다.
+- 결정사항: 이 단계에서는 Google/Apple Token 검증, 로그인 API, Guest 승격·병합, Learning Core 데이터 이전, Access/Refresh Token 변경, User provider migration을 수행하지 않는다. Mongo unique index가 경쟁 조건을 포함한 최종 중복 방지 장치이며 애플리케이션 선조회만으로 대체하지 않는다. 요구되지 않은 `(userId, provider)` unique 제약은 같은 provider의 복수 계정 연결 정책이 정해질 때까지 추가하지 않는다. Jira 조회·댓글·상태·필드 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: `SocialIdentity.userId`는 DB foreign key가 아니므로 존재하지 않거나 탈퇴한 User를 참조하지 않게 하는 application service 검증이 후속 연결 단계에 필요하다. 자동 index 생성은 운영 무중단 index 배포를 보장하지 않으며 기존 중복 데이터가 생기기 전에 index를 먼저 생성해야 한다. provider subject의 로그 노출·email 식별 사용을 금지해야 한다. 실제 연결 저장 전에는 회원 탈퇴 시 identity 삭제 또는 tombstone과 동일 SNS 재가입 정책도 확정해야 한다.
+- 다음 작업: 합의한 범위대로 `SocialIdentity` entity·enum·Repository·index와 테스트를 구현하고 `./gradlew clean test`를 실행한다. 실제 SNS API와 Guest 승격·merge는 별도 후속 단계에서 설계한다.
+
+## 2026-08-11 — SocialIdentity 계획에 Kakao provider 추가
+
+<!-- codex-turn:019fef41-d637-7bf1-9f5f-22b7db9fe6a2 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 기존 Google/Apple 중심 `SocialIdentity` 모델 계획에 Kakao 로그인을 동일한 외부 identity 연결 구조로 추가한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 예정된 `SocialProvider`를 `GOOGLE`, `APPLE`, `KAKAO` 세 값으로 확장하고 한 canonical User가 세 provider identity를 함께 가질 수 있도록 계획과 테스트 범위를 갱신했다. 기존 `UserProvider(LOCAL, GUEST)`에는 SNS 값을 추가하지 않는다.
+- 구현 내용: Kakao도 email이 아닌 검증된 provider 사용자 식별자를 문자열 `providerSubject`로 저장하고 `(provider, providerSubject)` unique compound index를 동일하게 적용한다. Google·Apple·Kakao 사이에 같은 문자열 subject가 존재하는 것은 provider namespace가 다르므로 허용한다.
+- 구현 내용: 실제 Kakao 인증 단계에서는 OIDC `sub` 또는 사용자 정보 API의 사용자 `id` 중 하나를 canonical subject 입력으로 명시적으로 선택하고 같은 `KAKAO` namespace 안에서 두 표현을 임의로 혼용하지 않도록 후속 계약에 포함한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 갱신이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`는 성공했다.
+- 유지한 계약: 실제 `userId`와 Kakao 외부 식별자를 분리하고 email은 로그인 식별 기준으로 사용하지 않는다. Kakao Token 검증·외부 API 호출, Guest 승격·merge, JWT·Refresh Token 변경은 여전히 이번 단계 범위 밖이며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: Kakao는 Google/Apple과 동일한 `SocialIdentity` collection·Repository·index를 재사용하고 provider별 별도 User 필드나 별도 Kakao identity collection을 만들지 않는다. Jira 조회·댓글·상태·필드 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: Kakao의 canonical subject 원천을 인증 구현 전에 고정하지 않으면 같은 계정이 중복 identity로 저장될 수 있다. provider subject와 optional email은 로그에 기록하지 않고, 실제 저장 시작 전 회원 탈퇴·재가입 시 연결 삭제 또는 보존 정책을 확정해야 한다.
+- 다음 작업: `SocialProvider.KAKAO`를 포함한 entity·Repository·index와 Google/Apple/Kakao 조합 테스트를 구현한 뒤 `./gradlew clean test`를 실행한다. Kakao Token 검증과 로그인 API는 별도 후속 단계로 유지한다.
+
+## 2026-08-11 — Google·Kakao·Apple 소셜 로그인 전체 구현 계획서 작성
+
+<!-- codex-turn:019fef41-d637-7bf1-9f5f-22b7db9fe6a2 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: SocialIdentity 첫 단계만이 아니라 Google·Kakao·Apple 인증, User 계정 유형 분리, Guest 승격·기존 계정 발견·병합, Learning Core 이전과 운영 rollout까지 전체 구현 순서를 하나의 계획서로 정리한다.
+- 변경 파일: 새 `docs/social-login-implementation-plan.md`를 작성하고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 `UserProvider(LOCAL, GUEST)`와 User 불변식으로는 비밀번호 없는 소셜 MEMBER와 Guest 승격을 표현할 수 없음을 확인하고, SocialIdentity 첫 배포 뒤 `UserAccountType(GUEST, MEMBER)`와 로그인 수단을 분리하는 호환 migration 단계를 계획했다.
+- 구현 내용: SocialProvider·SocialIdentity·index·Repository, Provider 검증 interface, Google·Kakao·Apple별 subject 규칙, 공개 social login과 JWT 보호 social link API, duplicate key 경쟁 처리, 기존 identity owner 중심 canonical merge와 source Session 폐기 흐름을 단계별로 정의했다.
+- 구현 내용: Identity가 시험·결과를 직접 수정하지 않고 `UserMerged` transactional outbox로 Learning Core에 이전을 요청하도록 경계를 유지했으며, provider subject·email·자격증명을 event와 로그에 넣지 않는 계약을 포함했다.
+- 구현 내용: 모델·Provider verifier·application service·Transaction·동시성·Security·OpenAPI 테스트와 index-first 배포, accountType backfill, provider별 feature flag 활성화, rollback 및 전체 완료 조건을 정의했다. 첫 구현 PR은 SocialIdentity 모델·Repository·index와 테스트만 포함한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`는 성공했고 계획서의 Markdown code fence 개수와 필수 section을 정적으로 확인했다.
+- 유지한 계약: 실제 userId는 UUID 문자열이며 JWT `sub`는 canonical userId다. 외부 Request Body의 userId를 신뢰하지 않고 email을 로그인 식별자로 사용하지 않으며, Access/Refresh Token·RS256·JWKS·Python AI `user_id=examId`와 Identity/Learning Core 도메인 경계를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 미연결 social login은 User를 자동 생성하지 않고 인증된 Guest link 흐름으로 보낸다. 기존 SocialIdentity owner가 canonical User이며 source User에는 새 Token을 발급하지 않는다. Provider별 기능은 Google, Kakao, Apple 순서로 독립 활성화하고 Git commit·push와 Jira 조회·댓글·상태·필드 변경은 수행하지 않았다.
+- 위험 요소: Kakao canonical subject, 직접 소셜 가입, 같은 provider 복수 연결, 계정 병합의 eventual consistency, 소셜 전용 회원 탈퇴 재인증과 탈퇴 후 재가입, outbox 전달 방식은 구현 전 제품·보안 결정이 필요하다. 현재 test profile은 Mongo를 제외하므로 실제 unique index·Transaction 검증에는 격리 Mongo와 staging replica set 검증이 필요하다.
+- 다음 작업: 계획서 단계 0의 제품·보안 결정을 확정한 뒤 첫 구현 범위인 `SocialProvider(GOOGLE, KAKAO, APPLE)`, `SocialIdentity`, Mongo index, Repository와 외부 인프라 없는 테스트를 구현하고 `./gradlew clean test`를 실행한다.
+
+## 2026-08-11 — 소셜 로그인 전체 계획서 작업 기록 동기화
+
+<!-- codex-turn:019fef43-c151-7f42-ba5e-644ffbcc98f2 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 현재 turn에서 작성한 Google·Kakao·Apple 소셜 로그인 전체 구현 계획서의 작업 기록을 지정된 turn marker로 동기화한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`의 작성 결과를 기준으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: SocialIdentity 모델부터 User 계정 유형 분리, Provider 검증, Guest 승격·canonical 병합, Learning Core outbox, lifecycle, 테스트와 provider별 rollout까지 0~8단계로 정리된 계획서가 현재 작업 기준임을 기록했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획·작업 기록 동기화이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`는 성공했고 지정된 turn marker가 한 번 포함됐음을 확인했다.
+- 유지한 계약: UUID canonical userId와 JWT `sub`, email 비식별 원칙, RS256·JWKS·RefreshSession, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 첫 구현 범위는 `SocialProvider(GOOGLE, KAKAO, APPLE)`, `SocialIdentity`, Mongo index, Repository와 격리 테스트이며 실제 Provider API·Guest 승격·병합은 후속 단계로 유지한다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: Kakao subject 원천, 직접 소셜 가입, 같은 provider 복수 연결, 탈퇴·재가입, merge eventual consistency와 outbox 전달 방식은 구현 전에 확정해야 한다.
+- 다음 작업: 계획서 단계 0의 결정을 확정한 뒤 SocialIdentity 첫 구현 단계로 진행하고 전체 `./gradlew clean test`를 실행한다.
+
+## 2026-08-11 — 전화번호 검증·무료체험을 포함한 전체 계획 보완
+
+<!-- codex-turn:019fef52-bf25-7f42-adde-a5d79159357c -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 기존 Google·Kakao·Apple 소셜 로그인 계획에 PhoneIdentity·SMS OTP·검증 번호당 무료 모의고사 1회 정책을 추가하고, SocialIdentity 최소화·Provider 입력·Apple revoke·merge·outbox·Access Token·관측성 보완 의견을 전체 구현 계획에 반영한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 첫 SocialIdentity를 `socialIdentityId`, `userId`, `provider`, `providerSubject`, `createdAt`으로 제한하고 email과 의미 없는 `updatedAt`을 제거했다. Provider email은 공통 검증 결과에서 필요한 순간에만 사용하고 저장하지 않도록 개인정보 최소화 원칙을 확정했다.
+- 구현 내용: `SocialTokenVerifier` 입력을 provider별 `SocialVerificationRequest` subtype으로 유연화하고, Kakao OIDC `sub` 권장, Apple authorization code 교환·credential 보관·탈퇴 revoke lifecycle을 단계 0과 Apple 구현 단계에 추가했다.
+- 구현 내용: 자동 merge를 ACTIVE GUEST source와 ACTIVE MEMBER target에만 허용하고 MEMBER 간 자동 merge를 금지했으며, canonical chain·순환 방지와 source Access Token 정책을 명시했다. `UserMerged` outbox에는 전달 상태·attempt·nextAttemptAt·lease를 추가하고 atomic claim·at-least-once·Learning Core eventId 멱등 계약을 정의했다.
+- 구현 내용: Identity가 E.164 정규화, versioned domain-separated HMAC-SHA-256, `PhoneIdentity`, `PhoneVerificationAttempt`, 보호된 OTP API와 phone·user·IP abuse 방어를 소유하도록 정리했다. 전화번호는 로그인·자동 merge 키가 아니며 raw 번호·OTP·fingerprint를 장기 저장하거나 로그에 남기지 않는다.
+- 구현 내용: `TrialClaim`, `UserEntitlement`, 무료시험 grant·consume과 결제는 별도 Entitlement/Billing·Learning Core 경계가 소유하도록 분리했다. Identity에는 `freeTrialUsed`나 시험 코드를 추가하지 않고 benefit-scoped fingerprint 또는 일회성 proof만 서버 간에 전달하며, claim unique·consume idempotency·exam 생성 실패 보상을 계획했다.
+- 구현 내용: 관측 sink를 application logs·Sentry·metrics로 분리해 internal userId는 필요한 application log에서만 허용하고 Sentry와 metrics에는 금지했다. 전체 순서를 SocialIdentity → accountType → PhoneIdentity/OTP → TrialClaim/Entitlement → 무료시험 consume → Google → Guest 승격·merge → Kakao → Apple → 결제·lifecycle의 0~12단계로 재정렬했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`는 성공했고 trailing whitespace가 없으며 Markdown heading 20개 구간·code fence 70개 짝수와 지정 turn marker 1회를 확인했다. 주요 금지·소유권 계약도 정적 검색으로 확인했다.
+- 유지한 계약: 실제 userId는 UUID 문자열이고 JWT `sub`는 canonical userId다. 외부 Request Body의 userId를 신뢰하지 않고 email·전화번호를 로그인 식별자로 사용하지 않으며, RS256·JWKS·RefreshSession과 Python AI `user_id=examId` 계약을 유지했다. Identity는 시험·결과·무료 사용권·결제를 소유하지 않고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 첫 구현 PR 범위는 email 없는 최소 `SocialIdentity`, `SocialProvider`, 두 Mongo index, Repository와 격리 index 테스트로 유지한다. 전화번호는 검증 번호당 무료체험 중복 방지 입력일 뿐 계정 merge 기준이 아니며 `TrialClaim`은 Identity 저장소에 만들지 않는다. Git commit·push와 Jira 조회·댓글·상태·필드 변경은 수행하지 않았다.
+- 위험 요소: HMAC key rotation의 mixed writer, SMS 비용 abuse, 번호 재할당, pseudonymous TrialClaim 보존, Apple revoke 실패, source Access Token, outbox 중복 전달, entitlement consume과 exam 생성의 분산 일관성은 구현 전 정책·법무·운영 계약이 없으면 각각 중복 지급·권리 유실·개인정보 보존·권한 오판 위험을 만든다.
+- 다음 작업: 계획서 단계 0의 Kakao·Apple·merge·전화번호·HMAC·OTP·TrialClaim 보존·Identity–Entitlement·consume 보상 결정을 확정한 뒤 첫 SocialIdentity PR을 구현하고 `./gradlew clean test`를 실행한다.
+
+## 2026-08-11 — 전화번호 인증 시점을 MEMBER enrollment로 조정
+
+<!-- codex-turn:019fef5e-65f0-7772-a867-5b96eb9d4ff4 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 무료 모의고사 시작 직전이던 전화번호 인증 UX를 검토하고, 회원가입·소셜 MEMBER 승격 시 1회 인증하는 전체 정책으로 계획서를 다듬는다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Guest 생성·둘러보기에는 전화 인증을 요구하지 않되 LOCAL 가입은 가입 전 OTP로 받은 일회성 `phoneVerificationGrant`를 소비해 User와 PhoneIdentity를 같은 Mongo Transaction으로 생성하도록 정리했다. Guest의 Google·Kakao·Apple MEMBER 승격은 기존 userId를 유지하면서 PhoneIdentity 보유를 선행 조건으로 둔다.
+- 구현 내용: 기존 MEMBER 로그인에는 OTP를 반복하지 않고, PhoneIdentity가 없는 legacy MEMBER만 무료시험 또는 향후 전화번호 필수 기능 전에 1회 onboarding하도록 정리했다. 전화 인증 attempt를 가입 시도 또는 JWT `sub`에 묶고 verification TTL·grant TTL·cleanup TTL을 분리했으며 grant 위조·만료·재사용과 `PHONE_VERIFICATION_REQUIRED` 오류 계약을 추가했다.
+- 구현 내용: 전화 인증이나 회원가입 성공만으로 `TrialClaim`을 만들지 않고, 첫 무료 모의고사 요청에서 기존 PhoneIdentity를 이용해 별도 Entitlement/Billing이 silent claim·grant하도록 유지했다. 시험 시작 시에는 OTP 화면 없이 entitlement를 consume하며 Identity는 시험·사용권 코드를 소유하지 않는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`가 성공했고 세 문서에 trailing whitespace가 없음을 확인했다. 계획서의 H2 section 20개와 code fence 74개가 정상적으로 짝을 이루며, 지정 turn marker가 정확히 1회이고 폐기한 `PhoneVerifiedForBenefit`·`PhoneVerificationAttempt.userId` 모델 참조가 없음을 정적 검색으로 확인했다.
+- 유지한 계약: 실제 userId는 UUID 문자열이고 JWT `sub`는 canonical userId다. 전화번호는 로그인 식별자나 자동 merge 키가 아니며 외부 Request Body의 userId를 신뢰하지 않는다. RS256·JWKS·RefreshSession, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 raw 전화번호·OTP를 기록하지 않았다.
+- 결정사항: 전화번호가 계정 복구·결제 보호에도 사용된다는 제품 방향을 전제로 신규 MEMBER enrollment 인증을 기본안으로 채택한다. Guest 접근은 유지하고 기존 MEMBER의 매 로그인 재인증은 금지한다. 전화 인증 성공과 무료체험 claim·실제 사용은 각각 분리한다. 첫 구현 PR은 여전히 email 없는 최소 SocialIdentity 모델·index·Repository와 테스트만 포함한다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 회원가입 단계 OTP는 전환율 저하, 가입하지 않는 사용자의 SMS 비용과 개인정보 수집을 늘린다. 전화번호가 무료체험 중복 방지에만 쓰인다면 시험 직전 인증이 더 적합하며, 번호 재할당·공유와 HMAC rotation·TrialClaim 보존은 여전히 오탐과 개인정보 보존 위험이 있다.
+- 다음 작업: 단계 0에서 MEMBER enrollment 정책과 legacy onboarding 지점, OTP·국가·line type·보존 정책을 제품·보안·법무 기준으로 확정한 뒤 첫 SocialIdentity PR을 구현하고 `./gradlew clean test`를 실행한다.
+
+## 2026-08-11 — 무료 모의고사 회원가입·가입 시 전화번호 인증 정책 확정
+
+<!-- codex-turn:019fef68-8951-7b01-9b4f-20b56262e7b6 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 무료 모의고사는 반드시 회원가입한 사용자만 시작하게 하고, 전화번호 검증을 시험 시작이 아닌 LOCAL·소셜 회원가입 과정에서 완료하도록 전체 구현 계획을 확정한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 무료 모의고사 접근 조건을 `ACTIVE MEMBER + PhoneIdentity`로 고정하고 Guest 요청은 `MEMBERSHIP_REQUIRED`로 차단하도록 아키텍처 흐름, 오류 계약, 단계별 구현, 테스트, 배포와 완료 조건에 반영했다. Guest는 전화 인증 없이 둘러볼 수 있지만 claim·entitlement·consume은 생성하거나 호출하지 않는다.
+- 구현 내용: LOCAL 가입은 pre-signup `phoneVerificationGrant` 소비와 User·PhoneIdentity 생성을 한 Mongo Transaction으로 처리한다. 미연결 Google·Kakao·Apple identity를 이용한 Guest 소셜 가입은 Guest-bound grant 소비, 기존 userId의 MEMBER 승격, PhoneIdentity·SocialIdentity 생성을 한 Transaction으로 처리하도록 정리했다.
+- 구현 내용: Guest MEMBER_ENROLLMENT OTP confirm은 grant만 발급하고 PhoneIdentity를 미리 만들지 않는다. 가입 중단 Guest의 번호 선점을 피하고 최종 PhoneIdentity unique index가 동시 가입의 최종 경계가 된다. 이미 연결된 social identity 로그인·Guest merge와 기존 MEMBER 로그인은 신규 회원가입이 아니므로 OTP를 반복하지 않는다.
+- 구현 내용: 회원가입과 전화 인증만으로 TrialClaim을 생성하지 않고 첫 무료 모의고사 요청에서 기존 PhoneIdentity로 silent claim·grant한 뒤 별도 consume한다. PhoneIdentity 없는 legacy MEMBER는 로그인 후 별도 1회 onboarding 대상으로 남긴다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`와 세 문서의 trailing whitespace 검사가 성공했고, 계획서 H2 section 20개·code fence 74개의 정상 구조와 회원가입·Guest 차단 정책의 오류·테스트·완료 조건 반영을 정적 검색으로 확인했다.
+- 유지한 계약: 실제 userId는 UUID 문자열이고 JWT `sub`는 canonical userId다. 외부 Request Body의 userId를 신뢰하지 않고 전화번호를 로그인 식별자나 자동 merge 키로 사용하지 않는다. RS256·JWKS·RefreshSession, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했으며 민감한 인증 정보나 인프라 비밀값을 기록하지 않았다.
+- 결정사항: 무료 모의고사는 ACTIVE MEMBER만 시작할 수 있고 신규 LOCAL 또는 미연결 identity의 소셜 MEMBER 회원가입에는 전화 인증 grant가 필수다. 기존 social identity 로그인·merge에는 가입 OTP를 다시 요구하지 않는다. 가입 성공과 무료체험 claim·실제 사용은 계속 분리하며 첫 구현 PR 범위는 최소 SocialIdentity 모델·index·Repository와 테스트로 유지한다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 가입 필수 OTP는 가입 전환율을 낮추고 무료시험을 사용하지 않는 회원에게도 SMS 비용과 개인정보 수집을 발생시킨다. 번호 재할당·공유, 동시 가입, grant 탈취·재사용, HMAC rotation과 TrialClaim 보존에 대한 보안·법무·운영 정책이 필요하다.
+- 다음 작업: legacy MEMBER onboarding 강제 시점과 OTP 국가·line type·rate limit·보존 정책을 확정하고, 첫 SocialIdentity PR 이후 PhoneIdentity·회원가입 Transaction을 단계적으로 구현해 `./gradlew clean test`와 격리 Mongo·staging Transaction 검증을 수행한다.
+
+## 2026-08-11 — Guest 없는 첫 SNS 로그인·직접 회원가입 흐름 추가
+
+<!-- codex-turn:019fef6e-c8cd-7ee1-814e-de984ee6e6ba -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: Guest에서 SNS로 승격하는 경로뿐 아니라 앱 첫 진입에서 Guest를 거치지 않고 Google·Kakao·Apple 버튼으로 기존 계정에 로그인하거나 신규 소셜 회원가입하는 흐름을 전체 구현 계획에 추가한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 social login이 Provider credential 검증 후 기존 SocialIdentity를 찾으면 Guest 생성 없이 canonical MEMBER Token을 발급하고, 미연결 identity면 User를 생성하지 않은 채 `SIGNUP_REQUIRED`와 짧은 `socialEnrollmentGrant`를 반환하도록 두 결과를 분리했다.
+- 구현 내용: `SocialEnrollmentAttempt`를 DIRECT_SIGNUP 또는 현재 User에 binding하고 Provider credential·전체 Claim·email·authorization code 원문을 저장하지 않도록 계획했다. opaque grant 원문은 클라이언트에 한 번만 전달하고 DB에는 hash만 저장하며 providerSubject는 최종 SocialIdentity 생성을 위해 짧은 TTL 동안만 보유한다.
+- 구현 내용: 직접 소셜 가입은 socialEnrollmentGrant에 묶인 공개 전화 인증을 거쳐 같은 signupAttemptId의 phoneVerificationGrant와 필수 동의를 받는다. 최종 Transaction에서 서버 UUID MEMBER User·PhoneIdentity·SocialIdentity·최초 RefreshSession 생성과 두 attempt 소비를 원자적으로 처리하고 canonical userId 기준 Access/Refresh 응답을 반환한다.
+- 구현 내용: Guest 전환은 보호된 prepare/finalize API와 USER-bound 두 grant를 사용해 기존 Guest userId를 유지한다. 이미 가입된 SNS identity의 첫 진입 로그인이나 Guest merge는 신규 가입이 아니므로 전화 OTP를 반복하지 않는다. 무료 모의고사의 ACTIVE MEMBER 제한과 TrialClaim lazy claim 정책은 유지했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`와 세 문서의 trailing whitespace 검사가 성공했고, 계획서 H2 section 20개·code fence 80개의 정상 구조를 확인했다. 직접 SNS 진입·SIGNUP_REQUIRED·grant binding·Transaction·오류·테스트·배포·완료 조건이 포함되고 과거의 직접 가입 제외 문구가 없음을 정적 검색으로 검증했다.
+- 유지한 계약: 실제 userId는 서버가 생성한 UUID 문자열이고 JWT `sub`는 canonical userId다. 외부 Request Body의 userId를 받지 않고 Provider email·전화번호를 로그인 식별자나 자동 merge 키로 사용하지 않는다. RS256·JWKS·RefreshSession, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했으며 민감한 인증 정보나 인프라 비밀값을 기록하지 않았다.
+- 결정사항: 첫 SNS 버튼은 기존 identity의 즉시 로그인과 미연결 identity의 DIRECT signup을 모두 지원한다. Provider 검증 성공만으로 User를 만들지 않고 전화 인증·필수 동의까지 완료해야 가입한다. DIRECT signup과 Guest 승격은 별도 binding을 사용하며 첫 구현 PR은 여전히 최소 SocialIdentity 모델·index·Repository와 테스트로 제한한다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: SocialEnrollmentAttempt와 두 bearer grant의 탈취·재사용·binding 혼합, 중단 가입 데이터 보존, 같은 SNS 또는 전화번호의 동시 가입, social 전용 User의 email nullable·필수 profile 정책이 남아 있다. 짧은 TTL·hash 저장·일회성 소비·unique index·전체 Transaction rollback과 API rate limit이 필요하다.
+- 다음 작업: 단계 0에서 social 전용 profile·email nullable, enrollment TTL·정리 정책을 확정한 뒤 최소 SocialIdentity PR을 구현한다. 이후 Provider verifier와 SocialEnrollmentAttempt, DIRECT signup·PhoneIdentity Transaction을 순서대로 구현하고 `./gradlew clean test`, 격리 Mongo index와 staging replica set Transaction을 검증한다.
+
+## 2026-08-11 — SNS nonce·socialChallengeId 계약 명확화
+
+<!-- codex-turn:019fef82-8aa5-73f2-97ae-2cd1ddce6138 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 소셜 API 계획의 `합의된 nonce 또는 challenge 식별자`라는 모호한 표현을 제거하고 nonce의 보안 목적과 서버 발급 socialChallengeId 흐름을 구체적으로 정의한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: nonce는 Identity가 SNS 인증 시작 전에 생성하고 Provider SDK에 전달해 ID Token nonce Claim과 비교하는 일회성 값으로 정의했다. socialChallengeId는 nonce나 PKCE code_challenge가 아니라 서버 보관 expected nonce·Provider·purpose·User binding을 조회하는 opaque 인증 시도 식별자로 구분했다.
+- 구현 내용: `SocialLoginChallenge`에 provider, LOGIN_OR_SIGNUP/LINK purpose, LINK의 JWT `sub` binding, expectedNonceHash, provider별 nonceMode, PENDING/CONSUMED/EXPIRED 상태와 TTL을 두도록 계획했다. nonce 원문·socialChallengeId는 로그·Sentry·metric에 남기지 않고 application이 만료와 일회성 소비를 직접 검사한다.
+- 구현 내용: 공개 login/signup challenge API와 Bearer 보호 link challenge API가 socialChallengeId·providerNonce·만료 정보를 발급하고, 클라이언트는 providerNonce를 SDK에 전달한 뒤 provider credential과 socialChallengeId만 Identity에 반환한다. login/link Body의 raw nonce는 기대값으로 신뢰하지 않는다.
+- 구현 내용: verifier는 서버 challenge에서 얻은 expected nonce context를 사용하고 Provider·purpose·User binding 불일치, 만료·재사용을 거절한다. 브라우저 authorization-code 흐름에서는 nonce와 별도로 OAuth state와 PKCE가 필요하며 세 수단은 서로 대체하지 않는다고 명시했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`와 세 문서의 trailing whitespace 검사가 성공했고, 계획서 H2 section 20개·code fence 84개의 정상 구조를 확인했다. 모호한 기존 문구가 제거되고 challenge 모델·API·오류·테스트·배포·완료 조건이 포함됐음을 정적 검색으로 검증했다.
+- 유지한 계약: 실제 userId는 서버 생성 UUID 문자열이고 JWT `sub`는 canonical userId다. 외부 Request Body의 userId를 받지 않고 Provider subject·email·전화번호를 로그인 식별자나 자동 merge 키로 사용하지 않는다. RS256·JWKS·RefreshSession, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했으며 민감한 인증 정보나 인프라 비밀값을 기록하지 않았다.
+- 결정사항: 클라이언트가 보낸 nonce를 신뢰하지 않고 서버 발급 socialChallengeId로 expected nonce를 조회한다. LOGIN_OR_SIGNUP challenge는 공개·rate-limited, LINK challenge는 JWT `sub` binding으로 보호하고 Provider 검증 성공 시 한 번만 소비한다. 이 모델은 SocialEnrollmentAttempt와 별개이며 첫 SocialIdentity PR 범위에는 포함하지 않는다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: Provider SDK마다 raw 또는 변환 nonce 전달 방식이 다를 수 있어 nonceMode를 잘못 구현하면 정상 로그인을 차단하거나 검증을 우회할 수 있다. challenge TTL·재사용 차단·Provider/purpose/User binding이 빠지면 replay와 흐름 혼합 위험이 있으며 browser redirect에서 state·PKCE를 생략하면 nonce만으로 해당 공격을 막을 수 없다.
+- 다음 작업: Provider별 SDK 문서에 맞춰 Google·Kakao·Apple nonceMode와 browser/mobile flow를 확정한 뒤 SocialLoginChallenge의 domain·Repository·API·verifier 테스트를 Provider 구현 단계에서 추가한다. 그 전에는 첫 범위인 최소 SocialIdentity 모델·index·Repository를 구현한다.
+
+## 2026-08-11 — TrialClaim·UserEntitlement 역할 구분 설명
+
+<!-- codex-turn:019fef94-f875-7da1-beda-d6aa6ba57501 -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 무료 모의고사 설계의 `TrialClaim`과 `UserEntitlement`가 각각 무엇을 기록하고 왜 두 모델로 분리되는지 명확하게 설명한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: TrialClaim을 `benefitType + benefit-scoped phoneFingerprint` 기준의 전역 무료혜택 지급 이력으로 정의했다. 같은 검증 번호가 탈퇴·재가입·다른 User 생성 후 무료권을 다시 받지 못하게 하며 시험 사용 여부에 따라 변경하거나 삭제하지 않는다.
+- 구현 내용: UserEntitlement를 canonical userId에 귀속된 실제 이용 권리로 정의했다. 무료 모의고사 grant 시 수량 1로 생성되고 reserve·consume·보상에 따라 상태·수량이 변하며 Learning Core가 시험 시작 전에 확인·차감하는 대상이다.
+- 구현 내용: 최초 무료시험 요청에서 TrialClaim insert와 UserEntitlement grant를 Entitlement/Billing의 한 Transaction으로 처리하고, 시험 consume 시에는 entitlement만 변경하며 TrialClaim은 유지하는 상태 예시를 추가했다. 탈퇴 후 동일 번호의 user_B에는 기존 TrialClaim 때문에 무료 entitlement를 재지급하지 않는다.
+- 구현 내용: TrialClaim만으로는 사용권의 미사용·예약·사용·보상 상태를 관리할 수 없고 UserEntitlement만으로는 새 User를 이용한 무료혜택 재수령을 막을 수 없음을 설명했다. 유료 구매 entitlement는 TrialClaim 없이 별도 결제 grant source를 가질 수 있도록 역할을 분리했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명·계획 문서 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`와 세 문서의 trailing whitespace 검사가 성공했고, 계획서 H2 section 20개·code fence 86개의 정상 구조와 역할표·상태 흐름·유료 확장 설명 포함을 정적 검색으로 확인했다.
+- 유지한 계약: Identity는 PhoneIdentity와 검증 proof만 소유하고 TrialClaim·UserEntitlement·시험 consume을 소유하지 않는다. 실제 userId와 JWT `sub`의 canonical UUID, 외부 Request Body의 userId 비신뢰, 전화번호 비로그인·비merge 키, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했으며 민감한 인증 정보나 인프라 비밀값을 기록하지 않았다.
+- 결정사항: TrialClaim은 혜택 수령 이력, UserEntitlement는 사용 가능한 권리이므로 하나의 `freeTrialUsed` boolean이나 단일 document로 합치지 않는다. 두 문서는 최초 무료 claim에서 원자적으로 생성하고 실제 시험 권한 판단과 consume은 UserEntitlement만 대상으로 한다. 첫 SocialIdentity PR 범위에는 둘 다 포함하지 않으며 Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: TrialClaim 보존은 pseudonymous fingerprint의 개인정보 보존과 번호 재할당 오탐을 만들 수 있다. entitlement consume과 exam 생성의 서비스 간 실패에 예약·확정 또는 보상이 없으면 권리가 유실될 수 있고, claim과 grant를 비원자적으로 저장하면 혜택만 소진되거나 중복 지급될 수 있다.
+- 다음 작업: 별도 Entitlement/Billing 경계에서 TrialClaim unique index, UserEntitlement 상태·수량·grant source, claim+grant Transaction과 consume idempotency·보상 계약을 확정한다. Identity 저장소의 첫 구현은 계획대로 최소 SocialIdentity 모델·index·Repository부터 진행한다.
+
+## 2026-08-11 — 소셜 로그인 전체 계획 동시성·운영 계약 보강
+
+<!-- codex-turn:019fefb2-a893-7d33-b0b9-3b5d326a643c -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 소셜 로그인·전화번호 인증·무료체험 전체 계획을 추가 설계 검토와 대조해 단계 책임 중복, merge source Token, HMAC key rotation, 무료시험 분산 상태와 동시성 계약을 구현 가능한 수준으로 보강한다.
+- 변경 파일: `docs/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 첫 PR의 `SocialIdentity` 범위는 유지하면서 `providerSubject`를 case-sensitive opaque 1~255자로 제한했다. 단계 6은 challenge·verifier framework, 단계 7은 기존 로그인·직접 가입·미연결 link, 단계 8은 실제 Guest merge·outbox로 분리하고, 단계 7에서 다른 owner를 발견하면 mutation과 target Token 발급 없이 `MERGE_REQUIRED`를 반환하도록 정리했다.
+- 구현 내용: source JWT를 target actor로 승격하거나 authorization alias로 사용하지 않는 공통 정책을 확정했다. Identity의 `ACCOUNT_MERGED_TOKEN_REJECTED`, downstream ownership migration·source deny marker의 로컬 Transaction, source write fencing과 전체 참여 서비스 검증 전 merge feature flag 금지를 계획에 반영했다.
+- 구현 내용: SocialLoginChallenge의 조건부 `PENDING → CONSUMED` CAS 승자만 후속 처리를 진행하고 SocialEnrollmentAttempt·PhoneVerificationAttempt도 최종 Transaction 안에서 조건부 소비하도록 명시했다. 가입 proof 누락과 legacy onboarding은 각각 `PHONE_VERIFICATION_GRANT_REQUIRED` 400, `PHONE_ONBOARDING_REQUIRED` 409로 분리했다.
+- 구현 내용: raw 번호를 장기 보관하지 않는 HMAC rotation을 위해 `PhoneFingerprintAlias`, `ACTIVE_WRITE → LOOKUP_ONLY → RETIRED` key lifecycle, retained phone·benefit version candidate 조회, legacy key reference gate와 mixed writer 금지를 추가했다. 운영 provider null 문서는 MEMBER fallback 전에 read-only aggregate로 검증하도록 했다.
+- 구현 내용: 무료시험 분산 흐름을 `reserve → exam 생성 → confirm`으로 고정하고 확정 실패 cancel, 결과 불명 timeout의 `RECONCILIATION_REQUIRED`, reservationId 기반 exam 존재 대조, CAS·idempotency 불변식을 추가했다. Identity/Social `1→2→3→6→7→8→9→10`과 Entitlement/Billing `4→5→11`을 독립 트랙으로 표현했다.
+- 실행한 테스트와 결과: 문서만 변경했으므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`가 성공했고 세 문서의 trailing whitespace가 없었다. 계획서의 H2 section 20개와 code fence 90개가 정상적으로 짝을 이루며 단계 7의 `MERGE_REQUIRED`와 단계 8의 실제 merge가 분리됐음을 정적 검색으로 확인했다.
+- 유지한 계약: 실제 userId는 UUID 문자열이고 JWT `sub`는 canonical userId다. source JWT를 target 권한으로 승격하지 않고 외부 Body의 userId를 신뢰하지 않는다. 전화번호는 로그인·자동 merge 키가 아니며 Identity는 시험·TrialClaim·UserEntitlement·EntitlementReservation을 소유하지 않는다. RS256·JWKS, Identity/Learning Core 경계와 Python AI `user_id=examId`를 유지했고 Secret·Token·Password·raw 전화번호·OTP·fingerprint·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 제시된 P0/P1 검토 의견은 타당해 계획에 반영했다. 첫 PR은 최소 SocialIdentity 모델·index·Repository·테스트로 유지하며 추가 범위는 subject 최대 길이 계약뿐이다. key version이 달라져도 retained alias candidate로 번호·TrialClaim 중복을 찾고, 결과가 불명확한 exam 생성은 확인 없이 entitlement reservation을 해제하지 않는다. Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: alias/history와 key registry reference count가 구현·운영되지 않으면 version 교차 중복이 가능하고, legacy key 장기 보존은 Secret 관리 부담을 만든다. source JWT 거절은 모든 user-owned 서비스가 deny marker와 write fencing을 구현해야 하며 한 서비스라도 준비되지 않으면 merge를 열 수 없다. reservation reconciliation의 양쪽 상태 조회가 어긋나면 무료 권리 유실 또는 중복 시험이 생길 수 있다.
+- 다음 작업: 첫 SocialIdentity PR을 구현하기 전에 Provider별 subject 공식 상한과 격리 Mongo index 검증 방식을 확인한다. 이후 단계 0의 남은 제품·보안·법무 결정을 확정하고 두 트랙을 독립적으로 구현하며 각 코드 변경에서 `./gradlew clean test`와 staging Transaction·동시성 검증을 수행한다.
+
+## 2026-08-11 — 전체 인증·무료체험 계획 사용자 확인용 요약
+
+<!-- codex-turn:019fefe6-d084-7a21-b1e8-005cfc58dc3c -->
+
+- 날짜: 2026-08-11
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 사용자가 합의된 소셜 로그인·회원가입 전화 인증·Guest 병합·무료 모의고사 설계를 자신의 이해와 비교할 수 있도록 구현 세부사항을 핵심 역할과 사용자 흐름 중심으로 요약한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`의 설계 내용은 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: User는 영구 canonical 계정이고 SocialIdentity는 Google·Kakao·Apple 외부 계정 연결이라는 기본 분리를 요약했다. 앱 첫 진입 SNS는 기존 identity 즉시 로그인과 미연결 identity의 전화 인증·동의 후 DIRECT signup으로 나뉘며, Guest의 미연결 SNS 연결은 기존 Guest userId를 유지한 MEMBER 승격임을 정리했다.
+- 구현 내용: 전화번호는 회원가입 시 소유를 검증하지만 로그인 식별자나 자동 병합 키로 쓰지 않는다. Guest는 둘러볼 수 있으나 무료 모의고사는 ACTIVE MEMBER만 가능하고, TrialClaim은 검증 번호별 무료혜택 1회 수령 이력, UserEntitlement는 실제 예약·사용되는 권리라는 차이를 설명했다.
+- 구현 내용: 기존 SocialIdentity owner가 발견되는 Guest 요청은 준비 단계에서 `MERGE_REQUIRED`로 멈추고, 공통 source JWT 거절·outbox·downstream migration이 준비된 단계 8에서만 ACTIVE GUEST를 ACTIVE MEMBER canonical User로 병합한다. 무료시험은 첫 요청에서 lazy claim한 뒤 `reserve → exam 생성 → confirm`, 확정 실패 cancel, 결과 불명 reconciliation으로 처리한다.
+- 실행한 테스트와 결과: 설명과 기록 문서만 갱신했으므로 `./gradlew clean test`는 실행하지 않았다. 종료 전 `git diff --check`, trailing whitespace, 지정 turn marker 단일 존재와 저장소 변경 상태를 정적으로 확인한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 Identity가 생성한 canonical UUID 문자열이다. Provider subject·email·전화번호를 userId로 사용하지 않고 외부 Body의 userId를 신뢰하지 않는다. 전화번호는 자동 merge 키가 아니며 Identity는 시험·TrialClaim·UserEntitlement 코드를 소유하지 않는다. RS256·JWKS, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했고 Secret·Token·Password·raw 전화번호·OTP·fingerprint·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 기존 전체 계획을 변경하지 않고 사용자가 비교하기 쉬운 관점으로만 재구성한다. 핵심 비교 기준은 canonical User 분리, 처음부터 SNS 진입 지원, 가입 시 전화 인증, Guest와 MEMBER의 무료시험 경계, 전화번호와 SocialIdentity의 병합 책임 분리, TrialClaim과 UserEntitlement의 역할 분리다. Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 압축 요약은 nonce CAS, HMAC key rotation, outbox lease·retry, reservation reconciliation 같은 구현 세부사항을 생략할 수 있으므로 실제 구현 기준은 계속 전체 계획서를 따른다. 단계 0에 남은 Provider·OTP·개인정보 보존·서비스 간 세부 계약은 별도로 확정해야 한다.
+- 다음 작업: 사용자가 자신의 이해와 비교해 다른 부분을 알려주면 해당 차이가 제품 정책인지 설계 오해인지 구분해 전체 계획서에 필요한 수정만 반영한다. 합의 후 첫 구현은 최소 SocialIdentity 모델·index·Repository부터 시작한다.
+
+## 2026-08-13 — 생성 예정 엔티티 역할과 전체 로직 설명
+
+<!-- codex-turn:019ff8a7-2500-7b80-b4e2-bbf639fbc12b -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 합의된 전체 계획에서 생성·확장될 엔티티의 소유 서비스, 수명, 책임과 직접 SNS 가입·Guest 승격·병합·무료 모의고사 흐름에서의 상호작용을 사용자가 이해할 수 있도록 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`의 설계는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Identity의 장기 엔티티를 canonical 계정인 User, 외부 계정 매핑인 SocialIdentity, 검증 번호 소유 관계인 PhoneIdentity, HMAC key version 교차 동일성을 보존하는 PhoneFingerprintAlias, 로그인 세션인 기존 RefreshSession으로 구분했다. 단기 시도 엔티티는 nonce replay를 막는 SocialLoginChallenge, 검증된 SNS principal을 최종 가입까지 이어 주는 SocialEnrollmentAttempt, OTP 요청·검증·grant 상태를 관리하는 PhoneVerificationAttempt로 설명했다.
+- 구현 내용: Guest 병합 시 User의 MERGED 상태 전환과 RefreshSession 폐기, UserMergedOutbox 생성, downstream의 eventId 멱등 처리·ownership migration·source deny marker 저장 관계를 정리했다. UserMerged는 전달 payload 개념이고 outbox document가 Identity의 영속 전달 상태임을 구분했다.
+- 구현 내용: 별도 Entitlement/Billing 소유의 TrialClaim은 검증 번호별 무료혜택 수령 ledger, UserEntitlement는 canonical User의 실제 사용권 잔액, EntitlementReservation은 시험 생성 중 해당 사용권을 잠그는 분산 작업 상태로 설명했다. 회원가입 때는 PhoneIdentity까지만 생성하고 첫 무료시험 요청에서 claim·grant·reserve한 뒤 exam 생성 결과에 따라 confirm·cancel·reconciliation하도록 정리했다.
+- 구현 내용: VerifiedSocialPrincipal, SocialProvider enum, socialEnrollmentGrant와 phoneVerificationGrant는 독립 장기 엔티티가 아니라 각각 검증 결과·namespace·일회성 bearer proof임을 명시했다. direct signup과 Guest enrollment에서 social·phone attempt를 같은 binding으로 묶고 최종 Mongo Transaction의 conditional consume 승자만 User·identity·Session 변경을 commit하는 흐름을 설명했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. 종료 전 `git diff --check`, 두 기록 문서의 trailing whitespace, 지정 turn marker 단일 존재와 저장소 변경 상태를 정적으로 확인한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이다. Provider subject·email·전화번호를 userId나 자동 병합 키로 사용하지 않고 외부 Body의 userId를 신뢰하지 않는다. Identity는 TrialClaim·UserEntitlement·EntitlementReservation·시험 데이터를 소유하지 않는다. RS256·JWKS, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했고 Secret·Token·Password·raw 전화번호·OTP·fingerprint·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 영속 엔티티와 일시적인 검증 결과·grant를 구분해 설명하며, 생성 시점과 삭제·상태 전이의 차이를 사용자 흐름에 연결한다. 기존 전체 계획을 해석한 작업으로 새로운 제품 정책이나 구현 범위를 추가하지 않았다. Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: TrialClaim·UserEntitlement·EntitlementReservation은 Identity 저장소에 구현하지 않으며 실제 Entitlement/Billing 경계와 API 계약이 별도로 필요하다. PhoneFingerprintAlias key registry, outbox consumer, source JWT deny marker와 reservation reconciliation이 일부만 구현되면 version 교차 중복·병합 후 접근·무료권 유실 문제가 생길 수 있다.
+- 다음 작업: 사용자 이해와 다른 부분이 있으면 제품 정책과 기술 구현을 구분해 수정한다. 합의 후 첫 구현은 계획대로 최소 SocialIdentity 모델·index·Repository부터 시작하고 코드 변경 시 `./gradlew clean test`와 격리 Mongo index 검증을 수행한다.
+
+## 2026-08-13 — SNS nonce·challenge·일회성 소비 의미 설명
+
+<!-- codex-turn:019ff8ca-6834-7742-926e-383b67cc0bea -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 서버 발급 SNS 인증 흐름에서 nonce와 SocialLoginChallenge의 역할 차이, Provider Token nonce 검증, challenge를 소비한다는 상태 전이의 의미를 이해하기 쉽게 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`의 설계는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: nonce를 Identity가 인증 시작마다 생성해 Provider SDK에 전달하는 예측 불가능한 일회성 값으로 설명했다. Provider가 돌려준 ID Token의 nonce Claim과 서버가 challenge에 보관한 expected nonce를 비교해 해당 Token이 바로 그 인증 시도에서 발급됐는지 확인하며, 클라이언트가 login Body로 보낸 nonce를 기대값으로 신뢰하지 않는다고 정리했다.
+- 구현 내용: SocialLoginChallenge를 nonce 자체가 아니라 expected nonce hash, Provider, LOGIN_OR_SIGNUP/LINK 목적, 필요 시 JWT `sub` 사용자 binding, 만료 시각과 PENDING/CONSUMED 상태를 보관하는 짧은 수명의 서버 인증 시도 레코드로 구분했다. socialChallengeId는 이 레코드를 찾는 opaque 식별자다.
+- 구현 내용: challenge 소비는 물리적 삭제이나 Token 사용을 뜻하는 표현이 아니라, 모든 검증 성공 후 조건부 `PENDING → CONSUMED` 전이를 수행해 승자 한 요청만 후속 로그인·가입·연결을 진행시키는 것을 뜻한다. 이후 같은 challenge나 Provider credential을 다시 보내면 이미 소비된 시도로 거절해 replay와 동시 중복 처리를 막는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. `git diff --check`, 두 기록 문서의 trailing whitespace, 지정 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 서버가 발급한 challenge에서 expected nonce와 Provider·목적·사용자 binding을 조회하며 외부 Body의 nonce나 userId를 신뢰하지 않는다. 실제 userId와 JWT `sub`는 canonical UUID 문자열이고 RS256·JWKS, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했다. Secret·Token·Password·nonce 원문·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: nonce는 요청과 Provider 인증 결과의 결속 값, challenge는 그 검증 문맥과 수명주기를 보관하는 서버 측 시도 레코드, consumption은 일회성 사용을 강제하는 원자적 상태 전이로 설명한다. 기존 설계나 구현 범위는 변경하지 않았고 Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: nonce 비교 전에 challenge를 소비하면 Provider 장애나 검증 실패에도 정상 재시도를 막을 수 있고, 로그인·가입 같은 부수 효과 뒤에 소비하면 동시 요청이 중복 Session이나 계정을 만들 수 있다. 실제 구현에서는 검증 순서와 CAS 승자만 후속 처리를 진행하는 원자성 또는 Transaction 경계를 보장해야 한다.
+- 다음 작업: Provider별 raw/hashed nonce 규칙과 challenge TTL을 확정한 뒤 SocialLoginChallenge 구현에서 만료·Provider/purpose/user binding 불일치·재사용·동시 요청 CAS 테스트를 추가한다.
+
+## 2026-08-13 — EmailAvailabilityService 책임과 한계 설명
+
+<!-- codex-turn:019ff8e4-7635-7b52-8b97-cdaf3d786b93 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 현재 `EmailAvailabilityService`의 입력부터 응답까지의 호출 흐름, 이메일 정규화 기준, 실제 회원가입 중복 방지와의 관계 및 보장하지 않는 범위를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 `POST /api/v1/auth/check-email`에서 `CheckEmailRequest`가 공백 제거와 `@NotBlank`·`@Email` 검증을 수행하고 Controller가 `EmailAvailabilityService.checkEmail`을 호출하는 흐름을 확인했다. 서비스는 `EmailNormalizer`로 다시 trim하고 `Locale.ROOT` 소문자화한 값을 `UserRepository.existsByNormalizedEmail`에 전달한다.
+- 구현 내용: 조회 결과가 없으면 `isAvailable=true`와 사용 가능 메시지, 있으면 정상 200 응답 안에 `isAvailable=false`와 이미 사용 중 메시지를 반환한다. 대소문자와 양끝 공백은 중복 판단에서 구분하지 않지만 Gmail dot·plus 같은 Provider별 별칭 규칙은 적용하지 않는다.
+- 구현 내용: availability 결과는 조회 순간의 안내일 뿐 이메일 예약이나 이후 가입 성공을 보장하지 않는다. 조회 후 다른 요청이 먼저 가입할 수 있으므로 `SignupService`가 다시 존재 여부를 검사하고, 동시 가입의 최종 방어는 `normalizedEmail` partial unique index와 `DuplicateKeyException`의 `EMAIL_ALREADY_EXISTS` 변환이 담당함을 구분했다. 탈퇴 tombstone은 이메일 필드를 제거하므로 현재 정책상 해당 이메일을 다시 사용할 수 있다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. 기존 application test의 사용 가능·불가능·trim·소문자화 검증과 Controller test의 200 응답 계약을 읽어 확인했으며, 종료 전 `git diff --check`, 기록 문서 trailing whitespace와 지정 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 클라이언트가 보낸 userId를 사용하지 않고 이메일 원문을 로그나 작업 기록에 남기지 않았다. 실제 userId와 JWT `sub`의 canonical UUID, Identity 도메인 경계, RS256·JWKS와 Python AI `user_id=examId` 계약을 변경하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: `EmailAvailabilityService`는 조회와 응답 변환만 담당하고 회원가입 원자성이나 이메일 소유권을 담당하지 않는 application service로 설명한다. 기존 코드·API·정책을 변경하지 않았고 Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 인증 없이 호출 가능한 API가 특정 이메일의 가입 여부를 직접 구분하므로 계정 열거에 이용될 수 있다. 운영 공개 전 rate limit·abuse monitoring·제품 메시지 정책을 검토해야 하며, check 결과를 신뢰해 `SignupService`의 중복 검사나 DB unique index를 제거하면 안 된다.
+- 다음 작업: 정책상 계정 존재 공개를 허용할지 확정하고, 허용한다면 공개 endpoint의 rate limit과 관측 기준을 마련한다. 기능 변경이 필요할 때에는 Controller·application service·동시 가입 unique-index 방어 테스트를 함께 유지한다.
+
+## 2026-08-13 — 첫 SocialIdentity 구현 범위 재확인
+
+<!-- codex-turn:019ff8e8-5dcf-70d3-a996-378bd604c55b -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 중단된 설명을 이어서 전체 소셜 로그인 로드맵 중 첫 구현 PR에 실제로 포함되는 항목과 제외되는 후속 항목을 명확히 구분한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`의 합의된 범위는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 첫 범위는 `SocialProvider(GOOGLE, KAKAO, APPLE)`, `SocialIdentity(socialIdentityId, userId, provider, providerSubject[1..255], createdAt)`, `(provider, providerSubject)` compound unique index, `userId` non-unique index와 `findByProviderAndProviderSubject`·`findAllByUserId` Repository 계약으로 한정됨을 재확인했다.
+- 구현 내용: 도메인 생성 불변식, Provider별 동일 문자열 subject 허용, 한 User의 복수 Provider 연결, provider+subject와 userId 조회, index metadata·실제 unique enforcement를 외부 Atlas 없이 검증하는 테스트가 첫 범위에 포함된다. 실제 중복 insert 검증 환경은 구현 시 격리 Mongo 방식을 선택해야 한다.
+- 구현 내용: email·updatedAt, User·UserAccountType migration, Google·Kakao·Apple Token verifier, SocialLoginChallenge·SocialEnrollmentAttempt, Controller와 login/signup/link API, Guest 승격·병합, PhoneIdentity·OTP, TrialClaim·UserEntitlement·EntitlementReservation, outbox·Learning Core event와 Access/Refresh 발급 로직 변경은 첫 범위에서 제외됨을 정리했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 범위 확인·기록 작업이므로 `./gradlew clean test`는 실행하지 않았다. 종료 전 `git diff --check`, 기록 문서 trailing whitespace, 지정 turn marker 단일 존재와 저장소 변경 상태를 정적으로 확인한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이며 SocialIdentity는 외부 identity에서 canonical userId로의 매핑만 소유한다. email은 로그인 식별자가 아니고 전화번호도 로그인·자동 병합 키가 아니다. Identity/Learning Core 경계와 기존 RS256·JWKS·Access/Refresh 계약을 변경하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 첫 PR의 완료 결과는 SNS 연결 정보를 안전하게 저장·조회할 수 있는 데이터 기반이며 실제 SNS 로그인이 동작하는 상태가 아니다. 첫 PR에 후속 User·API·OTP·merge·entitlement 범위를 섞지 않는다. Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 현재 test profile은 Mongo 자동설정을 제외하므로 annotation metadata 테스트만으로 실제 unique insert 차단까지 증명할 수 없다. 격리 Mongo 또는 승인된 staging 검증 없이 DB 최종 동시성 방어가 완료됐다고 선언하면 안 된다.
+- 다음 작업: 첫 구현을 승인하면 저장소 구조를 다시 확인해 최소 SocialIdentity entity·enum·Repository·index 테스트를 작성하고 `./gradlew clean test`를 실행한다. 실제 OAuth Provider와 Atlas는 기본 테스트에서 호출하지 않는다.
+
+## 2026-08-13 — 회원 탈퇴 tombstone과 필드 제거 의미 설명
+
+<!-- codex-turn:019ff8e8-38c7-7ad2-8eef-6aa0124e2ae0 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: `tombstone에서 이메일을 제거한다`는 표현이 사용자 문서 삭제와 어떻게 다른지, 현재 회원 탈퇴 구현에서 남는 정보와 제거되는 정보를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: tombstone은 탈퇴 시 `users` document를 물리 삭제하는 대신 동일한 `userId`를 유지하면서 `status=WITHDRAWN`으로 표시한 최소 잔존 레코드라고 설명했다. 현재 구현은 nickname을 `탈퇴한 사용자`로 치환하고 `updatedAt`·`withdrawnAt`을 탈퇴 시각으로 기록하며 기존 생성 시각, provider와 consent 구조는 유지한다.
+- 구현 내용: `User.toWithdrawnTombstone`은 email·normalizedEmail·passwordHash·guestInstallationIdHash를 null인 탈퇴 객체로 만들고, `UserRepositoryCustomImpl.withdrawIfUnchanged`는 MongoDB `$unset`으로 실제 document에서 네 필드를 제거한다. 따라서 `tombstone에서 제거`는 tombstone 자체 삭제가 아니라 그 안의 개인정보·자격증명 필드를 없앤다는 의미로 구분했다.
+- 구현 내용: normalizedEmail 필드가 사라지면 partial unique index 대상에서도 빠져 같은 이메일의 신규 가입이 가능해진다. 남은 userId와 WITHDRAWN 상태는 탈퇴 계정임을 식별하고 활성 사용자로 취급하지 않기 위한 표식이며, 별도 탈퇴 Transaction은 기존 RefreshSession도 폐기한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. 탈퇴 entity 변환과 custom repository `$unset` 구현 및 관련 테스트 위치를 읽어 확인했으며, 종료 전 `git diff --check`, 기록 문서 trailing whitespace와 지정 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 탈퇴 후 credential 필드를 보존하거나 로그에 노출하지 않고 실제 userId와 JWT `sub`의 canonical UUID, Identity 도메인 경계, RS256·JWKS와 Python AI `user_id=examId` 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: tombstone과 hard delete를 구분하고, `제거`의 목적어가 user document가 아니라 email·normalizedEmail·passwordHash·guestInstallationIdHash 필드임을 명확히 설명한다. 기존 데이터 보존 정책이나 코드는 변경하지 않았고 Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: tombstone에 현재 유지되는 provider·consent 정보의 법적 보존 근거와 기간은 별도 개인정보 정책 검토가 필요하다. tombstone은 Identity 레코드의 상태 표시이며 Learning Core 등 다른 서비스의 사용자 데이터 삭제·익명화를 자동으로 보장하지 않는다.
+- 다음 작업: 개인정보 보존·삭제 정책에서 tombstone의 필드별 보존 근거와 기간, downstream 데이터 삭제 또는 익명화 계약을 확정한다.
+
+## 2026-08-13 — 첫 SocialIdentity Jira 생성 초안 작성
+
+<!-- codex-turn:019ff8eb-64b0-7c12-a380-f49b7763ec5a -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 첫 구현 범위인 최소 SocialIdentity 모델·MongoDB index·Repository 작업을 TMI 프로젝트의 신규 Jira 이슈로 등록하기 전에, 생성할 내용을 정확히 작성하고 사용자 승인용 초안을 제시한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Atlassian 공식 MCP로 기존 Identity 이슈와 TMI 프로젝트 생성 metadata를 읽기 전용 조회했다. TMI에는 `작업` 유형이 있고 프로젝트·이슈 유형·요약이 필수이며 보고자는 기본값을 사용할 수 있음을 확인했다. SocialIdentity 관련 유사 이슈는 검색 결과에서 발견되지 않았다.
+- 구현 내용: 생성 초안은 TMI 프로젝트의 `작업`, 제목 `[Identity] SocialIdentity 모델·인덱스·Repository 기반 구축`으로 준비했다. 담당자·우선순위·라벨·상태 전환은 지정하지 않고 Jira 기본값을 사용하며, 설명에는 배경·목표·도메인 모델·index·Repository·기능 요구사항·완료 조건·테스트·제외 범위·유지 계약을 포함한다.
+- 구현 내용: 첫 범위에는 `SocialProvider(GOOGLE, KAKAO, APPLE)`, email·updatedAt 없는 SocialIdentity, provider+subject unique index, userId index, 두 Repository 조회 계약과 테스트만 포함한다. Provider 검증·API·User 변경·Guest 승격·병합·PhoneIdentity·OTP·Entitlement·outbox·Access/Refresh 변경은 Jira 제외 범위로 명시한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 조회·초안 작성 작업이므로 `./gradlew clean test`는 실행하지 않았다. 종료 전 `git diff --check`, 기록 문서 trailing whitespace, 지정 turn marker 단일 존재와 저장소 상태를 정적으로 확인한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이고 SocialIdentity는 외부 identity에서 canonical userId로의 매핑만 소유한다. email을 로그인 식별자로 사용하지 않고 외부 Body의 userId를 신뢰하지 않는다. Identity/Learning Core 경계와 기존 RS256·JWKS·Access/Refresh 계약을 변경하지 않았으며 Jira나 기록에 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 넣지 않았다.
+- 결정사항: 저장소 규칙에 따라 생성 전에 전체 Jira 초안을 사용자에게 보여주고 명시적 승인을 받는다. 이번 작업에서는 Jira 생성·수정·댓글·상태 변경을 수행하지 않았고 발급된 Jira 키도 없다. Git commit·push도 수행하지 않았다.
+- 위험 요소: 담당자·우선순위·라벨을 지정하지 않으므로 프로젝트 기본값이 적용되며, 사용자가 이를 요구하면 생성 승인 전에 초안과 실행 payload를 수정해야 한다. 실제 Mongo unique enforcement 테스트 방식은 구현 착수 시 격리 Mongo 환경으로 확정해야 한다.
+- 다음 작업: 사용자가 제시된 Jira 초안을 승인하면 동일 내용으로 이슈를 한 번 생성하고 결과 키·상태를 재조회한다. 생성 후 Jira 키를 CURRENT_STATE와 새 WORKLOG 항목에 기록하고 구현 전 해당 이슈를 다시 읽어 완료 조건을 기준으로 작업한다.
+
+## 2026-08-13 — TMI-88 SocialIdentity 기반 작업 Jira 생성
+
+<!-- codex-turn:019ff8ee-b9b0-7a52-b4fd-b1ce6b0ca1a0 -->
+
+- 날짜: 2026-08-13
+- Jira: TMI-88
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: 사용자가 승인한 첫 SocialIdentity 구현 초안을 TMI 프로젝트의 Jira 작업으로 생성하고 생성 결과와 저장된 계약을 재확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드와 `docs/social-login-implementation-plan.md`는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Atlassian 공식 MCP로 Jira `TMI-88` `[Identity] SocialIdentity 모델·인덱스·Repository 기반 구축`을 `작업` 유형으로 한 번 생성했다. 승인된 설명에는 SocialProvider, email·updatedAt 없는 SocialIdentity, provider+subject unique index, userId index, Repository 계약, 완료 조건·테스트·제외 범위·기존 계약을 기록했다.
+- 수행한 Jira 작업: 신규 이슈 생성 후 `TMI-88`을 재조회해 프로젝트 `TMI`, 유형 `작업`, 상태 `해야 할 일`, 담당자 없음, 프로젝트 기본 우선순위 `Medium`, 빈 label·component와 승인한 본문이 저장됐음을 확인했다.
+- 추가한 댓글의 목적: 댓글은 추가하지 않았다.
+- 변경한 상태: 생성 기본 상태인 `해야 할 일`을 유지했고 별도 상태 전환은 수행하지 않았다.
+- 승인 여부: 사용자가 전체 Jira 초안을 확인한 뒤 명시적으로 생성을 승인했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 생성·문서 기록 작업이므로 `./gradlew clean test`는 실행하지 않았다. 종료 전 `git diff --check`, 기록 문서 trailing whitespace, 지정 turn marker 단일 존재와 저장소 상태를 정적으로 확인한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이며 SocialIdentity는 외부 identity에서 canonical userId로의 매핑만 소유한다. email을 로그인 식별자로 사용하지 않고 외부 Body의 userId를 신뢰하지 않는다. Identity/Learning Core 경계와 기존 RS256·JWKS·Access/Refresh 계약을 변경하지 않았으며 Jira나 기록에 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 넣지 않았다.
+- 결정사항: 첫 구현 범위는 Jira `TMI-88`의 설명과 완료 조건을 기준으로 하며 Provider 검증·API·User 변경·Guest 승격·병합·PhoneIdentity·OTP·Entitlement·outbox·Access/Refresh 변경은 포함하지 않는다. Jira 댓글·상태 전환과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 현재 test profile은 Mongo 자동설정을 제외하므로 실제 duplicate insert unique enforcement를 증명할 격리 Mongo 방식이 구현 전에 필요하다. 이 범위를 넘는 요구는 TMI-88에 섞지 않고 후속 이슈로 분리해야 한다.
+- 다음 작업: 구현을 시작할 때 Jira `TMI-88`을 다시 읽고 완료 조건을 기준으로 entity·enum·Repository·index 테스트를 작성한다. 전체 `./gradlew clean test`와 외부 Atlas·OAuth Provider를 호출하지 않는 격리 Mongo 검증을 수행하고 Jira 댓글·상태 변경은 별도 승인 후 진행한다.
+
+## 2026-08-13 — GuestAuthService 생성·인증·원자성 설명
+
+<!-- codex-turn:019ff900-842c-7793-b9ba-b876dcb00cfc -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: `GuestAuthService`가 Guest 생성 요청에서 검증·중복 방지·User 및 Token 준비·Transaction 저장·오류 변환을 어떻게 조율하며 무엇을 보장하지 않는지 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 `POST /api/v1/auth/guest`의 `GuestAuthRequest`가 canonical UUID v4 설치 식별자와 필수 개인정보·약관 동의 및 현재 정책 버전을 받고, Service가 `ConsentPolicy`를 먼저 검증하는 흐름을 확인했다. 실패하면 User·Token·Session 준비를 시작하지 않는다.
+- 구현 내용: 설치 UUID는 정규화 후 SHA-256·Base64URL hash로 변환하고 원문 대신 hash만 User에 저장한다. 이 hash로 사전 중복 조회하며 `guestInstallationIdHash` partial unique index가 동시 요청의 최종 중복을 막는다. 설치 UUID는 중복 방지 식별자일 뿐 인증 credential이나 기존 Guest 복구 수단이 아니므로 같은 설치의 재호출은 Token 재발급 없이 `GUEST_ALREADY_EXISTS` 409가 된다.
+- 구현 내용: 중복이 없으면 서버 UUID, GUEST provider, ACTIVE 상태, 고정 Guest nickname, email·password 없는 User와 현재 동의 시각을 만든다. User 저장 전에 RS256 Access Token과 원문을 DB에 저장하지 않는 RefreshSession을 준비하고, `GuestRegistrationTransactionService`가 User와 RefreshSession 저장 및 응답 구성을 Mongo Transaction으로 함께 commit한다. 중간 실패 시 두 document를 rollback하고 Transaction proxy 반환 후에만 안전한 완료 로그를 남긴다.
+- 구현 내용: 같은 설치의 동시 요청이 모두 사전 조회를 통과해도 unique 충돌 후 해당 설치 hash의 실제 승자가 존재할 때만 `GUEST_ALREADY_EXISTS`로 변환한다. 다른 unique index 충돌은 Guest 중복으로 오분류하지 않는다. commit 뒤 응답이 유실되어 재시도해도 설치 UUID만으로 기존 Token을 다시 받을 수 없고 conflict가 반환되는 비복구 정책임을 설명했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 `./gradlew clean test`는 실행하지 않았다. Service·Transaction service·request/response·hasher·Factory 코드와 기존 동의 실패, Token 준비 실패, rollback, 동시 중복, 응답 유실 재시도 테스트를 읽어 확인했다. 종료 전 `git diff --check`, 기록 문서 trailing whitespace와 지정 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 실제 Guest userId는 서버 생성 UUID이고 Access Token `sub`에 사용된다. 설치 UUID를 userId나 인증 credential로 사용하지 않고 원문 설치 UUID·Access Token·Refresh Token을 로그나 DB에 보존하지 않는다. RS256·JWKS, Identity/Learning Core 경계와 Python AI `user_id=examId` 계약을 유지했으며 Secret·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: `GuestAuthService`는 Guest 등록 유스케이스의 순서를 조율하고 실제 다중 document 원자성은 proxy 경계가 분리된 `GuestRegistrationTransactionService`가 담당한다고 설명한다. 기존 코드·API·정책을 변경하지 않았고 Jira 작업과 Git commit·push는 수행하지 않았다.
+- 위험 요소: 설치 UUID와 Token을 모두 잃거나 commit 응답이 유실되면 설치 UUID만으로 Guest를 복구할 수 없다. Guest Access Token은 stateless라 탈퇴나 로그아웃 후에도 최대 TTL 동안 암호학적으로 유효할 수 있고, 설치 UUID 원문은 엔트로피가 제한된 식별자여서 hash 저장이 강한 비밀성을 뜻하지 않는다. 실제 Mongo Transaction은 replica set 환경에서 검증해야 한다.
+- 다음 작업: 클라이언트가 최초 성공 응답의 Token을 안전하게 저장하고 응답 불명 상황을 처리하는 UX를 확정한다. 필요하다면 설치 UUID를 credential로 승격하지 않는 별도의 Guest 복구·재발급 계약을 설계하고, staging replica set에서 Transaction 및 동시 중복을 재검증한다.
+
+## 2026-08-13 — TMI-88 최소 SocialIdentity 데이터 기반 구현
+
+<!-- codex-turn:019ff926-cbf7-7a60-ab58-7f99d28a6d86 -->
+
+- 날짜: 2026-08-13
+- Jira: TMI-88
+- 브랜치: `feat/TMI-88-social-identity-foundation` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: Google·Kakao·Apple 인증 API 전에 외부 identity와 canonical User를 분리해 저장·조회하는 최소 SocialIdentity 모델, MongoDB index, Repository와 실제 중복 차단 테스트를 Jira 완료 조건대로 구현한다.
+- 변경 파일: `build.gradle`, `src/main/java/web/tosunsaeng/identity/domain/auth/domain/enums/SocialProvider.java`, `src/main/java/web/tosunsaeng/identity/domain/auth/domain/entity/SocialIdentity.java`, `src/main/java/web/tosunsaeng/identity/domain/auth/domain/repository/SocialIdentityRepository.java`, `src/test/java/web/tosunsaeng/identity/domain/auth/domain/entity/SocialIdentityTests.java`, `src/test/java/web/tosunsaeng/identity/domain/auth/domain/repository/SocialIdentityRepositoryTests.java`, `src/test/java/web/tosunsaeng/identity/domain/auth/domain/repository/SocialIdentityRepositoryIntegrationTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. 기존 untracked 계획 문서는 이번 구현에서 수정하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Auth 도메인에 `SocialProvider(GOOGLE, KAKAO, APPLE)`와 `social_identities` collection의 `SocialIdentity`를 추가했다. entity는 서버 생성 UUID `socialIdentityId`, canonical UUID 문자열 `userId`, non-null provider, case-sensitive opaque 원문을 보존하는 1~255자 `providerSubject`, non-null `createdAt`만 보유한다.
+- 구현 내용: `uk_social_identities_provider_subject`를 provider ASC·providerSubject ASC의 compound unique index로, `ix_social_identities_user_id`를 non-unique index로 선언했다. email·updatedAt·Provider Token·전체 Claim·User 객체·`@DBRef`와 `(userId, provider)` unique 제약은 추가하지 않았다.
+- 구현 내용: `SocialIdentityRepository`에 `findByProviderAndProviderSubject`와 `findAllByUserId`를 추가했다. `mongo-java-server` test dependency를 사용해 외부 Atlas 없이 임의 로컬 포트의 순수 Java 인메모리 Mongo를 테스트마다 기동하고 Spring Data Repository proxy와 index resolver의 실제 저장·조회·index enforcement를 검증했다.
+- 실행한 테스트와 결과: `./gradlew test --tests '*SocialIdentity*'`에서 신규 13개 테스트가 성공했다. 첫 `./gradlew clean test`는 샌드박스의 사용자 Gradle cache lock 접근 제한으로 코드 실행 전에 중단됐고, 승인된 동일 명령을 샌드박스 밖에서 재실행해 44개 suite·308개 테스트가 skip 0·failure 0·error 0으로 성공했다. `git diff --check`도 성공했다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이다. Provider subject와 email을 userId로 사용하거나 외부 Body에 userId를 추가하지 않았다. 기존 User·UserProvider, Controller, Provider verifier, Access/Refresh Token, RS256·kid·issuer·audience·JWKS와 Identity/Learning Core 및 Python AI `user_id=examId` 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI·Provider 개인정보를 기록하지 않았다.
+- 결정사항: 애플리케이션 선조회가 아니라 MongoDB `(provider, providerSubject)` unique index를 외부 계정 단일 owner의 최종 경쟁 경계로 둔다. subject는 trim·case folding하지 않고 원문을 저장하며 Provider namespace가 다르면 같은 문자열을 허용한다. 실제 duplicate insert 자동화는 Docker·Atlas 없이 실행 가능한 격리 Mongo로 구현했다. Jira 댓글·상태·필드는 변경하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: 인메모리 Mongo 테스트는 Repository query와 index 동작을 자동 회귀하지만 운영 MongoDB 버전·권한·기존 데이터·무중단 index build 영향을 대체하지 않는다. 운영 writer 활성화 전 staging에서 두 index의 실제 생성과 중복 데이터 부재를 확인해야 한다. `providerSubject` 255자 상한은 Provider verifier 구현 전에 각 공식 계약과 Mongo index byte 한도를 다시 확인한다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push한다. Jira 댓글 초안은 SocialProvider·SocialIdentity·index·Repository 구현, 변경 파일, 전체 44개 suite·308개 테스트 성공과 staging index 검증 위험만 포함해 제시하되 승인 전에는 등록하지 않는다. 다음 구현은 별도 범위인 User accountType·PhoneIdentity 또는 Provider challenge/verifier 순서를 계획에 따라 진행한다.
+
+## 2026-08-13 — Guest 설치 UUID SHA-256과 응답 유실 처리 상태 설명
+
+<!-- codex-turn:019ff940-a866-7872-95c0-e2c9f8937de6 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `feat/TMI-88-social-identity-foundation` (`b6eb73e` 기준, commit·push 미수행)
+- 작업 목표: Guest 설치 UUID의 SHA-256 변환 과정과 보안적 성격을 설명하고, Guest 생성 commit 후 응답 유실에 대한 현재 구현과 미구현 복구 범위를 구분한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `GuestInstallationIdHasher`가 입력을 trim한 뒤 canonical UUID v4·RFC variant인지 검증하고 `UUID.toString()`의 lowercase 문자열로 정규화함을 확인했다. 그 UTF-8 bytes에 Java `MessageDigest`의 SHA-256을 적용해 32 bytes digest를 만들고 padding 없는 Base64URL 문자열 43자로 변환해 `guestInstallationIdHash`에 저장한다.
+- 구현 내용: SHA-256은 같은 입력에서 같은 digest가 나오는 단방향 fingerprint라 동일 설치 중복 조회에 사용할 수 있지만 복호화하는 암호화 방식이 아니다. 현재 구현은 random salt나 서버 비밀키 HMAC을 사용하지 않는다. UUID v4의 높은 무작위성 때문에 일반 짧은 비밀번호와 같은 사전대입 대상은 아니지만 hash 저장만으로 원문이 인증 비밀이 되는 것은 아니라고 설명했다.
+- 구현 내용: 서버가 User·RefreshSession을 commit한 뒤 HTTP 응답이 클라이언트에 도착하지 않는 네트워크 유실을 감지하거나, 설치 UUID로 기존 Refresh Token 원문을 복원·재발급하는 코드는 없다. 원문 Refresh Token은 DB에 저장하지 않으므로 그대로 되돌릴 수도 없다. 같은 설치 UUID 재시도는 기존 중복 검사 코드에 의해 `GUEST_ALREADY_EXISTS`가 되는 현재 실패 정책이다.
+- 구현 내용: `commitThenResponseLossRetryStaysConflictWithoutPreparingAnotherToken` 테스트가 첫 등록이 반영된 상황에서 재시도하면 새 Token이나 Transaction을 준비하지 않고 conflict가 반환됨을 검증한다. 따라서 응답 유실 상황의 현재 동작과 회귀 테스트는 구현되어 있지만, 응답 복구·멱등 재응답·별도 Guest recovery API는 구현되지 않았다고 구분했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석·설명 작업이므로 이번 turn에서 Gradle 테스트를 새로 실행하지 않았다. hasher 구현과 기존 응답 유실 재시도 테스트를 읽어 확인했으며, 종료 전 `git diff --check`, 기록 문서 trailing whitespace와 지정 turn marker 단일 존재·WORKLOG 끝 append를 정적으로 검증한다.
+- 유지한 계약: 설치 UUID는 중복 방지 식별자일 뿐 userId나 인증 credential이 아니며 실제 Guest userId와 JWT `sub`는 서버 생성 UUID다. 원문 설치 UUID·Access Token·Refresh Token을 로그나 작업 기록에 남기지 않고 Refresh Token 원문을 DB에 저장하지 않는 계약, RS256·JWKS와 Identity/Learning Core 경계를 유지했다. Secret·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 현재 구현과 미구현을 분리해, SHA-256 중복 fingerprint와 재시도 conflict는 구현 완료 상태이고 유실 응답의 Token 복구는 미구현 상태로 설명한다. Guest recovery를 추가하더라도 설치 UUID 자체를 credential로 승격하지 않는 별도 인증·멱등성 설계가 필요하다. Jira 변경과 Git commit·push는 수행하지 않았다.
+- 위험 요소: commit 성공과 클라이언트 수신 실패를 구분할 수 없는 ambiguous outcome에서 현재 클라이언트는 Guest 계정과 Token을 잃을 수 있다. 단순히 installationId만으로 Token을 재발급하면 탈취된 설치 식별자가 인증 수단이 되며, Refresh Token hash에서는 원문 Token을 복원할 수 없다.
+- 다음 작업: 제품에서 응답 유실 복구가 필요한지 결정한다. 필요하다면 짧은 수명의 서버 발급 idempotency key·일회성 등록 challenge 또는 별도 복구 credential을 검토하고, 응답 재전송 시 Token 원문 보관 문제와 재사용·탈취 방어를 함께 설계한다.

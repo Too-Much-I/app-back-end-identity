@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 구조화 운영 로그 구현·main 병합 완료; Sentry errors-only Runtime 연동과 `beforeSend` 최종 민감정보 정제를 구현하고 실제 DSN을 사용하는 one-shot event의 Sentry project 수신까지 확인한 뒤 임시 trigger를 제거했으며 전체 41개 suite·295개 테스트 성공
-- 상태 기준일: 2026-08-11
+- 현재 단계: Jira `TMI-88` 최소 SocialIdentity 데이터 기반 구현 완료; `SocialProvider`, email·updatedAt 없는 `SocialIdentity`, provider+subject unique index, userId index와 Repository를 추가하고 순수 Java 격리 Mongo의 실제 저장·조회·중복 차단을 포함한 전체 44개 suite·308개 테스트 성공; Jira 상태는 `해야 할 일`로 유지하고 댓글·상태 전환·commit·push는 수행하지 않음
+- 상태 기준일: 2026-08-13
 
 ## 완료
 
@@ -146,13 +146,40 @@
 - 외부 통신 없는 `SentryCaptureIntegrationTests`로 handled 5xx 한 건·expected 4xx 0건·민감 sentinel 0건을 확인하고, 임시 staging one-shot trigger로 실제 DSN·SDK transport·Sentry project 수신 경계를 확인했다. 사용자가 project 표시를 확인해 실제 연결 검증이 완료됨
 - 실제 검증 완료 직후 `SentryStagingSmokeTrigger`, 전용 조건·통합 테스트, smoke 설정·환경변수와 README 안내를 제거하고 `sentry.enabled=false`, `sentry.environment=local` 안전 기본값을 복원했다. 임시 trigger가 Runtime 또는 test artifact에 남지 않으며 전체 41개 suite·295개 테스트 성공
 - 비HTTP event에서 `http.method` tag가 없을 때 `beforeSend`가 실패하지 않도록 한 null-safe allowlist 보완은 일반 Sentry event 안정성에 유효하므로 유지했다. Runtime event 대상 project는 계속 주입된 DSN이 결정하고 source context용 Gradle project 설정과 분리됨
+- `docs/social-login-implementation-plan.md`를 0~12단계로 보완해 SocialIdentity email 비저장, provider별 credential request, Apple revoke, Guest merge 불변식, lease·retry outbox publisher, source Access Token 정책, PhoneIdentity·OTP abuse 방어, 별도 TrialClaim·Entitlement와 exam consume, sink별 userId 관측 정책을 정리했으며 첫 구현 범위는 최소 SocialIdentity로 유지
+- 무료 모의고사는 `ACTIVE MEMBER`만 시작할 수 있고 Guest에는 `MEMBERSHIP_REQUIRED`를 반환하는 것으로 확정했다. LOCAL은 가입 전 grant를 소비해 User와 PhoneIdentity를 원자적으로 만들고, 미연결 identity의 Guest 소셜 가입은 Guest-bound grant 소비·MEMBER 승격·PhoneIdentity·SocialIdentity 생성을 한 Transaction으로 처리한다. 기존 social identity 로그인·Guest merge와 기존 MEMBER 로그인에는 OTP를 반복하지 않으며 TrialClaim은 첫 무료시험 요청에서만 silent claim한다
+- 앱 첫 진입 SNS 흐름을 추가했다. 기존 SocialIdentity가 있으면 Guest 생성 없이 canonical MEMBER로 즉시 로그인하고, 미연결 identity면 User를 만들지 않은 채 DIRECT_SIGNUP SocialEnrollmentAttempt와 hashed opaque grant를 발급한다. 같은 signupAttemptId에 묶인 social·phone grant와 필수 동의를 최종 소비해 User·PhoneIdentity·SocialIdentity·최초 RefreshSession을 원자적으로 생성한다
+- `합의된 nonce 또는 challenge 식별자`라는 모호한 표현을 제거했다. Identity가 SNS 인증 전에 SocialLoginChallenge와 nonce를 생성해 expectedNonceHash·provider·LOGIN_OR_SIGNUP/LINK purpose·LINK User binding·TTL을 서버에 보관하고, 클라이언트는 Provider SDK에 providerNonce를 전달한 뒤 login/link 요청에는 socialChallengeId만 반환한다. 서버는 ID Token nonce를 비교하고 challenge를 일회성 소비한다
+- SocialLoginChallenge·nonce·소비 의미를 설명했다. nonce는 Provider 인증 결과가 현재 서버 시작 요청에서 나온 것인지 결속하는 예측 불가능한 일회성 값이고, challenge는 expected nonce hash·Provider·목적·사용자 binding·만료·상태를 서버에서 관리하는 단기 인증 시도 레코드다. 소비는 검증 성공 후 조건부 `PENDING → CONSUMED` 전이에 성공한 단 하나의 요청만 후속 로그인·가입·연결을 진행하게 하고, 같은 credential과 challenge의 재사용을 거절하는 replay 방지 처리다
+- TrialClaim과 UserEntitlement의 역할을 분리해 문서화했다. TrialClaim은 `benefitType + benefit-scoped phoneFingerprint` 기준의 무료혜택 1회 지급 ledger이고, UserEntitlement는 canonical userId에 귀속돼 reserve·consume·보상되는 실제 사용권이다. 첫 무료시험 claim에서 둘을 원자적으로 만들고 사용 시 entitlement만 변경하며 claim은 재지급 방지를 위해 유지한다
+- 추가 설계 검토를 반영해 `providerSubject`를 1~255자 계약으로 고정하고, 6단계는 challenge·verifier framework, 7단계는 login·direct signup·미연결 link, 8단계는 실제 Guest merge·outbox 활성화로 책임을 분리했다. 7단계에서 다른 owner를 발견하면 mutation 없이 `MERGE_REQUIRED`만 반환한다
+- merge source JWT를 target actor로 승격하거나 authorization alias로 해석하지 않는 공통 정책을 확정했다. Identity는 `ACCOUNT_MERGED_TOKEN_REJECTED`로 거절하고 downstream은 ownership migration·source deny marker를 원자 저장하며, 모든 참여 서비스가 준비되기 전에는 merge flag를 열지 않는다
+- SocialLoginChallenge는 조건부 `PENDING → CONSUMED` CAS의 승자만 후속 login/enrollment를 진행하고 social·phone enrollment grant도 최종 Transaction 안에서 조건부 소비한다. 가입 proof 누락의 `PHONE_VERIFICATION_GRANT_REQUIRED` 400과 legacy onboarding의 `PHONE_ONBOARDING_REQUIRED` 409를 분리했다
+- `EmailAvailabilityService`의 현재 책임을 설명했다. 공개 `POST /api/v1/auth/check-email`의 검증된 이메일을 공통 `EmailNormalizer`로 trim·`Locale.ROOT` 소문자화한 뒤 `existsByNormalizedEmail`을 조회해 사용 가능 boolean과 안내 메시지를 반환한다. 이는 조회 시점의 안내일 뿐 이메일 예약이나 가입 성공 보장이 아니며, 최종 중복 방지는 `SignupService`의 재검사와 `normalizedEmail` partial unique index·`DuplicateKeyException` 변환이 담당한다
+- 회원 탈퇴 tombstone의 의미를 설명했다. `users` 문서를 물리 삭제하지 않고 같은 `userId`의 상태를 `WITHDRAWN`으로 바꾸며 nickname을 탈퇴 표시값으로 치환하고 탈퇴·수정 시각을 남긴다. 동시에 email·normalizedEmail·passwordHash·guestInstallationIdHash 필드는 MongoDB `$unset`으로 문서에서 제거하므로 자격증명 사용과 중복 index 점유가 끝난다. 따라서 `tombstone에서 제거`는 tombstone 문서를 지운다는 뜻이 아니라 tombstone 안의 해당 필드를 없앤다는 뜻이다
+- `GuestAuthService`의 현재 책임과 실패 경계를 설명했다. 공개 `POST /api/v1/auth/guest` 요청의 UUID v4·필수 동의를 검증하고 설치 UUID의 SHA-256 hash로 중복을 사전 확인한 뒤 서버 UUID의 ACTIVE GUEST, RS256 Access Token과 원문 비저장 RefreshSession을 준비한다. 별도 Mongo Transaction service가 User·RefreshSession 저장과 응답 구성을 함께 commit하며 설치 hash unique index가 동시 요청을 최종 차단한다. 설치 UUID는 인증·복구 수단이 아니므로 기존 Guest의 Token을 재발급하지 않고 중복 요청은 `GUEST_ALREADY_EXISTS`로 거절한다
+- Guest 설치 UUID hash와 응답 유실 상태를 명확히 했다. `GuestInstallationIdHasher`는 UUID v4를 trim·canonical lowercase 문자열로 정규화하고 UTF-8 bytes에 SHA-256을 적용한 32 bytes digest를 padding 없는 Base64URL 43자로 저장한다. 이는 동일 입력을 같은 값으로 만드는 단방향 fingerprint이며 암호화·복호화나 salt/HMAC 방식은 아니다. commit 후 응답 유실을 서버가 감지하거나 Token을 복구하는 코드는 없고, 이미 구현된 중복 검사에 따라 같은 설치 UUID 재시도는 `GUEST_ALREADY_EXISTS`가 된다. 이 현재 동작은 단위 테스트로 고정되어 있으나 별도 복구 API는 미구현이다
+- raw 번호 없는 HMAC rotation을 위해 `PhoneFingerprintAlias`와 `ACTIVE_WRITE → LOOKUP_ONLY → RETIRED` key lifecycle을 채택했다. retained phone·benefit version candidate 전체로 TrialClaim을 조회하고 참조가 남은 legacy key 폐기와 mixed writer를 차단한다
+- 무료시험 시작은 `reserve → exam 생성 → confirm`으로 고정하고 확정 실패는 cancel, 결과 불명 timeout은 `RECONCILIATION_REQUIRED` 후 exam 존재 여부를 대조하도록 정리했다. provider null의 MEMBER fallback 전 운영 read-only aggregate를 필수화하고 Identity/Social과 Entitlement/Billing을 독립 트랙으로 표시했다
+- 사용자 이해 확인용으로 전체 합의를 사용자 흐름 중심으로 다시 요약했다. User는 canonical 계정, SocialIdentity는 Google·Kakao·Apple 연결, PhoneIdentity는 가입 시 검증된 번호 소유 관계, TrialClaim은 번호별 무료혜택 수령 이력, UserEntitlement는 실제 사용권이라는 역할을 유지한다. Guest 둘러보기, 처음부터 SNS 로그인·가입, Guest의 미연결 SNS 승격, 기존 SNS owner 발견 시 단계 8 merge, 회원가입 전화 인증, 무료시험 lazy claim과 reserve/create/confirm 흐름을 하나의 설명으로 정리했으며 설계나 코드는 추가 변경하지 않았다
+- 생성 예정 모델을 수명과 소유 경계별로 설명했다. Identity의 장기 엔티티는 User·SocialIdentity·PhoneIdentity·PhoneFingerprintAlias·RefreshSession, 단기 시도 엔티티는 SocialLoginChallenge·SocialEnrollmentAttempt·PhoneVerificationAttempt, 병합 전달 엔티티는 UserMergedOutbox다. TrialClaim·UserEntitlement·EntitlementReservation은 별도 Entitlement/Billing 소유이며 VerifiedSocialPrincipal과 원문 grant는 영속 계정 엔티티가 아닌 검증 결과·일회성 증명으로 구분했다. 직접 SNS 로그인·가입, Guest 승격·병합, 무료시험 claim·reserve·exam 생성·confirm 흐름에서 각 모델의 생성·조회·상태 전이도 정리했으며 설계나 코드는 변경하지 않았다
+- 첫 구현 범위를 최소 SocialIdentity 데이터 계층으로 재확인했다. `SocialProvider(GOOGLE, KAKAO, APPLE)`, `SocialIdentity(socialIdentityId, userId, provider, providerSubject[1..255], createdAt)`, provider+subject unique index, userId non-unique index, Repository 조회 계약과 도메인·Repository·index 테스트만 포함한다. email·updatedAt, Provider Token 검증·API·challenge, User/accountType·Guest 승격·병합, PhoneIdentity·OTP, TrialClaim·Entitlement, outbox·Learning Core와 Access/Refresh 변경은 첫 범위에서 제외하며 설계나 코드는 추가 변경하지 않았다
+- Atlassian 공식 MCP로 TMI 프로젝트와 기존 Identity 작업 형식·생성 필드를 읽기 전용 확인했다. 첫 범위용 신규 Jira 초안은 `작업` 유형, 제목 `[Identity] SocialIdentity 모델·인덱스·Repository 기반 구축`, 기본 상태·보고자 사용, 담당자·우선순위·라벨 미지정으로 준비했으며 본문은 최소 모델·index·Repository·테스트와 명시적 제외 범위만 포함했다. 이 단계에서는 사용자 사전 승인을 받기 위해 생성하지 않았다
+- 사용자 승인 후 Jira `TMI-88` `[Identity] SocialIdentity 모델·인덱스·Repository 기반 구축`을 TMI 프로젝트의 `작업`으로 생성하고 재조회했다. 상태는 `해야 할 일`, 담당자는 없고 프로젝트 기본 우선순위 `Medium`이 적용됐으며 승인한 설명·완료 조건·테스트·제외 범위가 저장됐다. 댓글과 상태 변경은 수행하지 않았다
+- Jira `TMI-88` 범위로 Auth 도메인에 `SocialProvider(GOOGLE, KAKAO, APPLE)`, `social_identities` Mongo document와 `SocialIdentityRepository`를 구현했다. SocialIdentity는 서버 생성 UUID id, canonical UUID 문자열 userId, non-null provider, 원문 보존 1~255자 providerSubject와 createdAt만 저장하고 email·updatedAt·Token·Claim·User 객체·`@DBRef`를 보유하지 않는다
+- `uk_social_identities_provider_subject` compound unique index와 `ix_social_identities_user_id` non-unique index를 선언했다. `(userId, provider)` unique 제약은 추가하지 않아 한 canonical User에 Google·Kakao·Apple을 함께 연결할 수 있고 동일 문자열 subject도 Provider namespace가 다르면 허용한다
+- 외부 Atlas를 호출하지 않는 `mongo-java-server` test dependency를 추가해 실제 Spring Data Repository proxy와 index resolver를 사용했다. provider+subject canonical owner 조회, userId 전체 조회, 대소문자 구분, 복수 Provider 연결, 동일 provider+subject duplicate insert의 `DuplicateKeyException`, 실제 index 이름·unique·key 순서를 검증했으며 전체 `./gradlew clean test` 44개 suite·308개 테스트가 skip·실패·오류 없이 성공했다
 
 ## 진행 중
 
+- Jira `TMI-88` — 최소 SocialIdentity 모델·MongoDB index·Repository와 테스트 구현이 완료됐고 전체 회귀가 성공했다. Jira는 `해야 할 일` 상태이며 사용자 검토·commit·push 전이고, 댓글·상태 변경은 별도 승인 전까지 수행하지 않는다
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
 
 ## 다음 작업
 
+- 사용자가 Jira `TMI-88` 변경을 검토한 뒤 직접 commit·push한다. 작업 종료용 Jira 댓글은 변경 파일·44개 suite 308개 테스트 성공·남은 운영 index 위험만 담은 초안을 먼저 제시하고 별도 승인 전에는 등록하거나 상태를 변경하지 않는다
+- 전체 계획의 단계 0 결정: legacy MEMBER의 로그인 후 전화번호 onboarding 강제 시점, Kakao OIDC `sub`, Apple authorization·revoke, Provider별 nonceMode와 browser state·PKCE, 직접 소셜 회원의 필수 profile·email nullable 정책, SocialLoginChallenge·SocialEnrollmentAttempt TTL, 같은 provider 복수 연결, SMS 정책, HMAC key registry 운영값·보존 기간, Identity–Entitlement proof와 reservation reconciliation 세부 계약을 제품·보안·법무·서비스 기준으로 확정한다
+- 운영 배포 전에 `social_identities`의 두 index가 실제 MongoDB에서 생성 가능한지 staging으로 확인하고, 운영 자동 index 생성 권한·기존 데이터 중복·무중단 index rollout 정책을 확정한다
 - 6단계 CI·staging: 임시 trigger가 제거된 errors-only artifact에 enabled·배포 Secret DSN·환경·immutable release를 주입해 실제 handled 5xx 한 건, expected 4xx 0건, 민감정보 부재와 중복 여부를 검증한다. Source context를 사용할 때만 build 인증 값을 CI Secret으로 제공
 - 로컬 시험에 사용한 IntelliJ 실행 설정의 임시 staging profile·smoke·Sentry diagnostic 환경변수는 저장소 밖 설정이므로 사용자가 제거한다. 저장소 설정은 Sentry disabled·local 기본값으로 복원돼 환경변수 미주입 시 event를 전송하지 않음
 - 7단계 운영 활성화: tracing·profiling·Sentry Logs는 0/off로 시작하고 오류 수집만 점진 활성화하며 event volume·중복·민감정보를 확인한 뒤 alert와 sampling을 별도 승인으로 조정
@@ -183,7 +210,7 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`, HEAD는 `4b0c762`이며 Sentry errors-only 연동과 최종 event 민감정보 정제·단일 Issue 통합 테스트를 구현했고 commit·push는 수행하지 않음
+- 현재 작업 기준 브랜치는 `feat/TMI-88-social-identity-foundation`, HEAD는 `b6eb73e`이며 최소 SocialIdentity 데이터 기반과 격리 Mongo 테스트를 구현했고 Codex는 commit·push를 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
@@ -216,6 +243,19 @@
 - 기존 Mongo 문서에 `consents`가 없으면 두 동의를 false, 버전과 시각을 null로 읽고 과거 `audioConsent`를 새 동의로 자동 변환하지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
 - User provider는 `LOCAL`과 `GUEST`를 지원하며 기존 null provider 문서는 LOCAL로 해석
+- 현재 `UserProvider`는 가입 형태와 회원 탈퇴 자격증명 분기에 사용되므로 이번 단계에서는 이름 변경이나 `GOOGLE`·`APPLE`·`KAKAO` 추가를 하지 않는다. 외부 SNS 연결은 별도 `SocialProvider(GOOGLE, APPLE, KAKAO)`와 `SocialIdentity`가 소유해 한 User의 다중 SNS 연결을 허용한다
+- `SocialIdentity`는 `@DBRef` 없이 canonical UUID 문자열 `userId`만 저장하고 provider subject를 case-sensitive opaque 식별자로 취급한다. 첫 모델에는 email과 변경 의미가 없는 `updatedAt`을 저장하지 않고 provider email은 검증 유스케이스 종료 시 폐기한다
+- Kakao는 OIDC `sub`를 canonical `providerSubject`로 사용하는 안을 권장하며, 사용자 정보 API의 별도 `id`와 같은 namespace에서 혼용하지 않는다
+- 동일 외부 계정이 둘 이상의 User에 연결되는 것을 막는 최종 동시성 경계는 애플리케이션 선조회가 아니라 MongoDB의 `(provider, providerSubject)` unique compound index로 둔다. userId 역조회에는 별도 non-unique index를 둔다
+- 이번 단계에서는 요구된 외부 계정 유일성만 강제하고 `(userId, provider)` unique index는 추가하지 않는다. 한 User가 같은 provider의 여러 계정을 연결하지 못하게 할지는 실제 연결 API 전에 제품 정책으로 별도 확정한다
+- 실제 소셜 API 공개 전 `UserProvider`의 계정 유형·로그인 수단 혼합을 해소하고 `UserAccountType(GUEST, MEMBER)`와 LOCAL 자격증명·SocialIdentity를 분리한다. 기존 `provider=GUEST`는 GUEST, LOCAL 또는 null은 MEMBER로 호환 이행한다
+- 공개 social login 전에 서버 발급 LOGIN_OR_SIGNUP challenge를 사용하고, 보호 social link는 JWT `sub`에 묶인 LINK challenge를 사용한다. login/link Body의 raw nonce를 신뢰하지 않고 socialChallengeId로 서버 expected nonce를 조회·검증·일회성 소비한다. 이후 기존 SocialIdentity면 Guest 없이 즉시 인증하고 미연결 계정이면 `SIGNUP_REQUIRED`를 반환한다
+- 여러 Guest가 같은 외부 identity를 제시하면 기존 SocialIdentity owner를 canonical User로 선택한다. 자동 merge는 ACTIVE GUEST → ACTIVE MEMBER만 허용하고 MEMBER → MEMBER를 금지하며 chain·순환을 검증한다. Identity는 Learning Core 데이터를 직접 수정하지 않고 lease·retry·at-least-once `UserMerged` outbox로 이전을 요청한다
+- 전화번호는 로그인·자동 merge 키가 아니라 소유 검증과 검증 번호당 무료체험 중복 방지 입력이다. Identity는 E.164 정규화, versioned domain-separated HMAC fingerprint, `PhoneIdentity`와 OTP verification을 소유하고 raw 번호·OTP·fingerprint를 로그에 남기지 않는다
+- Guest 생성·둘러보기에는 전화 인증을 요구하지 않지만 무료 모의고사는 `MEMBERSHIP_REQUIRED`로 차단한다. 신규 LOCAL은 phone grant, DIRECT·Guest 소셜 MEMBER 가입은 social·phone grant를 필수로 소비하고 MEMBER와 PhoneIdentity를 같은 Transaction에서 확정한다. 기존 social identity 로그인·merge와 기존 MEMBER 로그인에는 재인증하지 않으며 PhoneIdentity가 없는 legacy MEMBER만 로그인 후 1회 onboarding한다
+- `TrialClaim`, `UserEntitlement`, 무료시험 grant·consume과 결제는 별도 Entitlement/Billing 및 Learning Core 경계가 소유한다. TrialClaim은 검증 번호별 혜택 지급 이력이고 UserEntitlement는 User별 사용권이므로 하나의 boolean이나 document로 합치지 않는다. Identity에는 `freeTrialUsed`나 시험·상품 코드를 추가하지 않고 benefit-scoped fingerprint 또는 일회성 검증 proof만 서버 간 계약으로 제공한다
+- 전화 인증·회원가입 성공은 무료체험 지급이나 사용으로 보지 않는다. `TrialClaim`과 무료 entitlement는 사용자의 첫 무료 모의고사 요청에서 기존 PhoneIdentity를 이용해 silent claim하며 시험 시작 consume과도 별도 상태로 관리한다
+- 관측 식별자는 application logs에서 필요한 internal userId만 허용하고 Sentry와 metrics에는 userId를 보내지 않으며 metrics label은 provider·outcome·errorCode 같은 낮은 cardinality로 제한한다
 - Access Token은 RSA Private Key를 가진 Identity에서만 JWT RS256으로 서명
 - Access Token 기본 TTL은 `PT30M`이며 issuer, audience, keyId, TTL과 키 Resource 위치는 환경변수로 교체 가능
 - JWT Header는 `alg=RS256`, `typ=JWT`, 필수 `kid`를 사용
@@ -259,7 +299,8 @@
 
 - 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
-- 소셜 로그인
+- `PhoneIdentity`·OTP verification, User accountType 이행, Google·Kakao·Apple Provider 검증·소셜 API와 merge outbox publisher
+- 별도 Entitlement/Billing의 TrialClaim·UserEntitlement·무료시험 consume과 결제 연동
 - 사용자 프로필 수정 API
 - 정책 버전별 append-only 동의 감사 이력과 동의 철회 정책
 
@@ -271,6 +312,15 @@
 - `UserFactory`는 Spring `PasswordEncoder`·설정 주입과 `Instant.now()`에 직접 결합되어 있어 `Clock` 주입 및 application 계층 이동 여부를 후속 검토해야 한다.
 - Atlassian MCP는 사용자 계정 권한으로 외부 서비스에 접근하므로 허용 범위와 연결 해제 필요성을 Codex 사용자 설정 및 Atlassian 계정에서 별도로 관리해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
+- test profile의 MongoDB 자동설정 제외는 유지하되 SocialIdentity Repository·실제 unique insert는 순수 Java 인메모리 Mongo를 테스트마다 임의 로컬 포트에 기동해 검증한다. 이는 Atlas 비의존 자동 회귀를 제공하지만 운영 MongoDB의 버전·권한·기존 데이터·index build 영향까지 증명하지 않으므로 staging index 생성 검증은 별도로 필요하다.
+- 현재 회원 탈퇴는 User 자격증명과 RefreshSession만 처리하므로 향후 `SocialIdentity` 저장 전에 외부 subject 삭제 또는 tombstone, Apple revoke와 같은 SNS 재가입 정책을 확정해야 한다.
+- HMAC fingerprint rotation은 `PhoneFingerprintAlias`와 retained key candidate 전략을 문서화했지만 key registry reference count·비상 rotation·alias/history migration을 실제로 구현하지 않으면 같은 번호의 version 교차 가입이나 TrialClaim 이중 지급이 가능하다.
+- SMS OTP는 무료체험보다 비용 abuse가 먼저 발생할 수 있으므로 phone·user·IP rate limit, cooldown, 실패 lock, 국가·line type 정책, provider kill switch와 비용 alert가 없으면 공개하면 안 된다.
+- 회원가입 필수 OTP는 가입 전환율을 낮추고 무료시험을 사용하지 않는 회원에게도 SMS 비용·개인정보 수집을 발생시키므로 funnel·발송 비용·동의 고지를 함께 관찰해야 한다.
+- SocialEnrollmentAttempt와 두 bearer grant는 짧은 TTL·hash 저장·binding·일회성 소비가 없으면 가입 가로채기나 흐름 혼합 위험이 있고, 동시 DIRECT signup은 unique 충돌 시 고아 User·PhoneIdentity·RefreshSession이 남지 않게 전체 rollback돼야 한다.
+- SocialLoginChallenge가 서버 expected nonce, Provider·purpose·User binding, 짧은 TTL과 일회성 소비를 강제하지 않으면 ID Token replay·흐름 혼합 위험이 생긴다. 브라우저 redirect에서는 nonce만으로 state·PKCE를 대체할 수 없다.
+- TrialClaim fingerprint를 탈퇴 후 유지하면 pseudonymous personal data 보존과 번호 재할당 오탐 문제가 남으므로 목적·기간·삭제·재가입 정책을 개인정보 처리방침과 법무 기준으로 확정해야 한다.
+- Entitlement consume과 Learning Core exam 생성은 분산 Transaction이므로 문서의 reserve/create/confirm/cancel/reconciliation 상태 머신, CAS와 idempotency를 양쪽 서비스가 동일하게 구현하지 않으면 무료 권리가 중복되거나 유실될 수 있다.
 - 기존 User 문서는 migration 없이 읽을 수 있지만 새 정책 미동의로 취급되므로 프론트의 재동의 유도와 정책 전환 시점 합의가 필요하다.
 - 기존 User 문서의 provider가 없으면 LOCAL로 읽지만 소셜 로그인 도입 전에는 provider 필드 명시적 이행과 계정 연결 정책이 필요하다.
 - 이메일 중복 확인·회원가입·로그인·재발급·로그아웃 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
