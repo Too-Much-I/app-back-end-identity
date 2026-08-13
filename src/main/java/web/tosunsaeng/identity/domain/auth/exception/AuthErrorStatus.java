@@ -40,6 +40,46 @@ public enum AuthErrorStatus implements ErrorCode {
 			HttpStatus.UNAUTHORIZED,
 			"INVALID_WITHDRAWAL_CREDENTIALS",
 			"회원 탈퇴 인증 정보가 올바르지 않습니다."
+	),
+	INVALID_FIREBASE_ID_TOKEN(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_FIREBASE_ID_TOKEN",
+			"유효하지 않은 Firebase 인증 정보입니다."
+	),
+	FIREBASE_RECENT_AUTH_REQUIRED(
+			HttpStatus.UNAUTHORIZED,
+			"FIREBASE_RECENT_AUTH_REQUIRED",
+			"최근 Firebase 인증이 필요합니다."
+	),
+	FIREBASE_ACCOUNT_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_ACCOUNT_NOT_ALLOWED",
+			"사용할 수 없는 Firebase 계정입니다."
+	),
+	FIREBASE_PROVIDER_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_PROVIDER_NOT_ALLOWED",
+			"허용되지 않은 Firebase 인증 수단입니다."
+	),
+	FIREBASE_EMAIL_VERIFICATION_REQUIRED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_EMAIL_VERIFICATION_REQUIRED",
+			"이메일 인증이 필요합니다."
+	),
+	FIREBASE_PHONE_VERIFICATION_REQUIRED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_PHONE_VERIFICATION_REQUIRED",
+			"전화번호 인증이 필요합니다."
+	),
+	FIREBASE_RATE_LIMITED(
+			HttpStatus.TOO_MANY_REQUESTS,
+			"FIREBASE_RATE_LIMITED",
+			"Firebase 인증 요청이 일시적으로 제한되었습니다."
+	),
+	FIREBASE_UNAVAILABLE(
+			HttpStatus.SERVICE_UNAVAILABLE,
+			"FIREBASE_UNAVAILABLE",
+			"Firebase 인증을 일시적으로 사용할 수 없습니다."
 	);
 
 	private final HttpStatus httpStatus;

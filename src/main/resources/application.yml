@@ -50,6 +50,22 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  firebase-auth:
+    enabled: ${FIREBASE_AUTH_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    tenant-id: ${FIREBASE_TENANT_ID:}
+    google-enabled: ${FIREBASE_GOOGLE_ENABLED:false}
+    apple-enabled: ${FIREBASE_APPLE_ENABLED:false}
+    kakao-enabled: ${FIREBASE_KAKAO_ENABLED:false}
+    phone-enabled: ${FIREBASE_PHONE_ENABLED:false}
+    kakao-provider-id: ${FIREBASE_KAKAO_PROVIDER_ID:oidc.kakao}
+    login-max-authentication-age: ${FIREBASE_LOGIN_MAX_AUTHENTICATION_AGE:PT15M}
+    high-risk-max-authentication-age: ${FIREBASE_HIGH_RISK_MAX_AUTHENTICATION_AGE:PT5M}
+    clock-skew: ${FIREBASE_CLOCK_SKEW:PT30S}
+    connect-timeout: ${FIREBASE_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
+    enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
+    enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
 
 springdoc:
   swagger-ui:

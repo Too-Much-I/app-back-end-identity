@@ -57,8 +57,25 @@ Identity Service는 다음 기능을 소유한다.
 | `JWT_ACCESS_TOKEN_TTL` | 선택 | `PT30M` |
 | `JWT_PRIVATE_KEY_LOCATION` | 선택 | 로컬 PKCS#8 Private Key Resource 경로 |
 | `JWT_PUBLIC_KEY_LOCATION` | 선택 | 로컬 X.509 Public Key Resource 경로 |
+| `FIREBASE_AUTH_ENABLED` | 선택 | Firebase adapter 전체 활성화 여부, 기본값 `false` |
+| `FIREBASE_PROJECT_ID` | Firebase 활성화 시 필수 | 허용할 Firebase project ID |
+| `FIREBASE_TENANT_ID` | 선택 | Identity Platform tenant를 사용할 때만 지정 |
+| `FIREBASE_GOOGLE_ENABLED` | 선택 | Google provider kill switch, 기본값 `false` |
+| `FIREBASE_APPLE_ENABLED` | 선택 | Apple provider kill switch, 기본값 `false` |
+| `FIREBASE_KAKAO_ENABLED` | 선택 | Kakao OIDC provider kill switch, 기본값 `false` |
+| `FIREBASE_PHONE_ENABLED` | 선택 | Firebase phone proof kill switch, 기본값 `false` |
+| `FIREBASE_KAKAO_PROVIDER_ID` | 선택 | Kakao Generic OIDC provider ID, 기본값 `oidc.kakao` |
+| `FIREBASE_LOGIN_MAX_AUTHENTICATION_AGE` | 선택 | 로그인 교환 recent-auth 상한, 기본값 `PT15M` |
+| `FIREBASE_HIGH_RISK_MAX_AUTHENTICATION_AGE` | 선택 | 가입·연결 등 고위험 recent-auth 상한, 기본값 `PT5M` |
+| `FIREBASE_CLOCK_SKEW` | 선택 | Firebase Token 시간 허용 오차, 기본값 `PT30S` |
+| `FIREBASE_CONNECT_TIMEOUT` | 선택 | Admin SDK 연결 timeout, 기본값 `PT3S` |
+| `FIREBASE_READ_TIMEOUT` | 선택 | Admin SDK 읽기·쓰기 timeout, 기본값 `PT5S` |
+| `FIREBASE_ENROLLMENT_TTL` | 선택 | PENDING enrollment 유효 시간, 기본값 `PT10M` |
+| `FIREBASE_ENROLLMENT_CLEANUP_RETENTION` | 선택 | 만료 뒤 TTL 정리 유예, 기본값 `PT24H` |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
+
+Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 이 foundation에는 공개 Firebase 로그인·회원가입 endpoint가 없다.
 
 ## 로컬 실행
 

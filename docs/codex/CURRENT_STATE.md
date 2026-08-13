@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-90` 범위의 조건부 Firebase broker ADR과 production 비의존 Stage 0 PoC를 구현하고 저장소·Jira 기준으로 구현 범위를 재확인함; local policy 7개·Auth Emulator 5개·Kakao discovery 1개와 기존 Java 45 suite·317개 테스트가 모두 통과했으며 실제 모바일 Provider·국내 SMS·Identity Platform·Apple revoke는 production 외부 gate로 남아 있음. Jira는 `해야 할 일` 상태이고 댓글·상태 전환은 수행하지 않음
+- 현재 단계: 브랜치 `feat/TMI-91-firebase-auth-foundation`에서 Jira `TMI-91` 범위의 disabled-by-default Firebase broker foundation 구현과 전체 회귀 검증을 완료함; 공개 exchange/signup과 production feature는 열지 않았고 Jira는 `해야 할 일` 상태로 댓글·상태 전환 없이 유지함
 - 상태 기준일: 2026-08-13
 
 ## 완료
@@ -200,6 +200,14 @@
 - TMI-90 구현 정리 요청에 따라 ADR·PoC 결과·실행 가능한 contract와 테스트·현재 worktree·Jira 상태를 다시 대조했다. 현재 산출물은 Stage 0 의사결정과 격리 검증이며 Spring Boot production Firebase adapter·entity·공개 API 구현으로 해석하지 않는다
 - TMI-90 검증 결과의 증거 수준을 설명했다. local policy contract 7개 통과는 provider 허용·phone-only 거절·recent-auth·enrollment binding·Guest dual proof라는 자체 정책 함수가 명세대로 동작한다는 뜻이고, Auth Emulator 5개 통과는 email/password·Admin verify/revoke/delete·federated mapping·same-UID phone link·번호 충돌/cleanup이라는 Firebase 동작 가설을 로컬 모사 환경에서 확인했다는 뜻이다. Kakao discovery 1개는 공개 OIDC metadata 최소 조건만 확인했고 Java 317개는 기존 코드 회귀 부재를 확인했을 뿐 production Firebase 통합 검증이 아니다. 따라서 Stage 0 local PoC는 성공했지만 실제 Provider·모바일·SMS·Identity Platform과 Spring production 기능은 미검증·미구현이다
 - TMI-90 구현 정리 turn의 Hook 지정 식별자를 WORKLOG EOF에 별도 기록하고 CURRENT_STATE를 동기화했다. 구현 코드·ADR·PoC·계획서와 Jira 상태는 추가로 변경하지 않았다
+- GitHub PR #18의 `develop` 병합 commit `77804e63166c1c2cb5a60a9d1454085f4661144c`을 로컬 `develop`과 `origin/develop`에서 확인했다. Jira `TMI-90`은 아직 `해야 할 일`·Resolution 없음이며, 종료 댓글 초안과 사용 가능한 `완료` transition ID `41`을 사용자에게 사전 제시하고 별도 승인을 기다린다
+- 사용자 승인에 따라 Jira `TMI-91` `[Identity] Firebase 인증 broker foundation 구축`을 TMI `작업` 유형으로 생성했다. 기본 우선순위 `Medium`, 기본 상태 `해야 할 일`, Resolution 없음, 담당자·라벨·컴포넌트 없음이며 댓글과 상태 전환은 수행하지 않았다
+- TMI-91 범위는 disabled-by-default Firebase Admin adapter·안전한 설정, 목적별 Token 검증/recent-auth/오류 mapping, `FirebaseIdentity` unique mapping, `FirebaseEnrollmentAttempt` application 만료·CAS·PENDING partial unique·TTL cleanup과 외부 인프라 없는 테스트다. 공개 exchange/signup, `PhoneIdentity`, Guest 승격·merge, 실제 모바일 OAuth와 production flag 활성화는 제외했다
+- TMI-91을 구현 전에 Atlassian 공식 MCP로 다시 읽어 설명·완료 조건·제외 범위가 AGENTS.md, ADR과 기존 JWT 계약에 충돌하지 않음을 확인했다. 구현 종료 시에도 Jira 상태는 `해야 할 일`, Resolution 없음이며 댓글·상태·필드는 변경하지 않았다
+- Firebase Admin SDK `9.4.3`을 내부 infrastructure adapter 뒤에 추가했다. 전체 및 Google·Apple·Kakao·Phone feature flag는 모두 기본 `false`이고, 활성화 시 project·선택 tenant·ADC/Workload Identity credential·timeout을 fail-closed로 구성하며 같은 named FirebaseApp의 중복 초기화를 방지한다
+- application에는 Firebase SDK 객체를 노출하지 않는 `FirebaseAuthenticationVerifier`, 목적 enum과 최소 `VerifiedFirebasePrincipal`·`VerifiedSocialPrincipal`만 추가했다. Admin adapter는 revoke/disabled user, project issuer·audience·tenant, 시간 Claim·recent-auth, provider allowlist와 phone/email enrollment proof를 확인하고 Google·Apple·Kakao provider subject만 최소 결과로 변환한다. raw Firebase ID Token·전체 Claim·email·phone과 SDK 원문 오류는 저장·반환·로그하지 않는다
+- `FirebaseIdentity`는 `(firebaseProjectId, firebaseUid)`와 canonical `userId`를 각각 unique로 매핑한다. `FirebaseEnrollmentAttempt`는 DIRECT_SIGNUP/GUEST_USER binding, application `expiresAt`, cleanup TTL, status PENDING partial unique를 가지며 active attempt 재사용·만료 CAS·duplicate insert winner 재조회와 project·UID·binding 전체 일치 조건의 consume CAS를 제공한다
+- Firebase 설정·adapter·Provider mapping·오류 변환·민감정보 redaction, entity 불변식, Repository unique/index·만료/consume CAS와 enrollment 동시성 서비스를 외부 Firebase·Atlas 없이 검증했다. 최종 `./gradlew clean test`는 54개 suite·353개 테스트가 skip·failure·error 0으로 성공했고 공개 Firebase Controller나 기존 JWT/RefreshSession 변경은 추가하지 않았다
 - `UserAccountType(GUEST, MEMBER)`과 `User.accountType`을 추가했다. 신규 LOCAL은 `MEMBER + LOCAL`, 신규 Guest는 `GUEST + GUEST`를 함께 저장하고, accountType이 없는 기존 문서는 `provider=GUEST → GUEST`, `LOCAL/null → MEMBER`로 호환 해석한다. accountType이 존재하면 legacy provider보다 우선한다
 - User에 `isGuest()`, `isMember()`, `hasLocalCredential()` 의미 기반 판단을 추가했다. MEMBER 자체는 passwordHash나 SocialIdentity 존재를 강제하지 않고 LOCAL factory만 세 local credential 필드를 필수로 유지해 향후 social-only MEMBER를 수용한다
 - 프로필 응답에 `accountType`을 추가하고 기존 `provider`는 OpenAPI deprecated 하위 호환 필드로 유지했다. 회원 탈퇴는 Guest 여부와 LOCAL credential 보유 여부를 분리해 Guest는 비밀번호 없이 기존 계약을 유지하고 LOCAL credential MEMBER만 비밀번호를 검증하며 social-only MEMBER는 LOCAL 비밀번호 경로로 오분류하지 않는다
@@ -209,14 +217,16 @@
 ## 진행 중
 
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
-- Jira `TMI-90` — 조건부 ADR과 local Emulator·contract PoC는 구현·검증했고 Jira 상태는 `해야 할 일`이다. 실제 모바일 Google·Apple·phone link, 국내 SMS, Identity Platform Kakao·billing·deep-link와 Apple revoke gate가 남아 있으며 댓글·상태 전환은 수행하지 않음
+- Jira `TMI-90` — 조건부 ADR과 local Emulator·contract PoC가 PR #18로 `develop`에 병합됐다. Jira는 `해야 할 일`이며 종료 댓글과 `완료` 전환 ID `41` 적용안을 제시하고 사용자 승인을 기다리는 중
+- Jira `TMI-91` — Stage 3 Firebase broker foundation 구현과 54개 suite·353개 전체 테스트를 완료했다. Jira는 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이며 종료 댓글·상태 전환과 Git commit·push는 수행하지 않음
 
 ## 다음 작업
 
 - `ADR-001`의 조건부 결정을 검토하고, 격리 Firebase project·Android/iOS test app으로 실제 email·Google·Apple redirect, 공식 SDK same-UID phone link, 국내 SMS·quota·abuse, Identity Platform Kakao 등록·billing·deep-link와 Apple revoke를 검증한다. 그 전에는 production Firebase 기능을 활성화하지 않는다
-- Stage 3·4 후속 Jira payload는 사용자 승인 전에 초안만 제시한다. Stage 3은 disabled-by-default Admin adapter·목적별 Token 검증·FirebaseIdentity·Enrollment, Stage 4는 PhoneIdentity·versioned HMAC과 index/test로 분리한다
+- 사용자 승인 시 TMI-90에 제시한 종료 댓글을 등록하고 transition ID `41`만 적용한 뒤 상태와 Resolution을 재확인한다
+- 사용자가 TMI-91 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전에는 Jira를 Done으로 변경하지 않으며, 종료 댓글 등록과 상태 전환은 정확한 payload를 먼저 제시하고 별도 승인을 받은 뒤 수행한다
+- 다음 구현 Jira는 Stage 4 PhoneIdentity·versioned HMAC과 index/test로 분리하며, Jira 생성·수정 전 정확한 payload를 사용자에게 먼저 제시한다
 - 실제 운영 회원 0건을 read-only로 재확인한 뒤 BCrypt import·dual verifier 없이 신규 credential writer를 Firebase로 전환하고, 기존 직접 email/password signup·login endpoint와 `passwordHash` writer의 비활성화·제거 순서를 확정한다
-- ADR·PoC 승인 뒤 단계 3 Jira는 Firebase Admin SDK adapter, 안전한 설정, 목적별 ID Token 검증 port, `(firebaseProjectId, firebaseUid)` unique `FirebaseIdentity`, TTL·CAS·binding별 PENDING partial unique `FirebaseEnrollmentAttempt`와 외부 인프라 없는 테스트만 포함한다
 - 단계 4 Jira는 E.164 정규화, versioned domain-separated HMAC-SHA-256 key registry, `PhoneIdentity`·`PhoneFingerprintAlias`, 검증 번호당 ACTIVE MEMBER 1개 Repository·index·rotation 테스트를 구현한다. SMS 발송·code 검증 엔진과 benefit fingerprint는 이 범위에 넣지 않는다
 - 단계 5부터 Firebase exchange와 Guest를 거치지 않는 신규 가입을 열고, 같은 Firebase UID의 verified phone·필수 동의와 enrollment attempt를 최종 Transaction에서 소비해 User·FirebaseIdentity·PhoneIdentity·SocialIdentity·RefreshSession을 확정한다
 - Firebase email/password·SNS 가입 뒤 전화 인증은 별 Firebase user를 만들지 않고 현재 Firebase user에 phone credential을 명시적으로 link한다. link 전후 UID를 검증하고 collision을 자동 merge로 처리하지 않으며 중단 가입은 resume·unlink/delete cleanup 정책으로 관리한다
@@ -348,8 +358,8 @@
 
 - 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
-- 실제 격리 Firebase project·모바일 client의 email/password·Google·Apple·same-UID phone link, 국내 SMS와 Identity Platform Kakao Generic OIDC·billing·deep-link·Apple revoke PoC 및 production Admin SDK 안전 설정
-- `FirebaseIdentity`·`FirebaseEnrollmentAttempt`, Firebase ID Token 검증 adapter와 자체 Access/Refresh 교환 API
+- 실제 격리 Firebase project·모바일 client의 email/password·Google·Apple·same-UID phone link, 국내 SMS와 Identity Platform Kakao Generic OIDC·billing·deep-link·Apple revoke 및 production 배포의 ADC/Workload Identity·timeout/quota 동작 검증
+- Firebase ID Token을 자체 Access/Refresh로 교환하는 공개 API와 신규 User·RefreshSession finalize Transaction
 - `PhoneIdentity`·PhoneFingerprintAlias·versioned HMAC key registry, PhoneEligibilityBindingOutbox와 Firebase phone proof 연동
 - Guest를 거치지 않는 신규 가입, Guest 승격·인증수단 sync, merge outbox publisher와 source Access Token gate
 - 기존 직접 email/password signup·login과 passwordHash writer의 Firebase cutover·제거, Firebase unlink·disable·withdrawal·orphan cleanup·reconciliation
@@ -365,6 +375,7 @@
 - `UserFactory`는 Spring `PasswordEncoder`·설정 주입과 `Instant.now()`에 직접 결합되어 있어 `Clock` 주입 및 application 계층 이동 여부를 후속 검토해야 한다.
 - Atlassian MCP는 사용자 계정 권한으로 외부 서비스에 접근하므로 허용 범위와 연결 해제 필요성을 Codex 사용자 설정 및 Atlassian 계정에서 별도로 관리해야 한다.
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
+- TMI-91의 인메모리 Mongo는 unique key와 CAS query를 검증하지만 partial unique filter의 상태 변경 후 재삽입 의미를 완전히 구현하지 않는다. PENDING partial filter는 annotation/index resolver 계약과 service 경쟁 테스트로 고정했으며 실제 MongoDB의 partial unique·TTL index 생성과 상태 전환 후 새 attempt 허용은 staging에서 다시 검증해야 한다.
 - test profile의 MongoDB 자동설정 제외는 유지하되 SocialIdentity Repository·실제 unique insert는 순수 Java 인메모리 Mongo를 테스트마다 임의 로컬 포트에 기동해 검증한다. 이는 Atlas 비의존 자동 회귀를 제공하지만 운영 MongoDB의 버전·권한·기존 데이터·index build 영향까지 증명하지 않으므로 staging index 생성 검증은 별도로 필요하다.
 - 현재 회원 탈퇴는 User 자격증명과 RefreshSession만 처리하므로 향후 `SocialIdentity` 저장 전에 외부 subject 삭제 또는 tombstone, Apple revoke와 같은 SNS 재가입 정책을 확정해야 한다.
 - TMI-89 코드는 legacy provider null을 MEMBER로 안전하게 읽지만 운영 데이터의 provider·accountType·credential 필드 분포를 실제로 조회하지 않았다. 배포 전에 read-only aggregate로 partial LOCAL credential, provider/accountType 불일치와 예상 밖 값을 확인해야 한다.
@@ -377,6 +388,7 @@
 - Firebase를 통합 broker로 채택해도 Kakao는 generic OIDC 지원 조건·redirect·Claim 계약 PoC 또는 Custom Token 발급용 Kakao 서버 검증이 필요하다. Firebase의 이메일 기반 자동 계정 연결이나 phone sign-in 결과를 canonical merge 근거로 신뢰하면 기존 `email·phone은 자동 merge 키가 아님` 계약과 충돌하므로 link는 소유권 재검증 후 Identity가 명시적으로 승인해야 한다.
 - Kakao Generic OIDC는 Firebase Authentication만으로 사용할 수 있다고 가정하지 않고 Identity Platform 업그레이드·billing·provider 등록과 Android/iOS redirect·deep-link 동작을 확인해야 한다. 조건이 맞지 않으면 Kakao flag를 끄고 Custom Token bridge는 별도 ADR 없이는 추가하지 않는다.
 - 채택한 Firebase broker 구조는 Firebase 장애·quota·가격·정책 변경에 신규 인증 전체가 영향을 받고 Firebase user와 내부 User의 이중 lifecycle, token exchange, 고아 enrollment cleanup이 필요하다. 장애 시 기존 내부 RefreshSession 재발급 허용 범위와 vendor exit를 ADR에서 고정해야 한다.
+- 현재 Firebase 검증 adapter는 모든 Firebase 목적에서 revoke 확인과 최신 UserRecord 확인을 수행하므로 인증 교환마다 원격 호출·latency·quota 영향을 받는다. 공개 전 timeout·429/503 mapping, circuit/alert 기준과 기존 Identity RefreshSession reissue의 Firebase 비호출 정책을 실제 배포 환경에서 확인해야 한다.
 - 회원가입 필수 OTP는 가입 전환율을 낮추고 무료시험을 사용하지 않는 회원에게도 SMS 비용·개인정보 수집을 발생시키므로 funnel·발송 비용·동의 고지를 함께 관찰해야 한다.
 - FirebaseEnrollmentAttempt는 짧은 TTL·Firebase UID·purpose·Guest binding·조건부 일회성 소비가 없으면 ID Token 재사용이나 가입 흐름 혼합 위험이 있다. 동시 신규 가입은 FirebaseIdentity·SocialIdentity·PhoneIdentity unique 충돌 시 User·RefreshSession까지 전체 rollback돼야 한다.
 - binding별 PENDING partial unique는 만료 document를 application CAS로 EXPIRED 전환하기 전 새 attempt를 막는다. 만료 판정·상태 전환·동시 insert loser 재조회가 일관되지 않으면 여러 attempt 또는 가입 재개 실패가 생길 수 있으며 TTL 삭제 시각을 correctness에 사용하면 안 된다.
