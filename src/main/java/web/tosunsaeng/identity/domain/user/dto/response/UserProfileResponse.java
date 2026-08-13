@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 
 @Schema(description = "인증된 사용자 프로필")
@@ -21,7 +22,14 @@ public record UserProfileResponse(
 		String email,
 		@Schema(description = "사용자 닉네임", example = "토스마스터")
 		String nickname,
-		@Schema(description = "계정 인증 제공자", example = "LOCAL", allowableValues = {"LOCAL", "GUEST"})
+		@Schema(description = "계정 유형", example = "MEMBER", allowableValues = {"GUEST", "MEMBER"})
+		UserAccountType accountType,
+		@Schema(
+				description = "하위 호환용 기존 가입 유형. accountType을 사용하세요.",
+				example = "LOCAL",
+				allowableValues = {"LOCAL", "GUEST"},
+				deprecated = true
+		)
 		UserProvider provider,
 		@Schema(description = "개인정보 처리 동의 상태. 기존 미동의 사용자는 false", example = "true")
 		boolean privacyConsented,
@@ -61,6 +69,7 @@ public record UserProfileResponse(
 				user.getUserId(),
 				user.getEmail(),
 				user.getNickname(),
+				user.getAccountType(),
 				user.getProvider(),
 				consents.isPrivacyConsented(),
 				consents.getPrivacyConsentVersion(),

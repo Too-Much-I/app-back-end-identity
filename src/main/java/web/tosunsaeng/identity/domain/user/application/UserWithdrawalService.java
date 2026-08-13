@@ -14,7 +14,6 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
-import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
@@ -107,7 +106,7 @@ public class UserWithdrawalService {
 				.addKeyValue("event", "user.withdrawal.completed")
 				.addKeyValue("outcome", outcome)
 				.addKeyValue("userId", user.getUserId())
-				.addKeyValue("provider", user.getProvider())
+				.addKeyValue("accountType", user.getAccountType())
 				.addKeyValue("withdrawnAt", response.withdrawnAt())
 				.addKeyValue("revokedSessionCount", revokedSessionCount)
 				.addKeyValue("attempt", attempt)
@@ -144,10 +143,10 @@ public class UserWithdrawalService {
 	}
 
 	private void validateProviderCredential(User user, String password) {
-		if (user.getProvider() == UserProvider.GUEST) {
+		if (user.isGuest()) {
 			return;
 		}
-		if (user.getProvider() != UserProvider.LOCAL) {
+		if (!user.isMember() || !user.hasLocalCredential()) {
 			throw invalidCredentials();
 		}
 		if (password == null || password.isBlank()) {

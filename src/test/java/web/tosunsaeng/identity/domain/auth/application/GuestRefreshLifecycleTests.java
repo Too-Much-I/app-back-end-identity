@@ -31,6 +31,7 @@ import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.exception.BusinessException;
@@ -83,6 +84,7 @@ class GuestRefreshLifecycleTests {
 		ArgumentCaptor<RefreshSession> captor = ArgumentCaptor.forClass(RefreshSession.class);
 		verify(sessionRepository, times(2)).save(captor.capture());
 		RefreshSession replacement = captor.getAllValues().get(1);
+		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
 		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);
 		assertThat(currentSession.getRevocationReason()).isEqualTo(RevocationReason.ROTATED);
 		assertThat(replacement.getUserId()).isEqualTo(guest.getUserId());

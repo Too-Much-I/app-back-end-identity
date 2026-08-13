@@ -54,6 +54,7 @@ public class SignupService {
 					.addKeyValue("event", "identity.user.registered")
 					.addKeyValue("outcome", "created")
 					.addKeyValue("userId", savedUser.getUserId())
+					.addKeyValue("accountType", savedUser.getAccountType())
 					.addKeyValue("provider", savedUser.getProvider())
 					.log("이메일 회원가입이 완료되었습니다");
 			return response;

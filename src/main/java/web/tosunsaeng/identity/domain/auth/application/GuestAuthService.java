@@ -76,7 +76,7 @@ public class GuestAuthService {
 					.addKeyValue("event", "identity.guest.registered")
 					.addKeyValue("outcome", "created")
 					.addKeyValue("userId", guestUser.getUserId())
-					.addKeyValue("provider", guestUser.getProvider())
+					.addKeyValue("accountType", guestUser.getAccountType())
 					.log("게스트 사용자 등록이 완료되었습니다");
 			return response;
 		} catch (DuplicateKeyException exception) {

@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 
@@ -28,6 +29,7 @@ class UserWithdrawalDomainTests {
 		User tombstone = local.toWithdrawnTombstone(WITHDRAWN_AT);
 
 		assertThat(tombstone.getUserId()).isEqualTo(local.getUserId());
+		assertThat(tombstone.getAccountType()).isEqualTo(UserAccountType.MEMBER);
 		assertThat(tombstone.getProvider()).isEqualTo(UserProvider.LOCAL);
 		assertThat(tombstone.getStatus()).isEqualTo(UserStatus.WITHDRAWN);
 		assertThat(tombstone.getCreatedAt()).isEqualTo(CREATED_AT);
@@ -36,6 +38,7 @@ class UserWithdrawalDomainTests {
 		assertThat(tombstone.getEmail()).isNull();
 		assertThat(tombstone.getNormalizedEmail()).isNull();
 		assertThat(tombstone.getPasswordHash()).isNull();
+		assertThat(tombstone.hasLocalCredential()).isFalse();
 		assertThat(tombstone.getGuestInstallationIdHash()).isNull();
 		assertThat(tombstone.getNickname()).isEqualTo(User.WITHDRAWN_NICKNAME);
 		assertThat(tombstone.getConsents()).isSameAs(local.getConsents());
@@ -48,6 +51,7 @@ class UserWithdrawalDomainTests {
 
 		User tombstone = guest.toWithdrawnTombstone(WITHDRAWN_AT);
 
+		assertThat(tombstone.getAccountType()).isEqualTo(UserAccountType.GUEST);
 		assertThat(tombstone.getProvider()).isEqualTo(UserProvider.GUEST);
 		assertThat(tombstone.getGuestInstallationIdHash()).isNull();
 		assertThat(tombstone.getEmail()).isNull();
@@ -70,6 +74,7 @@ class UserWithdrawalDomainTests {
 				"guestInstallationIdHash"
 		);
 		assertThat(document.getString("status")).isEqualTo("WITHDRAWN");
+		assertThat(document.getString("accountType")).isEqualTo("MEMBER");
 		assertThat(document.get("withdrawnAt")).isNotNull();
 		assertThat(document.get("consents")).isNotNull();
 	}

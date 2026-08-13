@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-88` 최소 SocialIdentity 데이터 기반 구현 완료; `SocialProvider`, email·updatedAt 없는 `SocialIdentity`, provider+subject unique index, userId index와 Repository를 추가하고 순수 Java 격리 Mongo의 실제 저장·조회·중복 차단을 포함한 전체 44개 suite·308개 테스트 성공; Jira 상태는 `해야 할 일`로 유지하고 댓글·상태 전환·commit·push는 수행하지 않음
+- 현재 단계: Jira `TMI-89` UserAccountType 분리와 legacy User 호환 expand 구현 완료; 신규 User dual write, 기존 provider fallback, 프로필 accountType·deprecated provider 호환과 Guest/LOCAL 탈퇴 분리를 적용했으며 전체 45개 suite·317개 테스트 성공; Jira 상태는 `해야 할 일`이고 댓글·상태 전환·commit·push는 수행하지 않음
 - 상태 기준일: 2026-08-13
 
 ## 완료
@@ -92,6 +92,7 @@
 - `refresh_sessions` 컬렉션의 UUID 기반 세션·사용자·회전 패밀리 관계, 생성·만료·최근 사용·폐기 시각, 폐기 사유와 `@Version` 기반 Optimistic Lock 모델
 - Refresh Token 해시 unique index와 `expiresAt`의 `expireAfter = "0s"` TTL index, 해시 단건 조회 및 사용자별 미폐기 Session 조회만 제공하는 `RefreshSessionRepository`
 - 공용 `Clock` 기준 최초 Session과 Rotation 후속 Session을 발급하고 Refresh Token 원문은 내부 발급 결과로만 반환하는 `RefreshSessionIssuer`
+- `IssuedRefreshSession`은 RefreshSession 저장 성공 후 응답 계층에 전달하는 immutable 발급 결과 record이며 Token 원문·발급·만료 시각의 non-null과 `expiresAt > issuedAt`을 강제한다. 자동 문자열 표현은 Token을 redaction하고 DB에는 계속 Refresh Token hash만 저장한다
 - `POST /api/v1/auth/reissue`에서 해시 조회, ROTATED 재사용 판별, 명시적 만료 경계 검사, `ACTIVE` 사용자 확인, 기존 Session Optimistic Lock 폐기 성공 후 새 Access Token과 Refresh Token 발급
 - Rotation 시 기존 Session은 `ROTATED` 사유와 후속 관계를 저장하고 새 Session은 같은 회전 패밀리와 이전 관계를 유지하며, 최초 로그인 Session은 새 UUID 회전 패밀리를 생성
 - 같은 Refresh Token의 동시 재발급에서 기존 Session 저장 충돌을 `INVALID_REFRESH_TOKEN`으로 변환하고 충돌 요청에는 Access Token 발급이나 후속 Session 생성을 수행하지 않음
@@ -169,15 +170,23 @@
 - Jira `TMI-88` 범위로 Auth 도메인에 `SocialProvider(GOOGLE, KAKAO, APPLE)`, `social_identities` Mongo document와 `SocialIdentityRepository`를 구현했다. SocialIdentity는 서버 생성 UUID id, canonical UUID 문자열 userId, non-null provider, 원문 보존 1~255자 providerSubject와 createdAt만 저장하고 email·updatedAt·Token·Claim·User 객체·`@DBRef`를 보유하지 않는다
 - `uk_social_identities_provider_subject` compound unique index와 `ix_social_identities_user_id` non-unique index를 선언했다. `(userId, provider)` unique 제약은 추가하지 않아 한 canonical User에 Google·Kakao·Apple을 함께 연결할 수 있고 동일 문자열 subject도 Provider namespace가 다르면 허용한다
 - 외부 Atlas를 호출하지 않는 `mongo-java-server` test dependency를 추가해 실제 Spring Data Repository proxy와 index resolver를 사용했다. provider+subject canonical owner 조회, userId 전체 조회, 대소문자 구분, 복수 Provider 연결, 동일 provider+subject duplicate insert의 `DuplicateKeyException`, 실제 index 이름·unique·key 순서를 검증했으며 전체 `./gradlew clean test` 44개 suite·308개 테스트가 skip·실패·오류 없이 성공했다
+- GitHub PR #16의 `develop` 병합 commit `94d0e61a5cd9d4c8b72ce131143756fece95cd39`을 확인한 뒤 사용자 승인으로 Jira `TMI-88`을 transition ID `41`로 `완료` 전환했고 Resolution도 `완료`임을 재확인했다. 댓글·담당자·우선순위와 다른 필드는 변경하지 않았다
+- 사용자 승인으로 Jira `TMI-89` `[Identity] UserAccountType 분리 및 legacy User 호환 기반 구축`을 `작업` 유형으로 생성했다. 기본 상태 `해야 할 일`, 기본 우선순위 `Medium`, 담당자 없음이며 댓글과 상태 전환은 수행하지 않았다
+- `UserAccountType(GUEST, MEMBER)`과 `User.accountType`을 추가했다. 신규 LOCAL은 `MEMBER + LOCAL`, 신규 Guest는 `GUEST + GUEST`를 함께 저장하고, accountType이 없는 기존 문서는 `provider=GUEST → GUEST`, `LOCAL/null → MEMBER`로 호환 해석한다. accountType이 존재하면 legacy provider보다 우선한다
+- User에 `isGuest()`, `isMember()`, `hasLocalCredential()` 의미 기반 판단을 추가했다. MEMBER 자체는 passwordHash나 SocialIdentity 존재를 강제하지 않고 LOCAL factory만 세 local credential 필드를 필수로 유지해 향후 social-only MEMBER를 수용한다
+- 프로필 응답에 `accountType`을 추가하고 기존 `provider`는 OpenAPI deprecated 하위 호환 필드로 유지했다. 회원 탈퇴는 Guest 여부와 LOCAL credential 보유 여부를 분리해 Guest는 비밀번호 없이 기존 계약을 유지하고 LOCAL credential MEMBER만 비밀번호를 검증하며 social-only MEMBER는 LOCAL 비밀번호 경로로 오분류하지 않는다
+- 회원가입·로그인에서는 로그인 수단용 provider와 accountType을 구분해 기록하고, Guest 생성·동의·탈퇴처럼 계정 유형만 필요한 로그는 accountType을 사용한다. 민감정보·Token·Hash·요청 본문은 추가하지 않았다
+- 신규 accountType dual write, accountType 우선순위, legacy GUEST·LOCAL·null fallback, social-only MEMBER, 프로필·OpenAPI 호환과 기존 signup·Guest·login·RefreshSession·withdrawal 회귀를 검증했으며 `./gradlew clean test` 전체 45개 suite·317개 테스트가 skip·failure·error 0으로 성공했다
 
 ## 진행 중
 
-- Jira `TMI-88` — 최소 SocialIdentity 모델·MongoDB index·Repository와 테스트 구현이 완료됐고 전체 회귀가 성공했다. Jira는 `해야 할 일` 상태이며 사용자 검토·commit·push 전이고, 댓글·상태 변경은 별도 승인 전까지 수행하지 않는다
+- Jira `TMI-89` — UserAccountType expand 구현과 전체 회귀가 완료됐으며 사용자 검토·commit·push 전이다. Jira는 `해야 할 일` 상태이고 댓글·상태 변경은 별도 승인 전까지 수행하지 않는다
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
 
 ## 다음 작업
 
-- 사용자가 Jira `TMI-88` 변경을 검토한 뒤 직접 commit·push한다. 작업 종료용 Jira 댓글은 변경 파일·44개 suite 308개 테스트 성공·남은 운영 index 위험만 담은 초안을 먼저 제시하고 별도 승인 전에는 등록하거나 상태를 변경하지 않는다
+- 사용자가 Jira `TMI-89` 변경을 검토한 뒤 직접 commit·push한다. 작업 종료용 Jira 댓글 초안은 UserAccountType·legacy fallback·프로필 호환·탈퇴 분리, 전체 45개 suite·317개 테스트 성공과 운영 legacy aggregate 위험만 포함하며 승인 전에는 등록하거나 상태를 변경하지 않는다
+- TMI-89 운영 배포 전에 실제 User 문서의 `accountType`·`provider`와 email·normalizedEmail·passwordHash·guestInstallationIdHash 조합을 read-only aggregate로 확인한다. 이번 로컬 구현은 실제 Atlas를 조회하거나 backfill하지 않았다
 - 전체 계획의 단계 0 결정: legacy MEMBER의 로그인 후 전화번호 onboarding 강제 시점, Kakao OIDC `sub`, Apple authorization·revoke, Provider별 nonceMode와 browser state·PKCE, 직접 소셜 회원의 필수 profile·email nullable 정책, SocialLoginChallenge·SocialEnrollmentAttempt TTL, 같은 provider 복수 연결, SMS 정책, HMAC key registry 운영값·보존 기간, Identity–Entitlement proof와 reservation reconciliation 세부 계약을 제품·보안·법무·서비스 기준으로 확정한다
 - 운영 배포 전에 `social_identities`의 두 index가 실제 MongoDB에서 생성 가능한지 staging으로 확인하고, 운영 자동 index 생성 권한·기존 데이터 중복·무중단 index rollout 정책을 확정한다
 - 6단계 CI·staging: 임시 trigger가 제거된 errors-only artifact에 enabled·배포 Secret DSN·환경·immutable release를 주입해 실제 handled 5xx 한 건, expected 4xx 0건, 민감정보 부재와 중복 여부를 검증한다. Source context를 사용할 때만 build 인증 값을 CI Secret으로 제공
@@ -207,10 +216,12 @@
 - Jira `TMI-6`은 사용자 확인 기준 main 병합·전체 테스트 성공 후 명시적 승인으로 `완료` 전환됐으며, 추가 댓글이나 상태 변경은 별도 명시적 승인 후 수행
 - Jira `TMI-9`는 사용자 확인·승인 후 transition ID `41`만 적용해 `완료`로 전환됐고 Resolution도 `완료`로 확인했으며, 댓글·필드와 다른 이슈는 변경하지 않음
 - Jira `TMI-10`은 사용자 승인에 따라 `High` 우선순위로 생성한 뒤 별도 승인으로 transition ID `21`만 적용해 `진행 중`으로 전환했으며 담당자·스프린트·에픽·라벨·댓글과 다른 필드는 변경하지 않음
+- Jira `TMI-88`은 PR #16의 `develop` 병합 확인 후 사용자 승인으로 transition ID `41`만 적용해 상태·Resolution `완료`를 확인했으며 댓글과 다른 필드는 변경하지 않음
+- Jira `TMI-89`는 사용자 승인으로 `작업` 유형·기본 우선순위 `Medium`·상태 `해야 할 일`로 생성했으며 구현 완료 후에도 댓글·상태·다른 필드는 변경하지 않음
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `feat/TMI-88-social-identity-foundation`, HEAD는 `b6eb73e`이며 최소 SocialIdentity 데이터 기반과 격리 Mongo 테스트를 구현했고 Codex는 commit·push를 수행하지 않음
+- 현재 작업 기준 브랜치는 `feat/TMI-89-user-account-type`, HEAD는 `94d0e61`이며 UserAccountType 호환 expand를 구현했고 Codex는 commit·push를 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
@@ -243,6 +254,9 @@
 - 기존 Mongo 문서에 `consents`가 없으면 두 동의를 false, 버전과 시각을 null로 읽고 과거 `audioConsent`를 새 동의로 자동 변환하지 않음
 - User 생성·수정 시각 타입은 `Instant` 사용
 - User provider는 `LOCAL`과 `GUEST`를 지원하며 기존 null provider 문서는 LOCAL로 해석
+- User accountType은 `GUEST`와 `MEMBER`를 지원한다. 신규 LOCAL·Guest는 legacy provider와 accountType을 dual write하고 기존 accountType 누락 문서는 provider GUEST만 GUEST, LOCAL/null은 MEMBER로 읽으며 명시 accountType을 우선한다
+- `UserProvider`와 프로필 provider는 rolling deployment와 기존 클라이언트를 위해 이번 expand 단계에서 유지하고 프로필 provider만 deprecated로 표시한다. UserProvider에 GOOGLE·KAKAO·APPLE을 추가하지 않으며 로그인 수단은 LOCAL credential과 별도 SocialIdentity가 소유한다
+- MEMBER는 계정 유형일 뿐 LOCAL 비밀번호 보유를 뜻하지 않는다. local credential 세 필드가 모두 존재할 때만 `hasLocalCredential()`이며, social-only MEMBER는 허용하되 LOCAL factory는 세 필드를 계속 필수로 검증한다
 - 현재 `UserProvider`는 가입 형태와 회원 탈퇴 자격증명 분기에 사용되므로 이번 단계에서는 이름 변경이나 `GOOGLE`·`APPLE`·`KAKAO` 추가를 하지 않는다. 외부 SNS 연결은 별도 `SocialProvider(GOOGLE, APPLE, KAKAO)`와 `SocialIdentity`가 소유해 한 User의 다중 SNS 연결을 허용한다
 - `SocialIdentity`는 `@DBRef` 없이 canonical UUID 문자열 `userId`만 저장하고 provider subject를 case-sensitive opaque 식별자로 취급한다. 첫 모델에는 email과 변경 의미가 없는 `updatedAt`을 저장하지 않고 provider email은 검증 유스케이스 종료 시 폐기한다
 - Kakao는 OIDC `sub`를 canonical `providerSubject`로 사용하는 안을 권장하며, 사용자 정보 API의 별도 `id`와 같은 namespace에서 혼용하지 않는다
@@ -299,7 +313,7 @@
 
 - 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
-- `PhoneIdentity`·OTP verification, User accountType 이행, Google·Kakao·Apple Provider 검증·소셜 API와 merge outbox publisher
+- `PhoneIdentity`·OTP verification, Google·Kakao·Apple Provider 검증·소셜 API와 merge outbox publisher
 - 별도 Entitlement/Billing의 TrialClaim·UserEntitlement·무료시험 consume과 결제 연동
 - 사용자 프로필 수정 API
 - 정책 버전별 append-only 동의 감사 이력과 동의 철회 정책
@@ -314,6 +328,8 @@
 - 현재 자동 index 생성은 초기 개발 편의를 위한 설정이며, 운영에서는 권한·데이터 규모·무중단 배포를 고려한 별도 index 관리 정책이 필요하다.
 - test profile의 MongoDB 자동설정 제외는 유지하되 SocialIdentity Repository·실제 unique insert는 순수 Java 인메모리 Mongo를 테스트마다 임의 로컬 포트에 기동해 검증한다. 이는 Atlas 비의존 자동 회귀를 제공하지만 운영 MongoDB의 버전·권한·기존 데이터·index build 영향까지 증명하지 않으므로 staging index 생성 검증은 별도로 필요하다.
 - 현재 회원 탈퇴는 User 자격증명과 RefreshSession만 처리하므로 향후 `SocialIdentity` 저장 전에 외부 subject 삭제 또는 tombstone, Apple revoke와 같은 SNS 재가입 정책을 확정해야 한다.
+- TMI-89 코드는 legacy provider null을 MEMBER로 안전하게 읽지만 운영 데이터의 provider·accountType·credential 필드 분포를 실제로 조회하지 않았다. 배포 전에 read-only aggregate로 partial LOCAL credential, provider/accountType 불일치와 예상 밖 값을 확인해야 한다.
+- accountType이 존재하면 provider보다 우선하므로 향후 Guest 승격 후 legacy provider가 GUEST로 남을 수 있다. 신규 소비자는 accountType을 계정 유형 기준으로 사용하고 deprecated provider를 MEMBER 판정이나 비밀번호 보유 추론에 사용하면 안 된다.
 - HMAC fingerprint rotation은 `PhoneFingerprintAlias`와 retained key candidate 전략을 문서화했지만 key registry reference count·비상 rotation·alias/history migration을 실제로 구현하지 않으면 같은 번호의 version 교차 가입이나 TrialClaim 이중 지급이 가능하다.
 - SMS OTP는 무료체험보다 비용 abuse가 먼저 발생할 수 있으므로 phone·user·IP rate limit, cooldown, 실패 lock, 국가·line type 정책, provider kill switch와 비용 alert가 없으면 공개하면 안 된다.
 - 회원가입 필수 OTP는 가입 전환율을 낮추고 무료시험을 사용하지 않는 회원에게도 SMS 비용·개인정보 수집을 발생시키므로 funnel·발송 비용·동의 고지를 함께 관찰해야 한다.
