@@ -26,6 +26,12 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  firebase-auth:
+    enabled: false
+    google-enabled: false
+    apple-enabled: false
+    kakao-enabled: false
+    phone-enabled: false
 
 springdoc:
   swagger-ui:

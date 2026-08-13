@@ -2813,3 +2813,73 @@
 - 결정사항: `검증이 잘 됐다`는 표현은 local policy·Emulator 가설 검증에는 맞지만 실제 Firebase production 인증 완성에는 맞지 않는다. ADR은 `조건부 채택`, production feature는 비활성, Jira 상태는 `해야 할 일`이며 Jira 댓글·상태·필드와 Git commit·push를 변경하지 않았다.
 - 위험 요소: 실제 Android/iOS Google·Apple OAuth, 공식 SDK phone link, 국내 SMS·quota·abuse, Apple nonce/revoke/delete, Firebase timeout·quota 오류 mapping, Identity Platform Kakao·billing·deep-link와 Firebase/Mongo lifecycle reconciliation이 남아 있다. Emulator 성공만으로 production flag를 열면 외부 환경 차이를 놓칠 수 있다.
 - 다음 작업: 실제 격리 Firebase project와 Android/iOS test app으로 외부 gate를 수행한다. 그와 별개로 Stage 3 disabled-by-default Spring Firebase adapter foundation과 Stage 4 PhoneIdentity는 정확한 Jira 범위와 사용자 승인 후 구현하며 production exchange/signup은 외부 gate 통과 전 활성화하지 않는다.
+
+## 2026-08-13 — TMI-90 종료안 제시 및 다음 Stage 3 범위 정리
+
+<!-- codex-turn:019ffa55-1835-74b2-989d-53e678b3661b -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`77804e6`, GitHub PR #18 병합 확인, Codex commit·push 미수행)
+- Jira: `TMI-90`
+- 작업 목표: 병합된 Firebase broker Stage 0 작업의 Jira 종료 조건을 확인하고, 규칙에 따라 종료 댓글·상태 전환 내용을 사용자에게 먼저 제시하며 다음 Stage 3 구현 범위를 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드·ADR·PoC·계획서는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 `develop`과 `origin/develop`이 GitHub PR #18 merge commit `77804e6`을 가리키며 feature commit `af50153`이 병합된 것을 확인했다. 병합 확인 전 worktree는 깨끗했다.
+- 구현 내용: TMI-90 종료 댓글에는 조건부 Firebase broker ADR, production 비의존 Auth Emulator·policy contract PoC, 변경 파일, contract 7개·Emulator 5개·Kakao discovery 1개와 Java 45 suite·317개 성공, 실제 모바일 Provider·국내 SMS·Identity Platform Kakao·Apple revoke가 남은 production gate임을 기록하는 안을 준비했다.
+- 구현 내용: 다음 Stage 3은 disabled-by-default Firebase Admin adapter와 안전한 설정, 목적별 ID Token 검증·recent-auth·오류 mapping, `FirebaseIdentity` unique mapping, `FirebaseEnrollmentAttempt`의 application 만료·CAS·PENDING partial unique·TTL cleanup, 외부 인프라 없는 테스트로 제한한다. 공개 exchange/signup, `PhoneIdentity`, Guest 승격·merge는 제외한다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-90의 설명·상태·Resolution·기존 댓글과 사용 가능한 전환을 읽기 전용 조회했다. 종료 전환 ID `41`을 확인했지만 Jira 댓글·상태·필드 변경은 수행하지 않았다.
+- 추가한 댓글의 목적: 구현 산출물·변경 파일·테스트 결과·남은 production gate를 기록하는 종료 댓글 초안만 준비했으며 아직 등록하지 않았다.
+- 변경한 상태: Jira는 기존 `해야 할 일`, 우선순위 `Medium`, Resolution 없음 상태다. 승인 후 transition ID `41`만 적용할 예정이다.
+- 승인 여부: 사용자가 Jira 종료를 요청했지만 AGENTS.md의 정확한 변경 내용 사전 공개·승인 규칙에 따라 댓글과 전환 payload를 먼저 제시했으며 별도 승인을 기다린다.
+- 실행한 테스트와 결과: 이번 turn은 병합·Jira 상태 확인과 범위 정리만 수행해 테스트를 재실행하지 않았다. 병합된 작업의 기록된 결과는 contract 7/7, Emulator 5/5, Kakao discovery 1/1과 `./gradlew clean test` 45 suite·317개 성공이다. 종료 전 문서 diff·whitespace와 지정 marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: Firebase는 credential broker이고 Identity는 canonical UUID User·자체 RS256 Access Token·RefreshSession을 소유한다. Firebase UID·email·phone은 자동 merge 키가 아니며 Firebase ID Token은 Learning Core에 전달하지 않는다. Secret·Token·Password·전화번호·Firebase UID·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 작업 기록에 추가하지 않았다.
+- 결정사항: Stage 0의 local PoC와 조건부 ADR은 병합 완료로 보되 production Firebase 기능 활성화와 외부 gate 완료로 해석하지 않는다. Jira 변경은 사용자 승인 후 종료 댓글 등록과 완료 전환만 수행한다.
+- 위험 요소: 실제 Android/iOS Google·Apple 인증, 공식 SDK same-UID phone link, 국내 SMS·quota·abuse, Identity Platform Kakao·billing·deep-link, Apple revoke와 Firebase/Mongo reconciliation은 계속 남아 있다. Stage 3 foundation도 기본 비활성으로 배포해야 한다.
+- 다음 작업: 사용자 승인 시 TMI-90 종료 댓글을 등록하고 transition ID `41`로 완료 처리한 뒤 재조회한다. 이후 별도 사전 승인으로 Stage 3 Firebase broker foundation Jira를 생성하고 구현한다.
+
+## 2026-08-13 — Stage 3 Firebase broker foundation Jira TMI-91 생성
+
+<!-- codex-turn:019ffa58-fc35-7653-b47f-756d8f177778 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`77804e6`, Codex commit·push 미수행)
+- Jira: `TMI-91`
+- 작업 목표: 앞서 사용자에게 제시한 다음 작업인 Stage 3 Firebase broker foundation을 독립 Jira 작업으로 생성하고 저장된 범위를 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드·ADR·PoC·계획서는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira `TMI-91` `[Identity] Firebase 인증 broker foundation 구축`을 `작업` 유형으로 생성했다. 설명에는 disabled-by-default Firebase Admin SDK adapter와 application port, 목적별 ID Token 검증·revocation·recent-auth·401/403/429/503 mapping, `FirebaseIdentity`, `FirebaseEnrollmentAttempt`의 application 만료·CAS·PENDING partial unique·TTL cleanup과 외부 인프라 없는 테스트를 포함했다.
+- 구현 내용: 공개 Firebase exchange/signup, 실제 User·RefreshSession 생성, `PhoneIdentity`, phone/SMS, Guest 승격·merge, 실제 모바일 Provider, Kakao Identity Platform, Apple revoke, 기존 password endpoint 제거와 Entitlement는 명시적인 제외 범위로 기록했다.
+- 수행한 Jira 작업: 앞서 범위를 제시한 뒤 사용자가 Jira 생성을 명시적으로 요청해 Atlassian 공식 MCP로 TMI-91을 생성하고 제목·설명·유형·우선순위·상태·담당자·라벨·컴포넌트·Resolution을 읽기 전용 재조회했다. TMI-90에는 댓글·상태·필드 변경을 수행하지 않았다.
+- 추가한 댓글의 목적: TMI-91과 TMI-90 모두 Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 새 TMI-91은 기본 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이다. 상태 전환은 수행하지 않았다.
+- 승인 여부: 사용자가 앞서 제시된 Stage 3 범위를 확인한 뒤 `우선 지라부터 생성`을 명시적으로 요청해 생성 승인을 받은 것으로 처리했다. 별도 Jira 댓글·상태 전환 승인은 이번 요청 범위에 포함하지 않았다.
+- 실행한 테스트와 결과: 코드 변경 없는 Jira 생성·기록 작업이라 Gradle과 PoC 테스트를 재실행하지 않았다. 종료 전 `git diff --check`, `git diff --cached --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이고 Identity가 RS256 Access Token·RefreshSession·JWKS를 소유한다. Firebase UID·provider subject·email·phone은 자동 merge key가 아니며 Firebase ID Token은 Learning Core에 전달하지 않는다. Secret·Token·Password·전화번호·Firebase UID·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 작업 기록에 추가하지 않았다.
+- 결정사항: Stage 3은 production 인증 공개가 아닌 기본 비활성 foundation으로 분리한다. TMI-90 종료는 이번 요청보다 뒤로 미뤘으며 별도 승인된 댓글·완료 전환 전에는 현재 상태를 유지한다.
+- 위험 요소: Firebase Admin SDK 추가 시 초기화 lifecycle·credential 공급·remote revoke 비용·timeout과 SDK 오류 분류를 안전하게 격리해야 한다. Mongo partial unique는 현재 시각 조건을 표현하지 못하므로 만료 PENDING attempt를 application CAS로 EXPIRED 처리하지 않으면 새 attempt를 막을 수 있다.
+- 다음 작업: 사용자가 원하면 먼저 제시된 내용대로 TMI-90 종료 댓글과 완료 전환을 적용한다. TMI-91 구현 요청 시 이슈를 재조회하고 feature branch를 만든 뒤 공개 API 없이 foundation과 테스트만 구현한다.
+
+## 2026-08-13 — TMI-91 Firebase 인증 broker foundation 구현
+
+<!-- codex-turn:019ffa5e-db21-7320-9ff4-f568ab2a8cf1 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `feat/TMI-91-firebase-auth-foundation` (Codex commit·push 미수행)
+- Jira: `TMI-91`
+- 작업 목표: 공개 Firebase 로그인·회원가입을 열기 전에 disabled-by-default Firebase Admin adapter, 목적별 검증 port, canonical User mapping과 중단 가능한 enrollment 상태·CAS 기반을 구현하고 외부 인프라 없는 테스트로 고정한다.
+- 변경 파일: `.env.example`, `README.md`, `build.gradle`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, `src/main/java/web/tosunsaeng/identity/domain/auth/exception/AuthErrorStatus.java`, `src/main/java/web/tosunsaeng/identity/domain/auth/application/firebase/*`, `src/main/java/web/tosunsaeng/identity/domain/auth/infrastructure/firebase/*`, `src/main/java/web/tosunsaeng/identity/domain/auth/domain/entity/FirebaseIdentity.java`, `FirebaseEnrollmentAttempt.java`, 관련 enum·Repository·custom implementation, `src/test/java/web/tosunsaeng/identity/domain/auth/**/Firebase*Tests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Firebase Admin SDK `9.4.3`을 추가하고 전체·Google·Apple·Kakao·Phone flag를 모두 기본 `false`로 구성했다. 활성화 시 project ID를 필수화하고 선택 tenant, recent-auth·clock skew·connect/read timeout·enrollment TTL을 검증하며 ADC/Workload Identity credential provider와 named FirebaseApp 중복 초기화 방지를 사용한다. credential 파일·실제 project 값·Secret은 추가하지 않았다.
+- 구현 내용: Controller와 application이 Firebase SDK 타입을 참조하지 않도록 `FirebaseAuthenticationVerifier`, `FirebaseVerificationPurpose`, 최소 `VerifiedFirebasePrincipal`·`VerifiedSocialPrincipal` 경계를 추가했다. Admin adapter는 Firebase 서명 검증 뒤 모든 목적에서 revoke와 최신 UserRecord를 확인하고 configured project issuer·audience·tenant, UID, 시간 Claim·목적별 recent-auth, disabled 상태와 provider allowlist를 검증한다.
+- 구현 내용: LOGIN_EXCHANGE recent-auth는 15분, 그 밖의 가입·merge·sync·고위험 목적은 5분으로 고정했다. phone sign-in 로그인과 primary provider 없는 phone-only 계정을 거절하고, enrollment는 같은 Firebase account에 연결된 verified phone과 password 사용 시 verified email을 요구한다. Google·Apple·Kakao providerData의 opaque UID만 기존 SocialProvider subject로 변환하며 raw ID Token·전체 Claim·email·phone·SDK 객체는 application 결과로 내보내지 않는다.
+- 구현 내용: Firebase SDK의 invalid/expired/revoked 계열은 고정 401, disabled·정책 거절은 403, quota는 429, timeout·permission·예상 밖 runtime은 503으로 fail-closed 변환한다. SDK 원문 message와 Token을 예외·문자열 표현에 포함하지 않고 최소 principal과 내부 snapshot의 identifier·provider subject도 redaction한다.
+- 구현 내용: `FirebaseIdentity`에 서버 UUID id, Firebase project·opaque case-sensitive UID, canonical UUID userId와 createdAt을 저장하고 `(firebaseProjectId, firebaseUid)` 및 `userId` unique index를 선언했다. Firebase UID는 내부 userId나 JWT `sub`로 사용하지 않으며 email·phone·Token·Claim은 저장하지 않는다.
+- 구현 내용: `FirebaseEnrollmentAttempt`는 DIRECT_SIGNUP 또는 canonical Guest UUID binding, initial sign-in method, PENDING/CONSUMED/EXPIRED, application `expiresAt`, 별도 `cleanupAt` TTL과 시각을 가진다. binding별 PENDING partial unique index, 명시적 null direct binding, active attempt 재사용, 만료 CAS, duplicate insert loser의 winner 재조회와 project·UID·binding 전체가 같은 경우에만 성공하는 일회 consume CAS를 구현했다. TTL 삭제 시각은 correctness 판정에 사용하지 않는다.
+- 수행한 Jira 작업: 구현 전과 종료 시 Atlassian 공식 MCP로 TMI-91의 제목·설명·완료 조건·제외 범위·상태·우선순위·Resolution을 읽기 전용 재조회했다. Jira 이슈·댓글·상태·필드는 변경하지 않았다.
+- 추가한 댓글의 목적: 종료 댓글은 자동 등록하지 않았고, 구현 요약·변경 파일·테스트 결과·남은 위험을 담은 초안만 최종 응답에 제공한다.
+- 변경한 상태: Jira TMI-91은 기존 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이다. PR 병합을 확인하지 않았으므로 완료 전환하지 않았다.
+- 승인 여부: 사용자가 TMI-91 구현 시작을 명시적으로 요청했다. Jira 댓글·상태 전환, Git commit·push, production Firebase 활성화나 외부 Firebase 설정 변경은 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: enrollment service·SDK adapter·configuration·Repository target 테스트를 반복 실행해 active reuse, 만료 전환, duplicate winner, binding mismatch consume 거절, 오류 분류와 enabled/disabled wiring을 확인했다. 최종 `./gradlew clean test`는 54개 suite·353개 테스트가 skip 0, failure 0, error 0으로 성공했다. 실제 Firebase project·credential·Atlas·외부 OAuth Provider는 호출하지 않았다.
+- 실행한 테스트와 결과: `git diff --check`, `git diff --cached --check`, Firebase 공개 Controller 부재, application 계층의 Firebase SDK import 부재, feature/provider 기본값 false와 저장소의 Private Key·실제 MongoDB URI·Firebase API key 부재를 정적으로 검증했고 모두 통과했다.
+- 유지한 계약: 실제 사용자 ID와 JWT `sub`는 Identity canonical UUID 문자열이고 기존 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS와 자체 RefreshSession을 변경하지 않았다. Firebase ID Token은 Identity 내부 인증 경계 밖이나 Learning Core로 전달하지 않고 Firebase UID·provider subject·email·phone을 자동 merge key로 사용하지 않는다. 시험·채점·무료 사용권 코드를 추가하지 않았다.
+- 결정사항: 이 PR은 foundation만 제공하며 공개 exchange/signup, User·RefreshSession finalize, PhoneIdentity, Guest 승격·merge, 실제 SNS/mobile/SMS, Kakao Identity Platform과 Apple revoke는 계속 제외한다. Firebase와 Provider flag는 production을 포함해 기본 비활성이고 외부 gate 전에는 켜지 않는다.
+- 위험 요소: 인메모리 Mongo 구현은 partial unique filter의 status 변경 후 재삽입 의미를 완전히 지원하지 않아 annotation/index resolver·CAS·경쟁 테스트로 계약을 나눠 검증했다. 실제 MongoDB의 partial unique와 TTL index, custom Repository wiring, 상태 전환 뒤 새 attempt 허용은 staging에서 재검증해야 한다.
+- 위험 요소: 모든 Firebase 목적의 revoke·UserRecord 확인은 실제 배포에서 원격 latency·quota·장애 비용을 만든다. ADC/Workload Identity 권한, timeout, 429/503, 실제 Google·Apple·Kakao·phone credential과 Firebase/Mongo lifecycle은 아직 production 환경에서 검증되지 않았다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. 병합 전 Jira를 Done으로 변경하지 않으며, 병합 뒤 정확한 종료 댓글과 전환 payload를 먼저 제시해 별도 승인을 받는다. 후속 Stage 4는 별도 Jira로 PhoneIdentity·versioned domain-separated HMAC·alias/index/rotation 테스트만 구현한다.

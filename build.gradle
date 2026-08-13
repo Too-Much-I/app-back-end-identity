@@ -51,6 +51,9 @@ dependencies {
 	// Identity 자체의 /users/me 등 보호 API에서 JWT 검증
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
+	// Firebase credential 검증은 내부 adapter 뒤에서만 사용한다.
+	implementation 'com.google.firebase:firebase-admin:9.4.3'
+
 	// Health Check
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
