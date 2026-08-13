@@ -46,6 +46,7 @@ import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -127,7 +128,9 @@ class GuestAuthServiceTests {
 					.satisfies(event -> {
 						assertThat(event.getFormattedMessage())
 								.isEqualTo("게스트 사용자 등록이 완료되었습니다");
-						assertThat(LogCapture.value(event, "provider")).isEqualTo(UserProvider.GUEST);
+						assertThat(LogCapture.value(event, "accountType"))
+								.isEqualTo(UserAccountType.GUEST);
+						assertThat(LogCapture.value(event, "provider")).isNull();
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								INSTALLATION_ID,
 								installationIdHasher.hash(INSTALLATION_ID),
@@ -152,6 +155,7 @@ class GuestAuthServiceTests {
 		User guest = userCaptor.getValue();
 		PreparedRefreshSession preparedRefresh = refreshCaptor.getValue();
 
+		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
 		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);
 		assertThat(guest.getStatus()).isEqualTo(UserStatus.ACTIVE);
 		assertThat(guest.getEmail()).isNull();

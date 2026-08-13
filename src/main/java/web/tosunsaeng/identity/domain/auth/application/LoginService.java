@@ -58,6 +58,7 @@ public class LoginService {
 				.addKeyValue("event", "auth.login.succeeded")
 				.addKeyValue("outcome", "authenticated")
 				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("accountType", user.getAccountType())
 				.addKeyValue("provider", user.getProvider())
 				.log("로그인에 성공했습니다");
 		return response;

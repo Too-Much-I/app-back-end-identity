@@ -26,6 +26,7 @@ import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepos
 import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
@@ -91,6 +92,8 @@ class UserWithdrawalServiceTests {
 						assertThat(event.getFormattedMessage())
 								.isEqualTo("회원 탈퇴 처리가 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("withdrawn");
+						assertThat(LogCapture.value(event, "accountType"))
+								.isEqualTo(UserAccountType.MEMBER);
 						assertThat(LogCapture.value(event, "revokedSessionCount")).isEqualTo(1);
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								REFRESH_VALUE,
@@ -139,6 +142,33 @@ class UserWithdrawalServiceTests {
 		BusinessException exception = catchThrowableOfType(
 				BusinessException.class,
 				() -> service.withdraw(new WithdrawRequest(REFRESH_VALUE, PASSWORD))
+		);
+
+		assertThat(exception.getErrorCode())
+				.isEqualTo(AuthErrorStatus.INVALID_WITHDRAWAL_CREDENTIALS);
+		verify(passwordEncoder, never()).matches(any(), any());
+		verify(transactionService, never()).withdraw(any(), any(), any());
+	}
+
+	@Test
+	void memberWithoutLocalCredentialDoesNotFallIntoPasswordVerification() {
+		User socialOnlyMember = mock(User.class);
+		when(socialOnlyMember.getUserId()).thenReturn(
+				"6fe8d7f6-12a2-4e4e-88be-04ff1e102d24"
+		);
+		when(socialOnlyMember.getStatus()).thenReturn(UserStatus.ACTIVE);
+		when(socialOnlyMember.getAccountType()).thenReturn(UserAccountType.MEMBER);
+		when(socialOnlyMember.isMember()).thenReturn(true);
+		when(socialOnlyMember.isGuest()).thenReturn(false);
+		when(socialOnlyMember.hasLocalCredential()).thenReturn(false);
+		stubCurrentUser(
+				socialOnlyMember,
+				activeSession(socialOnlyMember.getUserId())
+		);
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> service.withdraw(new WithdrawRequest(REFRESH_VALUE, null))
 		);
 
 		assertThat(exception.getErrorCode())
@@ -318,8 +348,9 @@ class UserWithdrawalServiceTests {
 	}
 
 	private void stubCurrentUser(User user, RefreshSession session) {
-		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
-		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		String userId = user.getUserId();
+		when(currentUserProvider.getCurrentUserId()).thenReturn(userId);
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 		when(refreshSessionRepository.findByTokenHash(refreshTokenHasher.hash(REFRESH_VALUE)))
 				.thenReturn(Optional.of(session));
 	}

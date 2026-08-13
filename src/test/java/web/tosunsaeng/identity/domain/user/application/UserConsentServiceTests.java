@@ -25,6 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.UserConsentUpdateRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
@@ -259,6 +260,8 @@ class UserConsentServiceTests {
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("updated");
 						assertThat(LogCapture.value(event, "userId"))
 								.isEqualTo(user.getUserId());
+						assertThat(LogCapture.value(event, "accountType"))
+								.isEqualTo(UserAccountType.MEMBER);
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								"user@example.com",
 								"test-only-password-hash",

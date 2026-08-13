@@ -255,6 +255,12 @@ class IdentityApplicationTests {
 						"$.components.schemas.UserProfileResponse.properties.termConsentedAt.type"
 				).value(org.hamcrest.Matchers.hasItems("string", "null")))
 				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.accountType.enum"
+				).value(org.hamcrest.Matchers.hasItems("GUEST", "MEMBER")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.provider.deprecated"
+				).value(true))
+				.andExpect(jsonPath(
 						"$.components.schemas.UserProfileResponse.properties.isAudioConsent"
 				).doesNotExist());
 	}

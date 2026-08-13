@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 
@@ -41,6 +42,8 @@ public class User {
 
 	private UserProvider provider;
 
+	private UserAccountType accountType;
+
 	private UserConsents consents;
 
 	private UserStatus status;
@@ -62,6 +65,7 @@ public class User {
 			String guestInstallationIdHash,
 			String nickname,
 			UserProvider provider,
+			UserAccountType accountType,
 			UserConsents consents,
 			UserStatus status,
 			Instant createdAt,
@@ -75,12 +79,13 @@ public class User {
 		this.guestInstallationIdHash = guestInstallationIdHash;
 		this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
 		this.provider = Objects.requireNonNull(provider, "provider must not be null");
+		this.accountType = Objects.requireNonNull(accountType, "accountType must not be null");
 		this.consents = Objects.requireNonNull(consents, "consents must not be null");
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
 		this.withdrawnAt = withdrawnAt;
-		validateProviderFields();
+		validateAccountFields();
 	}
 
 	public static User create(
@@ -91,14 +96,24 @@ public class User {
 			UserConsents consents,
 			Instant createdAt
 	) {
+		String requiredEmail = Objects.requireNonNull(email, "email must not be null");
+		String requiredNormalizedEmail = Objects.requireNonNull(
+				normalizedEmail,
+				"normalizedEmail must not be null"
+		);
+		String requiredPasswordHash = Objects.requireNonNull(
+				passwordHash,
+				"passwordHash must not be null"
+		);
 		return new User(
 				UUID.randomUUID().toString(),
-				email,
-				normalizedEmail,
-				passwordHash,
+				requiredEmail,
+				requiredNormalizedEmail,
+				requiredPasswordHash,
 				null,
 				nickname,
 				UserProvider.LOCAL,
+				UserAccountType.MEMBER,
 				consents,
 				UserStatus.ACTIVE,
 				createdAt,
@@ -121,6 +136,7 @@ public class User {
 				guestInstallationIdHash,
 				nickname,
 				UserProvider.GUEST,
+				UserAccountType.GUEST,
 				consents,
 				UserStatus.ACTIVE,
 				createdAt,
@@ -129,7 +145,7 @@ public class User {
 		);
 	}
 
-	private void validateProviderFields() {
+	private void validateAccountFields() {
 		if (status == UserStatus.WITHDRAWN) {
 			if (email != null
 					|| normalizedEmail != null
@@ -142,16 +158,21 @@ public class User {
 			Objects.requireNonNull(withdrawnAt, "withdrawnAt must not be null");
 			return;
 		}
-		if (provider == UserProvider.GUEST) {
+		if (isGuest()) {
 			if (email != null || normalizedEmail != null || passwordHash != null) {
 				throw new IllegalArgumentException("Guest credentials must be absent.");
 			}
 			requireGuestInstallationIdHash(guestInstallationIdHash);
 			return;
 		}
-		Objects.requireNonNull(email, "email must not be null");
-		Objects.requireNonNull(normalizedEmail, "normalizedEmail must not be null");
-		Objects.requireNonNull(passwordHash, "passwordHash must not be null");
+		boolean anyLocalCredentialField = email != null
+				|| normalizedEmail != null
+				|| passwordHash != null;
+		if (anyLocalCredentialField && !hasLocalCredential()) {
+			throw new IllegalArgumentException(
+					"Local credential fields must either all be present or all be absent."
+			);
+		}
 	}
 
 	public User toWithdrawnTombstone(Instant withdrawalTime) {
@@ -170,6 +191,7 @@ public class User {
 				null,
 				WITHDRAWN_NICKNAME,
 				getProvider(),
+				getAccountType(),
 				getConsents(),
 				UserStatus.WITHDRAWN,
 				createdAt,
@@ -215,6 +237,27 @@ public class User {
 
 	public UserProvider getProvider() {
 		return provider == null ? UserProvider.LOCAL : provider;
+	}
+
+	public UserAccountType getAccountType() {
+		if (accountType != null) {
+			return accountType;
+		}
+		return getProvider() == UserProvider.GUEST
+				? UserAccountType.GUEST
+				: UserAccountType.MEMBER;
+	}
+
+	public boolean isGuest() {
+		return getAccountType() == UserAccountType.GUEST;
+	}
+
+	public boolean isMember() {
+		return getAccountType() == UserAccountType.MEMBER;
+	}
+
+	public boolean hasLocalCredential() {
+		return email != null && normalizedEmail != null && passwordHash != null;
 	}
 
 	public UserConsents getConsents() {

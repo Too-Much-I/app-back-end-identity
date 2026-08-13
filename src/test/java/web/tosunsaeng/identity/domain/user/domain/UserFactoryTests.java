@@ -19,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 
@@ -48,6 +49,10 @@ class UserFactoryTests {
 		User user = createUser();
 
 		assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(user.getAccountType()).isEqualTo(UserAccountType.MEMBER);
+		assertThat(user.isMember()).isTrue();
+		assertThat(user.isGuest()).isFalse();
+		assertThat(user.hasLocalCredential()).isTrue();
 		assertThat(user.getProvider()).isEqualTo(UserProvider.LOCAL);
 	}
 
@@ -56,6 +61,10 @@ class UserFactoryTests {
 		User guest = userFactory.createGuest(GUEST_INSTALLATION_HASH, GUEST_CREATED_AT);
 
 		assertThat(UUID.fromString(guest.getUserId()).toString()).isEqualTo(guest.getUserId());
+		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
+		assertThat(guest.isGuest()).isTrue();
+		assertThat(guest.isMember()).isFalse();
+		assertThat(guest.hasLocalCredential()).isFalse();
 		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);
 		assertThat(guest.getStatus()).isEqualTo(UserStatus.ACTIVE);
 		assertThat(guest.getEmail()).isNull();
@@ -123,6 +132,8 @@ class UserFactoryTests {
 		);
 		assertThat(firstDocument.getString("guestInstallationIdHash"))
 				.isNotEqualTo(secondDocument.getString("guestInstallationIdHash"));
+		assertThat(firstDocument.getString("accountType")).isEqualTo("GUEST");
+		assertThat(firstDocument.getString("provider")).isEqualTo("GUEST");
 		org.bson.Document storedConsents = firstDocument.get("consents", org.bson.Document.class);
 		assertThat(storedConsents.getBoolean("privacyConsented")).isTrue();
 		assertThat(storedConsents.getString("privacyConsentVersion"))

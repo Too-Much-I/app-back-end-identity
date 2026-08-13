@@ -48,6 +48,7 @@ import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -174,6 +175,8 @@ class AuthenticationUseCaseServicesTests {
 						assertThat(event.getFormattedMessage())
 								.isEqualTo("이메일 회원가입이 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("created");
+						assertThat(LogCapture.value(event, "accountType"))
+								.isEqualTo(UserAccountType.MEMBER);
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								RAW_CREDENTIAL,
 								"Sample.User@EXAMPLE.COM",
@@ -192,6 +195,7 @@ class AuthenticationUseCaseServicesTests {
 		assertThat(passwordEncoder.matches(RAW_CREDENTIAL, savedUser.getPasswordHash())).isTrue();
 		assertThat(UUID.fromString(savedUser.getUserId()).toString()).isEqualTo(savedUser.getUserId());
 		assertThat(savedUser.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(savedUser.getAccountType()).isEqualTo(UserAccountType.MEMBER);
 		assertThat(savedUser.getNickname()).isEqualTo("토스마스터");
 		assertThat(savedUser.getConsents().isPrivacyConsented()).isTrue();
 		assertThat(savedUser.getConsents().getPrivacyConsentVersion())
@@ -313,6 +317,8 @@ class AuthenticationUseCaseServicesTests {
 								.isEqualTo("로그인에 성공했습니다");
 						assertThat(LogCapture.value(event, "userId"))
 								.isEqualTo(user.getUserId());
+						assertThat(LogCapture.value(event, "accountType"))
+								.isEqualTo(UserAccountType.MEMBER);
 						assertThat(LogCapture.rendered(event))
 								.doesNotContain(RAW_CREDENTIAL, "Login.User@example.com");
 					});
