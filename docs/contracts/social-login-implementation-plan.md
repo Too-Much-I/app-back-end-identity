@@ -885,7 +885,7 @@ FREE_MOCK_EXAM fingerprint
 4. 첫 무료시험 요청에서 binding candidate 전체로 기존 TrialClaim을 조회하고, 없을 때만 TrialClaim과 UserEntitlement를 원자적으로 생성한다.
 5. outbox 지연 중 첫 시험 요청은 중복 지급을 우회하지 않고 일시적인 eligibility processing 응답으로 재시도한다.
 
-consumer-scoped proof는 pseudonymous data로 분류하고 delivery·재처리에 필요한 최소 기간만 보존한다. benefit key를 Identity와 Entitlement 중 어디서 소유하고 proof를 어떻게 서명할지는 서버 간 ADR에서 정하되, 두 서비스가 PhoneIdentity fingerprint나 raw phone을 공유하는 방식은 허용하지 않는다.
+consumer-scoped proof는 pseudonymous data로 분류하고 delivery·재처리에 필요한 최소 기간만 보존한다. key 소유권, transport 인증, versioned schema, 멱등성, rotation과 보존·삭제 계약은 `docs/adr/ADR-002-phone-eligibility-binding-server-contract.md`를 따르며, 두 서비스가 PhoneIdentity fingerprint나 raw phone을 공유하는 방식은 허용하지 않는다.
 
 Identity 구현은 `FREE_MOCK_EXAM` 같은 Billing enum이나 시험 도메인 객체에 의존하지 않는다. ADR에서 allowlist한 opaque `consumerScopeId`와 key reference를 설정으로 받아 generic `PhoneEligibilityBindingOutbox`를 만들고, scope의 제품 의미·TrialClaim mapping은 Entitlement/Billing이 소유한다.
 

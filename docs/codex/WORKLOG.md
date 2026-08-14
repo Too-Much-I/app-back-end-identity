@@ -3307,3 +3307,173 @@
 - 결정사항: duplicate finalize는 토큰 재발급형 멱등 성공이 아니라 고정 enrollment conflict와 exchange 재진입으로 처리한다. PhoneEligibilityBindingOutbox는 제품 enum을 모르는 generic event이며 phone 변경을 위해 user+scope unique를 두지 않는다. Access Token 발급은 commit 이후에만 수행하고 Firebase와 Mongo가 분산 Transaction이 아니라는 경계는 유지한다.
 - 위험 요소: 실제 Firebase/mobile/SMS, transaction 지원 MongoDB의 multi-document write conflict와 운영 index 생성은 staging에서 검증하지 않았다. outbox publisher와 외부 consumer의 eventId 멱등 수신·retry/dead-letter·보존/삭제·key ownership 계약은 별도 ADR/서비스 구현이 필요하다. commit 뒤 Access Token 응답 생성이 실패하면 aggregate와 RefreshSession은 성공한 상태이므로 클라이언트는 고정 finalize conflict를 받은 뒤 exchange로 복구해야 한다.
 - 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 TMI-94를 Done으로 바꾸지 않으며 Jira 댓글은 초안을 먼저 승인받은 뒤에만 등록한다. production 활성화 전 격리 Firebase/mobile 및 transaction 지원 staging MongoDB와 outbox consumer 계약을 검증한다.
+
+## 2026-08-14 — TMI-94 PR 병합 확인·Jira 완료 및 다음 Stage 5C 정리
+
+<!-- codex-turn:019ffee3-7fe8-7822-b9ee-29ab8cc80671 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`455db00`, GitHub PR #22 merge commit, Codex commit·push 미수행)
+- Jira: TMI-94
+- 작업 목표: TMI-94 구현 PR 병합을 확인한 뒤 승인된 종료 댓글과 완료 전환을 적용하고, production Firebase signup 활성화 전에 필요한 다음 작업을 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 `develop`과 `origin/develop`이 PR #22 merge commit `455db00`을 가리키며 TMI-94 feature commit `f68d7e8`이 이력에 포함된 것을 확인했다. Jira 변경 전 TMI-94가 `해야 할 일`, Resolution 없음, 빈 댓글 상태이고 완료 transition ID `41`을 사용할 수 있음을 재조회했다.
+- 수행한 Jira 작업: 사용자가 앞서 제시한 종료 댓글과 Jira 종료를 승인한 뒤 TMI-94에 구현 범위, `./gradlew clean test` 70개 suite·421개 성공 결과와 staging/consumer 잔여 위험을 담은 댓글 ID `10005`를 등록했다. 이어서 transition ID `41`만 적용했고 후속 조회에서 상태 ID `10003` `완료`와 Resolution `완료`를 확인했다. 다른 이슈·필드는 변경하지 않았다.
+- 추가한 댓글의 목적: verified phone 경계, 신규 MEMBER aggregate 단일 Mongo Transaction, 별도 eligibility outbox, Security/OpenAPI와 전체 테스트 결과 및 실제 Firebase·staging Mongo·consumer 계약의 남은 위험을 인수인계하기 위해 등록했다.
+- 변경한 상태: Jira TMI-94를 `해야 할 일`에서 `완료`로 전환했고 Resolution도 `완료`가 됐다.
+- 승인 여부: 직전 응답에서 등록할 Jira 종료 댓글 초안을 공개했고 사용자가 `좋아 지라 닫아주고`라고 명시적으로 승인했다. Git commit·push, 신규 Jira 생성과 production feature 활성화는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 이번 turn은 병합·Jira 읽기 확인, 승인된 Jira 댓글·상태 전환과 문서 기록만 수행했으므로 Gradle 테스트를 재실행하지 않았다. 병합된 PR #22의 최종 검증은 `./gradlew clean test` 70개 suite·421개 테스트 failure 0, error 0, skipped 0이며 이번 문서 변경 뒤 `git diff --check`를 실행한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS, hash-only Opaque RefreshSession과 Firebase/provider 기본 비활성을 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 기록에 포함하지 않았고 시험·채점·Entitlement 코드를 추가하지 않았다.
+- 결정사항: 다음 권장 작업은 즉시 provider flag를 켜거나 legacy password route를 제거하는 작업이 아니다. 먼저 generic PhoneEligibilityBindingOutbox의 버전된 schema, atomic lease publisher, at-least-once delivery, retry/backoff·dead-letter·보존/삭제와 외부 consumer의 eventId 멱등 처리·key ownership·미도착 fail-closed 계약을 Stage 5C로 분리한다.
+- 위험 요소: 실제 Firebase/mobile/SMS와 transaction 지원 staging MongoDB 검증은 아직 남아 있다. outbox consumer와 운영 전달 계약 없이 signup을 활성화하면 이미 가입한 번호의 eligibility proof를 raw phone 없이 복구하지 못하거나 outbox 지연을 무료체험 중복 방지 우회로 만들 수 있다.
+- 다음 작업: Stage 5C Jira를 만들기 전에 Identity publisher 범위와 외부 Entitlement/Billing consumer 범위를 나누고 event schema·멱등성·보존·key ownership·운영 실패 정책을 완료 조건으로 제시한다. 이 gate와 staging 검증이 끝난 뒤에만 provider별 활성화와 legacy password signup/login/check-email cutover를 별도 작업으로 진행한다.
+
+## 2026-08-14 — Stage 5C 서버 간 eligibility binding 계약 ADR 상세 설명
+
+<!-- codex-turn:019ffee8-2bb9-7e43-ab01-d5cd6ee540bd -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`455db00`, Codex commit·push 미수행)
+- 작업 목표: PhoneEligibilityBindingOutbox를 외부 consumer에 전달하기 전에 필요한 versioned event schema, eventId 멱등성, opaque consumer scope, candidate key version, 보존·삭제·rotation과 민감정보 금지 계약을 현재 구현·전체 계획 기준으로 상세 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. ADR·애플리케이션 코드·테스트·설정은 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 권장 이벤트를 `PhoneEligibilityBindingVerified`로 정의하고 eventId, eventType, schemaVersion, producer, occurredAt, consumerScopeId, canonical userId, verifiedAt, user+scope 단위 bindingRevision과 retained fingerprintCandidates(keyVersion, value)의 최소 envelope를 제안했다. candidate 배열 순서는 의미가 없고 consumer는 하나라도 일치하면 같은 verified phone proof로 판단한다.
+- 구현 내용: consumer scope는 client 요청이나 제품 enum에서 받지 않고 Identity의 allowlist된 서버 설정으로만 선택하며 HMAC input domain에 포함한다. Identity는 scope의 상품 의미, TrialClaim·Entitlement 지급을 해석하지 않고 같은 phone도 scope가 다르면 상호 비교할 수 없는 candidate가 나오도록 분리한다.
+- 구현 내용: at-least-once delivery에서 consumer는 eventId unique inbox와 binding update를 같은 로컬 Transaction으로 처리한다. 같은 eventId·같은 payload 재전달은 성공 no-op으로 응답하고, 같은 eventId의 다른 canonical payload는 덮어쓰지 않고 poison event로 격리·경보한다. 여러 정상 event의 역순 도착은 단조 증가 bindingRevision으로 이전 revision이 최신 binding을 되돌리지 못하게 한다.
+- 구현 내용: eligibility HMAC key material은 Identity writer의 Secret 경계에만 두고 consumer에는 keyVersion과 candidate만 전달한다. 새 version은 retained lookup candidate로 선배포하고 writer 동기화 뒤 ACTIVE_WRITE로 전환하며 이전 version은 LOOKUP_ONLY로 유지한다. raw phone이 없으므로 old-only 기존 binding을 새 key로 임의 backfill하지 않고 reference 만료 또는 phone 재인증 전에는 legacy version을 제거하지 않는다.
+- 구현 내용: producer PENDING/lease/dead-letter outbox, 짧은 published replay·감사 보존, consumer current binding과 장기 abuse ledger는 목적이 다르므로 동일 TTL로 묶지 않는다. withdrawal·phone 교체 때 current binding을 제거·교체할지, 중복 혜택 방지 ledger를 어떤 법적 근거와 기간으로 보존할지는 제품·개인정보 정책과 함께 ADR에 명시하며 무기한 보존을 기본값으로 두지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. TMI-94는 직전 turn에서 완료됐고 이번 요청은 다음 계약의 상세 설명 범위다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 서버 간 계약 ADR 항목을 더 자세히 설명해 달라고 요청했다. ADR 파일 생성, 신규 Jira, publisher·consumer 구현, production flag 활성화와 Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계약 설명과 문서 기록 작업이므로 Gradle 테스트를 실행하지 않았다. 병합된 기준선의 최종 결과는 `./gradlew clean test` 70개 suite·421개 테스트 failure 0, error 0, skipped 0이며 종료 전 `git diff --check`를 수행한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Firebase broker와 Identity account owner, PhoneIdentity·benefit fingerprint의 key/domain 분리, Firebase/provider 기본 비활성 및 시험·Entitlement 도메인 경계를 유지했다. raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint·HMAC key와 Secret·Token·Password·실제 Key·전체 MongoDB URI를 payload·로그·기록에 포함하지 않는다.
+- 결정사항: event 수신은 혜택 지급이 아니라 verified phone binding 준비일 뿐이다. consumer는 eventId 멱등성과 bindingRevision 순서 보호를 가져야 하고, publisher 2xx는 consumer의 로컬 Transaction commit 이후에만 성공으로 해석한다. schema breaking change는 새 schemaVersion으로 병행하며 producer는 consumer 지원 확인 전 구 version을 중단하지 않는다.
+- 위험 요소: 현재 TMI-94 outbox entity에는 schemaVersion·eventType·bindingRevision과 publisher lease/retry/dead-letter 필드가 아직 없다. bindingRevision을 동시 phone 변경에서도 단조 증가시키는 저장 경계, 실제 transport 인증, consumer 소유 서비스, 법적 보존 기간과 key reference count는 Stage 5C ADR·구현에서 확정해야 한다.
+- 다음 작업: 사용자가 원하면 위 결정을 Identity producer ADR과 외부 consumer 계약으로 분리한 Stage 5C Jira 생성안을 먼저 제시한다. 승인 뒤에만 ADR 파일·outbox schema 확장·publisher port와 lease/retry 테스트를 구현하며 외부 Entitlement/Billing consumer는 별도 저장소·Jira로 둔다.
+
+## 2026-08-14 — event schemaVersion·keyVersion·bindingRevision 설명
+
+<!-- codex-turn:019fff0f-8d09-7232-a7c7-325f71627f1b -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`455db00`, commit·push 미수행)
+- 작업 목표: PhoneEligibilityBindingVerified 서버 간 이벤트 계약의 `schemaVersion`, eligibility candidate `keyVersion`, 사용자 binding `bindingRevision`이 각각 무엇을 버전 관리하는지 쉬운 비유와 변경 예시로 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·계획·계약 코드는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `eventType`은 송장 종류, `schemaVersion`은 송장 양식 판본이라는 비유로 설명했다. 소비자는 두 값을 함께 보고 JSON 필드·타입·의미를 아는지 판단하며 선택 필드 추가 같은 호환 변경은 기존 버전에서 허용할 수 있지만 필드 삭제·rename·타입·의미 변경은 새 schemaVersion으로 발행해야 한다.
+- 구현 내용: producer와 consumer의 무중단 전환을 위해 새 schemaVersion을 구버전과 병행 지원하고 consumer 준비를 확인한 뒤 구버전을 중단하는 순서를 설명했다. consumer가 모르는 version을 추측해 처리하면 잘못된 사용자 binding을 저장할 수 있으므로 retry로 해결되지 않는 unsupported contract로 격리·경보해야 한다.
+- 구현 내용: `keyVersion`은 event JSON 모양과 무관하게 fingerprint candidate를 만든 HMAC key 판본이며 candidate value를 어떤 retained key namespace에서 비교할지 표시한다. 하나의 schema v1 이벤트 안에도 key rotation 동안 v1·v2 candidate가 함께 존재할 수 있음을 설명했다.
+- 구현 내용: `bindingRevision`은 같은 canonical userId와 consumerScopeId의 verified phone binding 변경 순번이다. revision 2가 먼저 처리된 뒤 늦게 도착한 revision 1을 무시해 at-least-once·역순 전달이 최신 binding을 과거 상태로 되돌리지 못하게 한다. 이는 eventId 중복 제거와도 별개라고 구분했다.
+- 구현 내용: Java 클래스명·package·Mongo document 구조를 이벤트 계약에 노출하면 내부 refactor나 저장 모델 변경이 외부 consumer의 breaking change가 되므로, 이벤트는 업무 의미의 안정적인 JSON 이름만 사용해야 한다고 설명했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 개념 설명과 기록 작업이므로 Gradle 테스트를 실행하지 않았다. 현재 병합 기준선은 70개 suite·421개 테스트 성공 상태이며, 이번 종료 전 `git diff --check`, 기록 문서 trailing whitespace, 지정 turn marker 단일 존재와 WORKLOG 끝 append를 정적으로 검증한다.
+- 유지한 계약: 이벤트에는 canonical UUID userId와 consumer-scoped eligibility candidate만 전달하고 raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint와 HMAC key material을 포함하지 않는다. Identity/Entitlement 경계, Firebase provider 기본 비활성과 Secret·Token·Password·실제 Key·전체 MongoDB URI 비기록 원칙을 유지했다.
+- 결정사항: 세 숫자를 하나의 공통 버전으로 합치지 않는다. `schemaVersion`은 wire contract, `keyVersion`은 HMAC candidate origin, `bindingRevision`은 user+scope 상태 순서로 각각 독립 관리한다. 기존 코드·Jira·Git 상태를 변경하지 않았다.
+- 위험 요소: 현재 TMI-94 outbox에는 세 계약 중 eventType·schemaVersion·bindingRevision이 아직 구현되지 않았다. Stage 5C에서 revision 원자 증가, consumer 지원 version, unknown version dead-letter와 구·신 schema 병행 기간을 확정하지 않으면 유실·역행·오해석 위험이 있다.
+- 다음 작업: Stage 5C ADR에서 schema v1의 정확한 JSON·호환 규칙, 지원 종료 절차, candidate key rotation과 binding revision CAS를 확정하고 producer·consumer contract test를 각각 추가한다.
+
+## 2026-08-14 — Stage 5C eligibility binding 서버 간 계약 ADR Jira 생성 초안
+
+<!-- codex-turn:019fff14-bba8-72a0-97f5-616d4f4a14a6 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`455db00`, commit·push 미수행)
+- 작업 목표: 앞서 설명한 versioned event schema, eventId 멱등성, opaque consumer scope, candidate key rotation, 보존·삭제 정책과 민감정보 전달 금지를 확정하는 Stage 5C ADR 작업을 Jira 이슈로 생성하기 위한 최종 Payload 초안을 준비한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드·ADR·테스트는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: TMI-94와 최근 TMI 이슈를 Atlassian 공식 MCP로 읽어 프로젝트 `TMI`, 기본 업무 유형 `작업`, 직전 Stage 5B의 완료 상태와 High 우선순위 사용을 확인했다. 이번 Jira는 Identity 저장소가 소유하는 서버 간 계약 ADR 확정으로 한정하고 publisher·consumer 구현, TrialClaim·Entitlement, production Firebase 활성화와 legacy route cutover를 제외하는 초안을 작성했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-94, 최근 TMI 이슈와 프로젝트 이슈 유형을 읽기 전용 조회했다. 신규 Jira 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 기존 Jira 상태와 Resolution을 변경하지 않았다. 신규 이슈도 아직 생성하지 않았다.
+- 승인 여부: 사용자가 신규 Jira 생성을 요청했지만 저장소 규칙상 실제 생성 전에 제목·설명·완료 조건·우선순위와 적용하지 않을 필드를 먼저 공개하고 별도의 명시적 승인을 받아야 하므로 승인을 기다린다.
+- 실행한 테스트와 결과: Jira 읽기·초안 작성과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. 병합 기준선은 `./gradlew clean test` 70개 suite·421개 테스트 성공 상태이며 종료 전 `git diff --check`와 turn marker 단일 존재를 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity와 외부 consumer의 도메인 경계, Firebase/provider 기본 비활성을 유지한다. Jira 초안과 기록에 raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint·HMAC key material 및 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 포함하지 않았다.
+- 결정사항: 신규 Jira는 `[Identity] Stage 5C Phone eligibility binding 서버 간 계약 ADR` 제목의 `작업`, High, 기본 `해야 할 일`로 제안한다. 담당자·스프린트·에픽·라벨·상태 전환은 생성 시 적용하지 않으며 ADR 확정과 구현을 분리한다.
+- 위험 요소: transport 인증 방식, 실제 consumer 소유 서비스, bindingRevision 원자 증가 저장 경계, 구 key 제거를 위한 reference 확인 방식과 법적 보존 기간은 ADR에서 아직 확정해야 한다. 승인 전에는 Jira 키가 존재하지 않는다.
+- 다음 작업: 사용자가 공개된 Jira Payload를 승인하면 동일 내용으로 TMI 이슈를 생성하고 생성 결과를 재조회한 뒤 이 WORKLOG와 CURRENT_STATE에 발급된 Jira 키와 수행한 Jira 작업을 추가 기록한다.
+
+## 2026-08-14 — TMI-95 Stage 5C eligibility binding 서버 간 계약 ADR Jira 생성
+
+<!-- codex-turn:019fff19-4398-7273-8edc-c62299213db9 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`455db00`, commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: 사용자에게 공개한 Stage 5C Phone eligibility binding 서버 간 계약 ADR Jira Payload를 승인 내용 그대로 생성하고 저장 결과를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드·ADR·테스트는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira 설명에 versioned schema v1, eventId inbox 멱등성, bindingRevision 역순 보호, allowlist 기반 opaque consumer scope, candidate key lifecycle, 데이터 목적별 보존·삭제, revoke/tombstone, transport 책임과 민감정보 전달 금지를 기록했다. publisher·consumer 실제 구현과 TrialClaim·Entitlement, production 활성화, legacy API 종료는 제외 범위로 유지했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI `작업` 이슈 `TMI-95`를 생성했다. 생성 직후 읽기 전용 재조회해 승인한 제목과 설명, 유형 `작업`, 우선순위 `High`, 상태 `해야 할 일`, Resolution 없음, 담당자 없음, 빈 라벨·컴포넌트를 확인했다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 생성 시 기본 상태 `해야 할 일`을 유지했으며 별도 transition을 적용하지 않았다. 기존 Jira 이슈의 상태나 Resolution은 변경하지 않았다.
+- 승인 여부: 직전 응답에서 생성할 프로젝트·유형·제목·우선순위·설명·완료 조건·제외 범위와 미설정 필드를 공개했고 사용자가 `생성해줘`라고 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira 생성·검증과 기록 문서 변경만 수행해 Gradle 테스트를 실행하지 않았다. 병합 기준선은 `./gradlew clean test` 70개 suite·421개 테스트 성공 상태이며 이번 문서 변경에 대해 `git diff --check`와 turn marker 단일 존재를 검증한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity와 외부 consumer의 도메인 경계, Firebase/provider 기본 비활성을 유지했다. Jira와 기록에 raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint·HMAC key material 및 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 포함하지 않았다.
+- 결정사항: TMI-95는 ADR 확정 작업만 소유한다. outbox publisher, 외부 consumer와 production feature 활성화는 ADR 결정 이후 별도 작업으로 진행하고, PR 병합 확인 전 TMI-95를 Done으로 전환하지 않는다.
+- 위험 요소: transport 인증 방식, consumer 소유 서비스, bindingRevision 원자 증가 저장 경계, 구 key reference 확인 방식과 법적 보존 기간은 TMI-95에서 결정해야 한다. 현재 outbox 모델에는 eventType·schemaVersion·bindingRevision과 lease/retry/dead-letter 필드가 아직 없다.
+- 다음 작업: 구현 전에 Atlassian 공식 MCP로 TMI-95 설명과 완료 조건을 다시 읽고 ADR을 작성한다. 완료 후 Jira 댓글 초안을 먼저 제시하고 PR 병합을 확인하기 전에는 Jira 상태를 완료로 변경하지 않는다.
+
+## 2026-08-14 — Stage 5C 서버 간 계약 ADR 전체 흐름 설명
+
+<!-- codex-turn:019fff20-036d-7c01-948f-e708fccd74b4 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `docs/TMI-95-phone-eligibility-binding-adr` (`455db00`, commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: 이번에 작성할 Phone eligibility binding 서버 간 계약 ADR이 해결하려는 문제와 Identity producer·outbox publisher·Entitlement/Billing consumer의 책임, 정상·중복·역순·장애·key rotation·보존 흐름을 쉬운 사용자 시나리오로 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. ADR·애플리케이션 코드·테스트는 변경하지 않았고 WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 회원가입 순간 Identity 메모리에만 존재하는 verified phone으로 benefit-scoped candidate를 계산해 User 생성 Transaction에 `PhoneEligibilityBindingOutbox(PENDING)`를 함께 저장하는 이유를 설명했다. raw phone을 장기 저장하지 않으므로 이 시점에 증명을 남기지 않으면 나중에 무료시험 중복 확인을 위해 번호 재인증이 필요하다.
+- 구현 내용: publisher는 여러 worker가 같은 outbox를 동시에 보내지 않도록 atomic lease를 획득하고 versioned `PhoneEligibilityBindingVerified` event를 전송한다. 네트워크 결과가 불명확해 같은 event가 재전송될 수 있으므로 delivery는 exactly-once가 아니라 at-least-once로 설계하며 일시 실패는 retry/backoff, 반복·영구 실패는 dead-letter와 운영 경보로 보낸다.
+- 구현 내용: consumer는 `eventId` unique inbox와 `VerifiedPhoneBenefitBinding` 갱신을 같은 로컬 Transaction으로 commit한 뒤에만 2xx를 반환한다. 같은 eventId·같은 payload 재전달은 성공 no-op, 같은 eventId·다른 payload는 poison event 격리, 서로 다른 event의 역순 도착은 user+scope 단조 증가 `bindingRevision`으로 과거 revision을 무시한다.
+- 구현 내용: event는 혜택 지급 명령이 아니라 verified phone binding 준비 알림이다. consumer가 binding을 받았다고 TrialClaim이나 UserEntitlement를 생성하지 않고, 사용자의 첫 무료시험 요청에서 candidate로 기존 TrialClaim을 조회해 없을 때만 별도 원자 grant를 수행한다. binding/outbox가 아직 도착하지 않았으면 중복 방지를 우회하지 않고 processing/retry로 fail-closed한다.
+- 구현 내용: `consumerScopeId`는 client가 고르지 않고 Identity allowlist 서버 설정으로 결정해 서비스·혜택 간 candidate 상호 비교를 막는다. HMAC key material은 Identity Secret 경계에 남기고 consumer에는 `keyVersion+candidate`만 전달하며, rotation 시 새 candidate를 선배포하고 이전 key를 lookup-only로 유지해 참조가 사라지기 전에는 삭제하지 않는다.
+- 구현 내용: schemaVersion은 event JSON 계약, keyVersion은 HMAC candidate 생성 key, bindingRevision은 user+scope 상태 변경 순번으로 분리한다. outbox delivery record, consumer current binding, 장기 TrialClaim ledger는 목적이 다르므로 보존 기간과 탈퇴·phone 변경 삭제 정책도 각각 ADR에서 결정해야 하며 Java 클래스명·Mongo document 구조와 민감정보는 wire 계약에 노출하지 않는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 개념 설명과 기록 작업이므로 Gradle 테스트를 실행하지 않았다. 병합 기준선은 70개 suite·421개 테스트 성공 상태이며 현재 outbox entity·가입 생성 흐름·계획·TMI-95 기록을 대조했다. 종료 전 `git diff --check`, 기록 문서 trailing whitespace, 지정 turn marker 단일 존재와 WORKLOG 끝 append를 정적으로 검증한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity producer와 외부 Entitlement/Billing consumer의 도메인 경계, 가입 event와 혜택 지급 분리 및 Firebase/provider 기본 비활성을 유지했다. raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint·HMAC key material과 Secret·Token·Password·실제 Key·전체 MongoDB URI를 payload·로그·기록에 포함하지 않았다.
+- 결정사항: TMI-95 ADR은 서버 간 합의 문서이며 publisher·consumer 구현이나 production 활성화 자체가 아니다. 핵심 합의는 versioned event, at-least-once+eventId 멱등성, bindingRevision 순서 보호, fail-closed eligibility, key lifecycle과 목적별 보존 정책이다. Jira·Git 상태를 변경하지 않았다.
+- 위험 요소: 현재 outbox는 PENDING/PUBLISHED와 candidate 저장까지만 있고 eventType·schemaVersion·bindingRevision, lease·retry·dead-letter가 아직 없다. transport 인증, 실제 consumer 소유 서비스, revision 원자 증가 경계, 법적 보존 기간과 구 key reference 확인도 ADR에서 확정해야 한다.
+- 다음 작업: ADR에서 정상 sequence와 중복·timeout·역순·unknown schema·key rotation·withdrawal sequence를 결정표로 확정한다. 승인된 ADR 이후 Identity publisher와 외부 consumer 구현은 각각 별도 Jira로 진행하고 staging consumer end-to-end 확인 전 production signup flag를 활성화하지 않는다.
+
+## 2026-08-14 — Entitlement/Billing과 Learning Core 배포 경계 설명
+
+<!-- codex-turn:019fff23-8347-7131-bcfe-ced858e81858 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `docs/TMI-95-phone-eligibility-binding-adr` (`455db00`, commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: 계획서의 Entitlement/Billing 서버가 Learning Core를 의미하는지, 별도 서비스를 새로 만들어야 하는지 현재 계약과 미확정 사항을 구분해 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. ADR·애플리케이션 코드·테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 계획서의 Entitlement/Billing은 Learning Core 자체가 아니라 `VerifiedPhoneBenefitBinding`, `TrialClaim`, `UserEntitlement`, `EntitlementReservation`을 소유하는 별도 논리적 bounded context임을 확인했다. Learning Core는 시험 도메인을 소유하고 Entitlement의 사용권을 `reserve`한 뒤 exam 생성과 `confirm`을 조율한다.
+- 구현 내용: 계획서에는 Entitlement 트랙을 별도 저장소·별도 서비스로 병렬 진행한다고 명시돼 있어 장기 권장 배포 구조는 독립 Entitlement/Billing 서비스다. 다만 당장 별도 프로세스·인프라를 신설할지, 초기에는 Learning Core 배포물 안의 독립 모듈로 둘지는 현재 확정된 구현 결정이 아니며 TMI-95 ADR에서 실제 consumer owner와 함께 명시해야 한다.
+- 구현 내용: 초기에는 같은 Learning Core 배포물을 사용하더라도 시험 entity에 TrialClaim을 섞지 않고 데이터·Transaction·package·API 경계를 분리해야 나중에 별도 서비스로 안전하게 분리할 수 있음을 정리했다. Identity 저장소에는 시험·TrialClaim·Entitlement 코드를 추가하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-95 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 계획서의 서버 책임과 물리 배포 단위에 대한 설명을 요청했다. ADR 작성·외부 저장소 구현·새 서비스 생성·Jira 변경·Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계약 분석과 기록 작업이므로 Gradle 테스트를 실행하지 않았다. 병합 기준선은 70개 suite·421개 테스트 성공 상태이며 종료 전 문서 정적 검증만 수행한다.
+- 유지한 계약: Identity는 회원·verified phone·consumer-scoped binding outbox만 소유하고, Entitlement/Billing은 혜택 ledger와 사용권, Learning Core는 시험 생성을 소유한다. canonical UUID userId/JWT `sub`, Firebase/provider 기본 비활성과 Secret·Token·Password·실제 Key·전체 MongoDB URI 비기록 원칙을 유지했다.
+- 결정사항: Entitlement/Billing은 Learning Core와 논리적으로 별도다. 장기적으로는 별도 서비스·저장소가 권장되지만 물리 서버를 즉시 신설하는 결정은 아직 확정되지 않았다. 동일 배포물로 시작하더라도 bounded context 경계는 분리한다.
+- 위험 요소: consumer owner와 배포 단위를 ADR에서 명시하지 않으면 Identity publisher의 endpoint·인증·운영 책임과 무료시험 reserve/confirm Transaction 경계가 모호해진다. Learning Core 시험 모델에 Entitlement ledger를 직접 섞으면 결제 확장과 서비스 분리가 어려워진다.
+- 다음 작업: TMI-95 ADR에서 consumer 소유 팀·저장소·배포 단위, transport endpoint·인증, 실패 책임을 확정한다. 별도 서비스 신설 또는 Learning Core 내부 독립 모듈 구현은 승인된 외부 Jira에서 진행한다.
+
+## 2026-08-14 — TMI-95 Phone eligibility binding 서버 간 계약 ADR 구현
+
+<!-- codex-turn:019fff20-300c-7132-bc21-9eb74d44c5cf -->
+
+- 날짜: 2026-08-14
+- 브랜치: `docs/TMI-95-phone-eligibility-binding-adr` (`455db00`, commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: production Firebase signup 활성화 전에 Identity producer와 별도 Entitlement/Billing consumer가 따라야 할 Phone eligibility binding versioned event, 멱등성·순서, scope·key, transport, 보존·삭제 계약을 ADR로 확정한다.
+- 변경 파일: 신규 `docs/adr/ADR-002-phone-eligibility-binding-server-contract.md`, `docs/adr/ADR-001-firebase-authentication-broker.md`, `docs/contracts/social-login-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·테스트 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: schema v1의 `PhoneEligibilityBindingVerified`와 candidate가 없는 `PhoneEligibilityBindingRevoked` JSON을 확정했다. 공통 envelope는 immutable eventId, eventType, schemaVersion, producer, occurredAt, allowlist된 consumerScopeId, canonical UUID userId와 user+scope 단조 bindingRevision을 사용하고 verified event는 verifiedAt과 retained candidate 전체를 포함한다.
+- 구현 내용: consumer는 candidate set을 정규화한 canonical payload digest inbox, revision high-water와 current binding을 같은 로컬 Transaction으로 commit한 뒤에만 2xx를 반환한다. 같은 eventId·같은 payload는 no-op, 다른 payload와 다른 eventId·같은 revision은 poison conflict, 낮은 revision은 stale success, 높은 revision과 gap은 완전한 state event로 적용·경보하도록 결정했다.
+- 구현 내용: consumerScopeId는 public/client 입력이 아니라 Identity 배포 allowlist만 사용하고 현재 eligibility domain separator에 포함한다. HMAC key material은 Identity만 소유하며 consumer에는 keyVersion과 candidate만 전달한다. 새 key LOOKUP_ONLY 선배포, ACTIVE_WRITE 전환, rollback, consumer reference 0 또는 승인 보존 기간 만료 전 legacy key 제거 금지 순서를 정의했다.
+- 구현 내용: v1 transport는 private HTTPS push와 5분 이하 platform workload identity JWT로 결정했다. timeout·429·5xx는 같은 eventId/payload retry, contract 오류는 dead-letter, 인증 실패는 event 격리와 scope delivery 중지로 처리하며 60초 lease, 지수 backoff+jitter, 12회 시도와 수동 replay 불변식을 문서화했다.
+- 구현 내용: producer PUBLISHED 30일, DEAD_LETTER 90일, consumer inbox digest와 revoke revision tombstone 120일의 기본 보존을 정했다. current binding은 교체·revoke까지 유지하고 abuse/claim ledger는 제품·개인정보·법무가 승인한 별도 최대 기간을 요구하며 무기한 기본 보존을 금지했다. phone 교체는 높은 verified revision으로 전체 교체하고 해제·탈퇴는 높은 revoked revision으로 candidate를 제거한다.
+- 구현 내용: v1 consumer owner는 별도 Entitlement/Billing bounded context·배포 서비스로 확정했다. Learning Core는 binding·claim ledger를 직접 저장하지 않고 추후 reserve/confirm 계약만 사용하며, 외부 consumer 구현과 인프라 provisioning은 별도 저장소·Jira 범위로 남겼다.
+- 구현 내용: 현재 outbox가 충족하는 별도 key/domain·opaque scope·PENDING 저장·redaction·기본 비활성과 아직 없는 eventType·schemaVersion·bindingRevision·revoke·lease/retry/dead-letter·consumer Transaction을 구분했다. ADR-001과 social login 계획에 ADR-002 교차 참조를 추가하고 production gate와 Identity/consumer 후속 Jira 분리를 명시했다.
+- 수행한 Jira 작업: 구현 전에 Atlassian 공식 MCP로 TMI-95의 제목·설명·완료 조건·제외 범위·상태를 읽기 전용 확인했고 AGENTS.md 및 기존 계약과 충돌이 없음을 확인했다. Jira 이슈·설명·댓글·상태·Resolution은 변경하지 않았다.
+- 추가한 댓글의 목적: versioned verified/revoked schema, 멱등·ordering Transaction, scope/key/transport 결정, 보존 기간, 전체 테스트와 publisher·consumer 미구현 위험을 전달하는 종료 댓글 초안을 준비하되 자동 등록하지 않는다.
+- 변경한 상태: Jira TMI-95는 기존 `해야 할 일`, Resolution 없음 상태를 유지한다. PR 병합을 확인하지 않았으므로 Done 전환하지 않았다.
+- 승인 여부: 사용자가 `구현 해줘`라고 TMI-95 ADR 구현을 명시적으로 요청했다. Jira 댓글·상태 전환, 외부 consumer 서비스·인프라 생성, production flag 활성화와 Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: ADR의 JSON code block 2개를 실제 JSON parser로 검증했다. 첫 Gradle 실행은 사용자 Gradle cache lock의 sandbox 접근 제한으로 시작하지 못해 승인된 명령 범위로 다시 실행했고, 최종 `./gradlew clean test`는 70개 suite·421개 테스트가 failure 0, error 0, skipped 0으로 성공했다. 실제 Firebase·Atlas·외부 OAuth Provider·Entitlement consumer는 호출하지 않았다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity·Entitlement/Billing·Learning Core 도메인 경계, Firebase/provider 기본 비활성과 가입 event·혜택 지급 분리를 유지했다. raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint·eligibility candidate·HMAC key material과 Secret·Token·Password·실제 Key·전체 MongoDB URI를 로그·metric·작업 기록에 포함하지 않았다.
+- 결정사항: schemaVersion·keyVersion·bindingRevision은 각각 wire 구조, HMAC candidate origin, user+scope 상태 순서를 관리한다. event 수신은 혜택 지급이 아니며 binding 미도착은 fail-closed processing 상태다. ADR은 조건부 채택이고 publisher·consumer 구현과 staging gate가 끝나기 전 production ready가 아니다.
+- 위험 요소: Identity outbox publisher·revoke lifecycle과 Entitlement/Billing service가 아직 구현되지 않았다. 실제 workload identity issuer·audience, consumer on-call, abuse ledger 법적 최대 보존 기간, key reference count와 staging Mongo/transport 장애 검증이 남아 있다.
+- 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 TMI-95를 Done으로 변경하지 않으며 Jira 종료 댓글은 초안을 먼저 승인받은 뒤에만 등록한다. 후속 Jira는 Identity publisher와 별도 Entitlement/Billing consumer 구현으로 나눈다.

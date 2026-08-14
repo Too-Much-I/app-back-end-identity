@@ -4,7 +4,7 @@
 - 결정일: 2026-08-13
 - 상태: 조건부 채택
 - production 상태: 비활성
-- 관련 문서: `docs/contracts/social-login-implementation-plan.md`, `docs/poc/firebase-auth-broker-stage-0.md`
+- 관련 문서: `docs/contracts/social-login-implementation-plan.md`, `docs/poc/firebase-auth-broker-stage-0.md`, `docs/adr/ADR-002-phone-eligibility-binding-server-contract.md`
 
 ## 배경
 
@@ -211,4 +211,3 @@ Stage 4 PhoneIdentity:
 - `PhoneIdentity`와 `PhoneFingerprintAlias`
 - 한 검증 번호의 ACTIVE MEMBER 귀속 하나 보장
 - rotation·legacy key candidate·index 테스트
-

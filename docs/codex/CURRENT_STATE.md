@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-94` Stage 5B Firebase 신규 MEMBER signup finalize Transaction을 로컬 구현·검증했다. Jira 댓글·상태 전환과 Git commit·push는 수행하지 않았다
+- 현재 단계: Stage 5A·5B 구현 PR #22가 `develop`에 병합됐고 Jira `TMI-94`도 완료 처리했다. 현재 진행 중인 Jira `TMI-95`의 Stage 5C `Phone eligibility binding` 서버 간 계약 ADR을 로컬 브랜치에서 구현·검증했으며 Jira 상태는 PR 병합 전이므로 `해야 할 일`을 유지한다
 - 상태 기준일: 2026-08-14
 
 ## 완료
@@ -244,17 +244,28 @@
 - eligibility fingerprint는 PhoneIdentity와 별도 key ring·domain separator·opaque consumer scope로 파생하고 raw phone·fingerprint·key material을 저장·응답·로그·문자열 표현에 노출하지 않는다. outbox는 반복 phone 변경 이벤트를 허용하고 publisher용 status+createdAt 및 user+scope+createdAt index를 갖는다
 - Firebase·Social·phone owner 충돌은 자동 rebind·merge 없이 고정 conflict로 분류한다. outbox·SocialIdentity·RefreshSession 저장 또는 enrollment consume 실패는 모두 Transaction rollback하며 실제 Firebase/provider와 두 phone fingerprint 기능은 계속 기본 비활성이다
 - Stage 5B application·Transaction·adapter·domain·configuration·controller·Security/OpenAPI·Repository 테스트를 추가했다. 최종 전체 테스트는 421개 기준으로 성공했고 실제 Firebase·Atlas·외부 OAuth·Entitlement consumer는 호출하지 않았다
+- GitHub PR #22 `feat(TMI-94): implement Firebase member signup finalize transaction`이 merge commit `455db00`으로 `develop`에 병합됐고 feature commit `f68d7e8`이 이력에 포함된 것을 확인했다. 승인된 구현 요약·테스트·잔여 위험 댓글 ID `10005`를 TMI-94에 등록하고 transition ID `41`만 적용했으며 후속 조회에서 상태와 Resolution이 모두 `완료`임을 확인했다
+- 승인된 Stage 5C 서버 간 계약 ADR Payload로 Jira `TMI-95` `[Identity] Stage 5C Phone eligibility binding 서버 간 계약 ADR`을 TMI `작업`, 우선순위 `High`, 기본 상태 `해야 할 일`로 생성했다. 담당자·라벨·컴포넌트는 없고 Resolution도 없으며 댓글과 상태 전환은 적용하지 않았다
+- Stage 5C 서버 간 계약 ADR의 권장 내용을 구체화했다. Identity는 server-configured opaque consumer scope와 별도 HMAC key/domain으로 verified phone의 retained candidate를 파생해 versioned `PhoneEligibilityBindingVerified` event만 전달하고, 외부 consumer는 eventId inbox unique와 binding 갱신을 같은 로컬 Transaction으로 처리한다. 중복 delivery는 성공 no-op, 같은 eventId의 다른 payload는 poison event로 격리하며 가입 이벤트만으로 TrialClaim이나 혜택을 지급하지 않는다
+- 권장 event envelope는 eventId, eventType, schemaVersion, producer, occurredAt, consumerScopeId, canonical userId, verifiedAt, user+scope별 단조 증가 bindingRevision과 순서 의미가 없는 fingerprintCandidates(keyVersion, value)를 포함한다. raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint와 HMAC key material은 payload·로그·metric·오류에 포함하지 않는다
+- `schemaVersion`·`keyVersion`·`bindingRevision`을 서로 독립된 버전으로 설명했다. `eventType+schemaVersion`은 소비자가 JSON 송장 양식을 해석할 수 있는지 판단하는 계약 식별자이고, `keyVersion`은 각 eligibility candidate를 어느 HMAC key로 생성했는지 알려주는 조회용 표식이며, `bindingRevision`은 같은 user+consumer scope의 phone binding이 몇 번째 상태 변경인지 나타내 역순 도착 이벤트가 최신 상태를 덮지 못하게 한다. 선택 필드 추가는 호환 유지할 수 있지만 삭제·타입·의미 변경은 새 schemaVersion과 구버전 병행이 필요하고 unknown version은 추측 처리하지 않는다
+- Stage 5C 서버 간 계약 ADR 전체 목적을 사용자 흐름으로 설명했다. 가입 Transaction이 verified phone의 consumer 전용 fingerprint candidate와 PENDING outbox를 함께 저장하고, 추후 publisher가 lease로 한 건을 점유해 versioned event를 at-least-once 전달한다. 외부 Entitlement/Billing consumer는 eventId inbox와 최신 binding을 같은 로컬 Transaction으로 저장한 뒤에만 성공 응답하며, 중복은 no-op·역순은 bindingRevision으로 무시·일시 실패는 retry/backoff·영구 실패는 dead-letter 처리한다. 이 event는 혜택 지급이 아니라 first free-trial 시 TrialClaim 조회에 쓸 준비 정보이며 outbox 미도착은 fail-closed다
+- eligibility key rotation은 새 version을 retained lookup candidate로 먼저 배포하고 writer 동기화 뒤 active write를 전환하며 이전 version은 lookup-only로 유지한다. raw phone을 저장하지 않으므로 기존 old-only binding을 임의 backfill할 수 없고, consumer reference가 만료되거나 재인증으로 새 candidate가 생기기 전에는 legacy version과 key를 제거하지 않는다. producer outbox와 consumer binding/claim의 보존·탈퇴 삭제는 서로 다른 목적·기간으로 ADR에서 명시해야 한다
+- 계획서의 Entitlement/Billing은 Learning Core 자체를 뜻하지 않고 TrialClaim·UserEntitlement·EntitlementReservation을 소유하는 별도 논리적 bounded context다. Learning Core는 사용권을 reserve한 뒤 exam 생성과 confirm을 조율한다. 장기 권장안은 별도 서비스·저장소지만, 초기 배포를 Learning Core 애플리케이션 내부 독립 모듈로 시작할지는 TMI-95 ADR과 외부 저장소 설계에서 확정해야 하며 동일 배포물이어도 데이터·Transaction·패키지·API 경계를 분리한다
+- TMI-95로 `ADR-002-phone-eligibility-binding-server-contract.md`를 작성해 Entitlement/Billing을 별도 bounded context·배포 서비스의 consumer owner로 확정했다. wire schema v1은 verified/revoked state event, eventId immutable payload 멱등성, user+scope 단조 revision, opaque scope와 Identity 소유 HMAC key, HTTPS push·workload identity, publisher lease/retry/dead-letter, 목적별 30/90/120일 보존과 민감정보 금지를 정의한다
+- ADR-002는 현재 TMI-94 outbox가 별도 key/domain·scope·PENDING 저장·redaction·기본 비활성은 충족하지만 eventType·schemaVersion·bindingRevision, revoke, lease/retry/dead-letter publisher와 consumer inbox/high-water Transaction은 아직 구현되지 않았음을 후속 production gate로 명시했다. JSON 예시 2개 파싱과 전체 `./gradlew clean test` 70개 suite·421개 테스트가 성공했다
 
 ## 진행 중
 
-- Jira `TMI-94` — Stage 5B 구현과 로컬 테스트는 완료했지만 현재 Jira 상태는 `해야 할 일`, 우선순위 `High`, Resolution 없음이다. PR 병합을 확인하지 않았고 댓글·상태는 변경하지 않았다
-- Stage 5A와 TMI-94 Stage 5B 구현은 `feat/TMI-94-firebase-member-signup-finalize`의 로컬 미커밋 변경으로 함께 존재한다. Git commit·push는 수행하지 않았다
+- 현재 브랜치는 `docs/TMI-95-phone-eligibility-binding-adr`이며 기준 commit은 `455db00`이다. TMI-95 ADR과 교차 참조·작업 기록만 변경했고 Codex는 commit·push를 수행하지 않았다
+- Jira `TMI-95` — ADR 구현과 검증은 완료했지만 PR 병합을 확인하지 않았으므로 상태 `해야 할 일`, Resolution 없음과 댓글 없음 상태를 유지한다
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
 
 ## 다음 작업
 
-- 사용자가 Stage 5A·TMI-94 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 전에는 Jira TMI-94를 Done으로 변경하지 않으며 종료 댓글은 정확한 초안을 먼저 승인받는다
-- production 활성화 전 generic PhoneEligibilityBindingOutbox의 실제 consumer schema·eventId 멱등 수신·보존/삭제·key ownership과 delivery publisher/retry/dead-letter 계약을 서버 간 ADR로 확정한다. 현재 구현은 outbox 저장까지만 소유하고 TrialClaim·Entitlement·시험 코드는 포함하지 않는다
+- 사용자가 TMI-95 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 뒤에만 승인된 Jira 종료 댓글과 완료 전환을 별도로 수행한다
+- ADR-002 후속 Identity Jira는 outbox schema/revision·revoke와 atomic lease claim, at-least-once HTTPS publisher, retry/backoff·dead-letter·보존 cleanup을 구현한다. 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다
+- Stage 5C에서도 Identity에는 TrialClaim·UserEntitlement·시험 코드를 추가하지 않는다. 실제 consumer 구현은 소유 서비스의 별도 Jira로 분리하고, 가입 성공만으로 혜택을 지급하지 않는 계약을 유지한다
 - 격리 Firebase/mobile과 transaction 지원 staging MongoDB에서 same-UID phone link, 국내 SMS·quota/abuse, revoke·recent-auth, unique/write conflict, outbox/Session/consume 주입 rollback 및 운영 index 생성을 재검증한다
 - production provider 활성화와 기존 password signup/login/check-email 종료는 Stage 5A·5B 코드와 분리한다. 격리 Firebase/mobile/SMS 검증, outbox consumer 계약, 운영 index와 mixed-writer gate가 준비되기 전에는 Firebase flag를 활성화하거나 legacy credential writer를 닫지 않는다
 - `ADR-001`의 조건부 결정을 검토하고, 격리 Firebase project·Android/iOS test app으로 실제 email·Google·Apple redirect, 공식 SDK same-UID phone link, 국내 SMS·quota·abuse, Identity Platform Kakao 등록·billing·deep-link와 Apple revoke를 검증한다. 그 전에는 production Firebase 기능을 활성화하지 않는다
@@ -300,7 +311,7 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `feat/TMI-94-firebase-member-signup-finalize`, HEAD는 `063fdc7`에서 시작했으며 Stage 5A·5B 변경은 로컬 미커밋이고 Codex는 commit·push를 수행하지 않음
+- 현재 작업 기준 브랜치는 `develop`, HEAD는 PR #22 merge commit `455db00`이며 `origin/develop`과 일치한다. Codex는 commit·push를 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - 현재 `domain.auth`는 78개 파일에서 local login/signup, Session, Firebase federation·enrollment, SocialIdentity와 PhoneIdentity를 horizontal layer별로 함께 담아 탐색 비용이 커졌다. `firebase`·`phone`을 `auth`와 동급 최상위 도메인으로 올리지는 않고, 후속 구조 개선에서는 `auth/local`, `auth/session`, `auth/firebase`, `auth/phoneidentity`처럼 business capability별 vertical slice 안에 application·domain·infrastructure를 모으는 방향을 우선 검토한다. Firebase는 외부 인증 기술 adapter이고 phone은 독립 통신 도메인이 아니라 verified identity ownership이므로 최상위 이름만으로 bounded context를 만들지 않는다
