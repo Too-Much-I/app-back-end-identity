@@ -35,6 +35,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 			"/.well-known/jwks.json",
 			"/actuator/health",
 			"/api/v1/auth/check-email",
+			"/api/v1/auth/firebase/exchange",
+			"/api/v1/auth/firebase/signup",
 			"/api/v1/auth/guest",
 			"/api/v1/auth/login",
 			"/api/v1/auth/logout",

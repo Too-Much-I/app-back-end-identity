@@ -3135,3 +3135,175 @@
 - 결정사항: Hook 지정 marker는 기존 항목을 수정하지 않고 새 WORKLOG EOF 항목으로 기록한다.
 - 위험 요소: 문서 기록만 변경했으므로 애플리케이션 위험은 없다.
 - 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다.
+
+## 2026-08-14 — TMI-93 PR 병합 확인 및 Jira 완료 전환
+
+<!-- codex-turn:019ffe54-8cb3-73b1-8569-773c4805b733 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, GitHub PR #21 병합 commit, Codex commit·push 미수행)
+- Jira: TMI-93
+- 작업 목표: TMI-93 구현 PR의 병합을 확인하고 사용자 요청에 따라 Jira를 완료한 뒤 다음 Identity 작업의 안전한 분할 순서를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: GitHub PR #21 `refactor(TMI-93): reorganize auth package by capability`가 `develop`에 2026-08-14 병합됐고 feature commit `a0b63f4`가 merge commit `063fdc7`의 ancestor임을 확인했다.
+- 구현 내용: 다음 범위는 Stage 5를 한 번에 구현하지 않고 5A login exchange·enrollment, 5B 신규 MEMBER signup finalize Transaction, production provider 활성화·legacy credential cutover로 분리하는 순서를 권장했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-93의 기존 `해야 할 일`·Resolution 없음·빈 댓글과 사용 가능한 `완료` transition ID `41`을 재확인했다. PR 병합 확인 후 사용자 요청에 따라 transition ID `41`만 적용하고 상태와 Resolution이 모두 `완료`임을 후속 조회했다.
+- 추가한 댓글의 목적: Jira 댓글은 추가하지 않았다. 직전 turn에서 준비한 종료 댓글 초안도 자동 등록하지 않았다.
+- 변경한 상태: TMI-93을 `해야 할 일`에서 `완료`로 전환했고 Resolution은 `완료`가 됐다. 다른 Jira 필드는 변경하지 않았다.
+- 승인 여부: 사용자가 `좋아 지라 닫아주고`로 TMI-93 종료를 명시적으로 승인했다. Jira 댓글, 다른 이슈 변경, Git commit·push와 다음 기능 구현은 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 이번 turn은 PR·Jira 상태의 읽기 확인과 Jira 전환·문서 기록 작업이므로 Gradle 테스트를 재실행하지 않았다. 병합된 TMI-93의 최종 검증 결과는 64개 suite·384개 테스트가 failure 0, error 0, skipped 0으로 성공했다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience, JWKS·RefreshSession·Mongo `_class` 호환 계약을 변경하지 않았다. Firebase를 활성화하거나 Stage 5 API·Entitlement 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 다음 권장 작업은 Stage 5A exchange/enrollment 기반이다. Firebase 인증만으로 User를 만들지 않고 기존 owner만 자체 Token을 발급하며, 미등록 UID는 동일 active FirebaseEnrollmentAttempt를 재사용한다. signup finalize와 production cutover는 별도 작업으로 둔다.
+- 위험 요소: 실제 Firebase/mobile/SMS production gate와 PhoneEligibilityBindingOutbox consumer 계약이 준비되지 않은 상태에서 signup finalize 또는 legacy route cutover를 활성화하면 고아 Firebase User, 중복 내부 User, benefit binding 유실과 dual credential writer 위험이 있다.
+- 다음 작업: 사용자가 원하면 Stage 5A Jira payload를 먼저 작성해 승인받은 뒤 생성한다. 구현 전에는 Firebase exchange 요청·응답, error taxonomy, enrollment 재사용·동시성, provider별 허용 정책과 disabled-by-default 조건을 완료 기준으로 고정한다.
+
+## 2026-08-14 — Stage 5A Firebase exchange·enrollment 상세 설명
+
+<!-- codex-turn:019ffe5b-a7d6-7371-8c9f-2cfc6e18562e -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, GitHub PR #21 병합 기준, Codex commit·push 미수행)
+- 작업 목표: Stage 5A Firebase login exchange·enrollment의 요청 검증, owner 분기, enrollment 멱등성, 비활성화와 제외 범위를 현재 계약·코드 기준으로 상세 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `/api/v1/auth/firebase/exchange`는 Firebase 인증 정보를 공개 endpoint에서 받아 `LOGIN_EXCHANGE` 목적으로 검증한다. signature·issuer·audience·project·tenant·시간·revoke·disabled·recent-auth·provider allowlist를 통과하고 password·Google·Apple·승인된 Kakao 중 최소 primary method가 있어야 하며 phone sign-in은 거절한다.
+- 구현 내용: `(firebaseProjectId, firebaseUid)` FirebaseIdentity owner가 있으면 canonical User를 조회해 ACTIVE MEMBER만 자체 RS256 Access와 hash-only Opaque RefreshSession을 발급한다. Firebase 인증 정보와 UID는 내부 JWT·Learning Core·로그로 전달하지 않는다.
+- 구현 내용: owner가 없으면 Firebase 인증 성공만으로 User·PhoneIdentity·SocialIdentity·RefreshSession을 만들지 않는다. DIRECT_SIGNUP FirebaseEnrollmentAttempt만 생성 또는 재사용하고 `ENROLLMENT_REQUIRED` 상태, enrollmentId, 미충족 요구와 남은 시간을 반환한다.
+- 구현 내용: 동일 project·UID·DIRECT_SIGNUP binding의 유효 PENDING attempt는 반복 exchange에서 같은 ID와 원래 만료 시각을 유지한다. 만료 attempt는 application CAS로 EXPIRED 전환한 뒤 새 attempt를 만들며 TTL은 cleanup에만 사용한다. 동시 insert는 partial unique winner를 재조회하는 기존 최대 4회 retry 기반을 재사용한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. Stage 5A Jira도 아직 생성하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다.
+- 승인 여부: 사용자는 Stage 5A 동작을 더 자세히 설명해 달라고 요청했다. 구현, Jira 생성·수정, Git commit·push와 Firebase 활성화는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계약·현재 코드 분석이므로 Gradle 테스트를 실행하지 않았다. 근거로 병합된 verifier·FirebaseIdentity·FirebaseEnrollmentAttempt·startOrReuse 구현과 전체 계획 문서를 읽기 전용 확인했다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·JWKS·Opaque RefreshSession, Firebase broker와 Identity account ownership을 유지한다. 클라이언트 userId를 받지 않고 Firebase credential 원문·Claim·UID·개인정보를 저장하거나 로그에 남기지 않으며 실제 외부 Provider를 호출하지 않았다.
+- 결정사항: Stage 5A의 correctness 종료점은 기존 owner 로그인 또는 enrollment 발급까지다. User 생성, phone claim, signup finalize Transaction, attempt consume, outbox와 legacy password route cutover는 Stage 5B 이후로 분리한다.
+- 위험 요소: 기존 SocialIdentity owner와 FirebaseIdentity가 어긋난 경우의 broker rebind 정책, AUTHENTICATED/ENROLLMENT_REQUIRED DTO와 missing requirement enum, disabled route의 404/503 정책, `FIREBASE_IDENTITY_CONFLICT`·`SOCIAL_IDENTITY_CONFLICT` 오류는 아직 구현 계약으로 고정되지 않았다. 이를 정하지 않고 구현하면 자동 계정 연결이나 클라이언트 분기 불일치가 생길 수 있다.
+- 다음 작업: 사용자가 원하면 위 미결정 사항을 선택한 Stage 5A Jira payload를 먼저 제시하고 승인 후 생성한다. 권장은 명시적 result type, disabled 시 안정적 503, 기존 owner 충돌 시 자동 merge 없는 fail-closed 정책이다.
+
+## 2026-08-14 — Stage 5A Firebase login exchange·enrollment 구현
+
+<!-- codex-turn:019ffe63-259c-7ce1-87ce-716002523c2b -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, GitHub PR #21 병합 기준, Codex commit·push 미수행)
+- 작업 목표: `POST /api/v1/auth/firebase/exchange`에서 기존 FirebaseIdentity owner의 Identity Token 발급과 미등록 UID의 비생성·멱등 enrollment 반환을 구현하고 Firebase 기본 비활성 계약을 유지한다.
+- 변경 파일: `src/main/java/web/tosunsaeng/identity/domain/auth/federation/{api,application,dto}/**`, `federation/infrastructure/firebase/FirebaseAuthenticationConfiguration.java`, `auth/common/exception/AuthErrorStatus.java`, `global/config/SecurityConfig.java`, `global/observability/RequestLoggingFilter.java`, 대응하는 `src/test/java/**`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 Firebase exchange controller와 `FirebaseExchangeUseCase`를 추가했다. enabled service는 Firebase ID Token을 기존 verifier의 `LOGIN_EXCHANGE` 목적으로 검증하고 `(firebaseProjectId, firebaseUid)` owner가 있으면 canonical User가 ACTIVE MEMBER인지 확인한 뒤 기존 `AccessTokenIssuer`와 `RefreshSessionIssuer`로 자체 Access/Refresh를 발급한다. Refresh Token 원문은 응답에만 전달되고 기존 issuer 계약대로 DB에는 hash만 저장된다.
+- 구현 내용: FirebaseIdentity owner가 없으면 User·PhoneIdentity·SocialIdentity·RefreshSession을 생성하지 않고 DIRECT_SIGNUP `FirebaseEnrollmentAttempt`만 생성 또는 재사용한다. password 연결 상태에서 email 미검증이면 `EMAIL_VERIFICATION`, verified phone이 없으면 `PHONE_VERIFICATION`, 모든 신규 enrollment에는 `PROFILE`·`CONSENTS`를 반환하며 기존 attempt의 원래 만료 시각 기준 남은 milliseconds를 제공한다.
+- 구현 내용: 응답을 `AUTHENTICATED`와 `ENROLLMENT_REQUIRED` sealed union으로 고정하고 Access·Refresh TTL을 milliseconds로 반환한다. 기존 SocialIdentity owner 불일치는 자동 rebind·merge 없이 `SOCIAL_IDENTITY_CONFLICT`, canonical User가 사라진 FirebaseIdentity mapping은 `FIREBASE_IDENTITY_CONFLICT` 409로 fail-closed 처리한다. SUSPENDED·WITHDRAWN MEMBER와 ACTIVE GUEST에는 Token을 발급하지 않는다.
+- 구현 내용: Firebase가 기본 비활성일 때 controller route는 유지하되 disabled use case가 의존성을 조회하지 않고 안정적인 `503 FIREBASE_UNAVAILABLE`을 반환한다. Security에 공개 POST route를 추가하고 request logging의 고정 route 목록을 갱신했다. Firebase credential은 OpenAPI `writeOnly`·required이며 request와 token response `toString()`에서 redaction된다. 200 공통 envelope result의 두 schema `oneOf`와 401·403·409·429·503 오류를 문서화했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. Stage 5A에 연결된 신규 Jira 이슈 키는 없다.
+- 추가한 댓글의 목적: 연결된 Stage 5A Jira가 없어 댓글 초안을 등록하거나 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자가 Stage 5A 구현을 명시적으로 요청했다. Jira 변경, Firebase/provider 활성화, signup finalize, legacy credential cutover와 Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: Firebase exchange application·controller·configuration과 Security/OpenAPI 타깃 테스트가 성공했다. 최종 `./gradlew clean test`는 66개 suite·399개 테스트가 failure 0, error 0, skipped 0으로 성공했고 `git diff --check`도 통과했다. 실제 Firebase·Atlas나 외부 OAuth Provider는 호출하지 않았다.
+- 유지한 계약: canonical UUID userId를 JWT `sub`로 사용하고 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS와 Opaque RefreshSession 계약을 유지했다. 클라이언트 userId를 받지 않고 Firebase credential·UID·project·Claim·provider subject, Secret·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 로그나 기록에 포함하지 않았다. 시험·채점·Entitlement 코드는 추가하지 않았다.
+- 결정사항: Stage 5A는 기존 owner 로그인 또는 enrollment 발급까지만 책임진다. SocialIdentity owner가 있더라도 이 단계에서는 broker rebind나 merge를 하지 않는다. 기능 disabled는 route 부재가 아니라 안정적 503으로 표현하며 actual provider flag와 전체 Firebase 기능은 기본 비활성으로 유지한다.
+- 위험 요소: 실제 Firebase/mobile/SMS production gate와 endpoint rate limit·quota/circuit·alert, 운영 Mongo index는 staging에서 아직 검증하지 않았다. 엄격한 SocialIdentity conflict는 기존 provider mapping과 FirebaseIdentity migration이 불완전한 계정을 자동 복구하지 않는다. signup finalize·attempt consume·phone claim·outbox가 아직 없으므로 `ENROLLMENT_REQUIRED` 이후 신규 MEMBER 가입은 완료할 수 없다.
+- 다음 작업: Stage 5B를 별도 범위로 설계해 fresh same-UID phone proof와 필수 동의를 검증하고 User·FirebaseIdentity·PhoneIdentity·SocialIdentity·RefreshSession·PhoneEligibilityBindingOutbox 생성 및 enrollment consume을 한 Mongo Transaction으로 묶는다. production provider 활성화와 legacy password route cutover는 계속 별도 gate로 둔다.
+
+## 2026-08-14 — Stage 5A Jira 종료 대상 확인 및 Stage 5B 계획 구체화
+
+<!-- codex-turn:019ffec2-6d1d-7f93-9fb8-73a2e17f8589 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, Codex commit·push 미수행)
+- 작업 목표: Stage 5A 구현에 연결된 Jira 종료 대상을 확인하고, 다음 Stage 5B 신규 MEMBER signup finalize 구현 계획과 선행조건을 현재 계약·코드 기준으로 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Stage 5B 요청은 `enrollmentId`, fresh Firebase credential, nickname, 현재 개인정보 처리방침·이용약관 동의와 version만 받는다. client phone이나 userId는 신뢰하지 않고 Firebase verifier의 `DIRECT_ENROLLMENT` 결과와 attempt의 project·UID·binding을 대조한다.
+- 구현 내용: 현재 `VerifiedFirebasePrincipal`은 phone verified boolean만 제공하므로 Firebase Admin UserRecord에서 검증한 optional E.164 phone을 application의 최소 principal로 안전하게 전달하는 adapter 확장이 선행되어야 한다. raw phone은 Transaction 동안 PhoneIdentity·별도 benefit fingerprint 후보 파생에만 사용하고 저장·응답·로그·문자열 표현에는 포함하지 않는다.
+- 구현 내용: 최종 가입은 User·FirebaseIdentity·PhoneIdentity와 retained aliases·SocialIdentity·PhoneEligibilityBindingOutbox·prepared RefreshSession 저장 및 DIRECT_SIGNUP attempt consume CAS를 하나의 named Mongo Transaction으로 묶는다. Access Token은 Transaction 성공 뒤 canonical UUID userId를 `sub`로 발급하며 Firebase UID를 Claim에 넣지 않는다.
+- 구현 내용: PhoneEligibilityBindingOutbox는 Identity가 제품별 TrialClaim 의미를 소유하지 않도록 opaque consumer scope·별도 benefit key/domain·멱등 event 계약으로 먼저 확정해야 한다. consumer schema·key ownership·retention이 준비되지 않으면 signup finalize와 Firebase feature는 계속 비활성으로 둔다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 Stage 5A·Firebase 관련 이슈를 검색하고 TMI-93, TMI-92, TMI-91, TMI-90의 요약·범위·상태·Resolution을 읽기 전용 확인했다. Stage 5A 전용 Jira는 없고 TMI-93은 이미 완료이며, TMI-92와 TMI-90은 별도 범위로 `해야 할 일` 상태다. 두 open 이슈의 사용 가능한 완료 transition ID `41`도 읽기 전용 확인했다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다. Stage 5A 전용 이슈가 없어 종료 댓글 초안을 연결할 대상도 없다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. 종료 대상이 없는 상태에서 TMI-90 또는 TMI-92를 임의 선택하지 않았다.
+- 승인 여부: 사용자는 Jira 종료를 요청했지만 Stage 5A 전용 이슈 키가 없고 다른 open 이슈는 범위가 달라 정확한 대상 선택이 필요하다. 조회는 허용 범위에서 수행했고 Jira mutation은 대상과 payload를 먼저 제시한 뒤 별도 확인을 받기 위해 보류했다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 조회·계획·문서 갱신 작업이므로 Gradle 테스트를 재실행하지 않았다. 직전 Stage 5A 최종 `./gradlew clean test`는 66개 suite·399개 테스트가 failure 0, error 0, skipped 0으로 성공했다. 종료 전 `git diff --check`와 WORKLOG marker 단일 존재를 정적으로 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS와 Opaque RefreshSession을 유지한다. Firebase credential·UID·phone·provider subject와 Secret·Password·실제 Key·전체 MongoDB URI를 Jira나 기록에 포함하지 않았고 시험·채점·Entitlement 코드를 Identity에 추가하지 않는다.
+- 결정사항: Jira 종료는 범위가 일치하는 정확한 이슈에만 적용한다. Stage 5B는 verified phone 전달 경계와 generic PhoneEligibilityBindingOutbox 서버 간 계약을 먼저 확정한 뒤 finalize Transaction을 구현하며 production provider 활성화와 legacy password cutover는 계속 분리한다.
+- 위험 요소: Stage 5A 변경은 아직 로컬 미커밋 상태여서 PR 병합 근거가 없고 전용 Jira도 없다. 현재 principal만으로는 raw phone 비저장 PhoneIdentity를 만들 수 없으며, outbox consumer 계약 없이 가입을 열면 benefit proof를 나중에 복구하려고 전화 재인증이 필요해질 수 있다. duplicate finalize 정책과 multi-document rollback 경쟁도 구현 전에 고정해야 한다.
+- 다음 작업: 사용자가 `TMI-92` 또는 `TMI-90` 중 종료 대상을 정확히 승인하면 해당 이슈에만 transition ID `41`을 적용하고 상태·Resolution을 재조회한다. Stage 5B 작업은 별도 Jira payload로 선행 계약·Transaction·rollback 완료 조건을 제시한 뒤 생성·구현한다.
+
+## 2026-08-14 — Stage 5B Firebase signup finalize Jira 생성안 준비
+
+<!-- codex-turn:019ffec7-f7dd-7b21-9d10-45df8227b6d2 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, Codex commit·push 미수행)
+- 작업 목표: 다음 구현인 Stage 5B Firebase 신규 MEMBER signup finalize Transaction을 추적할 Jira의 정확한 생성 payload를 준비하고 사용자 승인 전 중복·생성 필드를 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira 제목을 `[Identity] Stage 5B Firebase 신규 MEMBER signup finalize Transaction`, 유형을 TMI `작업`, 우선순위를 `High`로 준비했다. 기본 상태 `해야 할 일`, 담당자·라벨·상위 항목·스프린트·기한 없음으로 제안한다.
+- 구현 내용: 범위는 `POST /api/v1/auth/firebase/signup`, fresh `DIRECT_ENROLLMENT` proof와 DIRECT_SIGNUP attempt 대조, Firebase Admin verified E.164 phone의 redacted principal 전달, nickname·필수 동의 검증, User·FirebaseIdentity·PhoneIdentity/aliases·SocialIdentity·generic PhoneEligibilityBindingOutbox·RefreshSession 저장과 attempt consume의 단일 Mongo Transaction이다.
+- 구현 내용: duplicate finalize는 새 Refresh Token 반복 발급 없이 고정 conflict 후 exchange 재진입으로 처리하고, Firebase/Social/phone unique 충돌과 outbox·Session·consume 실패가 모두 고아 User 없이 rollback되도록 완료 조건을 구성했다. Firebase/provider 활성화, legacy password route cutover, Guest 승격·merge, Entitlement consumer·TrialClaim·시험 코드는 제외한다.
+- 수행한 Jira 작업: Atlassian 공식 MCP 검색으로 Stage 5B signup finalize·PhoneEligibilityBindingOutbox 관련 중복 이슈가 없음을 확인했다. TMI 프로젝트의 이슈 유형 4개, `작업` 유형 ID `10003`, 생성 필드 20개와 `High` 우선순위 ID `2` 지원을 읽기 전용 재확인했다. Jira 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: 신규 Jira가 아직 생성되지 않아 댓글을 추가하지 않았다.
+- 변경한 상태: 생성된 Stage 5B Jira가 없어 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자가 Jira 생성을 요청했지만 저장소 규칙상 exact payload를 먼저 제시하고 최종 승인을 받아야 한다. 이번 turn에서는 생성 전 payload를 준비하고 승인을 기다린다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 생성안·문서 기록 작업이므로 Gradle 테스트를 재실행하지 않았다. 직전 Stage 5A `./gradlew clean test`는 66개 suite·399개 테스트가 모두 성공했다. 종료 전 `git diff --check`와 WORKLOG marker 단일 존재를 정적으로 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS, Opaque RefreshSession과 Firebase 기본 비활성을 유지한다. client userId·phone을 신뢰하지 않고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira payload나 기록에 포함하지 않았다. Entitlement·시험·채점 코드를 Identity에 추가하지 않는다.
+- 결정사항: Stage 5B는 code-complete 상태에서도 Firebase/provider flag를 켜지 않는다. consumer-scoped outbox schema·key ownership·멱등 수신·보존 계약과 staging production gate가 준비되기 전 공개 신규 가입을 활성화하지 않는다.
+- 위험 요소: 현재 verified principal에는 E.164 phone이 없어 adapter 최소 결과 확장이 필요하고, outer signup Transaction 안에서 PhoneIdentity 내부 retry가 rollback-only Transaction을 재사용하지 않도록 Transaction coordinator가 전체 재시도를 소유해야 한다. 실제 Mongo multi-document conflict와 partial unique index는 staging에서 추가 검증이 필요하다.
+- 다음 작업: 사용자가 제시된 Stage 5B Jira 제목·유형·우선순위·본문을 승인하면 Atlassian 공식 MCP로 이슈 한 건을 생성하고 발급된 키와 저장된 상태를 재조회해 CURRENT_STATE와 새 WORKLOG 항목에 기록한다.
+
+## 2026-08-14 — TMI-90·TMI-92 완료 전환 및 Stage 5B Jira TMI-94 생성
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, Codex commit·push 미수행)
+- Jira: TMI-90, TMI-92, TMI-94
+- 작업 목표: Firebase ADR·PoC와 PhoneIdentity 작업의 소유·병합 근거를 확인해 완료 처리하고, 승인된 Stage 5B Firebase 신규 MEMBER signup finalize Transaction Jira를 생성한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 Git에서 TMI-90 feature commit `af50153`과 PR #18 merge commit `77804e6`, TMI-92 feature commit `37b6733`과 PR #20 merge commit `4e8f46d`가 `develop` 이력에 포함된 것을 확인했다. Atlassian의 현재 계정과 두 이슈 reporter가 일치하고 두 이슈가 각각 해당 ADR·PoC와 PhoneIdentity 범위를 설명함을 확인했다.
+- 구현 내용: 승인된 제목 `[Identity] Stage 5B Firebase 신규 MEMBER signup finalize Transaction`, TMI `작업`, 우선순위 `High`와 공개된 설명·완료 조건·제외 범위로 신규 Jira `TMI-94`를 생성했다. 후속 조회에서 기본 상태 `해야 할 일`, Resolution 없음, 담당자·라벨·컴포넌트 없음과 저장된 본문을 확인했다.
+- 수행한 Jira 작업: TMI-90과 TMI-92에 각각 transition ID `41`만 적용해 `해야 할 일`에서 `완료`로 변경했다. 두 이슈의 후속 조회에서 상태와 Resolution이 모두 `완료`임을 확인했다. 이어서 TMI-94 한 건을 생성하고 저장 결과를 재조회했다.
+- 추가한 댓글의 목적: Jira 댓글은 추가하지 않았다. 두 완료 이슈와 신규 이슈 어디에도 댓글을 등록하지 않았다.
+- 변경한 상태: TMI-90과 TMI-92는 `완료`로 전환됐고 Resolution도 `완료`가 됐다. TMI-94는 생성 기본 상태 `해야 할 일`과 Resolution 없음 상태를 유지한다.
+- 승인 여부: 사용자가 TMI-90과 TMI-92를 정확히 지정해 종료를 승인했고, 앞서 공개한 Stage 5B Jira payload에 `좋아`라고 승인한 뒤 두 기존 이슈를 먼저 닫아 달라고 요청했다. 승인 범위 밖의 이슈·필드·댓글은 변경하지 않았다.
+- 실행한 테스트와 결과: 이번 turn은 Git/Jira 읽기 확인, 승인된 Jira 전환·생성과 문서 기록 작업이므로 Gradle 테스트를 재실행하지 않았다. 직전 Stage 5A `./gradlew clean test`는 66개 suite·399개 테스트가 모두 성공했다. 종료 전 `git diff --check`와 WORKLOG EOF append를 정적으로 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS, Opaque RefreshSession과 Firebase 기본 비활성을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 기록에 포함하지 않았고 Identity 외 도메인 코드를 추가하지 않았다.
+- 결정사항: TMI-94를 다음 Stage 5B 구현의 단일 기준으로 사용한다. code-complete 뒤에도 consumer-scoped outbox 계약과 staging production gate 전에는 Firebase/provider 기능과 legacy route cutover를 활성화하지 않는다.
+- 위험 요소: TMI-94는 verified E.164 phone principal 경계, outer Transaction 전체 retry, generic outbox 계약과 여러 unique conflict rollback을 함께 다루는 보안 핵심 작업이다. 실제 Mongo multi-document conflict·index와 외부 consumer는 staging·별도 서비스에서 추가 검증해야 한다.
+- 다음 작업: TMI-94 구현 요청을 받으면 먼저 이슈 설명·완료 조건을 재조회해 AGENTS.md와 계약 문서에 대조하고, verified phone adapter 경계부터 Transaction·rollback 테스트 순서로 진행한다. Jira 댓글·상태 전환과 Git commit·push는 별도 승인 전 수행하지 않는다.
+
+## 2026-08-14 — TMI-90·TMI-92 완료 및 TMI-94 생성 Hook 기록 동기화
+
+<!-- codex-turn:019ffeca-aa8a-7a90-b2d7-645c5f5dabe0 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`063fdc7`, Codex commit·push 미수행)
+- Jira: TMI-90, TMI-92, TMI-94
+- 작업 목표: 직전 Jira 완료·생성 turn을 Hook이 지정한 식별자로 WORKLOG EOF에 기록하고 CURRENT_STATE를 최신 상태로 동기화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Hook 지정 marker를 새 EOF 항목에 추가했다. 직전 작업에서 TMI-90과 TMI-92의 reporter와 병합 근거를 확인해 두 이슈를 완료 처리하고, 승인된 Stage 5B payload로 TMI-94를 생성했다.
+- 수행한 Jira 작업: 이번 Hook 기록 동기화에서는 Jira 조회·생성·수정·댓글·상태 전환을 추가로 수행하지 않았다. 직전 turn 결과는 TMI-90·TMI-92 상태와 Resolution `완료`, TMI-94 상태 `해야 할 일`·우선순위 `High`·Resolution 없음이다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 이번 기록 동기화에서는 Jira 상태를 변경하지 않았다.
+- 승인 여부: Hook이 현재 turn 식별자를 포함한 작업 기록 보정을 요구했다. 애플리케이션 변경, 추가 Jira mutation과 Git commit·push는 수행하지 않았다.
+- 실행한 테스트와 결과: 문서 기록만 변경했으므로 Gradle 테스트를 재실행하지 않았다. 직전 Stage 5A `./gradlew clean test`는 66개 suite·399개 테스트가 모두 성공했다. 종료 전 `git diff --check`와 marker 단일 존재를 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·JWKS·Opaque RefreshSession과 Firebase 기본 비활성 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: Hook 지정 marker는 WORKLOG 과거 항목을 수정하지 않고 별도 EOF 항목으로 보존한다. 다음 구현 기준 Jira는 TMI-94다.
+- 위험 요소: 문서 기록만 변경했으므로 새로운 애플리케이션 위험은 없다. Stage 5A 코드는 계속 로컬 미커밋 상태다.
+- 다음 작업: TMI-94 구현 요청 시 Jira를 먼저 재조회하고 verified phone adapter 경계, signup Transaction과 rollback 테스트 순으로 진행한다.
+
+## 2026-08-14 — TMI-94 Stage 5B Firebase 신규 MEMBER signup finalize 구현
+
+<!-- codex-turn:019ffed2-7104-7f92-8e53-d5b4f7dcc3e1 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-94-firebase-member-signup-finalize` (`063fdc7`에서 시작, Stage 5A·5B 로컬 미커밋, Codex commit·push 미수행)
+- Jira: TMI-94
+- 작업 목표: fresh same-UID Firebase proof, verified phone, profile과 필수 동의를 검증하고 신규 canonical MEMBER aggregate와 최초 RefreshSession 및 enrollment consume을 하나의 Mongo Transaction으로 확정한다.
+- 변경 파일: `.env.example`, `README.md`, `application.yml`, `application-test.yml`, `domain/auth/common/exception/AuthErrorStatus`, Firebase federation의 api·application·dto·firebase infrastructure·repository wiring, Auth persistent entity·enum, phoneidentity domain·infrastructure·repository, User entity·factory·provider, Security·RequestLoggingFilter, 대응 controller·application·Transaction·adapter·configuration·repository·User·Security/OpenAPI 테스트, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 기존 Stage 5A 미커밋 변경을 보존했고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 공개 `POST /api/v1/auth/firebase/signup`은 enrollmentId, fresh write-only Firebase credential, nickname, 개인정보 처리방침·이용약관 동의와 version만 받는다. 외부 userId·phone 필드는 없고 Firebase Admin UserRecord의 phone provider와 일치하는 verified phone만 최소 principal로 전달하며 credential·UID·phone·provider subject의 문자열 표현은 redaction한다.
+- 구현 내용: `DIRECT_ENROLLMENT` 검증 결과에 primary credential과 same-UID verified phone이 있어야 한다. PENDING·미만료 DIRECT_SIGNUP attempt의 project·UID를 대조하고 nickname·서버 현재 동의를 검증한 뒤에만 `UserProvider.FEDERATED`, `accountType=MEMBER`, password/email/guest credential이 없는 canonical UUID User를 만든다.
+- 구현 내용: signup 전용 `mongoTransactionManager` 경계에서 User, FirebaseIdentity, PhoneIdentity, retained PhoneFingerprintAlias, generic PhoneEligibilityBindingOutbox, SocialIdentity 0..N, prepared RefreshSession을 저장하고 attempt consume CAS를 마지막에 수행한다. phone owner 선검사와 모든 저장/CAS 실패는 예외를 전파해 전체 rollback하며 기존 PhoneIdentity 내부 retry Transaction을 중첩 호출하지 않는다.
+- 구현 내용: Access Token은 Transaction 반환 뒤 canonical UUID userId로 발급한다. 순차 duplicate finalize와 Firebase mapping 경쟁은 새 Session을 저장하지 않고 `FIREBASE_ENROLLMENT_CONFLICT` 409 후 exchange 재진입으로 고정했으며 Social/phone owner 충돌은 자동 rebind·merge 없이 각각 기존 conflict로 거절한다.
+- 구현 내용: eligibility candidate는 PhoneIdentity와 별도 key ring, `tosunsaeng:identity:phone-eligibility-binding:v1` domain, opaque consumer scope를 사용한다. raw phone과 fingerprint/key material은 저장·응답·로그에 남기지 않고 outbox에는 retained candidate와 PENDING 상태만 저장한다. 반복 phone 변경 이벤트를 허용하며 publisher 조회용 status+createdAt 및 user+scope+createdAt non-unique index를 추가했다.
+- 구현 내용: Firebase signup route를 Security 공개 POST와 RequestLoggingFilter 고정 route에 추가하고 OpenAPI에 credential writeOnly, 외부 userId/phone 부재, 400·401·403·409·429·503을 문서화했다. Firebase·provider·PhoneIdentity fingerprint·eligibility binding 설정은 모두 기본 비활성이며 필요한 signup dependency가 없는 활성화는 fail-closed한다. legacy password route, Guest 승격·merge, publisher/consumer, TrialClaim·Entitlement·시험 코드는 변경하지 않았다.
+- 수행한 Jira 작업: 구현 전에 Atlassian 공식 MCP로 TMI-94의 제목·설명·완료 조건·제외 범위·현재 상태를 읽기 전용 확인하고 AGENTS.md 및 계약과 충돌이 없음을 확인했다. Jira 이슈·설명·댓글·상태·Resolution은 변경하지 않았다.
+- 추가한 댓글의 목적: verified phone 경계, 단일 Transaction aggregate, 별도 eligibility fingerprint/outbox, Security/OpenAPI와 전체 테스트 결과 및 staging/consumer 잔여 위험을 전달하는 종료 댓글 초안을 준비하되 자동 등록하지 않는다.
+- 변경한 상태: Jira TMI-94는 기존 `해야 할 일`, 우선순위 `High`, Resolution 없음 상태를 유지한다. PR 병합을 확인하지 않았으므로 Done 전환하지 않았다.
+- 승인 여부: 사용자가 `이제 구현해줘`로 TMI-94 구현을 명시적으로 요청했다. Jira 댓글·상태 전환과 Git commit·push, production Firebase/provider 활성화는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 구현 중 Firebase verifier·signup service·signup Transaction 타깃 테스트와 `./gradlew test`를 반복 실행했다. 최종 `./gradlew clean test`는 70개 suite·421개 테스트가 failure 0, error 0, skipped 0으로 성공했고 `git diff --check`도 통과했다. 실제 Firebase·Atlas·외부 OAuth Provider·outbox consumer는 호출하지 않았다.
+- 유지한 계약: JWT `sub`는 canonical UUID userId이며 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS와 hash-only Opaque RefreshSession을 유지했다. client userId·phone을 신뢰하지 않고 Firebase credential·UID·phone·provider subject·fingerprint·Secret·Password·실제 Key·전체 MongoDB URI를 로그·응답·기록에 포함하지 않았다. Identity가 소유하지 않는 시험·채점·Entitlement 코드를 추가하지 않았다.
+- 결정사항: duplicate finalize는 토큰 재발급형 멱등 성공이 아니라 고정 enrollment conflict와 exchange 재진입으로 처리한다. PhoneEligibilityBindingOutbox는 제품 enum을 모르는 generic event이며 phone 변경을 위해 user+scope unique를 두지 않는다. Access Token 발급은 commit 이후에만 수행하고 Firebase와 Mongo가 분산 Transaction이 아니라는 경계는 유지한다.
+- 위험 요소: 실제 Firebase/mobile/SMS, transaction 지원 MongoDB의 multi-document write conflict와 운영 index 생성은 staging에서 검증하지 않았다. outbox publisher와 외부 consumer의 eventId 멱등 수신·retry/dead-letter·보존/삭제·key ownership 계약은 별도 ADR/서비스 구현이 필요하다. commit 뒤 Access Token 응답 생성이 실패하면 aggregate와 RefreshSession은 성공한 상태이므로 클라이언트는 고정 finalize conflict를 받은 뒤 exchange로 복구해야 한다.
+- 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 TMI-94를 Done으로 바꾸지 않으며 Jira 댓글은 초안을 먼저 승인받은 뒤에만 등록한다. production 활성화 전 격리 Firebase/mobile 및 transaction 지원 staging MongoDB와 outbox consumer 계약을 검증한다.

@@ -28,10 +28,12 @@ import org.springframework.data.mongodb.repository.support.MongoRepositoryFactor
 import org.springframework.data.repository.core.support.RepositoryComposition.RepositoryFragments;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
 
 class PhoneIdentityRepositoryIntegrationTests {
 
@@ -48,6 +50,7 @@ class PhoneIdentityRepositoryIntegrationTests {
 	private MongoTemplate mongoTemplate;
 	private PhoneIdentityRepository identityRepository;
 	private PhoneFingerprintAliasRepository aliasRepository;
+	private PhoneEligibilityBindingOutboxRepository outboxRepository;
 
 	@BeforeEach
 	void setUp() {
@@ -59,6 +62,7 @@ class PhoneIdentityRepositoryIntegrationTests {
 		mongoTemplate = new MongoTemplate(mongoClient, "phone-identity-test");
 		ensureIndexes(PhoneIdentity.class);
 		ensureIndexes(PhoneFingerprintAlias.class);
+		ensureIndexes(PhoneEligibilityBindingOutbox.class);
 
 		MongoRepositoryFactory factory = new MongoRepositoryFactory(mongoTemplate);
 		identityRepository = factory.getRepository(PhoneIdentityRepository.class);
@@ -68,6 +72,7 @@ class PhoneIdentityRepositoryIntegrationTests {
 						new PhoneFingerprintAliasRepositoryImpl(mongoTemplate)
 				)
 		);
+		outboxRepository = factory.getRepository(PhoneEligibilityBindingOutboxRepository.class);
 	}
 
 	@AfterEach
@@ -207,6 +212,41 @@ class PhoneIdentityRepositoryIntegrationTests {
 				.containsExactly("userId", "status");
 	}
 
+	@Test
+	void eligibilityOutboxStoresRepeatableEventsAndProvidesPublisherIndexes() {
+		PhoneEligibilityBindingOutbox first = outbox(USER_A, "consumer-a");
+		outboxRepository.save(first);
+
+		assertThat(outboxRepository.findById(first.getEventId()))
+				.hasValueSatisfying(stored -> {
+					assertThat(stored.getUserId()).isEqualTo(USER_A);
+					assertThat(stored.getFingerprintCandidates()).hasSize(1);
+					assertThat(stored.toString()).doesNotContain("E".repeat(43));
+				});
+		outboxRepository.save(outbox(USER_A, "consumer-a"));
+		outboxRepository.save(outbox(USER_A, "consumer-b"));
+		assertThat(outboxRepository.count()).isEqualTo(3);
+
+		List<IndexInfo> indexes = mongoTemplate
+				.indexOps(PhoneEligibilityBindingOutbox.class)
+				.getIndexInfo();
+		IndexInfo bindingLookup = index(
+				indexes,
+				"ix_phone_eligibility_binding_user_scope_created_at"
+		);
+		IndexInfo pendingLookup = index(
+				indexes,
+				"ix_phone_eligibility_outbox_status_created_at"
+		);
+		assertThat(bindingLookup.isUnique()).isFalse();
+		assertThat(bindingLookup.getIndexFields())
+				.extracting(IndexField::getKey)
+				.containsExactly("userId", "consumerScopeId", "createdAt");
+		assertThat(pendingLookup.getIndexFields())
+				.extracting(IndexField::getKey)
+				.containsExactly("status", "createdAt");
+	}
+
 	private boolean claimWhenReleased(
 			PhoneIdentity identity,
 			CountDownLatch ready,
@@ -258,6 +298,15 @@ class PhoneIdentityRepositoryIntegrationTests {
 				identity.getPhoneIdentityId(),
 				identity.getUserId(),
 				fingerprint,
+				CREATED_AT
+		);
+	}
+
+	private PhoneEligibilityBindingOutbox outbox(String userId, String scope) {
+		return PhoneEligibilityBindingOutbox.create(
+				userId,
+				scope,
+				List.of(new PhoneEligibilityFingerprintCandidate("v1", "E".repeat(43))),
 				CREATED_AT
 		);
 	}

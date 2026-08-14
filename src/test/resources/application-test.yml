@@ -36,6 +36,10 @@ app:
     fingerprint:
       enabled: false
       key-ring: ""
+  phone-eligibility-binding:
+    enabled: false
+    consumer-scope-id: ""
+    key-ring: ""
 
 springdoc:
   swagger-ui:

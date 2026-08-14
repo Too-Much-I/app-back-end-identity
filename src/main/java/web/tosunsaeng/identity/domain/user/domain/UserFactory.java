@@ -60,4 +60,23 @@ public class UserFactory {
 				requiredCreatedAt
 		);
 	}
+
+	public User createFederatedMember(String nickname, Instant createdAt) {
+		Instant requiredCreatedAt = Objects.requireNonNull(
+				createdAt,
+				"createdAt must not be null"
+		);
+		String requiredNickname = Objects.requireNonNull(
+				nickname,
+				"nickname must not be null"
+		).trim();
+		if (requiredNickname.isEmpty()) {
+			throw new IllegalArgumentException("nickname must not be blank");
+		}
+		return User.createFederatedMember(
+				requiredNickname,
+				consentPolicy.consentedAt(requiredCreatedAt),
+				requiredCreatedAt
+		);
+	}
 }

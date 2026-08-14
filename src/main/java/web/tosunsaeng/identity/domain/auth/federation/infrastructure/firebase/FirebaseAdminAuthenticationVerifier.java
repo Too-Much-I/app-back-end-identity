@@ -83,6 +83,7 @@ public final class FirebaseAdminAuthenticationVerifier
 					data.expiresAt(),
 					data.emailVerified(),
 					data.phoneVerified(),
+					data.verifiedPhoneNumber(),
 					providers.linkedMethods(),
 					providers.socialPrincipals()
 			);
@@ -195,7 +196,9 @@ public final class FirebaseAdminAuthenticationVerifier
 			return;
 		}
 		if (!providers.linkedMethods().contains(FirebaseAuthenticationMethod.PHONE)
-				|| !data.phoneVerified()) {
+				|| !data.phoneVerified()
+				|| data.verifiedPhoneNumber() == null
+				|| data.verifiedPhoneNumber().isBlank()) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED);
 		}
 		if (providers.linkedMethods().contains(FirebaseAuthenticationMethod.PASSWORD)

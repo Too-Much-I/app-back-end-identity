@@ -46,6 +46,25 @@ class UserAccountTypeCompatibilityTests {
 	}
 
 	@Test
+	void federatedMemberPersistsExplicitProviderAndNoCredentialFields() {
+		Document document = write(User.createFederatedMember(
+				"연동회원",
+				consents(),
+				CREATED_AT
+		));
+
+		assertThat(document)
+				.containsEntry("accountType", "MEMBER")
+				.containsEntry("provider", "FEDERATED")
+				.doesNotContainKeys(
+						"email",
+						"normalizedEmail",
+						"passwordHash",
+						"guestInstallationIdHash"
+				);
+	}
+
+	@Test
 	void storedAccountTypeTakesPriorityOverLegacyProvider() {
 		Document document = write(guestUser());
 		document.put("accountType", "MEMBER");

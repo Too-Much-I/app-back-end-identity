@@ -84,6 +84,26 @@ class UserFactoryTests {
 	}
 
 	@Test
+	void createsFederatedMemberWithoutLocalOrGuestCredentials() {
+		User member = userFactory.createFederatedMember(" Firebase 회원 ", GUEST_CREATED_AT);
+
+		assertThat(UUID.fromString(member.getUserId()).toString()).isEqualTo(member.getUserId());
+		assertThat(member.getProvider()).isEqualTo(UserProvider.FEDERATED);
+		assertThat(member.getAccountType()).isEqualTo(UserAccountType.MEMBER);
+		assertThat(member.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(member.getNickname()).isEqualTo("Firebase 회원");
+		assertThat(member.hasLocalCredential()).isFalse();
+		assertThat(member.getEmail()).isNull();
+		assertThat(member.getNormalizedEmail()).isNull();
+		assertThat(member.getPasswordHash()).isNull();
+		assertThat(member.getGuestInstallationIdHash()).isNull();
+		assertThat(member.getConsents().getPrivacyConsentVersion())
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(member.getConsents().getTermConsentVersion())
+				.isEqualTo(TERM_CONSENT_VERSION);
+	}
+
+	@Test
 	void createsMultipleGuestsWithNullLocalCredentialsAndUniqueUserIds() {
 		User first = userFactory.createGuest("A".repeat(43), GUEST_CREATED_AT);
 		User second = userFactory.createGuest("B".repeat(43), GUEST_CREATED_AT);

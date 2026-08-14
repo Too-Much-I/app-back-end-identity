@@ -75,6 +75,7 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 		boolean phoneVerified = hasPhoneProvider
 				&& user.getPhoneNumber() != null
 				&& !user.getPhoneNumber().isBlank();
+		String verifiedPhoneNumber = phoneVerified ? user.getPhoneNumber() : null;
 
 		return new FirebaseAdminPrincipalData(
 				firebaseProjectId,
@@ -89,6 +90,7 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 				user.isEmailVerified(),
 				user.isDisabled(),
 				phoneVerified,
+				verifiedPhoneNumber,
 				linkedProviders
 		);
 	}

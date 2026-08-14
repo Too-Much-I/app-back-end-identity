@@ -63,6 +63,7 @@ class FirebaseSdkAdminClientTests {
 		assertThat(data.expiresAt()).isEqualTo(expiresAt);
 		assertThat(data.emailVerified()).isTrue();
 		assertThat(data.phoneVerified()).isTrue();
+		assertThat(data.verifiedPhoneNumber()).isEqualTo("+820000000000");
 		assertThat(data.linkedProviders())
 				.extracting(FirebaseLinkedProviderData::providerId)
 				.containsExactly("google.com", "phone");

@@ -44,6 +44,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				FirebaseAuthenticationMethod.GOOGLE,
 				FirebaseAuthenticationMethod.PHONE
 		);
+		assertThat(principal.verifiedPhoneNumber()).isEqualTo("+820000000000");
 		assertThat(principal.linkedSocialPrincipals())
 				.singleElement()
 				.satisfies(social -> {
@@ -54,6 +55,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				.doesNotContain(ID_TOKEN)
 				.doesNotContain(FIREBASE_UID)
 				.doesNotContain(PROVIDER_SUBJECT)
+				.doesNotContain("+820000000000")
 				.contains("firebaseUid=[REDACTED]");
 	}
 
@@ -236,6 +238,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				true,
 				false,
 				true,
+				"+820000000000",
 				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
 		);
 		assertAuthError(
@@ -262,6 +265,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				true,
 				false,
 				true,
+				"+820000000000",
 				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
 		);
 		assertAuthError(
@@ -285,6 +289,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				true,
 				false,
 				true,
+				"+820000000000",
 				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
 		);
 		assertAuthError(
@@ -374,6 +379,7 @@ class FirebaseAdminAuthenticationVerifierTests {
 				emailVerified,
 				disabled,
 				phoneVerified,
+				phoneVerified ? "+820000000000" : null,
 				providers
 		);
 	}

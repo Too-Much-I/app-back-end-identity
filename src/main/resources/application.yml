@@ -70,6 +70,10 @@ app:
     fingerprint:
       enabled: ${PHONE_IDENTITY_FINGERPRINT_ENABLED:false}
       key-ring: ${PHONE_IDENTITY_FINGERPRINT_KEY_RING:}
+  phone-eligibility-binding:
+    enabled: ${PHONE_ELIGIBILITY_BINDING_ENABLED:false}
+    consumer-scope-id: ${PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID:}
+    key-ring: ${PHONE_ELIGIBILITY_BINDING_KEY_RING:}
 
 springdoc:
   swagger-ui:

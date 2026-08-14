@@ -72,10 +72,15 @@ Identity Service는 다음 기능을 소유한다.
 | `FIREBASE_READ_TIMEOUT` | 선택 | Admin SDK 읽기·쓰기 timeout, 기본값 `PT5S` |
 | `FIREBASE_ENROLLMENT_TTL` | 선택 | PENDING enrollment 유효 시간, 기본값 `PT10M` |
 | `FIREBASE_ENROLLMENT_CLEANUP_RETENTION` | 선택 | 만료 뒤 TTL 정리 유예, 기본값 `PT24H` |
+| `PHONE_IDENTITY_FINGERPRINT_ENABLED` | 선택 | PhoneIdentity HMAC fingerprint 활성화 여부, 기본값 `false` |
+| `PHONE_IDENTITY_FINGERPRINT_KEY_RING` | PhoneIdentity 활성화 시 필수 | 별도 Secret으로 주입하는 retained identity key ring |
+| `PHONE_ELIGIBILITY_BINDING_ENABLED` | 선택 | consumer-scoped eligibility outbox fingerprint 활성화 여부, 기본값 `false` |
+| `PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID` | eligibility binding 활성화 시 필수 | Identity가 의미를 해석하지 않는 allowlist된 opaque consumer scope |
+| `PHONE_ELIGIBILITY_BINDING_KEY_RING` | eligibility binding 활성화 시 필수 | PhoneIdentity key와 분리해 Secret으로 주입하는 retained key ring |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 
-Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 이 foundation에는 공개 Firebase 로그인·회원가입 endpoint가 없다.
+Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 공개 `/api/v1/auth/firebase/exchange`와 `/api/v1/auth/firebase/signup`은 같은 kill switch를 따르며, signup 활성화에는 PhoneIdentity와 consumer-scoped eligibility binding의 서로 다른 key ring이 모두 필요하다. 설정 하나라도 빠지면 신규 User를 비원자적으로 만들지 않고 기동 단계에서 fail-closed한다.
 
 ## 로컬 실행
 
