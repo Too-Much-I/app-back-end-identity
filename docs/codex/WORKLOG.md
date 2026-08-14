@@ -2883,3 +2883,127 @@
 - 위험 요소: 인메모리 Mongo 구현은 partial unique filter의 status 변경 후 재삽입 의미를 완전히 지원하지 않아 annotation/index resolver·CAS·경쟁 테스트로 계약을 나눠 검증했다. 실제 MongoDB의 partial unique와 TTL index, custom Repository wiring, 상태 전환 뒤 새 attempt 허용은 staging에서 재검증해야 한다.
 - 위험 요소: 모든 Firebase 목적의 revoke·UserRecord 확인은 실제 배포에서 원격 latency·quota·장애 비용을 만든다. ADC/Workload Identity 권한, timeout, 429/503, 실제 Google·Apple·Kakao·phone credential과 Firebase/Mongo lifecycle은 아직 production 환경에서 검증되지 않았다.
 - 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. 병합 전 Jira를 Done으로 변경하지 않으며, 병합 뒤 정확한 종료 댓글과 전환 payload를 먼저 제시해 별도 승인을 받는다. 후속 Stage 4는 별도 Jira로 PhoneIdentity·versioned domain-separated HMAC·alias/index/rotation 테스트만 구현한다.
+
+## 2026-08-13 — TMI-91 PR 병합 확인·Jira 완료 및 다음 Stage 4 정리
+
+<!-- codex-turn:019ffa80-dfc0-7ba0-8930-4182c8458a76 -->
+
+- 날짜: 2026-08-13
+- 브랜치: `develop` (`e25adbc`, GitHub PR #19 병합 확인, Codex commit·push 미수행)
+- Jira: `TMI-91`
+- 작업 목표: 병합된 Firebase broker foundation의 Jira 종료 조건을 확인하고, 승인된 종료 댓글과 완료 전환을 적용한 뒤 다음 PhoneIdentity 구현 범위를 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: GitHub PR #19 `feat(TMI-91): build Firebase auth broker foundation`이 `develop`에 merge commit `e25adbcec9ffb4c5bd3c5c432a7029fc1e77e8ff`로 병합된 것을 GitHub에서 확인하고 로컬 `develop`을 원격과 fast-forward 동기화했다.
+- 구현 내용: 다음 Stage 4는 E.164 재검증, domain-separated HMAC-SHA-256 key registry의 ACTIVE_WRITE/LOOKUP_ONLY lifecycle, `PhoneIdentity`·`PhoneFingerprintAlias`, User당 번호 하나와 retained version 전체의 동일 번호 중복 차단, `PHONE_ALREADY_LINKED`·자동 merge 금지, raw phone·last4·fingerprint 비로그 테스트로 제한한다.
+- 구현 내용: Firebase SMS·OTP, 공개 login exchange/signup, User·RefreshSession finalize, Guest 승격·merge, TrialClaim·UserEntitlement와 benefit-scoped fingerprint는 Stage 4에서 제외하고 각 후속 단계의 기존 경계를 유지한다.
+- 수행한 Jira 작업: 사용자에게 직전 turn에서 제시한 종료 댓글 초안에 대해 이번 turn의 `지라 닫아줘`로 명시적 승인을 받은 뒤 Atlassian 공식 MCP를 사용했다. TMI-91에 댓글 ID `10004`를 등록하고 사용 가능한 `완료` transition ID `41`만 적용한 뒤 상태와 Resolution을 재조회했다.
+- 추가한 댓글의 목적: disabled-by-default Firebase Admin adapter, 목적별 Token 검증, FirebaseIdentity·Enrollment CAS 구현 요약과 54 suite·353개 테스트 성공, 실제 Mongo index·ADC/Workload Identity·모바일 Provider가 남은 위험임을 기록했다.
+- 변경한 상태: TMI-91은 `해야 할 일`에서 status ID `10003`의 `완료`로 전환됐고 Resolution도 `완료`임을 확인했다. 다른 Jira 필드는 변경하지 않았다.
+- 승인 여부: 사용자가 앞서 공개된 댓글 초안을 확인한 뒤 Jira 종료를 명시적으로 요청했다. 이 승인은 댓글 등록과 완료 전환에 적용했으며 새 Jira 생성이나 후속 구현 승인은 포함하지 않는다.
+- 실행한 테스트와 결과: 이번 turn은 병합·Jira 상태 확인과 문서 갱신만 수행해 Gradle 테스트를 재실행하지 않았다. 병합된 PR의 최종 검증 결과는 `./gradlew clean test` 54개 suite·353개 테스트 성공, skip·failure·error 0이다. 종료 전 문서 diff·whitespace와 지정 marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: Firebase는 credential broker이고 Identity는 canonical UUID User·자체 RS256 Access Token·RefreshSession·JWKS를 계속 소유한다. Firebase UID·provider subject·email·phone은 자동 merge key가 아니며 Firebase ID Token은 Learning Core로 전달하지 않는다. Secret·Token·Password·전화번호·fingerprint·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 기록에 추가하지 않았다.
+- 결정사항: TMI-91은 병합과 Jira 종료가 모두 완료됐다. 실제 Firebase login/signup과 production flag는 계속 비활성이며 외부 모바일·SMS·Identity Platform·Apple lifecycle gate 전에는 열지 않는다.
+- 위험 요소: Stage 4에서 HMAC key rotation과 retained alias를 잘못 설계하면 version 교차 중복 가입이 가능하다. 실제 MongoDB unique index와 key lifecycle, Firebase phone link·번호 충돌·withdrawal cleanup은 staging과 격리 Firebase 환경에서 후속 검증해야 한다.
+- 다음 작업: Stage 4 Jira 생성 전 정확한 제목·범위·완료 조건·제외 범위를 사용자에게 제시하고 승인을 받는다. 승인 후 PhoneIdentity·PhoneFingerprintAlias와 versioned HMAC/index/test만 구현한다.
+
+## 2026-08-14 — 8월 11·12·13일 작업 기록 일자별 정리
+
+<!-- codex-turn:019ffdf0-be38-7650-b8c7-741b2e0981da -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`e25adbc` 기준, Codex commit·push 미수행)
+- Jira: `TMI-88`, `TMI-89`, `TMI-90`, `TMI-91` 기존 기록을 정리했으며 Jira 조회·댓글·상태·필드 변경은 수행하지 않았다.
+- 작업 목표: WORKLOG와 Git 이력을 근거로 2026-08-11, 2026-08-12, 2026-08-13 작업을 날짜별로 구분해 현재 상태 문서에서 한눈에 확인할 수 있도록 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록과 기존 TMI-91 종료 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 8월 11일을 Sentry staging one-shot 검증·수신 확인·임시 코드 제거와 Google·Kakao·Apple 소셜 인증, MEMBER 전화번호 인증, 무료 모의고사 경계의 단계별 계획 수립 작업으로 묶었다.
+- 구현 내용: 8월 12일은 WORKLOG 날짜 항목, UUIDv7 turn marker의 KST 생성 시각, Git 커밋 이력에서 해당 날짜의 저장소 작업을 확인할 수 없으므로 `확인 가능한 저장소 작업 기록 없음`으로 명시했다. 11일과 13일 작업을 12일로 추정 배정하지 않았다.
+- 구현 내용: 8월 13일을 TMI-88 SocialIdentity 기반, TMI-89 UserAccountType 호환 확장, TMI-90 Firebase broker 조건부 ADR·격리 PoC, TMI-91 Firebase broker foundation의 생성·구현·검증·병합 및 확인된 Jira 종료 상태 중심으로 정리했다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없는 문서 정리 작업이므로 Gradle 테스트를 재실행하지 않았다. 날짜 판정에는 WORKLOG 제목·본문, UUIDv7 turn marker의 Asia/Seoul 시각과 `git log --all`의 2026-08-11~13 커밋 시각을 대조했다. 종료 전 문서 diff·whitespace, WORKLOG EOF append와 지정 marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 실제 사용자 ID와 JWT `sub`는 canonical UUID 문자열이고 Identity가 RS256 Access Token·RefreshSession·JWKS를 소유한다. Firebase는 credential broker에 한정하며 Firebase UID·provider subject·email·phone은 자동 merge key가 아니다. 시험·채점·Entitlement 구현을 Identity에 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 과거 WORKLOG는 append-only 규칙에 따라 중복 블록을 포함해 그대로 보존하고, 날짜별 통합 요약은 CURRENT_STATE의 별도 섹션을 기준으로 사용한다. 8월 12일은 근거 없는 작업일 보정을 하지 않는다.
+- 위험 요소: 8월 12일에 저장소 밖에서 수행했거나 기록되지 않은 작업은 현재 자료만으로 확인할 수 없다. 향후 별도 근거가 발견되면 과거 기록을 수정하지 않고 새로운 보완 항목으로 출처와 함께 append해야 한다.
+- 다음 작업: Stage 4 Jira 생성 전 `PhoneIdentity`·versioned HMAC fingerprint 범위와 완료 조건·제외 범위를 사용자에게 먼저 제시하고 승인을 받는다. TMI-90 종료 댓글과 완료 전환도 기존 승인 대기 상태를 유지한다.
+
+## 2026-08-14 — 날짜별 정리 전달 위치 정정
+
+<!-- codex-turn:019ffdf3-5831-7a22-b0ec-6a7f00ddbd86 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`e25adbc` 기준, Codex commit·push 미수행)
+- 작업 목표: 8월 11·12·13일 정리는 저장소 상태 문서가 아니라 블로그 초안으로 사용할 대화 답변이라는 사용자 의도를 반영한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 직전 turn에 CURRENT_STATE에 추가했던 날짜별 블로그용 요약 섹션은 제거했고, WORKLOG 과거 기록은 수정하거나 삭제하지 않은 채 이번 정정 항목만 파일 끝에 append했다.
+- 구현 내용: 날짜별 블로그 원문은 저장소 문서에 보존하지 않고 이번 대화의 최종 답변으로만 제공한다. CURRENT_STATE는 Identity Service의 현재 구현·진행 상태만 유지한다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없는 문서 정정 작업이므로 Gradle 테스트를 실행하지 않았다. `git diff --check`, CURRENT_STATE의 날짜별 요약 heading 부재, 지정 turn marker 단일 존재와 WORKLOG EOF append를 정적으로 검증한다.
+- 유지한 계약: Identity 도메인, UUID userId/JWT `sub`, RS256·JWKS, RefreshSession과 Firebase broker 경계를 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 블로그용 요약은 사용자 요청대로 채팅 창에서 제공한다. 저장소에는 프로젝트 운영 규칙상 필요한 작업 감사 기록만 남기며 블로그 본문을 중복 저장하지 않는다.
+- 위험 요소: 8월 12일에는 WORKLOG 날짜 항목, turn marker 시각, Git 커밋에서 확인되는 저장소 작업이 없어 블로그에도 작업을 추정해 채우지 않는다.
+- 다음 작업: 사용자가 원하는 문체나 분량에 맞춰 채팅에서 블로그 초안을 다듬는다. TMI-90 종료와 Stage 4 Jira는 기존 승인 대기 상태를 유지한다.
+
+## 2026-08-14 — Stage 4 PhoneIdentity Jira 생성 시도
+
+<!-- codex-turn:019ffe10-503d-77d1-a564-97e8678c4185 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`e25adbc` 기준, Codex commit·push 미수행)
+- Jira: 생성 예정이며 아직 이슈 키가 없다.
+- 작업 목표: 앞서 공개한 Stage 4 범위에 대한 사용자 승인에 따라 `[Identity] PhoneIdentity 및 versioned HMAC fingerprint 기반 구축` Jira를 생성한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira 범위를 E.164 재검증, domain-separated HMAC-SHA-256 key registry의 정확히 하나인 `ACTIVE_WRITE`와 0개 이상인 `LOOKUP_ONLY` lifecycle, `PhoneIdentity`·`PhoneFingerprintAlias`, User당 활성 번호 하나, retained key version 전체의 동일 번호 중복 차단, `PHONE_ALREADY_LINKED`와 자동 merge 금지, 민감 전화정보 비로그 검증으로 확정했다.
+- 구현 내용: Firebase SMS·OTP, 공개 Firebase exchange/signup, User·RefreshSession finalize Transaction, Guest 승격·merge, TrialClaim·UserEntitlement와 benefit-scoped fingerprint, production Firebase 활성화는 Jira 제외 범위로 유지했다.
+- 수행한 Jira 작업: 현재 tool runtime의 사용 가능한 도구에서 Atlassian 공식 MCP 호출이 제공되지 않아 Jira 생성·댓글·필드 수정·상태 전환을 수행하지 못했다. 로컬 조회에서는 공식 `atlassian` remote MCP 설정이 enabled 상태인 것까지만 확인했으며 비공식 REST 호출, 브라우저 자동화나 다른 Jira provider로 우회하지 않았다.
+- 추가한 댓글의 목적: Jira 이슈가 생성되지 않아 댓글을 추가하지 않았다.
+- 변경한 상태: 생성된 Jira가 없어 변경한 상태나 Resolution이 없다.
+- 승인 여부: 사용자가 직전 답변에서 제시된 Stage 4 목표·모델·DB 제약·테스트·제외 범위를 확인한 뒤 Jira 생성을 명시적으로 요청했다. 구현, Git commit·push 또는 production 기능 활성화는 승인 범위에 포함되지 않는다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없는 Jira 생성 시도와 문서 기록 작업이므로 Gradle 테스트를 실행하지 않았다. 종료 전 `git diff --check`, WORKLOG EOF append와 지정 marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: Firebase는 credential broker이고 Identity는 canonical UUID User·자체 RS256 Access Token·RefreshSession·JWKS를 소유한다. 전화번호는 로그인 ID·canonical userId·자동 merge key가 아니며, Identity에 시험·TrialClaim·UserEntitlement 코드를 추가하지 않았다. Secret·Token·Password·전화번호·fingerprint·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: Jira 변경은 Atlassian 공식 MCP로만 수행한다는 저장소 규칙을 지키기 위해 연결이 제공되지 않는 상태에서 생성 성공으로 간주하거나 다른 경로로 우회하지 않는다.
+- 위험 요소: 공식 MCP 호출 도구가 복구되기 전에는 이슈 키 발급과 Jira 설명·상태 재검증을 완료할 수 없다. HMAC key rotation과 retained alias 설계가 잘못되면 key version 교차 중복 가입이 가능하므로 후속 구현에서 실제 Mongo index와 mixed writer gate를 함께 검증해야 한다.
+- 다음 작업: Atlassian 공식 MCP 도구를 다시 사용할 수 있는 세션에서 승인된 내용 그대로 TMI `작업` Jira를 기본 우선순위 `Medium`으로 생성하고, 생성 결과를 재조회한 뒤 발급된 이슈 키를 CURRENT_STATE와 새 WORKLOG 항목에 기록한다.
+
+## 2026-08-14 — Stage 4 PhoneIdentity Jira TMI-92 생성
+
+<!-- codex-turn:019ffe13-e8f2-7c32-a883-068a0205c578 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`e25adbc` 기준, Codex commit·push 미수행)
+- Jira: `TMI-92`
+- 작업 목표: 공식 Atlassian MCP 도구가 다시 제공된 세션에서 앞서 승인된 Stage 4 PhoneIdentity Jira 생성을 이어서 완료하고 저장 결과를 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira `TMI-92` `[Identity] PhoneIdentity 및 versioned HMAC fingerprint 기반 구축`을 TMI `작업` 유형과 우선순위 `Medium`으로 생성했다. 범위는 서버 E.164 재검증, 정확히 하나의 `ACTIVE_WRITE`와 0개 이상의 `LOOKUP_ONLY`를 갖는 domain-separated HMAC-SHA-256 key registry, `PhoneIdentity`·`PhoneFingerprintAlias`, User당 활성 번호 하나, retained version 전체의 동일 번호 중복 차단, `PHONE_ALREADY_LINKED`, 재시도 멱등성·동시성·rotation·민감정보 비노출 테스트다.
+- 구현 내용: Firebase SMS·OTP, 공개 exchange/signup, User·RefreshSession finalize Transaction, Guest 승격·merge, 전화번호 로그인·자동 merge, TrialClaim·UserEntitlement·benefit-scoped fingerprint, production Firebase 활성화와 실제 key·전화번호·개인정보 저장은 명시적 제외 범위로 유지했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 접근 resource, TMI 생성 권한, `작업` 유형 ID `10003`, 전체 생성 필드와 기본 우선순위 `Medium`을 읽기 전용 재확인하고, JQL로 `PhoneIdentity` 제목의 중복 이슈가 없음을 확인한 뒤 승인된 이슈 한 건만 생성했다. 생성 후 `TMI-92`를 읽기 전용 재조회해 제목·설명·유형·우선순위·상태·Resolution·담당자·라벨·컴포넌트를 확인했다.
+- 추가한 댓글의 목적: Jira 댓글은 추가하지 않았다.
+- 변경한 상태: 신규 이슈의 기본 상태 `해야 할 일`을 유지했고 상태 전환은 수행하지 않았다. Resolution은 없으며 담당자·라벨·컴포넌트도 지정하지 않았다.
+- 승인 여부: 사용자는 직전 turn에서 공개된 Stage 4 목표·모델·DB 제약·테스트·제외 범위를 확인한 뒤 Jira 생성을 승인했고, 이번 `지라 생성 이어서 해줘`로 중단됐던 같은 생성을 계속하도록 명시했다. 구현, Jira 댓글·상태 전환, Git commit·push와 production 기능 활성화는 승인 범위에 포함되지 않는다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없는 Jira 생성과 문서 갱신 작업이므로 Gradle 테스트를 실행하지 않았다. Jira 후속 조회에서 제목·본문·`작업`·`Medium`·`해야 할 일`·Resolution 없음과 빈 담당자·라벨·컴포넌트를 확인했다. 종료 전 `git diff --check`, WORKLOG EOF append와 지정 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: 실제 사용자 ID와 JWT `sub`는 Identity canonical UUID 문자열이고 Identity가 자체 RS256 Access Token·RefreshSession·JWKS를 소유한다. 전화번호는 로그인 ID·canonical userId·자동 merge key가 아니며 Firebase ID Token·Firebase UID를 Learning Core로 전달하지 않는다. 시험·채점·Entitlement 코드를 추가하지 않았고 Secret·Token·Password·전화번호·fingerprint·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 기록에 추가하지 않았다.
+- 결정사항: TMI-92는 provider-neutral PhoneIdentity 저장·versioned fingerprint·alias/index/rotation 기반까지만 다룬다. 후속 공개 Firebase 가입과 Entitlement benefit fingerprint는 별도 계약과 Jira로 분리한다.
+- 위험 요소: HMAC key rotation과 alias backfill 또는 mixed-version writer 배포 순서를 잘못 설계하면 version 교차 중복 귀속이 가능하다. 실제 MongoDB unique/partial index, 동시 연결 경쟁, WITHDRAWN 번호 해제와 tombstone 정책은 구현 시 격리 테스트와 staging 검증 계획으로 고정해야 한다.
+- 다음 작업: 구현 요청을 받으면 먼저 Atlassian 공식 MCP로 TMI-92 설명·완료 조건·제외 범위를 재조회하고 AGENTS.md·기존 계약과 대조한다. Jira 댓글이나 상태 전환, commit·push는 별도 승인 전 수행하지 않는다.
+
+## 2026-08-14 — TMI-92 PhoneIdentity·versioned HMAC 기반 구현
+
+<!-- codex-turn:019ffe1b-3775-7e13-ad44-70e373d267a3 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-92-phone-identity-hmac-foundation` (`e25adbc`에서 시작, Codex commit·push 미수행)
+- Jira: TMI-92
+- 작업 목표: 승인된 Stage 4 범위에 따라 provider-neutral `PhoneIdentity`·retained version alias·domain-separated HMAC fingerprint 기반과 무결성·rotation·비노출 테스트를 구현한다.
+- 변경 파일: `.env.example`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, `src/main/java/web/tosunsaeng/identity/domain/auth/{application/phone,domain/entity,domain/enums,domain/phone,domain/repository,infrastructure/phone,exception}/**`, 대응하는 `src/test/java/web/tosunsaeng/identity/domain/auth/**/Phone*Tests.java`, `docs/contracts/phone-identity-key-rotation.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 입력을 서버에서 plus-prefixed E.164로 재검증하고 허용된 공백·구분자 표기를 canonical 숫자열로 정규화한다. 정확히 하나의 `ACTIVE_WRITE`, 0개 이상의 `LOOKUP_ONLY`, 중복 없는 version과 32바이트 이상 Base64 key를 fail-closed 검증하며 `tosunsaeng:identity:phone-identity:v1` domain·NUL separator·HMAC-SHA-256·Base64URL without padding으로 retained fingerprint를 계산한다.
+- 구현 내용: fingerprint 설정은 `PHONE_IDENTITY_FINGERPRINT_ENABLED=false` 기본값과 외부 `PHONE_IDENTITY_FINGERPRINT_KEY_RING` 이름만 제공한다. 실제 key material을 저장소에 추가하지 않았고 configuration·key·fingerprint·entity 문자열 표현에서 material과 fingerprint를 redaction했다.
+- 구현 내용: `PhoneIdentity`는 canonical UUID userId, current key version·fingerprint, ACTIVE/RELEASED, verified/created/updated/released 시각과 `@Version`을 저장한다. `PhoneFingerprintAlias`는 identity·user·retained version·fingerprint와 ACTIVE/RELEASED lifecycle을 저장하며 raw phone·last4·Firebase UID·email·provider subject를 보유하지 않는다.
+- 구현 내용: ACTIVE User당 identity 하나의 partial unique, ACTIVE `(fingerprintKeyVersion, phoneFingerprint)`와 `(phoneIdentityId, fingerprintKeyVersion)` partial unique, user/status lookup index를 선언했다. retained version candidate를 한 번에 조회하고 기존 identity alias를 원자적으로 release하는 custom Repository를 추가했다.
+- 구현 내용: application service와 별도 Mongo Transaction service를 구성했다. 신규 claim, 동일 User·동일 번호 멱등 성공, legacy alias로 owner를 확인한 새 ACTIVE_WRITE alias backfill과 current rotation, 번호 교체 시 기존 identity·aliases release 후 신규 claim, 다른 User의 안정적인 `PHONE_ALREADY_LINKED`, duplicate/optimistic concurrency 재시도와 최종 `PHONE_IDENTITY_CONFLICT`를 구현했다.
+- 구현 내용: `docs/contracts/phone-identity-key-rotation.md`에 retained version overlap, 새 key LOOKUP_ONLY 선배포, 전체 writer 동기화 뒤 ACTIVE_WRITE 전환, rollback, legacy key 제거 gate와 기존 raw phone 없는 임의 backfill 금지를 기록했다.
+- 수행한 Jira 작업: 구현 전에 Atlassian 공식 MCP로 TMI-92의 제목·설명·완료 조건·제외 범위·상태·우선순위·Resolution을 읽기 전용 재조회하고 AGENTS.md·기존 계약과 충돌이 없음을 확인했다. Jira 이슈·댓글·상태·필드는 변경하지 않았다.
+- 추가한 댓글의 목적: 구현 요약·변경 파일·전체 테스트 결과·실제 Mongo partial unique/Transaction과 운영 key rotation의 남은 위험을 전달하는 종료 댓글 초안만 준비하며 자동 등록하지 않는다.
+- 변경한 상태: Jira TMI-92는 기존 `해야 할 일`, 우선순위 `Medium`, Resolution 없음 상태를 유지한다. PR 병합을 확인하지 않았으므로 완료 전환하지 않았다.
+- 승인 여부: 사용자가 `구현 시작해줘`로 TMI-92 구현을 명시적으로 요청했다. Jira 댓글·상태 전환, Git commit·push, production key 주입·feature 활성화와 외부 Firebase/SMS 설정 변경은 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 신규 PhoneIdentity 타깃 테스트 31개가 성공했다. 최종 `./gradlew clean test`는 62개 suite·381개 테스트가 skip 0, failure 0, error 0으로 성공했다. 실제 Firebase·SMS Provider·Atlas를 호출하지 않고 Repository Mock과 프로세스 내부 인메모리 Mongo만 사용했다.
+- 실행한 테스트와 결과: `git diff --check`, application/domain phone package의 Firebase SDK import 부재, PhoneIdentity entity의 raw phone·last4 필드 부재, Identity에 TrialClaim·UserEntitlement·시험·채점 코드가 추가되지 않았음을 정적으로 확인했다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 Identity canonical UUID 문자열이고 기존 RS256·`kid`·issuer·`tosunsaeng-learning-core` audience·JWKS·RefreshSession을 변경하지 않았다. phone은 로그인 ID·canonical 선택·자동 merge key가 아니며 Firebase ID Token·UID를 Learning Core로 보내지 않는다. Firebase SMS·OTP, 공개 exchange/signup, Guest 승격·merge와 Entitlement/benefit fingerprint를 추가하지 않았다.
+- 결정사항: raw phone과 last4를 저장하지 않고 current fingerprint와 retained alias만 저장한다. SUSPENDED User 점유는 alias 상태와 분리해 유지하고 WITHDRAWN 해제는 Firebase unlink/delete·tombstone을 포함하는 별도 lifecycle로 남긴다. 기능과 key ring은 공개 가입 흐름이 준비될 때까지 기본 비활성이다.
+- 위험 요소: 인메모리 Mongo는 partial unique filter 상태 변경 후 같은 값 재삽입을 완전히 지원하지 않아 index filter·ACTIVE 중복 거절·release update와 transaction service 교체 순서를 나눠 검증했다. 실제 MongoDB의 ACTIVE→RELEASED 후 신규 claim, 다중 collection rollback·write conflict와 custom Repository wiring은 staging에서 재검증해야 한다.
+- 위험 요소: raw phone을 저장하지 않으므로 기존 identity 전체의 새 version alias를 임의로 backfill할 수 없다. 모든 writer가 retained version overlap을 유지하지 않거나 legacy key를 참조 중 제거하면 version 교차 중복 귀속이 가능하며, key reference count·비상 rotation 자동화는 아직 없다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. 병합 전 Jira를 Done으로 변경하지 않으며 Jira 댓글이나 상태 전환은 정확한 payload를 먼저 제시하고 별도 승인을 받은 뒤 수행한다. 후속 Stage 5에서만 Firebase verified phone proof와 User·FirebaseIdentity·PhoneIdentity·SocialIdentity·RefreshSession finalize Transaction을 연결한다.

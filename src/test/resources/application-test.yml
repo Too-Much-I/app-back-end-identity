@@ -32,6 +32,10 @@ app:
     apple-enabled: false
     kakao-enabled: false
     phone-enabled: false
+  phone-identity:
+    fingerprint:
+      enabled: false
+      key-ring: ""
 
 springdoc:
   swagger-ui:

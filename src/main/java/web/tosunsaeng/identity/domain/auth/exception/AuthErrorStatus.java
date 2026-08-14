@@ -80,6 +80,21 @@ public enum AuthErrorStatus implements ErrorCode {
 			HttpStatus.SERVICE_UNAVAILABLE,
 			"FIREBASE_UNAVAILABLE",
 			"Firebase 인증을 일시적으로 사용할 수 없습니다."
+	),
+	INVALID_PHONE_NUMBER(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_PHONE_NUMBER",
+			"유효하지 않은 전화번호 형식입니다."
+	),
+	PHONE_ALREADY_LINKED(
+			HttpStatus.CONFLICT,
+			"PHONE_ALREADY_LINKED",
+			"이미 다른 사용자에게 연결된 전화번호입니다."
+	),
+	PHONE_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"PHONE_IDENTITY_CONFLICT",
+			"전화번호 연결이 충돌했습니다. 다시 시도해 주세요."
 	);
 
 	private final HttpStatus httpStatus;
