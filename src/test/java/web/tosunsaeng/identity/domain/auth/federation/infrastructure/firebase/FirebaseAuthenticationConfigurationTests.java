@@ -14,7 +14,22 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentAttemptService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
+import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
+import web.tosunsaeng.identity.domain.user.domain.UserFactory;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 
 class FirebaseAuthenticationConfigurationTests {
 
@@ -36,6 +51,8 @@ class FirebaseAuthenticationConfigurationTests {
 			assertThat(context).doesNotHaveBean(FirebaseAdminClient.class);
 			assertThat(context).doesNotHaveBean(FirebaseAuthenticationVerifier.class);
 			assertThat(context).doesNotHaveBean(FirebaseCredentialsProvider.class);
+			assertThat(context).hasSingleBean(FirebaseExchangeUseCase.class);
+			assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
 		});
 	}
 
@@ -62,6 +79,19 @@ class FirebaseAuthenticationConfigurationTests {
 						FirebaseEnrollmentAttemptRepository.class,
 						() -> mock(FirebaseEnrollmentAttemptRepository.class)
 				)
+				.withBean(FirebaseIdentityRepository.class, () -> mock(FirebaseIdentityRepository.class))
+				.withBean(SocialIdentityRepository.class, () -> mock(SocialIdentityRepository.class))
+				.withBean(UserRepository.class, () -> mock(UserRepository.class))
+				.withBean(AccessTokenIssuer.class, () -> mock(AccessTokenIssuer.class))
+				.withBean(RefreshSessionIssuer.class, () -> mock(RefreshSessionIssuer.class))
+				.withBean(PhoneIdentityRepository.class, () -> mock(PhoneIdentityRepository.class))
+				.withBean(PhoneFingerprintAliasRepository.class, () -> mock(PhoneFingerprintAliasRepository.class))
+				.withBean(PhoneEligibilityBindingOutboxRepository.class, () -> mock(PhoneEligibilityBindingOutboxRepository.class))
+				.withBean(PhoneNumberNormalizer.class, () -> mock(PhoneNumberNormalizer.class))
+				.withBean(PhoneFingerprintHasher.class, () -> mock(PhoneFingerprintHasher.class))
+				.withBean(PhoneEligibilityFingerprintHasher.class, () -> mock(PhoneEligibilityFingerprintHasher.class))
+				.withBean(ConsentPolicy.class, () -> mock(ConsentPolicy.class))
+				.withBean(UserFactory.class, () -> mock(UserFactory.class))
 				.withBean(
 						"testFirebaseCredentialsProvider",
 						FirebaseCredentialsProvider.class,
@@ -74,6 +104,8 @@ class FirebaseAuthenticationConfigurationTests {
 					assertThat(context).hasSingleBean(FirebaseAdminClient.class);
 					assertThat(context).hasSingleBean(FirebaseAuthenticationVerifier.class);
 					assertThat(context).hasSingleBean(FirebaseEnrollmentAttemptService.class);
+					assertThat(context).hasSingleBean(FirebaseExchangeUseCase.class);
+					assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
 				});
 	}
 

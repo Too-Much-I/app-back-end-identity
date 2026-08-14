@@ -109,6 +109,7 @@ class SecurityIntegrationTests {
 			"/api/v1/auth/check-email",
 			"/api/v1/auth/signup",
 			"/api/v1/auth/guest",
+			"/api/v1/auth/firebase/signup",
 			"/api/v1/auth/login",
 			"/api/v1/auth/reissue",
 			"/api/v1/auth/logout"
@@ -120,6 +121,76 @@ class SecurityIntegrationTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void disabledFirebaseExchangeIsPublicAndReturnsStableUnavailableResponse() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/exchange")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"test-only-credential\"}"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
+				.andExpect(jsonPath("$.code").value("FIREBASE_UNAVAILABLE"));
+	}
+
+	@Test
+	void disabledFirebaseSignupIsPublicAndReturnsStableUnavailableResponse() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+								  "firebaseIdToken": "test-only-credential",
+								  "nickname": "테스트회원",
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
+								}
+								"""))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
+				.andExpect(jsonPath("$.code").value("FIREBASE_UNAVAILABLE"));
+	}
+
+	@Test
+	void firebaseExchangeOpenApiMarksCredentialWriteOnlyAndDocumentsUnionResult() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeResponseEnvelope.properties.result.$ref"
+				).value("#/components/schemas/FirebaseExchangeResponse"))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeResponse.oneOf[*].$ref",
+						hasItems(
+								"#/components/schemas/FirebaseAuthenticatedResponse",
+								"#/components/schemas/FirebaseEnrollmentRequiredResponse"
+						)
+				))
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/exchange'].post.security"
+				).doesNotExist());
+	}
+
+	@Test
+	void firebaseSignupOpenApiIsPublicAndDoesNotAcceptUserIdOrPhone() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.phone"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/signup'].post.security"
+				).doesNotExist());
 	}
 
 	@Test

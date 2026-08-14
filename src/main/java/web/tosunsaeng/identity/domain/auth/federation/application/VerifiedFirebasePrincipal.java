@@ -14,6 +14,7 @@ public record VerifiedFirebasePrincipal(
 		Instant expiresAt,
 		boolean emailVerified,
 		boolean phoneVerified,
+		String verifiedPhoneNumber,
 		Set<FirebaseAuthenticationMethod> linkedMethods,
 		List<VerifiedSocialPrincipal> linkedSocialPrincipals
 ) {
@@ -35,6 +36,21 @@ public record VerifiedFirebasePrincipal(
 				linkedSocialPrincipals,
 				"linkedSocialPrincipals must not be null"
 		));
+		verifiedPhoneNumber = normalizeVerifiedPhone(phoneVerified, verifiedPhoneNumber);
+	}
+
+	private static String normalizeVerifiedPhone(boolean phoneVerified, String value) {
+		if (!phoneVerified) {
+			if (value != null) {
+				throw new IllegalArgumentException("Unverified phone number must be absent");
+			}
+			return null;
+		}
+		String required = Objects.requireNonNull(value, "verifiedPhoneNumber must not be null");
+		if (required.isBlank()) {
+			throw new IllegalArgumentException("verifiedPhoneNumber must not be blank");
+		}
+		return required;
 	}
 
 	private static String requireUid(String value) {
@@ -62,6 +78,7 @@ public record VerifiedFirebasePrincipal(
 				+ ", expiresAt=" + expiresAt
 				+ ", emailVerified=" + emailVerified
 				+ ", phoneVerified=" + phoneVerified
+				+ ", verifiedPhoneNumber=[REDACTED]"
 				+ ", linkedMethods=" + linkedMethods
 				+ ", linkedSocialPrincipalCount=" + linkedSocialPrincipals.size() + "]";
 	}

@@ -81,6 +81,21 @@ public enum AuthErrorStatus implements ErrorCode {
 			"FIREBASE_UNAVAILABLE",
 			"Firebase 인증을 일시적으로 사용할 수 없습니다."
 	),
+	FIREBASE_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"FIREBASE_IDENTITY_CONFLICT",
+			"Firebase 계정 연결이 충돌했습니다. 다시 시도해 주세요."
+	),
+	SOCIAL_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"SOCIAL_IDENTITY_CONFLICT",
+			"소셜 계정 연결이 충돌했습니다. 다시 시도해 주세요."
+	),
+	FIREBASE_ENROLLMENT_CONFLICT(
+			HttpStatus.CONFLICT,
+			"FIREBASE_ENROLLMENT_CONFLICT",
+			"가입 요청을 완료할 수 없습니다. Firebase 로그인부터 다시 진행해 주세요."
+	),
 	INVALID_PHONE_NUMBER(
 			HttpStatus.BAD_REQUEST,
 			"INVALID_PHONE_NUMBER",

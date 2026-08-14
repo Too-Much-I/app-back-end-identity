@@ -17,6 +17,7 @@ record FirebaseAdminPrincipalData(
 		boolean emailVerified,
 		boolean disabled,
 		boolean phoneVerified,
+		String verifiedPhoneNumber,
 		List<FirebaseLinkedProviderData> linkedProviders
 ) {
 
@@ -25,6 +26,9 @@ record FirebaseAdminPrincipalData(
 				linkedProviders,
 				"linkedProviders must not be null"
 		));
+		if (!phoneVerified && verifiedPhoneNumber != null) {
+			throw new IllegalArgumentException("Unverified phone number must be absent");
+		}
 	}
 
 	@Override
@@ -34,6 +38,7 @@ record FirebaseAdminPrincipalData(
 				+ ", emailVerified=" + emailVerified
 				+ ", disabled=" + disabled
 				+ ", phoneVerified=" + phoneVerified
+				+ ", verifiedPhoneNumber=[REDACTED]"
 				+ ", linkedProviderCount=" + linkedProviders.size() + "]";
 	}
 }

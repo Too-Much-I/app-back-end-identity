@@ -145,6 +145,28 @@ public class User {
 		);
 	}
 
+	public static User createFederatedMember(
+			String nickname,
+			UserConsents consents,
+			Instant createdAt
+	) {
+		return new User(
+				UUID.randomUUID().toString(),
+				null,
+				null,
+				null,
+				null,
+				nickname,
+				UserProvider.FEDERATED,
+				UserAccountType.MEMBER,
+				consents,
+				UserStatus.ACTIVE,
+				createdAt,
+				createdAt,
+				null
+		);
+	}
+
 	private void validateAccountFields() {
 		if (status == UserStatus.WITHDRAWN) {
 			if (email != null
