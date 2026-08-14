@@ -3007,3 +3007,131 @@
 - 위험 요소: 인메모리 Mongo는 partial unique filter 상태 변경 후 같은 값 재삽입을 완전히 지원하지 않아 index filter·ACTIVE 중복 거절·release update와 transaction service 교체 순서를 나눠 검증했다. 실제 MongoDB의 ACTIVE→RELEASED 후 신규 claim, 다중 collection rollback·write conflict와 custom Repository wiring은 staging에서 재검증해야 한다.
 - 위험 요소: raw phone을 저장하지 않으므로 기존 identity 전체의 새 version alias를 임의로 backfill할 수 없다. 모든 writer가 retained version overlap을 유지하지 않거나 legacy key를 참조 중 제거하면 version 교차 중복 귀속이 가능하며, key reference count·비상 rotation 자동화는 아직 없다.
 - 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. 병합 전 Jira를 Done으로 변경하지 않으며 Jira 댓글이나 상태 전환은 정확한 payload를 먼저 제시하고 별도 승인을 받은 뒤 수행한다. 후속 Stage 5에서만 Firebase verified phone proof와 User·FirebaseIdentity·PhoneIdentity·SocialIdentity·RefreshSession finalize Transaction을 연결한다.
+
+## 2026-08-14 — Auth 패키지 경계 분석
+
+<!-- codex-turn:019ffe37-c281-7230-b964-ca1c84d4f48d -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`4e8f46d`, GitHub PR #20 TMI-92 병합 확인, 이번 turn Codex commit·push 미수행)
+- Jira: TMI-92 구현 결과를 포함한 현재 구조를 분석하고 공식 Atlassian MCP로 상태만 읽기 전용 재조회했다. Jira 수정·댓글·상태 전환은 수행하지 않았다.
+- 작업 목표: `domain.auth` 아래 Firebase·PhoneIdentity 코드가 많아진 현재 패키지 구조를 점검하고, 이를 `auth`와 같은 최상위 위치로 옮기는 안의 경계와 더 안전한 정리 방향을 제안한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 main source 기준 `domain.auth` 78개, `domain.user` 26개 파일을 확인했다. Auth는 local email 가입·로그인, Guest, Access/RefreshSession, Firebase verifier·enrollment, FirebaseIdentity·SocialIdentity, PhoneIdentity를 horizontal `application/domain/infrastructure`에 함께 배치해 기능 하나를 추적할 때 여러 package를 오가야 한다.
+- 구현 내용: `domain.firebase`를 `domain.auth`와 동급으로 올리면 외부 Provider 기술명이 내부 bounded context가 되고 Firebase 교체 시 package 경계가 도메인보다 기술에 종속된다. `domain.phone`도 SMS/통신 일반 도메인처럼 보이지만 현재 책임은 verified phone ownership·fingerprint uniqueness이므로 이름과 실제 책임이 어긋난다.
+- 구현 내용: 우선 추천은 top-level sibling 추가가 아니라 `auth` 내부를 capability-first vertical slice로 재구성하는 것이다. 예시는 `auth/local`, `auth/session`, `auth/firebase`, `auth/phoneidentity`이며 각 slice 내부에 필요한 application·domain·infrastructure를 함께 둔다. 더 큰 bounded context 분리는 Stage 5 orchestration과 의존 방향이 확정된 뒤 `authentication`, `account`, `linkedidentity/session` 같은 business 이름을 기준으로 별도 Jira에서 검토한다.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 TMI-92의 제목, 우선순위 `Medium`, 상태 `해야 할 일`, Resolution 없음을 읽기 전용 확인했다. Jira 댓글 초안이나 상태 변경 payload는 만들지 않았고 변경 호출은 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다.
+- 승인 여부: 사용자는 패키지 구조에 대한 의견을 요청했으며 코드 이동, Jira 수정, commit·push는 요청하거나 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 구조 분석과 문서 갱신이므로 Gradle 테스트를 재실행하지 않았다. 직전 TMI-92 최종 검증은 62개 suite·381개 테스트 성공이며 이번 종료 전 `git diff --check`, WORKLOG EOF append와 지정 marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: Identity 소유 경계, canonical UUID userId/JWT `sub`, RS256·JWKS·RefreshSession, Firebase broker와 PhoneIdentity 책임을 변경하지 않았다. 시험·채점·Entitlement 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 현재 규모에서 `firebase`와 `phone`을 곧바로 최상위 `domain` sibling으로 분리하는 안은 추천하지 않는다. 문제의 핵심은 Auth 크기 자체보다 기능이 horizontal layer에 분산된 구조이므로 vertical slice가 우선이다. 이미 병합된 TMI-92와 package 이동을 소급해 섞지 않고 별도 후속 범위로 다룬다.
+- 위험 요소: package refactor를 Stage 5 기능 구현과 동시에 수행하면 diff가 커지고 Mongo `_class` FQCN, Spring Data custom Repository fragment naming, component scan·configuration wiring과 테스트 import가 함께 바뀐다. Mongo 문서에 `_class`가 저장된 환경에서는 단순 Java package 이동도 데이터 호환성 검토가 필요하다.
+- 다음 작업: 사용자가 구조 개선을 원하면 별도 Jira/PR로 package-only refactor 범위와 목표 tree를 먼저 확정한다. 구조 이동은 동작 변경 없이 전체 테스트와 Mongo `_class` 호환 전략을 포함해 수행한다. TMI-92 Jira 종료는 댓글·전환 payload를 별도로 제시하고 승인받기 전 수행하지 않는다.
+
+## 2026-08-14 — Auth vertical slice 리팩터링 Jira 생성 초안 준비
+
+<!-- codex-turn:019ffe3b-3122-73e3-b22c-e5092f7340e4 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`4e8f46d`, GitHub PR #20 병합 기준, Codex commit·push 미수행)
+- 작업 목표: Auth 패키지 과밀과 horizontal layer 분산을 해소하는 capability-first vertical slice 리팩터링을 신규 TMI Jira로 생성하기 전에 정확한 payload와 데이터 호환 완료 조건을 준비한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira 제목을 `[Identity] Auth 패키지 capability-first vertical slice 리팩터링`, 유형을 TMI `작업`, 우선순위를 기본 `Medium`으로 준비했다. `domain.firebase`·`domain.phone` 최상위 분리는 제외하고 `auth` 내부를 registration/local, session, federation/Firebase, phoneidentity, common capability로 재배치하는 package-only 범위로 제한했다.
+- 구현 내용: public API·DTO·오류 code·환경변수·Mongo collection/index·JWT/RefreshSession 동작을 바꾸지 않고 import, component scan, configuration, Transaction proxy와 Spring Data custom Repository fragment wiring을 보존하도록 완료 조건을 구성했다. Mongo persistent entity 이동은 기존 `_class` FQCN 문서의 가독성을 깨뜨리지 않는 legacy alias/매핑 테스트가 있을 때만 허용하고, 호환 전략이 없으면 entity FQCN을 안정 경계에 남기도록 했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI 생성 권한, `작업` 유형 ID `10003`, 생성 필드 20개와 기본 우선순위 `Medium`을 읽기 전용 재확인했다. JQL로 패키지·vertical slice·Auth 구조 관련 중복 이슈가 없음을 확인했으며 Jira 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 이슈가 아직 생성되지 않아 댓글을 추가하지 않았다.
+- 변경한 상태: 생성된 신규 Jira가 없어 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 새 Jira 생성을 요청했지만 저장소 규칙상 실제 생성 전에 정확한 payload를 먼저 제시하고 별도 승인을 기다린다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Jira 초안·문서 갱신 작업이므로 Gradle 테스트를 실행하지 않았다. 직전 `develop`의 TMI-92 검증 결과는 62개 suite·381개 테스트 성공이며 종료 전 `git diff --check`와 WORKLOG EOF append를 정적으로 검증한다.
+- 유지한 계약: Identity 도메인, canonical UUID userId/JWT `sub`, RS256·JWKS·RefreshSession, Firebase broker·PhoneIdentity 책임을 변경하지 않는다. 시험·채점·Entitlement 코드를 추가하지 않고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira 초안이나 기록에 포함하지 않았다.
+- 결정사항: 신규 Jira는 구조 변경만 다루며 Stage 5 Firebase exchange/signup 또는 새 인증 기능과 함께 구현하지 않는다. top-level 기술 package를 늘리지 않고 capability-first vertical slice를 적용한다.
+- 위험 요소: Java package 이동은 Mongo `_class` FQCN, Spring Data Repository custom implementation 이름, component scan, Bean 이름, Transaction proxy와 외부 FQCN 참조를 깨뜨릴 수 있다. 실제 데이터 호환 전략 없이 persistent entity를 이동하거나 구조 리팩터링과 기능 변경을 섞으면 회귀 원인 분리가 어려워진다.
+- 다음 작업: 사용자가 최종 Jira payload를 승인하면 TMI `작업` 한 건을 `Medium`으로 생성하고 제목·설명·상태·Resolution·담당자·라벨을 재조회한 뒤 발급된 이슈 키를 CURRENT_STATE와 새 WORKLOG 항목에 기록한다.
+
+## 2026-08-14 — Auth vertical slice 리팩터링 Jira TMI-93 생성
+
+<!-- codex-turn:019ffe48-93a1-7b25-a137-5e35d642b8aa -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`4e8f46d`, GitHub PR #20 병합 기준, Codex commit·push 미수행)
+- Jira: TMI-93
+- 작업 목표: 승인된 Auth capability-first vertical slice 리팩터링을 별도 Jira로 생성하고 저장된 범위와 초기 상태를 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Jira `TMI-93` `[Identity] Auth 패키지 capability-first vertical slice 리팩터링`을 TMI `작업` 유형과 우선순위 `Medium`으로 생성했다. `auth.registration`, `auth.local`, `auth.session`, `auth.federation`, `auth.phoneidentity`, `auth.common` 경계의 package-only 재배치와 테스트 정리를 범위로 기록했다.
+- 구현 내용: public API·DTO·오류 코드·JWT/JWKS/RefreshSession, Mongo collection/index/document field, Spring component scan·Transaction proxy·custom Repository fragment wiring을 유지하도록 완료 조건을 고정했다. Mongo `_class` legacy FQCN 호환 테스트를 요구하고 안전한 호환 전략이 없으면 persistent entity를 기존 안정 패키지에 유지하도록 기록했다.
+- 수행한 Jira 작업: 사용자가 공개된 payload를 `어 생성해줘`로 승인한 뒤 Atlassian 공식 MCP로 Jira 한 건을 생성했다. 생성 직후 TMI-93을 재조회해 제목·설명·유형 `작업`·우선순위 `Medium`·상태 `해야 할 일`·Resolution 없음·담당자 없음·빈 라벨을 확인했다.
+- 추가한 댓글의 목적: Jira 댓글은 추가하지 않았다.
+- 변경한 상태: 신규 이슈의 기본 상태 `해야 할 일`을 유지했으며 상태 전환은 수행하지 않았다. Resolution은 없고 담당자·라벨도 지정하지 않았다.
+- 승인 여부: 사용자가 사전에 제시된 제목·범위·완료 조건·제외 범위를 확인한 뒤 Jira 생성을 명시적으로 승인했다. 구현, Jira 댓글·상태 전환, Git commit·push는 승인 범위에 포함되지 않는다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없는 Jira 생성과 문서 갱신 작업이므로 Gradle 테스트를 실행하지 않았다. Jira 후속 조회로 저장 결과를 확인했고 종료 전 `git diff --check`, WORKLOG EOF append와 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: Identity 도메인, canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience, JWKS·RefreshSession 계약을 변경하지 않았다. 시험·채점·Entitlement 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 기록에 포함하지 않았다.
+- 결정사항: Firebase와 phone을 최상위 기술 패키지로 분리하지 않고 Auth 내부 capability 기준으로 정리한다. 구조 변경과 Stage 5 기능 구현은 분리하며 persistent entity 이동은 저장 데이터 호환성을 증명할 수 있을 때만 수행한다.
+- 위험 요소: package 이동은 Mongo `_class` FQCN, Spring Data custom Repository implementation 탐색, Bean 이름·component scan·Transaction proxy와 외부 FQCN 참조를 깨뜨릴 수 있다. 실제 데이터 호환 전략 없이 persistent entity를 이동하면 기존 문서 역직렬화가 실패할 수 있다.
+- 다음 작업: 구현 요청을 받으면 먼저 Atlassian 공식 MCP로 TMI-93 설명·완료 조건·제외 범위를 재조회하고 AGENTS.md·JWT 계약과 대조한다. Jira 댓글·상태 전환과 Git commit·push는 별도 승인 전 수행하지 않는다.
+
+## 2026-08-14 — TMI-93 Auth capability-first vertical slice 리팩터링 구현
+
+<!-- codex-turn:019ffe40-b23f-72c3-a0e5-c5e28fb1b0bf -->
+
+- 날짜: 2026-08-14
+- 브랜치: `refactor/TMI-93-auth-capability-vertical-slice` (`4e8f46d`에서 시작, Codex commit·push 미수행)
+- Jira: TMI-93
+- 작업 목표: Auth의 horizontal package를 capability-first vertical slice로 재구성하되 외부 API·JWT·RefreshSession·Mongo 저장 계약과 Spring wiring을 그대로 유지한다.
+- 변경 파일: `src/main/java/web/tosunsaeng/identity/domain/auth/{common,registration,local,session,federation,phoneidentity}/**`, 기존 Auth 영속 엔티티의 이동된 타입 import, Auth 타입을 사용하는 User·Security·Observability 코드 import, 대응하는 `src/test/java/**`, 신규 `AuthPersistentTypeCompatibilityTests`, `AuthRepositoryFragmentWiringTests`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Auth Controller·공통 응답 변환·오류는 `common`, 이메일·Guest 가입은 `registration`, 이메일/비밀번호 로그인은 `local`, Access/RefreshSession·재발급·로그아웃은 `session`, Firebase·Social provider application/infrastructure/repository는 `federation`, PhoneIdentity application/domain/infrastructure/repository는 `phoneidentity`로 재배치했다. 운영 코드와 테스트의 package/import를 함께 갱신했다.
+- 구현 내용: HTTP endpoint 7개, Request/Response JSON, OpenAPI, 오류 코드, 환경변수, Mongo collection/index/document field를 변경하지 않았다. 공통 Auth Controller는 여러 capability 서비스를 조합하는 transport 경계로 `common.api`에 유지했다.
+- 구현 내용: Mongo `_class` 하위 호환을 위해 6개 persistent entity와 enum을 기존 `domain.auth.domain.entity`·`domain.auth.domain.enums` 안정 패키지에 유지했다. `package-info.java`에 이 compatibility island와 향후 명시적 type mapping 없는 entity 이동 금지를 기록했다.
+- 구현 내용: registration slice가 session slice의 prepared issuance를 사용하므로 redacted `PreparedRefreshSession` record와 `RefreshSessionIssuer.prepare/savePrepared`를 slice 간 최소 public 계약으로 조정했다. Token 원문은 계속 자동 문자열 표현에서 redaction되고 DB에는 hash만 저장된다.
+- 구현 내용: 실제 `MappingMongoConverter`로 legacy FirebaseIdentity `_class` 쓰기·Object 읽기를 검증하고 6개 Auth 영속 타입 FQCN을 고정했다. 실제 Spring Repository 스캔으로 이동된 FirebaseEnrollmentAttempt·PhoneFingerprintAlias custom implementation 탐색과 RefreshSession Repository wiring을 검증했다.
+- 수행한 Jira 작업: 구현 전에 Atlassian 공식 MCP로 TMI-93의 설명·완료 조건·제외 범위·상태·우선순위·Resolution을 읽기 전용 재조회하고 AGENTS.md·JWT 계약과 충돌이 없음을 확인했다. Jira 이슈·댓글·상태·필드는 변경하지 않았다.
+- 추가한 댓글의 목적: package 재배치, persistent entity FQCN 유지, 전체 테스트 결과와 외부 FQCN 참조 가능성의 남은 위험을 전달하는 종료 댓글 초안만 준비하며 자동 등록하지 않는다.
+- 변경한 상태: Jira TMI-93은 기존 `해야 할 일`, 우선순위 `Medium`, Resolution 없음 상태를 유지한다. PR 병합을 확인하지 않았으므로 완료 전환하지 않았다.
+- 승인 여부: 사용자가 `진행해줘`로 TMI-93 구현을 명시적으로 요청했다. Jira 댓글·상태 전환, Git commit·push와 Stage 5 기능 구현은 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 신규 persistent type·Repository wiring과 기존 Transaction·PhoneIdentity Repository 타깃 테스트가 성공했다. 최종 `./gradlew clean test`는 64개 suite·384개 테스트가 failure 0, error 0, skipped 0으로 성공했다.
+- 실행한 테스트와 결과: 운영·테스트 Java 파일의 package/path 일치, 제거 대상 legacy horizontal package 참조 부재, 기존 Auth POST endpoint 7개와 Mongo collection annotation 6개 유지, `git diff --check`를 정적으로 확인했다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, RS256·`kid`·issuer·`tosunsaeng-learning-core` audience, JWKS와 Opaque RefreshSession 동작을 변경하지 않았다. Firebase는 기본 비활성이고 phone은 로그인·자동 merge key가 아니다. 시험·채점·Entitlement를 추가하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: top-level `domain.firebase`·`domain.phone`은 만들지 않고 Auth bounded context 내부 capability를 1차 경계로 사용한다. persistent entity의 horizontal legacy package는 저장 데이터 호환을 위한 의도적 예외이며 향후 이동은 explicit type alias/mapping과 운영 데이터 검증을 별도 Jira로 수행한다.
+- 위험 요소: 저장소 내부 import와 전체 테스트는 갱신됐지만 별도 모듈이 Java FQCN을 직접 참조한다면 새 capability package로 import 변경이 필요하다. 기존 Mongo 문서는 호환되지만 persistent entity를 이후 임의 이동하면 `_class` 역직렬화가 다시 깨질 수 있다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 전 Jira를 Done으로 변경하지 않으며 Jira 댓글이나 상태 전환은 정확한 payload를 먼저 제시하고 별도 승인받아 수행한다.
+
+## 2026-08-14 — TMI-93 리팩터링 빈 디렉터리 정리
+
+<!-- codex-turn:f2dac9ff-caf2-46b5-b7b9-fa8c0f5547d9 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `refactor/TMI-93-auth-capability-vertical-slice` (`4e8f46d`에서 시작, Codex commit·push 미수행)
+- Jira: TMI-93
+- 작업 목표: capability-first package 이동 뒤 워크스페이스에 남은 빈 디렉터리를 제거한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 빈 디렉터리는 Git 추적 파일이 없어 별도 파일 변경으로 표시되지 않으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 빈 `src/test/java/web/tosunsaeng/identity/domain/auth/local/application`, `src/test/java/web/tosunsaeng/identity/user/controller`, `src/test/java/web/tosunsaeng/identity/user/service`와 제거 후 비어 버린 상위 `auth/local`, `identity/user` 디렉터리를 `rmdir`로 제거했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다.
+- 승인 여부: 사용자가 빈 폴더를 모두 제거하도록 명시적으로 요청했다. 코드 변경, Jira 변경, Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: Java·설정·비즈니스 로직 변경이 없는 빈 디렉터리 정리이므로 Gradle 테스트를 재실행하지 않았다. 직전 TMI-93 전체 검증은 64개 suite·384개 테스트 성공이다. `.git`·`.gradle`·`build`·`.idea`를 제외한 저장소에서 빈 디렉터리가 0개임을 정적으로 확인했다.
+- 유지한 계약: 소스 파일·API·Mongo·JWT·RefreshSession 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: VCS·캐시·빌드·IDE 내부 디렉터리는 도구가 관리하므로 빈 폴더 정리 대상에서 제외한다. 저장소 소스·문서 영역의 빈 폴더만 제거한다.
+- 위험 요소: 제거한 디렉터리는 모두 비어 있어 코드나 Git 추적 데이터 손실 위험이 없다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다.
+
+## 2026-08-14 — TMI-93 빈 디렉터리 정리 Hook 기록 동기화
+
+<!-- codex-turn:019ffe51-4722-7743-9742-9bafef55447a -->
+
+- 날짜: 2026-08-14
+- 브랜치: `refactor/TMI-93-auth-capability-vertical-slice` (`4e8f46d`에서 시작, Codex commit·push 미수행)
+- Jira: TMI-93
+- 작업 목표: 빈 디렉터리 정리 turn을 Hook이 지정한 식별자로 WORKLOG EOF에 기록하고 CURRENT_STATE를 동기화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Hook 지정 marker를 새 EOF 항목에 추가했다. 직전 작업에서 소스·문서 영역의 빈 디렉터리를 제거했으며 `.git`·`.gradle`·`build`·`.idea` 관리 영역은 제외했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다.
+- 승인 여부: Hook이 이번 turn 기록 보정을 요구했다. 코드 변경, Jira 변경, Git commit·push는 수행하지 않았다.
+- 실행한 테스트와 결과: 기록 동기화만 수행했으므로 Gradle 테스트를 재실행하지 않았다. 직전 `./gradlew clean test`는 64개 suite·384개 테스트가 모두 성공했고, 빈 디렉터리 정리 뒤 정적 검증도 통과했다.
+- 유지한 계약: 소스·API·Mongo·JWT·RefreshSession 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: Hook 지정 marker는 기존 항목을 수정하지 않고 새 WORKLOG EOF 항목으로 기록한다.
+- 위험 요소: 문서 기록만 변경했으므로 애플리케이션 위험은 없다.
+- 다음 작업: 사용자가 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다.

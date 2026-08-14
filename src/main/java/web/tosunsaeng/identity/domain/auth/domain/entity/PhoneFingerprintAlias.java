@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
-import web.tosunsaeng.identity.domain.auth.domain.phone.PhoneFingerprint;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
 
 @Document(collection = "phone_fingerprint_aliases")
 @CompoundIndexes({

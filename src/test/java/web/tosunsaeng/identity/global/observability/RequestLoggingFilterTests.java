@@ -16,8 +16,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerMapping;
 
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
-import web.tosunsaeng.identity.domain.auth.exception.AuthException;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 import web.tosunsaeng.identity.support.LogCapture;
