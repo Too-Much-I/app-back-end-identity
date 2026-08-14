@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-92` Stage 4 `PhoneIdentity`·versioned domain-separated HMAC fingerprint 기반 구현과 전체 62개 suite·381개 테스트 검증을 완료했고, 사용자 검토·commit·push·PR을 기다리는 상태임
+- 현재 단계: Jira `TMI-93` Auth capability-first vertical slice package-only 리팩터링 구현과 전체 회귀 검증을 완료했고 사용자 검토·PR 전 상태임
 - 상태 기준일: 2026-08-14
 
 ## 완료
@@ -219,16 +219,26 @@
 - 프로필 응답에 `accountType`을 추가하고 기존 `provider`는 OpenAPI deprecated 하위 호환 필드로 유지했다. 회원 탈퇴는 Guest 여부와 LOCAL credential 보유 여부를 분리해 Guest는 비밀번호 없이 기존 계약을 유지하고 LOCAL credential MEMBER만 비밀번호를 검증하며 social-only MEMBER는 LOCAL 비밀번호 경로로 오분류하지 않는다
 - 회원가입·로그인에서는 로그인 수단용 provider와 accountType을 구분해 기록하고, Guest 생성·동의·탈퇴처럼 계정 유형만 필요한 로그는 accountType을 사용한다. 민감정보·Token·Hash·요청 본문은 추가하지 않았다
 - 신규 accountType dual write, accountType 우선순위, legacy GUEST·LOCAL·null fallback, social-only MEMBER, 프로필·OpenAPI 호환과 기존 signup·Guest·login·RefreshSession·withdrawal 회귀를 검증했으며 `./gradlew clean test` 전체 45개 suite·317개 테스트가 skip·failure·error 0으로 성공했다
+- 사용자 승인에 따라 Jira `TMI-93` `[Identity] Auth 패키지 capability-first vertical slice 리팩터링`을 TMI `작업` 유형과 우선순위 `Medium`으로 생성했다. 후속 조회에서 승인된 설명·완료 조건·제외 범위, 기본 상태 `해야 할 일`, Resolution 없음, 담당자 없음과 빈 라벨을 확인했으며 댓글이나 상태 전환은 수행하지 않았다
+- TMI-93 범위로 Auth 운영 코드와 테스트를 `common`, `registration`, `local`, `session`, `federation`, `phoneidentity` capability 아래로 재배치했다. HTTP endpoint·DTO JSON·오류 코드·설정 이름은 변경하지 않았고 공통 Auth Controller는 여러 capability를 조합하는 transport 경계로 `common.api`에 유지했다
+- Mongo `_class`에 기록될 수 있는 `FirebaseEnrollmentAttempt`, `FirebaseIdentity`, `PhoneFingerprintAlias`, `PhoneIdentity`, `RefreshSession`, `SocialIdentity`의 FQCN은 기존 `domain.auth.domain.entity`에 유지했다. package 문서와 실제 `MappingMongoConverter` write/read 회귀 테스트로 legacy 판별자 호환을 고정했다
+- Firebase·Social Repository를 `federation.repository`, RefreshSession Repository를 `session.repository`, PhoneIdentity Repository와 custom fragment 구현을 `phoneidentity.repository`로 함께 이동했다. 실제 Spring `@EnableMongoRepositories` 스캔으로 FirebaseEnrollmentAttempt·PhoneFingerprintAlias custom fragment와 RefreshSession Repository 자동 wiring을 검증했다
+- registration이 session의 prepared 발급 계약을 사용할 수 있도록 redacted `PreparedRefreshSession`과 `RefreshSessionIssuer.prepare/savePrepared`의 가시성을 slice 간 최소 public 계약으로 조정했다. Guest 등록의 named Mongo Transaction과 rollback 테스트는 유지했다
+- TMI-93 타깃 호환·Repository·Transaction 테스트와 최종 `./gradlew clean test` 전체 64개 suite·384개 테스트가 failure·error·skip 없이 성공했다
+- TMI-93 재배치 뒤 남은 빈 테스트 디렉터리 `domain/auth/local/application`, `user/controller`, `user/service`와 비어 버린 상위 디렉터리를 제거했다. `.git`·`.gradle`·`build`·`.idea`는 정리 대상에서 제외했고 저장소 소스·문서 영역에 빈 디렉터리가 남지 않았음을 확인했다
+- 빈 디렉터리 정리 turn의 Hook 지정 식별자를 WORKLOG EOF에 별도 기록하고 CURRENT_STATE를 동기화했다. 소스 구조와 테스트 결과는 추가로 변경하지 않았다
 
 ## 진행 중
 
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
 - Jira `TMI-90` — 조건부 ADR과 local Emulator·contract PoC가 PR #18로 `develop`에 병합됐다. Jira는 `해야 할 일`이며 종료 댓글과 `완료` 전환 ID `41` 적용안을 제시하고 사용자 승인을 기다리는 중
-- Jira `TMI-92` — Stage 4 구현과 로컬 전체 검증을 완료했다. Jira는 계속 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이며 댓글·상태 전환은 수행하지 않았다. 브랜치 `feat/TMI-92-phone-identity-hmac-foundation`의 사용자 검토·commit·push·PR을 기다린다
+- Jira `TMI-92` — Stage 4 구현이 GitHub PR #20 merge commit `4e8f46d`로 `develop`에 병합됐다. 공식 Atlassian MCP 재조회 기준 Jira는 계속 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이며 이번 구조 분석에서 댓글·상태 전환은 수행하지 않았다
+- Jira `TMI-93` — Auth capability-first vertical slice package-only 리팩터링 구현과 64개 suite·384개 전체 테스트를 완료했다. Jira는 계속 `해야 할 일`, 우선순위 `Medium`, Resolution 없음이며 댓글·상태 전환은 수행하지 않았다
 
 ## 다음 작업
 
-- 사용자가 TMI-92 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. 병합 전 Jira를 Done으로 변경하지 않으며, 댓글 등록이나 상태 전환은 정확한 payload를 먼저 제시하고 별도 승인을 받아 수행한다
+- 사용자가 TMI-93 변경을 검토한 뒤 직접 commit·push하고 PR을 생성한다. Jira 종료 댓글이나 상태 전환은 PR 병합 확인 후 정확한 payload를 먼저 제시하고 별도 승인을 받아 처리한다
+- TMI-92 종료가 필요하면 병합 결과·댓글 초안·사용 가능한 완료 transition을 다시 확인해 정확한 Jira 변경 payload를 먼저 제시하고 별도 승인을 받아 처리한다
 - `ADR-001`의 조건부 결정을 검토하고, 격리 Firebase project·Android/iOS test app으로 실제 email·Google·Apple redirect, 공식 SDK same-UID phone link, 국내 SMS·quota·abuse, Identity Platform Kakao 등록·billing·deep-link와 Apple revoke를 검증한다. 그 전에는 production Firebase 기능을 활성화하지 않는다
 - 사용자 승인 시 TMI-90에 제시한 종료 댓글을 등록하고 transition ID `41`만 적용한 뒤 상태와 Resolution을 재확인한다
 - TMI-92의 Jira 댓글이나 상태 변경은 구현·PR 결과를 확인한 뒤 정확한 payload를 먼저 제시하고 별도 승인을 받아 수행한다
@@ -277,6 +287,7 @@
 - 현재 작업 기준 브랜치는 `feat/TMI-90-firebase-auth-broker-poc`, HEAD는 PR #17 merge commit `10b1fa0`에서 시작했으며 Codex는 commit·push를 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
+- 현재 `domain.auth`는 78개 파일에서 local login/signup, Session, Firebase federation·enrollment, SocialIdentity와 PhoneIdentity를 horizontal layer별로 함께 담아 탐색 비용이 커졌다. `firebase`·`phone`을 `auth`와 동급 최상위 도메인으로 올리지는 않고, 후속 구조 개선에서는 `auth/local`, `auth/session`, `auth/firebase`, `auth/phoneidentity`처럼 business capability별 vertical slice 안에 application·domain·infrastructure를 모으는 방향을 우선 검토한다. Firebase는 외부 인증 기술 adapter이고 phone은 독립 통신 도메인이 아니라 verified identity ownership이므로 최상위 이름만으로 bounded context를 만들지 않는다
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
 - `RefreshSession`과 Repository는 Auth 도메인이 소유하고 Refresh Token 생성·해싱·설정은 `global.security.refresh`의 기술 구현이 소유
 - `MongoTransactionManager`는 Guest User·최초 RefreshSession 생성과 회원 탈퇴 User tombstone·전체 RefreshSession 폐기에 적용하며, 기존 Rotation·재사용 탐지·logout-all의 다중 Session 저장 원자성은 별도 후속 범위로 유지

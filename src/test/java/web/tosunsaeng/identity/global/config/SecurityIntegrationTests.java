@@ -60,7 +60,7 @@ import web.tosunsaeng.identity.global.security.jwt.JwtConfiguration;
 import web.tosunsaeng.identity.global.security.jwt.JwtProperties;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 import web.tosunsaeng.identity.global.observability.RequestLoggingFilter;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;

@@ -12,7 +12,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import web.tosunsaeng.identity.domain.auth.application.firebase.FirebaseAuthenticationMethod;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationMethod;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentStatus;
 
