@@ -66,6 +66,10 @@ app:
     read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
     enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  phone-identity:
+    fingerprint:
+      enabled: ${PHONE_IDENTITY_FINGERPRINT_ENABLED:false}
+      key-ring: ${PHONE_IDENTITY_FINGERPRINT_KEY_RING:}
 
 springdoc:
   swagger-ui:
