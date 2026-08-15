@@ -1,6 +1,6 @@
 # 토선생 Identity Service
 
-토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 동의 상태 조회·갱신, 회원 탈퇴, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
+토선생 앱의 사용자 신원과 인증 수명 주기를 소유하는 Spring Boot 서비스다. 현재 이메일 회원가입·로그인, Guest 인증, 개인정보 처리방침·이용약관 필수 동의와 품질 검토 이용 선택 동의 상태 조회·갱신, 회원 탈퇴, RS256 Access Token 발급·검증, Opaque Refresh Token Rotation, 단일·전체 로그아웃, 내 프로필 조회와 Public Key 전용 JWKS endpoint가 구현되어 있다.
 
 ## 도메인 범위
 
@@ -12,7 +12,7 @@ Identity Service는 다음 기능을 소유한다.
 - 비밀번호 해시
 - Access Token 발급과 Refresh Token 세션
 - 로그아웃
-- 개인정보 처리방침 및 이용약관 동의
+- 개인정보 처리방침·이용약관 필수 동의와 품질 검토 이용 선택 동의
 
 시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다.
 
@@ -49,6 +49,7 @@ Identity Service는 다음 기능을 소유한다.
 | `SENTRY_AUTH_TOKEN` | Source context 업로드 시 필수 | Runtime이 아닌 CI build Secret으로만 주입 |
 | `PRIVACY_CONSENT_VERSION` | 필수 | 서버의 현재 필수 개인정보 처리방침 버전. 누락·공백이면 기동 실패 |
 | `TERM_CONSENT_VERSION` | 필수 | 서버의 현재 필수 이용약관 버전. 누락·공백이면 기동 실패 |
+| `QUALITY_REVIEW_CONSENT_VERSION` | 필수 | 서버의 현재 품질 검토 이용 동의 버전. 누락·공백이면 기동 실패 |
 | `REFRESH_TOKEN_TTL` | 선택 | `P14D` |
 | `REFRESH_TOKEN_RANDOM_BYTES` | 선택 | `32` 이상 |
 | `JWT_ISSUER` | 선택 | `http://localhost:8081` |
@@ -192,9 +193,9 @@ Guest 탈퇴는 `guestInstallationIdHash` unique 점유를 해제한다. 이후 
 
 이미 WITHDRAWN인 사용자가 아직 유효한 Access Token으로 같은 API를 다시 호출하면 기존 `withdrawnAt`을 반환하는 200 멱등 성공이다. 탈퇴 성공 후에는 모든 Refresh Token이 즉시 재발급 불가능해지며 클라이언트는 Access/Refresh Token을 모두 삭제해야 한다. Access Token은 stateless JWT이므로 기본 `PT30M` TTL 또는 배포 설정의 만료 시각 전까지 Learning Core 같은 외부 검증 서비스에서 암호학적으로 유효할 수 있다. 이번 범위에는 denylist나 introspection을 추가하지 않는다.
 
-### 개인정보 처리방침 및 이용약관 동의
+### 필수 정책 및 품질 검토 이용 선택 동의
 
-Guest 생성과 LOCAL 회원가입은 개인정보 처리 동의와 이용약관 동의를 모두 필수로 받는다. 클라이언트가 보낸 두 버전은 서버 설정의 현재 버전과 정확히 일치해야 하며, 동의 시각은 요청에서 받지 않고 서버 `Instant`로 기록한다. 기존 `isAudioConsent` 계약은 지원하지 않는다.
+Guest 생성과 LOCAL 회원가입은 개인정보 처리 동의와 이용약관 동의를 모두 필수로 받는다. 클라이언트가 보낸 두 버전은 서버 설정의 현재 버전과 정확히 일치해야 한다. 품질 검토 이용은 선택 동의이므로 false여도 Guest 생성과 일반 기능을 차단하지 않는다. 동의 시각은 요청에서 받지 않고 서버 `Instant`로 기록한다. 기존 `isAudioConsent` 계약은 지원하지 않는다.
 
 Guest 최초 생성 요청 예시는 다음과 같다.
 
@@ -207,11 +208,13 @@ curl -X POST \
     "isPrivacyConsented": true,
     "privacyConsentVersion": "privacy-v1",
     "isTermConsented": true,
-    "termConsentVersion": "term-v1"
+    "termConsentVersion": "term-v1",
+    "isQualityReviewConsented": false,
+    "qualityReviewConsentVersion": "quality-review-v1"
   }'
 ```
 
-`POST /api/v1/auth/signup`도 이메일·비밀번호·닉네임과 함께 같은 네 개의 동의 필드를 요구한다. Guest와 LOCAL 신규 User는 `users` 문서의 한 embedded 객체에 다음 형태로 저장된다.
+`POST /api/v1/auth/signup`은 이메일·비밀번호·닉네임과 기존 필수 동의 네 필드만 요구하며 품질 검토 이용 상태는 `false/null/null`로 초기화한다. Guest는 요청한 선택 상태를 함께 저장한다. 두 생성 경로 모두 품질 검토 이용을 묵시적으로 true로 만들지 않는다.
 
 ```json
 {
@@ -221,7 +224,10 @@ curl -X POST \
     "privacyConsentedAt": "서버가 기록한 UTC 시각",
     "termConsented": true,
     "termConsentVersion": "term-v1",
-    "termConsentedAt": "서버가 기록한 UTC 시각"
+    "termConsentedAt": "서버가 기록한 UTC 시각",
+    "qualityReviewConsented": false,
+    "qualityReviewConsentVersion": null,
+    "qualityReviewConsentedAt": null
   }
 }
 ```
@@ -254,12 +260,19 @@ curl -X GET \
       "consentedVersion": "term-v1",
       "consentedAt": "2026-08-05T07:00:00Z",
       "requiresConsent": false
+    },
+    "qualityReview": {
+      "currentVersion": "quality-review-v1",
+      "consented": false,
+      "consentedVersion": null,
+      "consentedAt": null,
+      "requiresConsent": false
     }
   }
 }
 ```
 
-`requiresConsent`는 저장된 동의가 false이거나 저장 버전이 null·공백이거나 현재 필수 버전과 정확히 일치하지 않으면 true다. 버전의 대소 관계나 대소문자를 보정하지 않는다. 기존 MongoDB 문서에 `consents`가 없으면 두 정책 모두 `consented=false`, 버전과 시각은 null, `requiresConsent=true`로 반환한다. 과거 음성 동의는 새 개인정보 처리방침 동의로 자동 변환하지 않는다.
+privacy와 terms의 `requiresConsent`는 저장된 동의가 false이거나 저장 버전이 null·공백이거나 현재 필수 버전과 정확히 일치하지 않으면 true다. Quality review는 저장 상태가 true이고 저장 version이 현재 version과 일치하며 서버 동의 시각이 있을 때만 현재 `consented=true`다. 선택 동의이므로 갱신하지 않아도 `requiresConsent`는 항상 false다. 버전의 대소 관계나 대소문자를 보정하지 않는다.
 
 프론트는 로그인 또는 Guest 인증 후 다음 순서로 사용한다.
 
@@ -267,12 +280,12 @@ curl -X GET \
 GET /api/v1/users/me/consents
 → privacy.requiresConsent 또는 terms.requiresConsent 확인
 → 하나라도 true이면 새로운 동의 화면 표시
-→ 사용자 동의 후 PUT /api/v1/users/me/consents 호출
+→ 필수 재동의 또는 품질 검토 이용 선택·철회 시 PUT /api/v1/users/me/consents 호출
 ```
 
 신규 Guest는 아직 Access Token이 없으므로 GET 조회를 먼저 호출할 수 없다. 앱에 포함된 현재 필수 버전으로 동의받은 뒤 기존 `POST /api/v1/auth/guest` 흐름을 사용한다.
 
-인증된 사용자는 다음 API로 현재 필수 버전에 다시 동의한다.
+인증된 사용자는 다음 API로 현재 필수 버전에 다시 동의하면서 품질 검토 이용을 선택하거나 철회한다.
 
 ```shell
 curl -X PUT \
@@ -283,13 +296,17 @@ curl -X PUT \
     "isPrivacyConsented": true,
     "privacyConsentVersion": "privacy-v1",
     "isTermConsented": true,
-    "termConsentVersion": "term-v1"
+    "termConsentVersion": "term-v1",
+    "isQualityReviewConsented": false,
+    "qualityReviewConsentVersion": "quality-review-v1"
   }'
 ```
 
-두 동의는 같은 User 문서의 단일 MongoDB 저장으로 함께 반영된다. 동일 버전에 이미 동의한 요청은 저장을 반복하지 않고 기존 동의 시각을 유지한다. 한 버전만 변경되면 변경된 정책의 동의 시각만 서버 현재 시각으로 갱신한다.
+세 동의 상태는 같은 User 문서의 단일 MongoDB 저장으로 함께 반영된다. 동일 상태·동일 버전 요청은 저장을 반복하지 않고 기존 동의 시각과 User `updatedAt`을 유지한다. Quality review true는 현재 version이 정확히 일치해야 하며 false 철회는 stale version으로 차단하지 않고 저장 상태를 `false/null/null`로 정리한다. 호환 기간에는 Quality review 요청 필드가 모두 누락돼도 false로 처리한다. 제공된 version 문자열은 trim한 뒤 최대 100자와 영문·숫자·점·밑줄·하이픈 형식을 검증한다.
 
-MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한 파괴적 migration이나 index 변경은 없다. 기존 문서에 `consents`가 없으면 프로필과 동의 상태 조회에서 두 동의는 `false`, 버전과 시각은 `null`로 반환하며 현재 정책에 다시 동의해야 한다. 과거 `audioConsent` 값은 개인정보 처리 동의로 자동 변환하지 않고 읽기에서 무시한다. 운영 배포 전에는 기존 사용자에게 재동의를 요청하는 앱 흐름과 정책 버전 전환 시점을 확정해야 한다.
+MongoDB는 스키마리스이므로 새 embedded 필드를 추가하기 위한 파괴적 migration이나 index 변경은 없다. 기존 문서에 Quality review 필드가 없으면 `false/null/null`로 읽는다. 과거 `audioConsent` 값은 다른 동의로 자동 변환하지 않고 읽기에서 무시한다. 현재 snapshot만으로 최초 미동의와 철회를 구분할 수 없으므로 법적 감사 이력이 필요하면 별도 append-only 모델을 도입해야 한다.
+
+Identity의 false 저장만으로 답안·음성 같은 외부 소유 데이터의 이용 중지가 완료되지는 않는다. versioned outbox event, 데이터 소유 서비스의 멱등 consumer와 승인된 보존·삭제 정책이 준비되기 전에는 실제 품질 검토 이용을 활성화하지 않는다.
 
 ### ECS Task Definition 환경변수 전환
 
@@ -297,8 +314,9 @@ MongoDB는 스키마리스이므로 새 `consents` 필드를 추가하기 위한
 
 1. 필수 `PRIVACY_CONSENT_VERSION`을 현재 배포할 개인정보 처리방침 버전으로 추가한다.
 2. 필수 `TERM_CONSENT_VERSION`을 현재 배포할 이용약관 버전으로 추가한다.
-3. 더 이상 읽지 않는 `AUDIO_POLICY_VERSION`을 제거한다.
-4. 새 revision을 staging에 먼저 배포해 Guest 생성, LOCAL 회원가입, 동의 상태 조회·갱신과 프로필 응답을 확인한 뒤 production에 적용한다.
+3. 필수 `QUALITY_REVIEW_CONSENT_VERSION`을 현재 배포할 품질 검토 이용 동의 버전으로 추가한다.
+4. 더 이상 읽지 않는 `AUDIO_POLICY_VERSION`을 제거한다.
+5. 새 revision을 staging에 먼저 배포해 Guest 생성, LOCAL 회원가입, 동의 상태 조회·갱신과 프로필 응답을 확인한 뒤 production에 적용한다.
 
 이번 변경은 구 `isAudioConsent` 요청과 호환되지 않는 계약 변경이다. 새 프론트도 구 서버에서는 필수 음성 동의가 없어 실패하므로, ECS 환경변수를 포함한 백엔드 revision과 새 요청을 보내는 프론트를 같은 전환 창에 배포해야 한다. 이미 배포된 구 앱을 계속 지원해야 한다면 강제 업데이트 또는 별도의 명시적 과도기 API 계약이 선행되어야 하며, 설치 식별자만으로 기존 Guest를 복구하는 방식으로 우회하지 않는다.
 

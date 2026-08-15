@@ -50,6 +50,11 @@ public enum UserErrorStatus implements ErrorCode {
 			HttpStatus.BAD_REQUEST,
 			"TERM_CONSENT_VERSION_MISMATCH",
 			"현재 이용약관 동의 버전과 일치하지 않습니다."
+	),
+	QUALITY_REVIEW_CONSENT_VERSION_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"QUALITY_REVIEW_CONSENT_VERSION_MISMATCH",
+			"현재 품질 검토 이용 동의 버전과 일치하지 않습니다."
 	);
 
 	private final HttpStatus httpStatus;

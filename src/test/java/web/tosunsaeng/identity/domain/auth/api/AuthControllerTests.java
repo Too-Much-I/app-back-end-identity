@@ -80,7 +80,8 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 })
 @TestPropertySource(properties = {
 		"app.consent.privacy-version=privacy-v1",
-		"app.consent.term-version=term-v1"
+		"app.consent.term-version=term-v1",
+		"app.consent.quality-review-version=quality-review-v1"
 })
 class AuthControllerTests {
 

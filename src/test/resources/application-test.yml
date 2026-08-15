@@ -13,6 +13,7 @@ app:
   consent:
     privacy-version: privacy-v1
     term-version: term-v1
+    quality-review-version: quality-review-v1
   refresh-token:
     ttl: P14D
     random-bytes: 32

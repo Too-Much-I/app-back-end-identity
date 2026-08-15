@@ -91,7 +91,11 @@ class UserWithdrawalLifecycleTests {
 		userRepository = statefulUserRepository();
 		sessionRepository = statefulSessionRepository();
 		clock = Clock.fixed(NOW, ZoneOffset.UTC);
-		consentPolicy = new ConsentPolicy("privacy-v1", "term-v1");
+		consentPolicy = new ConsentPolicy(
+				"privacy-v1",
+				"term-v1",
+				"quality-review-v1"
+		);
 		userFactory = new UserFactory(
 				new EmailNormalizer(),
 				new BCryptPasswordEncoder(4),
@@ -427,7 +431,9 @@ class UserWithdrawalLifecycleTests {
 				true,
 				"privacy-v1",
 				true,
-				"term-v1"
+				"term-v1",
+				false,
+				"quality-review-v1"
 		);
 	}
 }

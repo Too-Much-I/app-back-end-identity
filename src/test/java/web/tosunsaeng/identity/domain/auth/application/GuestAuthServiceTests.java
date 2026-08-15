@@ -65,6 +65,7 @@ class GuestAuthServiceTests {
 	private static final Duration REFRESH_TTL = Duration.ofDays(14);
 	private static final String PRIVACY_VERSION = "privacy-v1";
 	private static final String TERM_VERSION = "term-v1";
+	private static final String QUALITY_REVIEW_VERSION = "quality-review-v1";
 
 	private UserRepository userRepository;
 	private AccessTokenIssuer accessTokenIssuer;
@@ -83,7 +84,11 @@ class GuestAuthServiceTests {
 		refreshSessionIssuer = mock(RefreshSessionIssuer.class);
 		registrationTransactionService = mock(GuestRegistrationTransactionService.class);
 		installationIdHasher = new GuestInstallationIdHasher();
-		consentPolicy = new ConsentPolicy(PRIVACY_VERSION, TERM_VERSION);
+		consentPolicy = new ConsentPolicy(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				QUALITY_REVIEW_VERSION
+		);
 		userFactory = new UserFactory(
 				new EmailNormalizer(),
 				new BCryptPasswordEncoder(4),
@@ -165,6 +170,9 @@ class GuestAuthServiceTests {
 		assertThat(guest.getConsents().isTermConsented()).isTrue();
 		assertThat(guest.getConsents().getTermConsentVersion()).isEqualTo(TERM_VERSION);
 		assertThat(guest.getConsents().getTermConsentedAt()).isEqualTo(NOW);
+		assertThat(guest.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isNull();
 		assertThat(guest.getGuestInstallationIdHash())
 				.isEqualTo(installationIdHasher.hash(INSTALLATION_ID))
 				.hasSize(43)
@@ -178,6 +186,67 @@ class GuestAuthServiceTests {
 		assertThat(response.refreshToken()).isEqualTo(preparedRefresh.tokenValue());
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(ACCESS_TTL.toMillis());
 		assertThat(response.refreshTokenExpiresIn()).isEqualTo(REFRESH_TTL.toMillis());
+	}
+
+	@Test
+	void storesOptionalQualityReviewConsentWhenCurrentVersionMatches() {
+		guestAuthService.authenticate(new GuestAuthRequest(
+				INSTALLATION_ID,
+				true,
+				PRIVACY_VERSION,
+				true,
+				TERM_VERSION,
+				true,
+				QUALITY_REVIEW_VERSION
+		));
+
+		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+		verify(registrationTransactionService).register(captor.capture(), any(), any());
+		User guest = captor.getValue();
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_VERSION);
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void rejectsTrueQualityReviewConsentWithStaleVersionBeforeCreatingGuest() {
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> guestAuthService.authenticate(new GuestAuthRequest(
+						INSTALLATION_ID,
+						true,
+						PRIVACY_VERSION,
+						true,
+						TERM_VERSION,
+						true,
+						"quality-review-v0"
+				))
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(
+				UserErrorStatus.QUALITY_REVIEW_CONSENT_VERSION_MISMATCH
+		);
+		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
+		verify(registrationTransactionService, never()).register(any(), any(), any());
+	}
+
+	@Test
+	void falseQualityReviewConsentIgnoresStaleVersion() {
+		guestAuthService.authenticate(new GuestAuthRequest(
+				INSTALLATION_ID,
+				true,
+				PRIVACY_VERSION,
+				true,
+				TERM_VERSION,
+				false,
+				"quality-review-v0"
+		));
+
+		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+		verify(registrationTransactionService).register(captor.capture(), any(), any());
+		assertThat(captor.getValue().getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(captor.getValue().getConsents().getQualityReviewConsentVersion()).isNull();
 	}
 
 	@Test
@@ -201,7 +270,9 @@ class GuestAuthServiceTests {
 						false,
 						PRIVACY_VERSION,
 						true,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						null
 				))
 		);
 
@@ -221,7 +292,9 @@ class GuestAuthServiceTests {
 						true,
 						PRIVACY_VERSION,
 						false,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						null
 				))
 		);
 
@@ -241,7 +314,9 @@ class GuestAuthServiceTests {
 						true,
 						"privacy-old",
 						true,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						null
 				))
 		);
 
@@ -260,7 +335,9 @@ class GuestAuthServiceTests {
 						true,
 						PRIVACY_VERSION,
 						true,
-						"term-old"
+						"term-old",
+						false,
+						null
 				))
 		);
 
@@ -466,7 +543,9 @@ class GuestAuthServiceTests {
 				true,
 				PRIVACY_VERSION,
 				true,
-				TERM_VERSION
+				TERM_VERSION,
+				false,
+				QUALITY_REVIEW_VERSION
 		);
 	}
 }

@@ -50,6 +50,7 @@ class GuestAuthControllerTests {
 	private static final String INSTALLATION_ID = "550e8400-e29b-41d4-a716-446655440000";
 	private static final String PRIVACY_VERSION = "privacy-v1";
 	private static final String TERM_VERSION = "term-v1";
+	private static final String QUALITY_REVIEW_VERSION = "quality-review-v1";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -113,7 +114,58 @@ class GuestAuthControllerTests {
 		ArgumentCaptor<GuestAuthRequest> captor = ArgumentCaptor.forClass(GuestAuthRequest.class);
 		verify(guestAuthService).authenticate(captor.capture());
 		assertThat(captor.getValue().installationId()).isEqualTo(INSTALLATION_ID);
+		assertThat(captor.getValue().isQualityReviewConsented()).isFalse();
+		assertThat(captor.getValue().qualityReviewConsentVersion()).isNull();
 		assertThat(result.getResponse().getContentAsString()).doesNotContain(INSTALLATION_ID);
+	}
+
+	@Test
+	void guestAcceptsAndTrimsExplicitQualityReviewConsentFields() throws Exception {
+		when(guestAuthService.authenticate(any(GuestAuthRequest.class))).thenReturn(
+				new GuestAuthResponse("access", "refresh", "Bearer", 1L, 2L)
+		);
+
+		mockMvc.perform(post("/api/v1/auth/guest")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(guestJsonWithQuality(true, "  quality-review-v1  ")))
+				.andExpect(status().isOk());
+
+		ArgumentCaptor<GuestAuthRequest> captor = ArgumentCaptor.forClass(
+				GuestAuthRequest.class
+		);
+		verify(guestAuthService).authenticate(captor.capture());
+		assertThat(captor.getValue().isQualityReviewConsented()).isTrue();
+		assertThat(captor.getValue().qualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_VERSION);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {" ", "invalid/version", "한글버전"})
+	void guestRejectsInvalidQualityReviewVersionFormat(String version) throws Exception {
+		mockMvc.perform(post("/api/v1/auth/guest")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(guestJsonWithQuality(false, version)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[*].field", hasItem(
+						"qualityReviewConsentVersion"
+				)));
+
+		verify(guestAuthService, never()).authenticate(any());
+	}
+
+	@Test
+	void guestRejectsQualityReviewVersionLongerThanOneHundredCharacters() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/guest")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(guestJsonWithQuality(false, "a".repeat(101))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[*].field", hasItem(
+						"qualityReviewConsentVersion"
+				)));
+
+		verify(guestAuthService, never()).authenticate(any());
 	}
 
 	@Test
@@ -312,7 +364,27 @@ class GuestAuthControllerTests {
 	}
 
 	private String validGuestJson() {
-		return guestJson(true, PRIVACY_VERSION, true, TERM_VERSION);
+		return guestJsonWithQuality(false, QUALITY_REVIEW_VERSION);
+	}
+
+	private String guestJsonWithQuality(boolean consented, String version) {
+		return """
+				{
+				  "installationId": "%s",
+				  "isPrivacyConsented": true,
+				  "privacyConsentVersion": "%s",
+				  "isTermConsented": true,
+				  "termConsentVersion": "%s",
+				  "isQualityReviewConsented": %s,
+				  "qualityReviewConsentVersion": "%s"
+				}
+				""".formatted(
+				INSTALLATION_ID,
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				consented,
+				version
+		);
 	}
 
 	private String guestJson(
