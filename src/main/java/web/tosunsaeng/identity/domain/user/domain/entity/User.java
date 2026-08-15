@@ -224,6 +224,8 @@ public class User {
 	public boolean updateConsents(
 			String privacyConsentVersion,
 			String termConsentVersion,
+			boolean qualityReviewConsented,
+			String qualityReviewConsentVersion,
 			Instant consentedAt
 	) {
 		Instant requiredConsentedAt = Objects.requireNonNull(
@@ -234,6 +236,8 @@ public class User {
 		UserConsents updatedConsents = currentConsents.renew(
 				privacyConsentVersion,
 				termConsentVersion,
+				qualityReviewConsented,
+				qualityReviewConsentVersion,
 				requiredConsentedAt
 		);
 		if (updatedConsents == currentConsents) {

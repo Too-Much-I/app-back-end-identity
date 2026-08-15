@@ -76,7 +76,11 @@ class AuthenticationUseCaseServicesTests {
 		userRepository = mock(UserRepository.class);
 		passwordEncoder = spy(new BCryptPasswordEncoder(4));
 		EmailNormalizer emailNormalizer = new EmailNormalizer();
-		consentPolicy = new ConsentPolicy(PRIVACY_CONSENT_VERSION, TERM_CONSENT_VERSION);
+		consentPolicy = new ConsentPolicy(
+				PRIVACY_CONSENT_VERSION,
+				TERM_CONSENT_VERSION,
+				"quality-review-v1"
+		);
 		userFactory = new UserFactory(
 				emailNormalizer,
 				passwordEncoder,

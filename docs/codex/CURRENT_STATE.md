@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-75` LOCAL·GUEST 회원 탈퇴와 구조화 운영 로그 구현·main 병합 완료; Sentry errors-only Runtime 연동과 `beforeSend` 최종 민감정보 정제를 구현하고 실제 DSN을 사용하는 one-shot event의 Sentry project 수신까지 확인한 뒤 임시 trigger를 제거했으며 전체 41개 suite·295개 테스트 성공
-- 상태 기준일: 2026-08-11
+- 현재 단계: `hotfix/quality-review-consent`에 Guest 생성과 인증된 동의 PUT·GET의 Quality review 선택 동의·철회, 구버전 client·기존 Mongo 문서 호환, OpenAPI·README·설정·테스트를 구현했으며 전체 42개 suite·319개 테스트 성공
+- 상태 기준일: 2026-08-15
 
 ## 완료
 
@@ -146,13 +146,24 @@
 - 외부 통신 없는 `SentryCaptureIntegrationTests`로 handled 5xx 한 건·expected 4xx 0건·민감 sentinel 0건을 확인하고, 임시 staging one-shot trigger로 실제 DSN·SDK transport·Sentry project 수신 경계를 확인했다. 사용자가 project 표시를 확인해 실제 연결 검증이 완료됨
 - 실제 검증 완료 직후 `SentryStagingSmokeTrigger`, 전용 조건·통합 테스트, smoke 설정·환경변수와 README 안내를 제거하고 `sentry.enabled=false`, `sentry.environment=local` 안전 기본값을 복원했다. 임시 trigger가 Runtime 또는 test artifact에 남지 않으며 전체 41개 suite·295개 테스트 성공
 - 비HTTP event에서 `http.method` tag가 없을 때 `beforeSend`가 실패하지 않도록 한 null-safe allowlist 보완은 일반 Sentry event 안정성에 유효하므로 유지했다. Runtime event 대상 project는 계속 주입된 DSN이 결정하고 source context용 Gradle project 설정과 분리됨
+- Quality review 선택 동의를 `POST /api/v1/auth/guest`, `PUT /api/v1/users/me/consents`, `GET /api/v1/users/me/consents`에 추가하고 LOCAL signup request와 프로필 응답은 유지했다. request 필드 누락은 false로 호환하고 true일 때만 current version exact match를 요구하며 false는 stale version으로 차단하지 않음
+- `UserConsents`에 quality review 상태·version·서버 시각을 추가하고 false→true, true/current→true no-op, true/old→true/current 갱신, true→false 정리, false→false no-op을 immutable 결과로 구현했다. LOCAL signup은 false/null/null, Guest는 요청 선택값으로 생성하며 기존 embedded 문서 필드 누락도 false/null/null로 읽음
+- 실제 변경일 때만 User `updatedAt`을 변경하고 기존 ACTIVE+`updatedAt` CAS로 `consents` embedded object 전체를 교체해 철회 후 과거 quality review version/time이 남지 않게 했다. 동일 상태 요청은 저장과 동의 시각 변경 없이 성공하며 로그에는 동의 상세값·시각·요청 본문을 추가하지 않음
+- GET의 `qualityReview`는 저장 true·current version·서버 시각을 모두 만족할 때만 `consented=true`이며 선택 동의이므로 `requiresConsent=false`를 유지한다. PUT 응답에는 저장된 quality review 세 필드를 추가하고 request version은 trim·최대 100자·영문/숫자/점/밑줄/하이픈 형식으로 검증
+- `QUALITY_REVIEW_CONSENT_VERSION`, `QUALITY_REVIEW_CONSENT_VERSION_MISMATCH`, OpenAPI·README·계획 문서를 갱신하고 신규 `UserConsentsTests`와 Guest·서비스·Controller·Mongo mapping·OpenAPI 회귀를 추가했다. 최종 `./gradlew clean test`는 42개 suite·319개 테스트, 실패·오류·건너뜀 0개이며 `git diff --check` 성공
+- 종료 Hook 재검사에서 Quality review 구현 결과, 전체 42개 suite·319개 테스트 성공, commit·push 미수행 상태와 작업 기록을 현재 turn marker로 다시 동기화했으며 애플리케이션 코드는 추가 변경하지 않음
 
 ## 진행 중
 
 - Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
+- Quality review 선택 동의 hotfix — 구현과 로컬 전체 검증 완료, 사용자 diff 검토와 commit·push·main 대상 PR 생성 대기 중이며 연결된 Jira 키는 확인되지 않음
 
 ## 다음 작업
 
+- 사용자가 Quality review hotfix diff를 검토한 뒤 직접 commit·push하고 PR base를 `main`으로 지정하며 `develop`의 Firebase·TMI-95·TMI-96·refactor 변경이 포함되지 않았는지 PR diff에서 재확인
+- 배포 환경에 비공백 `QUALITY_REVIEW_CONSENT_VERSION`을 추가하고 backend 호환 배포 후 프론트가 두 Quality review request 필드를 항상 보내며 GET·선택·철회 UI를 사용하는 순서로 staging 검증
+- 회원 탈퇴 tombstone에서 quality review true snapshot을 보존할지 자동 철회할지 제품·개인정보 기준으로 확정하고, 현재 hotfix는 기존 탈퇴 동작을 변경하지 않음
+- Quality review의 실제 답안·음성 이용은 versioned outbox event, 데이터 소유 서비스의 멱등 consumer, 철회 이후 보존·삭제 정책과 처리 SLA가 별도 계약과 테스트로 준비될 때까지 활성화하지 않음
 - 6단계 CI·staging: 임시 trigger가 제거된 errors-only artifact에 enabled·배포 Secret DSN·환경·immutable release를 주입해 실제 handled 5xx 한 건, expected 4xx 0건, 민감정보 부재와 중복 여부를 검증한다. Source context를 사용할 때만 build 인증 값을 CI Secret으로 제공
 - 로컬 시험에 사용한 IntelliJ 실행 설정의 임시 staging profile·smoke·Sentry diagnostic 환경변수는 저장소 밖 설정이므로 사용자가 제거한다. 저장소 설정은 Sentry disabled·local 기본값으로 복원돼 환경변수 미주입 시 event를 전송하지 않음
 - 7단계 운영 활성화: tracing·profiling·Sentry Logs는 0/off로 시작하고 오류 수집만 점진 활성화하며 event volume·중복·민감정보를 확인한 뒤 alert와 sampling을 별도 승인으로 조정
@@ -164,7 +175,7 @@
 - staging replica set에서 회원 탈퇴 User/Session 실제 Transaction rollback, custom repository fragment 연결과 Guest·LOCAL 재가입을 운영 index 조건으로 검증
 - `UserWithdrawn` outbox와 Learning Core 시험·결과 데이터 삭제 또는 익명화, stateless Access Token의 서비스 간 즉시 폐기는 별도 이슈로 설계
 - 사용자가 동의 상태 조회 API와 문서의 unstaged diff를 검토한 뒤 필요하면 직접 commit·push하며 Jira 댓글이나 상태 변경은 별도 승인 전까지 수행하지 않음
-- ECS Task Definition에 필수 개인정보 처리방침·이용약관 버전을 비공백 값으로 설정한 뒤 staging에서 GET 조회와 PUT 갱신 흐름을 검증
+- ECS Task Definition에 개인정보 처리방침·이용약관·Quality review 현재 버전을 비공백 값으로 설정한 뒤 staging에서 Guest와 GET·PUT 선택·철회 흐름을 검증
 - MongoDB replica set·Transaction 지원 여부를 확인해 RefreshSession 회전과 다중 폐기의 원자성·동시 재발급 통합 테스트를 별도 작업으로 설계
 - 운영 `refresh_sessions`의 `{userId, revokedAt}` 실행계획과 `_class` 외부 소비 여부를 확인하고 필요한 경우에만 승인된 index/migration으로 처리
 - OpenAPI 오류 응답의 일반 오류·Validation 배열 schema 구체화와 UserFactory의 `Clock` 주입·application 이동 여부를 후속 개선으로 검토
@@ -183,7 +194,8 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `main`, HEAD는 `4b0c762`이며 Sentry errors-only 연동과 최종 event 민감정보 정제·단일 Issue 통합 테스트를 구현했고 commit·push는 수행하지 않음
+- 현재 작업 기준 브랜치는 `hotfix/quality-review-consent`, HEAD는 `b6eb73e`로 `origin/main`과 같고 Quality review 선택 동의를 working tree에 구현·검증했으며 commit·push는 수행하지 않음
+- 커밋 전 재검증에서 변경 파일 31개가 quality review 동의·설정·문서·테스트 범위에 한정되고 develop의 TMI-95·TMI-96 파일이 없음을 확인했다. `git diff --check` 통과와 `./gradlew clean test` 42개 suite·319개 테스트 성공 상태이며 아직 staged 파일은 없으므로 사용자가 전체 diff를 stage·검토한 뒤 commit할 수 있다
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - Controller는 Repository를 직접 참조하지 않고 유스케이스 application service만 호출하며 단일 구현체를 위한 `Service`/`ServiceImpl` 인터페이스는 만들지 않음
@@ -275,7 +287,8 @@
 - 기존 User 문서의 provider가 없으면 LOCAL로 읽지만 소셜 로그인 도입 전에는 provider 필드 명시적 이행과 계정 연결 정책이 필요하다.
 - 이메일 중복 확인·회원가입·로그인·재발급·로그아웃 공개 API에는 rate limit, credential stuffing 방어, 자동화 요청 방어 및 abuse 관측 기준이 필요하다.
 - 비밀번호 복잡도, 유출 비밀번호 차단 및 변경 정책은 제품·보안 명세 확정 후 추가해야 한다.
-- 현재는 최신 개인정보·약관 동의 상태만 저장하므로 철회와 정책 버전 변경의 전체 감사를 요구하면 append-only 이력 관리가 필요하다.
+- 현재는 최신 개인정보·약관·Quality review 동의 snapshot만 저장하므로 철회와 정책 버전 변경의 전체 감사를 요구하면 append-only 이력 관리가 필요하다.
+- 현재 회원 탈퇴 tombstone은 `consents` 전체를 보존하므로 Quality review true 상태 도입 후 탈퇴를 자동 철회로 볼지 감사 snapshot 보존으로 볼지 별도 결정이 필요하며, 외부 데이터 이용 중지는 outbox·consumer·보존 정책 없이는 보장되지 않는다.
 - 사용자 정보 변경 기능을 추가할 때 `updatedAt` 갱신 책임과 동시 수정 정책을 명확히 해야 한다.
 - 민감한 validation 필드명이 추가되면 마스킹 목록도 갱신해야 한다.
 - 운영 환경의 MongoDB 연결과 health 상태는 배포 환경에서 별도로 검증해야 한다.

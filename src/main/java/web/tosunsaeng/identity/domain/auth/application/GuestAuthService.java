@@ -42,11 +42,13 @@ public class GuestAuthService {
 				request,
 				"request must not be null"
 		);
-		consentPolicy.validate(
+		consentPolicy.validateWithQualityReview(
 				requiredRequest.isPrivacyConsented(),
 				requiredRequest.privacyConsentVersion(),
 				requiredRequest.isTermConsented(),
-				requiredRequest.termConsentVersion()
+				requiredRequest.termConsentVersion(),
+				requiredRequest.isQualityReviewConsented(),
+				requiredRequest.qualityReviewConsentVersion()
 		);
 
 		String installationIdHash = installationIdHasher.hash(
@@ -56,7 +58,11 @@ public class GuestAuthService {
 			throw new AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS);
 		}
 
-		User guestUser = userFactory.createGuest(installationIdHash, clock.instant());
+		User guestUser = userFactory.createGuest(
+				installationIdHash,
+				Boolean.TRUE.equals(requiredRequest.isQualityReviewConsented()),
+				clock.instant()
+		);
 		// 영속성 전에 두 Token과 RefreshSession 문서를 모두 준비한다.
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				guestUser.getUserId(),

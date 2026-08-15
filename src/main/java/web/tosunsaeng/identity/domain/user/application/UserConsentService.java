@@ -35,16 +35,19 @@ public class UserConsentService {
 		return UserConsentStatusResponse.from(
 				user,
 				consentPolicy.getPrivacyConsentVersion(),
-				consentPolicy.getTermConsentVersion()
+				consentPolicy.getTermConsentVersion(),
+				consentPolicy.getQualityReviewConsentVersion()
 		);
 	}
 
 	public UserConsentResponse updateConsents(UserConsentUpdateRequest request) {
-		consentPolicy.validate(
+		consentPolicy.validateWithQualityReview(
 				request.isPrivacyConsented(),
 				request.privacyConsentVersion(),
 				request.isTermConsented(),
-				request.termConsentVersion()
+				request.termConsentVersion(),
+				request.isQualityReviewConsented(),
+				request.qualityReviewConsentVersion()
 		);
 
 		User user = getCurrentActiveUser();
@@ -54,6 +57,8 @@ public class UserConsentService {
 		boolean changed = user.updateConsents(
 				consentPolicy.getPrivacyConsentVersion(),
 				consentPolicy.getTermConsentVersion(),
+				Boolean.TRUE.equals(request.isQualityReviewConsented()),
+				consentPolicy.getQualityReviewConsentVersion(),
 				consentedAt
 		);
 		if (!changed) {
@@ -79,7 +84,6 @@ public class UserConsentService {
 				.addKeyValue("outcome", "updated")
 				.addKeyValue("userId", user.getUserId())
 				.addKeyValue("provider", user.getProvider())
-				.addKeyValue("consentedAt", consentedAt)
 				.log("사용자 동의를 갱신했습니다");
 		return response;
 	}

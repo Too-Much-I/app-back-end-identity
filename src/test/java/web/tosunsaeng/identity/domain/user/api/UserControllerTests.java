@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +30,7 @@ import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.domain.user.application.UserConsentService;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
+import web.tosunsaeng.identity.domain.user.dto.request.UserConsentUpdateRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentResponse;
 import web.tosunsaeng.identity.domain.user.dto.response.UserConsentStatusResponse;
@@ -116,6 +118,13 @@ class UserControllerTests {
 						"term-v1",
 						CONSENTED_AT,
 						false
+				),
+				new ConsentPolicyStatusResponse(
+						"quality-review-v1",
+						false,
+						null,
+						null,
+						false
 				)
 		);
 		when(userConsentService.getCurrentConsentStatus()).thenReturn(response);
@@ -136,6 +145,14 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.result.terms.consentedAt")
 						.value("2026-08-05T00:00:00Z"))
 				.andExpect(jsonPath("$.result.terms.requiresConsent").value(false))
+				.andExpect(jsonPath("$.result.qualityReview.currentVersion")
+						.value("quality-review-v1"))
+				.andExpect(jsonPath("$.result.qualityReview.consented").value(false))
+				.andExpect(jsonPath("$.result.qualityReview.consentedVersion")
+						.value(nullValue()))
+				.andExpect(jsonPath("$.result.qualityReview.consentedAt")
+						.value(nullValue()))
+				.andExpect(jsonPath("$.result.qualityReview.requiresConsent").value(false))
 				.andExpect(jsonPath("$.result.userId").doesNotExist())
 				.andExpect(jsonPath("$.result.installationId").doesNotExist());
 
@@ -292,7 +309,10 @@ class UserControllerTests {
 				CONSENTED_AT,
 				true,
 				"term-v1",
-				CONSENTED_AT
+				CONSENTED_AT,
+				false,
+				null,
+				null
 		);
 		when(userConsentService.updateConsents(org.mockito.ArgumentMatchers.any()))
 				.thenReturn(response);
@@ -314,9 +334,37 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.result.privacyConsentedAt").value("2026-08-05T00:00:00Z"))
 				.andExpect(jsonPath("$.result.termConsented").value(true))
 				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
-				.andExpect(jsonPath("$.result.termConsentedAt").value("2026-08-05T00:00:00Z"));
+				.andExpect(jsonPath("$.result.termConsentedAt").value("2026-08-05T00:00:00Z"))
+				.andExpect(jsonPath("$.result.qualityReviewConsented").value(false))
+				.andExpect(jsonPath("$.result.qualityReviewConsentVersion").value(nullValue()))
+				.andExpect(jsonPath("$.result.qualityReviewConsentedAt").value(nullValue()));
 
-		verify(userConsentService).updateConsents(org.mockito.ArgumentMatchers.any());
+		ArgumentCaptor<UserConsentUpdateRequest> captor = ArgumentCaptor.forClass(
+				UserConsentUpdateRequest.class
+		);
+		verify(userConsentService).updateConsents(captor.capture());
+		assertThat(captor.getValue().isQualityReviewConsented()).isFalse();
+		assertThat(captor.getValue().qualityReviewConsentVersion()).isNull();
+	}
+
+	@Test
+	void updateConsentsRejectsInvalidQualityReviewVersionFormat() throws Exception {
+		mockMvc.perform(put("/api/v1/users/me/consents")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1",
+								  "isQualityReviewConsented": false,
+								  "qualityReviewConsentVersion": "invalid/version"
+								}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.result[0].field")
+						.value("qualityReviewConsentVersion"));
 	}
 
 	@Test

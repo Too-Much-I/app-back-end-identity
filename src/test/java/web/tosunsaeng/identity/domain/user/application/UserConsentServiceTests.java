@@ -39,6 +39,7 @@ class UserConsentServiceTests {
 
 	private static final String PRIVACY_VERSION = "privacy-v2";
 	private static final String TERM_VERSION = "term-v2";
+	private static final String QUALITY_REVIEW_VERSION = "quality-review-v2";
 	private static final Instant NOW = Instant.parse("2026-08-05T09:00:00Z");
 	private static final Instant PREVIOUS_AT = Instant.parse("2026-08-01T09:00:00Z");
 
@@ -51,7 +52,11 @@ class UserConsentServiceTests {
 	void setUp() {
 		currentUserProvider = mock(CurrentUserProvider.class);
 		userRepository = mock(UserRepository.class);
-		consentPolicy = new ConsentPolicy(PRIVACY_VERSION, TERM_VERSION);
+		consentPolicy = new ConsentPolicy(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				QUALITY_REVIEW_VERSION
+		);
 		when(userRepository.updateConsentsIfActive(any(User.class), any(Instant.class)))
 				.thenReturn(true);
 		userConsentService = new UserConsentService(
@@ -87,6 +92,12 @@ class UserConsentServiceTests {
 		assertThat(response.terms().consentedVersion()).isEqualTo(TERM_VERSION);
 		assertThat(response.terms().consentedAt()).isEqualTo(PREVIOUS_AT);
 		assertThat(response.terms().requiresConsent()).isFalse();
+		assertThat(response.qualityReview().currentVersion())
+				.isEqualTo(QUALITY_REVIEW_VERSION);
+		assertThat(response.qualityReview().consented()).isFalse();
+		assertThat(response.qualityReview().consentedVersion()).isNull();
+		assertThat(response.qualityReview().consentedAt()).isNull();
+		assertThat(response.qualityReview().requiresConsent()).isFalse();
 	}
 
 	@Test
@@ -230,7 +241,7 @@ class UserConsentServiceTests {
 	void consentStatusResponseDoesNotExposeUserOrInstallationIdentifiers() {
 		assertThat(Arrays.stream(UserConsentStatusResponse.class.getRecordComponents())
 				.map(RecordComponent::getName))
-				.containsExactly("privacy", "terms")
+				.containsExactly("privacy", "terms", "qualityReview")
 				.doesNotContain("userId", "installationId", "guestInstallationIdHash");
 		assertThat(Arrays.stream(ConsentPolicyStatusResponse.class.getRecordComponents())
 				.map(RecordComponent::getName))
@@ -262,7 +273,9 @@ class UserConsentServiceTests {
 						assertThat(LogCapture.rendered(event)).doesNotContain(
 								"user@example.com",
 								"test-only-password-hash",
-								"테스트사용자"
+								"테스트사용자",
+								QUALITY_REVIEW_VERSION,
+								NOW.toString()
 						);
 					});
 		}
@@ -276,6 +289,9 @@ class UserConsentServiceTests {
 		assertThat(response.termConsented()).isTrue();
 		assertThat(response.termConsentVersion()).isEqualTo(TERM_VERSION);
 		assertThat(response.termConsentedAt()).isEqualTo(NOW);
+		assertThat(response.qualityReviewConsented()).isFalse();
+		assertThat(response.qualityReviewConsentVersion()).isNull();
+		assertThat(response.qualityReviewConsentedAt()).isNull();
 		assertThat(user.getUpdatedAt()).isEqualTo(NOW);
 	}
 
@@ -346,6 +362,109 @@ class UserConsentServiceTests {
 	}
 
 	@Test
+	void grantsQualityReviewConsentWithCurrentVersionAndServerTime() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentResponse response = userConsentService.updateConsents(
+				qualityReviewRequest(true, QUALITY_REVIEW_VERSION)
+		);
+
+		verify(userRepository).updateConsentsIfActive(user, PREVIOUS_AT);
+		assertThat(response.qualityReviewConsented()).isTrue();
+		assertThat(response.qualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_VERSION);
+		assertThat(response.qualityReviewConsentedAt()).isEqualTo(NOW);
+		assertThat(response.privacyConsentedAt()).isEqualTo(PREVIOUS_AT);
+		assertThat(response.termConsentedAt()).isEqualTo(PREVIOUS_AT);
+	}
+
+	@Test
+	void withdrawsQualityReviewConsentAndClearsStoredMetadata() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				true,
+				QUALITY_REVIEW_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentResponse response = userConsentService.updateConsents(
+				qualityReviewRequest(false, "quality-review-stale")
+		);
+
+		verify(userRepository).updateConsentsIfActive(user, PREVIOUS_AT);
+		assertThat(response.qualityReviewConsented()).isFalse();
+		assertThat(response.qualityReviewConsentVersion()).isNull();
+		assertThat(response.qualityReviewConsentedAt()).isNull();
+	}
+
+	@Test
+	void falseWithStaleQualityReviewVersionIsIdempotent() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		UserConsentResponse response = userConsentService.updateConsents(
+				qualityReviewRequest(false, "quality-review-v1")
+		);
+
+		verify(userRepository, never()).updateConsentsIfActive(any(), any());
+		assertThat(response.qualityReviewConsented()).isFalse();
+		assertThat(user.getUpdatedAt()).isEqualTo(PREVIOUS_AT);
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(strings = "quality-review-v1")
+	void rejectsTrueQualityReviewWithMissingOrStaleVersionBeforeLookingUpUser(String version) {
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> userConsentService.updateConsents(
+						qualityReviewRequest(true, version)
+				)
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(
+				UserErrorStatus.QUALITY_REVIEW_CONSENT_VERSION_MISMATCH
+		);
+		verify(currentUserProvider, never()).getCurrentUserId();
+	}
+
+	@Test
+	void oldQualityReviewVersionIsNotReportedAsCurrentConsent() {
+		User user = localUser(UserConsents.consented(
+				PRIVACY_VERSION,
+				TERM_VERSION,
+				true,
+				"quality-review-v1",
+				PREVIOUS_AT
+		));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+
+		ConsentPolicyStatusResponse status = userConsentService
+				.getCurrentConsentStatus()
+				.qualityReview();
+
+		assertThat(status.consented()).isFalse();
+		assertThat(status.consentedVersion()).isEqualTo("quality-review-v1");
+		assertThat(status.consentedAt()).isEqualTo(PREVIOUS_AT);
+		assertThat(status.requiresConsent()).isFalse();
+	}
+
+	@Test
 	void rejectsFalsePrivacyConsentBeforeLookingUpUser() {
 		BusinessException exception = catchThrowableOfType(
 				BusinessException.class,
@@ -353,7 +472,9 @@ class UserConsentServiceTests {
 						false,
 						PRIVACY_VERSION,
 						true,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						QUALITY_REVIEW_VERSION
 				))
 		);
 
@@ -370,7 +491,9 @@ class UserConsentServiceTests {
 						true,
 						PRIVACY_VERSION,
 						false,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						QUALITY_REVIEW_VERSION
 				))
 		);
 
@@ -386,7 +509,9 @@ class UserConsentServiceTests {
 						true,
 						"privacy-v1",
 						true,
-						TERM_VERSION
+						TERM_VERSION,
+						false,
+						QUALITY_REVIEW_VERSION
 				))
 		);
 		BusinessException termFailure = catchThrowableOfType(
@@ -395,7 +520,9 @@ class UserConsentServiceTests {
 						true,
 						PRIVACY_VERSION,
 						true,
-						"term-v1"
+						"term-v1",
+						false,
+						QUALITY_REVIEW_VERSION
 				))
 		);
 
@@ -414,7 +541,9 @@ class UserConsentServiceTests {
 						"isPrivacyConsented",
 						"privacyConsentVersion",
 						"isTermConsented",
-						"termConsentVersion"
+						"termConsentVersion",
+						"isQualityReviewConsented",
+						"qualityReviewConsentVersion"
 				)
 				.doesNotContain("userId", "installationId");
 	}
@@ -435,7 +564,23 @@ class UserConsentServiceTests {
 				true,
 				PRIVACY_VERSION,
 				true,
-				TERM_VERSION
+				TERM_VERSION,
+				false,
+				QUALITY_REVIEW_VERSION
+		);
+	}
+
+	private UserConsentUpdateRequest qualityReviewRequest(
+			boolean consented,
+			String version
+	) {
+		return new UserConsentUpdateRequest(
+				true,
+				PRIVACY_VERSION,
+				true,
+				TERM_VERSION,
+				consented,
+				version
 		);
 	}
 }

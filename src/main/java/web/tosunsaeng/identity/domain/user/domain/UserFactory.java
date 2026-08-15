@@ -48,11 +48,22 @@ public class UserFactory {
 	}
 
 	public User createGuest(String installationIdHash, Instant createdAt) {
+		return createGuest(installationIdHash, false, createdAt);
+	}
+
+	public User createGuest(
+			String installationIdHash,
+			boolean qualityReviewConsented,
+			Instant createdAt
+	) {
 		Instant requiredCreatedAt = Objects.requireNonNull(
 				createdAt,
 				"createdAt must not be null"
 		);
-		UserConsents consents = consentPolicy.consentedAt(requiredCreatedAt);
+		UserConsents consents = consentPolicy.consentedAt(
+				qualityReviewConsented,
+				requiredCreatedAt
+		);
 		return User.createGuest(
 				installationIdHash,
 				GUEST_NICKNAME,

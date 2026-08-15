@@ -15,16 +15,46 @@ public class ConsentPolicy {
 
 	private final String privacyConsentVersion;
 	private final String termConsentVersion;
+	private final String qualityReviewConsentVersion;
 
 	public ConsentPolicy(
 			@Value("${app.consent.privacy-version}") String privacyConsentVersion,
-			@Value("${app.consent.term-version}") String termConsentVersion
+			@Value("${app.consent.term-version}") String termConsentVersion,
+			@Value("${app.consent.quality-review-version}") String qualityReviewConsentVersion
 	) {
 		this.privacyConsentVersion = requireVersion(
 				privacyConsentVersion,
 				"privacyConsentVersion"
 		);
 		this.termConsentVersion = requireVersion(termConsentVersion, "termConsentVersion");
+		this.qualityReviewConsentVersion = requireVersion(
+				qualityReviewConsentVersion,
+				"qualityReviewConsentVersion"
+		);
+	}
+
+	public void validateWithQualityReview(
+			Boolean privacyConsented,
+			String requestedPrivacyVersion,
+			Boolean termConsented,
+			String requestedTermVersion,
+			Boolean qualityReviewConsented,
+			String requestedQualityReviewVersion
+	) {
+		validate(
+				privacyConsented,
+				requestedPrivacyVersion,
+				termConsented,
+				requestedTermVersion
+		);
+		if (Boolean.TRUE.equals(qualityReviewConsented)
+				&& !qualityReviewConsentVersion.equals(
+						trimNullable(requestedQualityReviewVersion)
+				)) {
+			throw new UserException(
+					UserErrorStatus.QUALITY_REVIEW_CONSENT_VERSION_MISMATCH
+			);
+		}
 	}
 
 	public void validate(
@@ -48,9 +78,18 @@ public class ConsentPolicy {
 	}
 
 	public UserConsents consentedAt(Instant consentedAt) {
+		return consentedAt(false, consentedAt);
+	}
+
+	public UserConsents consentedAt(
+			boolean qualityReviewConsented,
+			Instant consentedAt
+	) {
 		return UserConsents.consented(
 				privacyConsentVersion,
 				termConsentVersion,
+				qualityReviewConsented,
+				qualityReviewConsentVersion,
 				consentedAt
 		);
 	}
@@ -61,6 +100,10 @@ public class ConsentPolicy {
 
 	public String getTermConsentVersion() {
 		return termConsentVersion;
+	}
+
+	public String getQualityReviewConsentVersion() {
+		return qualityReviewConsentVersion;
 	}
 
 	private static String requireVersion(String version, String fieldName) {

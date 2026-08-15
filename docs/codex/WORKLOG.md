@@ -1428,3 +1428,73 @@
 - 결정사항: 실제 연결 확인을 마친 one-shot 검증 코드는 재사용 목적으로 보존하지 않고 제거한다. Runtime Sentry 연동과 final event sanitizer만 유지하며 source context용 build 인증 값은 계속 승인된 CI에만 둔다. Git commit·push와 Jira 조회·변경은 수행하지 않았다.
 - 위험 요소: 저장소 밖 IntelliJ 실행 설정에 임시 staging profile·smoke 또는 Sentry diagnostic 환경변수가 남아 있을 수 있으며 Codex가 이를 자동 복원하지 못한다. 배포망·alert·보존정책과 CI source context는 로컬 project 수신 확인으로 검증되지 않았다.
 - 다음 작업: 사용자는 IntelliJ Run Configuration에서 임시 staging·smoke·diagnostic 설정을 제거한다. 이후 staging에서는 trigger 없는 errors-only artifact로 handled 5xx 한 건·expected 4xx 0건·중복 및 민감정보 부재를 검증하고 운영 활성화 범위를 결정한다.
+
+## 2026-08-15 — Quality review 선택 동의 구현 계획의 main hotfix 적용 분석
+
+<!-- codex-turn:01a004a3-4aa2-7a71-a250-e8ff5ae61949 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main`과 동일, commit·push 미수행)
+- 작업 목표: `/Users/msde76/identity/docs/contracts/quality-review-consent-implementation-plan.md`를 현재 `main` 기반 hotfix 코드와 대조해 실제 구현 순서, 수정 파일, 상태 전이, 하위 호환, 테스트 범위와 선결 결정을 제시한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Guest POST와 인증된 동의 PUT·GET에만 `isQualityReviewConsented`와 `qualityReviewConsentVersion` 계약을 추가하고 LOCAL signup request와 프로필 응답은 유지하는 범위를 확인했다. 누락은 false, true만 현재 version exact match, false는 stale version으로 차단하지 않는 호환 규칙을 확정했다.
+- 구현 내용: `ConsentPolicy`·`UserConsents`·`User`·`UserConsentService` 흐름을 따라 false→true, true→true current no-op, old→current 갱신, true→false 정리와 false→false no-op을 immutable 결과로 처리하고, 실제 변경 시에만 기존 ACTIVE+`updatedAt` CAS로 embedded `consents` 전체를 교체하는 방식을 정리했다.
+- 구현 내용: 계획서 예상 목록 외에 `UserFactory`와 `UserErrorStatus`가 필수 수정이며 `UserRepositoryCustomImpl`은 현재 전체 embedded object 저장 구조라 실행 코드 변경 없이 회귀 테스트만 보강할 수 있음을 확인했다. 필수 정책 factory와 분리된 선택 정책 응답 factory로 유효 동의만 `consented=true`, `requiresConsent=false`를 만들고 PUT 응답에는 저장 snapshot 세 필드를 추가하도록 설계했다.
+- 실행한 테스트와 결과: 첫 `./gradlew clean test`는 sandbox의 Gradle cache lock 접근 제한으로 실행 전에 중단됐다. 승인된 재실행은 BUILD SUCCESSFUL이며 전체 41개 suite·295개 테스트, 실패·오류·건너뜀 0개였다. 실제 Atlas, OAuth Provider, Sentry 또는 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId와 JWT 계약을 변경하지 않고 외부 Request Body에 userId나 요청 시각을 추가하지 않는다. Identity 밖의 답안·음성·시험 데이터 코드를 추가하지 않으며 실제 품질 검토 이용은 별도 outbox·consumer·보존 정책 전 활성화하지 않는다. Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 원본 계획 문서는 구현 시 hotfix의 `docs/contracts`에 포함한다. Quality review request 두 필드는 호환 기간에는 OpenAPI required로 강제하지 않고, false snapshot은 false/null/null로 정규화하며 같은 상태 반복 요청은 동의 시각·User `updatedAt`·저장을 변경하지 않는다. 프로필과 LOCAL signup request에는 신규 외부 필드를 추가하지 않는다. Jira 키가 없어 Jira 조회·댓글·상태 변경은 수행하지 않았다.
+- 위험 요소: 계획서가 version 문자열의 정확한 최대 길이와 허용 문자를 고정하지 않아 구현 전에 프론트와 합의가 필요하다. 현재 회원 탈퇴 tombstone은 `consents`를 보존하므로 quality review true 상태를 탈퇴 시 자동 철회할지 감사 snapshot으로 유지할지 결정해야 한다. snapshot만으로 철회 이력을 증명할 수 없고 외부 데이터 이용 중지는 lifecycle consumer 없이는 보장되지 않는다.
+- 다음 작업: 버전 형식과 회원 탈퇴 처리 원칙을 확정한 뒤 설정·오류 코드·DTO, 도메인 전이, 서비스·API, OpenAPI·README·테스트 순으로 구현하고 `./gradlew clean test`, `git diff --check`, `origin/main...HEAD` 범위 검사를 수행한다.
+
+## 2026-08-15 — Quality review 선택 동의 main hotfix 구현
+
+<!-- codex-turn:01a00528-3a0c-7094-8dbf-2ae9c7b28a5f -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기반, commit·push 미수행)
+- 작업 목표: 승인된 구현 계획에 따라 Guest 생성과 인증된 동의 PUT·GET에 Quality review 선택 동의·철회 상태, version 정책, 하위 호환, OpenAPI·문서와 회귀 테스트를 구현한다.
+- 변경 파일: `.env.example`, `README.md`, `docs/contracts/quality-review-consent-implementation-plan.md`, `src/main/resources/application.yml`, Guest request·service·controller, User consent policy·factory·entity·service·request·response·controller·오류 코드 파일을 변경했다. `UserConsentsTests.java`를 추가하고 Guest·User consent·Mongo mapping·OpenAPI·설정 관련 기존 테스트를 갱신했으며 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 최신화했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 외부 필드 `isQualityReviewConsented`, `qualityReviewConsentVersion`을 Guest POST와 동의 PUT에 추가했다. 호환 기간에는 누락 Boolean을 false로 정규화하고 version 누락을 허용하며, true만 current server version exact match를 요구하고 false 선택·철회는 stale version으로 차단하지 않는다. 제공된 version은 trim 후 최대 100자와 영문·숫자·점·밑줄·하이픈 형식을 검증한다.
+- 구현 내용: `UserConsents` embedded model에 Quality review boolean·version·서버 `Instant`를 추가했다. false→true, true/current→true no-op, true/old→true/current 갱신, true→false의 false/null/null 정리, false→false no-op을 immutable 결과로 처리하고 같은 상태에서는 기존 instance를 반환한다. LOCAL signup은 false/null/null, Guest는 요청 선택 상태로 생성하며 기존 Mongo 문서의 누락 필드는 false/null/null로 읽는다.
+- 구현 내용: 실제 변경일 때만 User `updatedAt`을 바꾸고 기존 ACTIVE+`updatedAt` CAS와 embedded `consents` 전체 교체를 재사용했다. 철회 후 과거 Quality review version/time을 남기지 않으며 저장 실패·동시 탈퇴의 기존 오류 정책을 유지한다. 로그에서는 기존 동의 시각 field를 제거해 userId·provider·outcome만 사용한다.
+- 구현 내용: GET 응답에 `qualityReview`를 추가해 저장 true·current version·동의 시각을 모두 만족할 때만 현재 `consented=true`로 계산하고 선택 정책의 `requiresConsent`는 항상 false로 유지했다. PUT 응답에는 저장된 Quality review 상태·version·시각을 추가했으며 LOCAL signup request와 프로필 응답은 변경하지 않았다. 계획 원문, README, 환경변수와 Controller OpenAPI 예시·nullable/required schema를 동기화했다.
+- 실행한 테스트와 결과: 최초 `compileTestJava`는 변경된 constructor 호출부 19곳이 남아 실패했고 모두 갱신했다. 첫 targeted 실행은 기존 OpenAPI·record component·설정 기대값 5건이 새 계약과 달라 실패했으며 테스트와 계약을 동기화했다. 이후 targeted 테스트가 성공했고 최종 `./gradlew clean test`는 BUILD SUCCESSFUL, 전체 42개 suite·319개 테스트, 실패·오류·건너뜀 0개였다. `git diff --check`도 성공했으며 실제 Atlas, OAuth Provider, Sentry 또는 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId, JWT sub·RS256·kid·issuer·audience 계약과 기존 RefreshSession·회원 탈퇴·Transaction 동작을 변경하지 않았다. 외부 Request Body에 userId나 사용자 시각을 추가하지 않았고 Learning Core의 답안·시험·음성 코드를 가져오지 않았다. Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 소스·문서·기록에 추가하지 않았다.
+- 결정사항: `QUALITY_REVIEW_CONSENT_VERSION`은 필수 비공백 기동 설정으로 추가했다. Quality review version 외부 형식은 최대 100자와 `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`로 고정했다. 기존 회원 탈퇴 tombstone의 `consents` 보존 동작은 이번 hotfix에서 변경하지 않고 별도 제품·개인정보 결정으로 남겼다. Jira 키가 없어 Jira 조회·댓글·상태 변경은 수행하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: 현재 snapshot만으로 최초 미동의와 동의 후 철회를 법적으로 구분할 수 없으므로 필요한 경우 append-only 감사 이력이 별도 필요하다. 회원 탈퇴 시 Quality review true snapshot 처리 원칙도 미확정이다. Identity false 저장만으로 외부 답안·음성 이용을 중지할 수 없으므로 outbox·멱등 consumer·보존/삭제 정책과 SLA 검증 전 실제 품질 검토 이용을 활성화하면 안 된다.
+- 다음 작업: 사용자가 working tree diff를 검토해 직접 commit·push하고 PR base를 `main`으로 지정한다. 배포 환경에 `QUALITY_REVIEW_CONSENT_VERSION`을 주입한 backend 호환 배포 후 프론트가 두 필드를 항상 전송하도록 전환하고 staging에서 Guest false/true, GET current/old, PUT 선택/철회·멱등성과 구버전 client를 검증한다.
+
+## 2026-08-15 — Quality review hotfix 종료 Hook 작업 기록 동기화
+
+<!-- codex-turn:01a004a8-1042-7692-bf0d-5282d02f33ee -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기반, commit·push 미수행)
+- 작업 목표: 종료 Hook이 요구한 현재 turn marker로 Quality review 선택 동의 구현 결과와 최종 저장소 상태를 WORKLOG 끝에 기록하고 CURRENT_STATE를 다시 동기화한다.
+- 변경 파일: 이번 Hook 대응에서는 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 변경했다. 직전 구현의 애플리케이션·설정·README·계약·테스트 변경은 그대로 유지했으며 WORKLOG 과거 기록을 수정하거나 삭제하지 않았다.
+- 구현 내용: Guest 생성과 인증된 동의 PUT·GET의 Quality review 선택 동의·철회, 누락=false 호환, true의 current version 검증, false/null/null 정규화, 멱등 상태 전이, GET `requiresConsent=false`, PUT 저장 결과 반환이 구현된 최종 상태임을 재확인했다. 이번 Hook 대응에서 실행 코드는 추가 변경하지 않았다.
+- 실행한 테스트와 결과: 직전 최종 `./gradlew clean test`는 BUILD SUCCESSFUL, 전체 42개 suite·319개 테스트, 실패·오류·건너뜀 0개였다. Hook 문서 동기화 후 `git diff --check`를 다시 실행한다. 실제 Atlas, OAuth Provider, Sentry와 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId, JWT, RefreshSession, 회원 탈퇴와 MongoDB CAS·Transaction 계약을 유지했다. Identity 밖의 답안·음성·시험 코드를 추가하지 않았고 Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 현재 구현과 검증 결과를 변경하지 않고 Hook이 지정한 별도 turn marker를 append-only 기록으로 추가했다. Jira 키가 없어 Jira 작업을 수행하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: snapshot만으로 최초 미동의와 철회를 법적으로 구분할 수 없고 회원 탈퇴 시 Quality review true snapshot 처리 원칙도 미확정이다. 외부 데이터 이용 중지는 outbox·멱등 consumer·보존/삭제 정책과 SLA가 준비되기 전 보장되지 않는다.
+- 다음 작업: 사용자가 working tree를 검토해 직접 commit·push하고 `main` 대상 PR을 만든다. 배포 환경에 Quality review version을 주입한 뒤 staging에서 Guest·GET·PUT·철회·멱등·구버전 client 흐름을 검증한다.
+
+## 2026-08-15 — Quality review hotfix 커밋 가능 상태 재검증
+
+<!-- codex-turn:01a004b3-4ee4-79a3-afe7-66ede4bae4b5 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기반, commit·push 미수행)
+- 작업 목표: 사용자가 구현 완료 후 지금 커밋해도 되는지 변경 범위·정적 검사·전체 테스트와 staging 상태를 근거로 확인한다.
+- 변경 파일: 이번 확인 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 추가 갱신했다. Quality review 애플리케이션·설정·README·계약·테스트 구현은 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `git status --short`, unstaged diff stat·파일 목록과 HEAD를 확인했다. 변경은 Guest·consent API, `UserConsents`·`ConsentPolicy`·User 저장, quality review 오류·설정·OpenAPI·README·계획서와 관련 테스트 31개 파일로 한정되며 Firebase·TMI-95·TMI-96 등 develop 전용 파일은 포함되지 않았다.
+- 구현 내용: 현재 staged 파일은 없고 HEAD는 여전히 `origin/main`과 같은 `b6eb73e`다. 사용자가 `git add` 후 staged diff를 마지막으로 확인하고 단일 hotfix commit을 생성할 수 있는 상태라고 판단했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 커밋 가능 여부를 질문했다. 저장소 규칙에 따라 Codex는 stage·commit·push를 수행하지 않았고 사용자가 직접 실행할 명령만 안내한다.
+- 실행한 테스트와 결과: 샌드박스의 사용자 Gradle cache lock 접근 제한으로 최초 실행이 시작되지 않아 승인된 동일 명령으로 `./gradlew clean test`를 재실행했다. BUILD SUCCESSFUL, 42개 suite·319개 테스트, failure 0, error 0, skipped 0이며 `git diff --check`도 성공했다. 실제 Atlas·OAuth Provider·외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: main-only hotfix와 develop 격리, 기존 privacy·terms 필수 동의, quality review 선택·철회·구 client 누락=false 호환을 유지했다. Identity 밖의 시험·답안·음성 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 커밋 가능한 상태다. 커밋 전 사용자가 전체 파일을 stage하고 staged name-only·stat·diff check를 확인한 뒤 quality review hotfix 단일 commit으로 남긴다.
+- 위험 요소: 현재 상태는 모두 unstaged이므로 일부 파일만 stage하면 코드·테스트·설정·문서 계약이 분리될 수 있다. production 배포 전 `QUALITY_REVIEW_CONSENT_VERSION` 주입과 외부 데이터 철회 연동 부재를 별도로 확인해야 한다.
+- 다음 작업: 사용자가 모든 의도된 변경을 stage하고 staged diff를 확인한 뒤 commit·push한다. PR base는 `main`으로 지정하고 `origin/main...HEAD`에 quality review 관련 변경만 있는지 다시 확인한다.
