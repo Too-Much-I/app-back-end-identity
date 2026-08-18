@@ -8,11 +8,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseExchangeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseAuthMethodsSyncUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseSignupUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncTransactionService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentAttemptService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeTransactionService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseIdentityOwnershipService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupTransactionService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
@@ -20,6 +32,8 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollm
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneIdentityTransactionService;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
@@ -30,6 +44,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentit
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 
 @Configuration(proxyBeanMethods = false)
@@ -53,6 +68,21 @@ public class FirebaseAuthenticationConfiguration {
 		@Bean
 		FirebaseSignupUseCase firebaseSignupUseCase() {
 			return new DisabledFirebaseSignupUseCase();
+		}
+
+		@Bean
+		FirebaseGuestPrepareUseCase firebaseGuestPrepareUseCase() {
+			return new DisabledFirebaseGuestPrepareUseCase();
+		}
+
+		@Bean
+		FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase() {
+			return new DisabledFirebaseGuestUpgradeUseCase();
+		}
+
+		@Bean
+		FirebaseAuthMethodsSyncUseCase firebaseAuthMethodsSyncUseCase() {
+			return new DisabledFirebaseAuthMethodsSyncUseCase();
 		}
 	}
 
@@ -109,6 +139,19 @@ public class FirebaseAuthenticationConfiguration {
 					clock,
 					properties.enrollmentTtl(),
 					properties.enrollmentCleanupRetention()
+			);
+		}
+
+		@Bean
+		FirebaseIdentityOwnershipService firebaseIdentityOwnershipService(
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				UserRepository userRepository
+		) {
+			return new FirebaseIdentityOwnershipService(
+					firebaseIdentityRepository,
+					socialIdentityRepository,
+					userRepository
 			);
 		}
 
@@ -191,6 +234,113 @@ public class FirebaseAuthenticationConfiguration {
 					refreshSessionIssuer,
 					transactionService,
 					accessTokenIssuer,
+					clock
+			);
+		}
+
+		@Bean
+		FirebaseGuestPrepareUseCase firebaseGuestPrepareUseCase(
+				CurrentUserProvider currentUserProvider,
+				UserRepository userRepository,
+				FirebaseAuthenticationVerifier authenticationVerifier,
+				FirebaseIdentityOwnershipService ownershipService,
+				FirebaseEnrollmentAttemptService enrollmentAttemptService,
+				Clock clock
+		) {
+			return new FirebaseGuestPrepareService(
+					currentUserProvider,
+					userRepository,
+					authenticationVerifier,
+					ownershipService,
+					enrollmentAttemptService,
+					clock
+			);
+		}
+
+		@Bean
+		FirebaseGuestUpgradeTransactionService firebaseGuestUpgradeTransactionService(
+				UserRepository userRepository,
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				PhoneIdentityTransactionService phoneIdentityTransactionService,
+				RefreshSessionRepository refreshSessionRepository,
+				RefreshSessionIssuer refreshSessionIssuer,
+				FirebaseEnrollmentAttemptRepository enrollmentRepository
+		) {
+			return new FirebaseGuestUpgradeTransactionService(
+					userRepository,
+					firebaseIdentityRepository,
+					socialIdentityRepository,
+					phoneIdentityTransactionService,
+					refreshSessionRepository,
+					refreshSessionIssuer,
+					enrollmentRepository
+			);
+		}
+
+		@Bean
+		FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase(
+				CurrentUserProvider currentUserProvider,
+				UserRepository userRepository,
+				FirebaseAuthenticationVerifier authenticationVerifier,
+				FirebaseEnrollmentAttemptRepository enrollmentRepository,
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				PhoneFingerprintAliasRepository aliasRepository,
+				FirebaseIdentityOwnershipService ownershipService,
+				PhoneNumberNormalizer phoneNumberNormalizer,
+				PhoneFingerprintHasher phoneFingerprintHasher,
+				PhoneEligibilityFingerprintHasher eligibilityFingerprintHasher,
+				ConsentPolicy consentPolicy,
+				RefreshSessionIssuer refreshSessionIssuer,
+				FirebaseGuestUpgradeTransactionService transactionService,
+				AccessTokenIssuer accessTokenIssuer,
+				Clock clock
+		) {
+			return new FirebaseGuestUpgradeService(
+					currentUserProvider,
+					userRepository,
+					authenticationVerifier,
+					enrollmentRepository,
+					firebaseIdentityRepository,
+					socialIdentityRepository,
+					aliasRepository,
+					ownershipService,
+					phoneNumberNormalizer,
+					phoneFingerprintHasher,
+					eligibilityFingerprintHasher,
+					consentPolicy,
+					refreshSessionIssuer,
+					transactionService,
+					accessTokenIssuer,
+					clock
+			);
+		}
+
+		@Bean
+		FirebaseAuthMethodsSyncTransactionService firebaseAuthMethodsSyncTransactionService(
+				SocialIdentityRepository socialIdentityRepository
+		) {
+			return new FirebaseAuthMethodsSyncTransactionService(socialIdentityRepository);
+		}
+
+		@Bean
+		FirebaseAuthMethodsSyncUseCase firebaseAuthMethodsSyncUseCase(
+				CurrentUserProvider currentUserProvider,
+				UserRepository userRepository,
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				FirebaseAuthenticationVerifier authenticationVerifier,
+				FirebaseAuthMethodsSyncTransactionService transactionService,
+				Clock clock
+		) {
+			return new FirebaseAuthMethodsSyncService(
+					currentUserProvider,
+					userRepository,
+					firebaseIdentityRepository,
+					socialIdentityRepository,
+					authenticationVerifier,
+					transactionService,
 					clock
 			);
 		}

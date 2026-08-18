@@ -199,4 +199,23 @@ class RefreshSessionTests {
 		assertThat(session.getLastUsedAt()).isEqualTo(withdrawnAt);
 		assertThat(session.getReplacedBySessionId()).isNull();
 	}
+
+	@Test
+	void guestUpgradeUsesDedicatedRevocationReason() {
+		Instant createdAt = Instant.parse("2026-08-18T00:00:00Z");
+		Instant upgradedAt = createdAt.plusSeconds(40);
+		RefreshSession session = RefreshSession.create(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86",
+				"guest-upgrade-test-token-hash",
+				createdAt,
+				createdAt.plus(Duration.ofDays(14))
+		);
+
+		session.upgradeGuestAccount(upgradedAt);
+
+		assertThat(session.getRevocationReason()).isEqualTo(RevocationReason.GUEST_UPGRADED);
+		assertThat(session.getRevokedAt()).isEqualTo(upgradedAt);
+		assertThat(session.getLastUsedAt()).isEqualTo(upgradedAt);
+		assertThat(session.getReplacedBySessionId()).isNull();
+	}
 }

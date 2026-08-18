@@ -14,4 +14,6 @@ public interface UserRepositoryCustom {
 	);
 
 	boolean updateConsentsIfActive(User user, Instant expectedUpdatedAt);
+
+	boolean promoteGuestIfUnchanged(User user, Instant expectedUpdatedAt);
 }

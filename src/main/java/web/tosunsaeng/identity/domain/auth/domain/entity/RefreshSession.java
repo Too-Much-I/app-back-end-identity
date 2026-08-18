@@ -159,6 +159,10 @@ public class RefreshSession {
 		revoke(revokedAt, RevocationReason.ACCOUNT_WITHDRAWN, null);
 	}
 
+	public void upgradeGuestAccount(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.GUEST_UPGRADED, null);
+	}
+
 	public boolean isRevoked() {
 		return revokedAt != null || revocationReason != null;
 	}

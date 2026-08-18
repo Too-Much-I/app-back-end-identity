@@ -112,6 +112,53 @@ class UserRepositoryCustomImplTests {
 		);
 	}
 
+	@Test
+	void guestPromotionUsesGuestAndUpdatedAtCompareAndSetAndRemovesGuestCredential() {
+		MongoOperations mongoOperations = mock(MongoOperations.class);
+		UserRepositoryCustomImpl repository = new UserRepositoryCustomImpl(mongoOperations);
+		User guest = User.createGuest(
+				"A".repeat(43),
+				"게스트",
+				UserConsents.consented("privacy-v1", "term-v1", CREATED_AT),
+				CREATED_AT
+		);
+		String userId = guest.getUserId();
+		guest.promoteGuestToFederatedMember(
+				"승격회원",
+				"privacy-v1",
+				"term-v1",
+				WITHDRAWN_AT
+		);
+		ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);
+		ArgumentCaptor<Update> updateCaptor = ArgumentCaptor.forClass(Update.class);
+		when(mongoOperations.updateFirst(
+				queryCaptor.capture(),
+				updateCaptor.capture(),
+				eq(User.class)
+		)).thenReturn(UpdateResult.acknowledged(1, 1L, null));
+
+		assertThat(repository.promoteGuestIfUnchanged(guest, CREATED_AT)).isTrue();
+
+		Document query = queryCaptor.getValue().getQueryObject();
+		assertThat(query.getString("_id")).isEqualTo(userId);
+		assertThat(query.get("status")).isEqualTo(UserStatus.ACTIVE);
+		assertThat(query.get("updatedAt")).isEqualTo(CREATED_AT);
+		assertThat(query).containsKey("$and");
+		assertThat(query.get("$and").toString()).contains(
+				"accountType",
+				"GUEST",
+				"provider"
+		);
+		Document update = updateCaptor.getValue().getUpdateObject();
+		Document set = update.get("$set", Document.class);
+		Document unset = update.get("$unset", Document.class);
+		assertThat(set.getString("nickname")).isEqualTo("승격회원");
+		assertThat(set.get("accountType").toString()).isEqualTo("MEMBER");
+		assertThat(set.get("provider").toString()).isEqualTo("FEDERATED");
+		assertThat(set.get("updatedAt")).isEqualTo(WITHDRAWN_AT);
+		assertThat(unset).containsKey("guestInstallationIdHash");
+	}
+
 	private User localUser() {
 		return User.create(
 				"repository.user@example.test",

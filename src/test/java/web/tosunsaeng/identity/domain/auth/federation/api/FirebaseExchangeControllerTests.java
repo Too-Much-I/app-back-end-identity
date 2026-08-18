@@ -22,12 +22,21 @@ import org.springframework.test.web.servlet.MvcResult;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
+import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
+import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseAuthMethodsSyncRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseExchangeRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestPrepareRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestUpgradeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseSignupRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthMethodsSyncResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthenticatedResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseEnrollmentRequiredResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseEnrollmentRequirement;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 
@@ -44,6 +53,15 @@ class FirebaseExchangeControllerTests {
 
 	@MockitoBean
 	private FirebaseSignupUseCase firebaseSignupUseCase;
+
+	@MockitoBean
+	private FirebaseGuestPrepareUseCase firebaseGuestPrepareUseCase;
+
+	@MockitoBean
+	private FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase;
+
+	@MockitoBean
+	private FirebaseAuthMethodsSyncUseCase firebaseAuthMethodsSyncUseCase;
 
 	@Test
 	void returnsExplicitAuthenticatedResultWithoutInternalFirebaseFields() throws Exception {
@@ -176,5 +194,102 @@ class FirebaseExchangeControllerTests {
 				.doesNotContain("fresh-firebase-credential", "테스트회원");
 		assertThat(request.toString())
 				.doesNotContain("fresh-firebase-credential", "테스트회원", request.enrollmentId());
+	}
+
+	@Test
+	void guestPrepareReturnsEnrollmentWithoutEchoingCredentialOrUserId() throws Exception {
+		FirebaseGuestPrepareRequest request = new FirebaseGuestPrepareRequest(
+				"guest-prepare-credential"
+		);
+		when(firebaseGuestPrepareUseCase.prepare(request)).thenReturn(
+				FirebaseGuestPrepareResponse.enrollmentRequired(
+						"550e8400-e29b-41d4-a716-446655440000",
+						600_000
+				)
+		);
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/prepare")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"guest-prepare-credential\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.type").value("ENROLLMENT_REQUIRED"))
+				.andExpect(jsonPath("$.result.enrollmentId")
+						.value("550e8400-e29b-41d4-a716-446655440000"))
+				.andExpect(jsonPath("$.result.expiresIn").value(600_000))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain("guest-prepare-credential");
+		assertThat(request.toString()).doesNotContain("guest-prepare-credential");
+	}
+
+	@Test
+	void guestUpgradeReturnsOnlyNewIdentityTokens() throws Exception {
+		FirebaseGuestUpgradeRequest request = new FirebaseGuestUpgradeRequest(
+				"550e8400-e29b-41d4-a716-446655440000",
+				"guest-upgrade-credential",
+				"승격회원",
+				true,
+				"privacy-v1",
+				true,
+				"term-v1"
+		);
+		when(firebaseGuestUpgradeUseCase.upgrade(request)).thenReturn(new FirebaseSignupResponse(
+				"identity-access",
+				"identity-refresh",
+				"Bearer",
+				1_800_000,
+				1_209_600_000
+		));
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/upgrade")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+								  "firebaseIdToken": "guest-upgrade-credential",
+								  "nickname": "승격회원",
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
+								}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.accessToken").value("identity-access"))
+				.andExpect(jsonPath("$.result.refreshToken").value("identity-refresh"))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain("guest-upgrade-credential", "승격회원");
+		assertThat(request.toString())
+				.doesNotContain("guest-upgrade-credential", "승격회원", request.enrollmentId());
+	}
+
+	@Test
+	void authMethodsSyncReturnsProviderNamesWithoutEchoingCredential() throws Exception {
+		FirebaseAuthMethodsSyncRequest request = new FirebaseAuthMethodsSyncRequest(
+				"auth-method-sync-credential"
+		);
+		when(firebaseAuthMethodsSyncUseCase.sync(request)).thenReturn(
+				new FirebaseAuthMethodsSyncResponse(Set.of(
+						SocialProvider.GOOGLE,
+						SocialProvider.APPLE
+				))
+		);
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/auth-methods/sync")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"auth-method-sync-credential\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.linkedProviders", hasItems("GOOGLE", "APPLE")))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain("auth-method-sync-credential");
+		assertThat(request.toString()).doesNotContain("auth-method-sync-credential");
 	}
 }

@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.domain.auth.federation.application;
 public enum FirebaseVerificationPurpose {
 	LOGIN_EXCHANGE(false),
 	DIRECT_ENROLLMENT(true),
+	GUEST_ENROLLMENT_PREPARE(false),
 	GUEST_ENROLLMENT(true),
 	GUEST_MERGE(false),
 	AUTH_METHOD_SYNC(false),

@@ -67,4 +67,33 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 		UpdateResult result = mongoOperations.updateFirst(query, update, User.class);
 		return result.getModifiedCount() == 1;
 	}
+
+	@Override
+	public boolean promoteGuestIfUnchanged(User user, Instant expectedUpdatedAt) {
+		User requiredUser = Objects.requireNonNull(user, "user must not be null");
+		if (!requiredUser.isMember() || requiredUser.getStatus() != UserStatus.ACTIVE) {
+			throw new IllegalArgumentException("User must be an active promoted MEMBER.");
+		}
+		Criteria legacyOrExplicitGuest = new Criteria().orOperator(
+				Criteria.where("accountType").is("GUEST"),
+				new Criteria().andOperator(
+						Criteria.where("accountType").exists(false),
+						Criteria.where("provider").is("GUEST")
+				)
+		);
+		Query query = Query.query(Criteria.where("_id")
+				.is(requiredUser.getUserId())
+				.and("status").is(UserStatus.ACTIVE)
+				.and("updatedAt").is(expectedUpdatedAt)
+				.andOperator(legacyOrExplicitGuest));
+		Update update = new Update()
+				.set("nickname", requiredUser.getNickname())
+				.set("provider", requiredUser.getProvider())
+				.set("accountType", requiredUser.getAccountType())
+				.set("consents", requiredUser.getConsents())
+				.set("updatedAt", requiredUser.getUpdatedAt())
+				.unset("guestInstallationIdHash");
+		UpdateResult result = mongoOperations.updateFirst(query, update, User.class);
+		return result.getModifiedCount() == 1;
+	}
 }

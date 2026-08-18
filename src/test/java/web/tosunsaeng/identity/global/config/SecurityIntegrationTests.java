@@ -194,6 +194,39 @@ class SecurityIntegrationTests {
 	}
 
 	@Test
+	void guestUpgradeAndAuthMethodOpenApiRequireBearerAndNeverAcceptUserId() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/prepare'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/upgrade'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/auth-methods/sync'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestPrepareRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestUpgradeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseAuthMethodsSyncRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestPrepareRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestUpgradeRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseAuthMethodsSyncRequest.properties.userId"
+				).doesNotExist());
+	}
+
+	@Test
 	void malformedJsonReturnsSafeBadRequestWithoutEchoingRequestContent() throws Exception {
 		String requestOnlySensitiveValue = "request-only-sensitive-value";
 		String malformedJson = "{\"password\":\"%s\"".formatted(requestOnlySensitiveValue);
@@ -293,6 +326,18 @@ class SecurityIntegrationTests {
 		assertUnauthorized(mockMvc.perform(post("/api/v1/users/withdraw")
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"refreshToken\":\"security-test-value\"}"))
+				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/guest/prepare")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/guest/upgrade")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/auth-methods/sync")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
 				.andReturn());
 	}
 
