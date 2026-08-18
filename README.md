@@ -89,7 +89,7 @@ Identity Service는 다음 기능을 소유한다.
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 
-Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 공개 `/api/v1/auth/firebase/exchange`와 `/api/v1/auth/firebase/signup`은 같은 kill switch를 따르며, signup 활성화에는 PhoneIdentity와 consumer-scoped eligibility binding의 서로 다른 key ring이 모두 필요하다. 설정 하나라도 빠지면 신규 User를 비원자적으로 만들지 않고 기동 단계에서 fail-closed한다.
+Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 공개 `/api/v1/auth/firebase/exchange`·`/api/v1/auth/firebase/signup`과 Identity Bearer가 필요한 `/api/v1/auth/firebase/guest/prepare`·`/api/v1/auth/firebase/guest/upgrade`·`/api/v1/auth/firebase/auth-methods/sync`는 같은 kill switch를 따른다. signup과 Guest 승격 활성화에는 PhoneIdentity와 consumer-scoped eligibility binding의 서로 다른 key ring이 모두 필요하다. 설정 하나라도 빠지면 신규 User 생성이나 Guest 승격을 비원자적으로 진행하지 않고 기동 단계에서 fail-closed한다.
 
 ## 로컬 실행
 

@@ -127,6 +127,39 @@ class UserFactoryTests {
 	}
 
 	@Test
+	void promotesGuestInPlaceAndPreservesCanonicalUuidAndOptionalConsent() {
+		User guest = userFactory.createGuest(
+				GUEST_INSTALLATION_HASH,
+				true,
+				GUEST_CREATED_AT
+		);
+		String canonicalUserId = guest.getUserId();
+		Instant promotedAt = GUEST_CREATED_AT.plusSeconds(600);
+
+		guest.promoteGuestToFederatedMember(
+				"  승격 회원  ",
+				PRIVACY_CONSENT_VERSION,
+				TERM_CONSENT_VERSION,
+				promotedAt
+		);
+
+		assertThat(guest.getUserId()).isEqualTo(canonicalUserId);
+		assertThat(guest.isMember()).isTrue();
+		assertThat(guest.isGuest()).isFalse();
+		assertThat(guest.getProvider()).isEqualTo(UserProvider.FEDERATED);
+		assertThat(guest.getNickname()).isEqualTo("승격 회원");
+		assertThat(guest.getGuestInstallationIdHash()).isNull();
+		assertThat(guest.getUpdatedAt()).isEqualTo(promotedAt);
+		assertThat(guest.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(guest.getConsents().isTermConsented()).isTrue();
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_CONSENT_VERSION);
+		assertThat(guest.getConsents().getQualityReviewConsentedAt())
+				.isEqualTo(GUEST_CREATED_AT);
+	}
+
+	@Test
 	void createsMultipleGuestsWithNullLocalCredentialsAndUniqueUserIds() {
 		User first = userFactory.createGuest("A".repeat(43), GUEST_CREATED_AT);
 		User second = userFactory.createGuest("B".repeat(43), GUEST_CREATED_AT);

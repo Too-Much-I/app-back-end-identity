@@ -96,6 +96,16 @@ public enum AuthErrorStatus implements ErrorCode {
 			"FIREBASE_ENROLLMENT_CONFLICT",
 			"가입 요청을 완료할 수 없습니다. Firebase 로그인부터 다시 진행해 주세요."
 	),
+	GUEST_UPGRADE_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"GUEST_UPGRADE_NOT_ALLOWED",
+			"현재 계정은 Guest 승격을 진행할 수 없습니다."
+	),
+	MERGE_REQUIRED(
+			HttpStatus.CONFLICT,
+			"MERGE_REQUIRED",
+			"이미 연결된 MEMBER 계정으로 로그인해야 합니다."
+	),
 	INVALID_PHONE_NUMBER(
 			HttpStatus.BAD_REQUEST,
 			"INVALID_PHONE_NUMBER",

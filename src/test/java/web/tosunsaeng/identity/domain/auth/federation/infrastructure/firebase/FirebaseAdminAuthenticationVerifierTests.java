@@ -216,6 +216,34 @@ class FirebaseAdminAuthenticationVerifierTests {
 	}
 
 	@Test
+	void guestPrepareAllowsPrePhoneProofButUpgradeRequiresVerifiedPhone() {
+		FirebaseAdminPrincipalData beforePhoneLink = data(
+				NOW.minusSeconds(30),
+				"google.com",
+				true,
+				false,
+				false,
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
+		);
+		FirebaseAdminAuthenticationVerifier verifier = verifier(
+				new StubFirebaseAdminClient(beforePhoneLink),
+				properties(true, true, false)
+		);
+
+		assertThat(verifier.verify(
+				ID_TOKEN,
+				FirebaseVerificationPurpose.GUEST_ENROLLMENT_PREPARE
+		)).isNotNull();
+		assertAuthError(
+				() -> verifier.verify(
+						ID_TOKEN,
+						FirebaseVerificationPurpose.GUEST_ENROLLMENT
+				),
+				AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED
+		);
+	}
+
+	@Test
 	void disabledProviderAndMismatchedProjectFailClosed() {
 		assertAuthError(
 				() -> verifier(

@@ -163,6 +163,42 @@ public class UserConsents {
 		);
 	}
 
+	public UserConsents renewRequiredConsents(
+			String requiredPrivacyVersion,
+			String requiredTermVersion,
+			Instant consentedAt
+	) {
+		String privacyVersion = requireVersion(
+				requiredPrivacyVersion,
+				"privacyConsentVersion"
+		);
+		String termVersion = requireVersion(requiredTermVersion, "termConsentVersion");
+		Instant requiredConsentedAt = Objects.requireNonNull(
+				consentedAt,
+				"consentedAt must not be null"
+		);
+		boolean privacyCurrent = privacyConsented
+				&& privacyVersion.equals(privacyConsentVersion)
+				&& privacyConsentedAt != null;
+		boolean termCurrent = termConsented
+				&& termVersion.equals(termConsentVersion)
+				&& termConsentedAt != null;
+		if (privacyCurrent && termCurrent) {
+			return this;
+		}
+		return new UserConsents(
+				true,
+				privacyVersion,
+				privacyCurrent ? privacyConsentedAt : requiredConsentedAt,
+				true,
+				termVersion,
+				termCurrent ? termConsentedAt : requiredConsentedAt,
+				qualityReviewConsented,
+				qualityReviewConsentVersion,
+				qualityReviewConsentedAt
+		);
+	}
+
 	private static String requireVersion(String version, String fieldName) {
 		String requiredVersion = Objects.requireNonNull(
 				version,

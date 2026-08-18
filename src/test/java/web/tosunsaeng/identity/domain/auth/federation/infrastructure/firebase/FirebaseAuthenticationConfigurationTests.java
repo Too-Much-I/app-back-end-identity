@@ -13,13 +13,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentAttemptService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneIdentityTransactionService;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
@@ -31,6 +36,7 @@ import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
+import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 
 class FirebaseAuthenticationConfigurationTests {
 
@@ -54,6 +60,9 @@ class FirebaseAuthenticationConfigurationTests {
 			assertThat(context).doesNotHaveBean(FirebaseCredentialsProvider.class);
 			assertThat(context).hasSingleBean(FirebaseExchangeUseCase.class);
 			assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
+			assertThat(context).hasSingleBean(FirebaseGuestPrepareUseCase.class);
+			assertThat(context).hasSingleBean(FirebaseGuestUpgradeUseCase.class);
+			assertThat(context).hasSingleBean(FirebaseAuthMethodsSyncUseCase.class);
 		});
 	}
 
@@ -85,6 +94,12 @@ class FirebaseAuthenticationConfigurationTests {
 				.withBean(UserRepository.class, () -> mock(UserRepository.class))
 				.withBean(AccessTokenIssuer.class, () -> mock(AccessTokenIssuer.class))
 				.withBean(RefreshSessionIssuer.class, () -> mock(RefreshSessionIssuer.class))
+				.withBean(RefreshSessionRepository.class, () -> mock(RefreshSessionRepository.class))
+				.withBean(CurrentUserProvider.class, () -> mock(CurrentUserProvider.class))
+				.withBean(
+						PhoneIdentityTransactionService.class,
+						() -> mock(PhoneIdentityTransactionService.class)
+				)
 				.withBean(PhoneIdentityRepository.class, () -> mock(PhoneIdentityRepository.class))
 				.withBean(PhoneFingerprintAliasRepository.class, () -> mock(PhoneFingerprintAliasRepository.class))
 				.withBean(PhoneEligibilityBindingOutboxRepository.class, () -> mock(PhoneEligibilityBindingOutboxRepository.class))
@@ -108,6 +123,9 @@ class FirebaseAuthenticationConfigurationTests {
 					assertThat(context).hasSingleBean(FirebaseEnrollmentAttemptService.class);
 					assertThat(context).hasSingleBean(FirebaseExchangeUseCase.class);
 					assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
+					assertThat(context).hasSingleBean(FirebaseGuestPrepareUseCase.class);
+					assertThat(context).hasSingleBean(FirebaseGuestUpgradeUseCase.class);
+					assertThat(context).hasSingleBean(FirebaseAuthMethodsSyncUseCase.class);
 				});
 	}
 

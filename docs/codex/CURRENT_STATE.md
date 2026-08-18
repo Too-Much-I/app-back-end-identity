@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: `codex/sync-main-quality-review-hotfix`에서 `origin/main`의 Quality review hotfix를 최신 `origin/develop` 구조에 통합하고 전체 457개 테스트를 통과했다. merge commit·push·develop PR은 사용자가 수행하기 전 상태다
+- 현재 단계: Jira `TMI-97` Stage 6 Guest MEMBER 승격·인증수단 동기화를 `feat/TMI-97-guest-member-promotion`에서 구현하고 전체 479개 테스트를 통과했으며, 사용자 검토·commit·push·PR과 Jira 종료는 아직 남아 있다
 - 상태 기준일: 2026-08-18
 
 ## 완료
@@ -281,15 +281,26 @@
 - HTTPS-only JDK delivery adapter와 최대 5분 workload identity credential provider port를 추가했다. redirect와 response body 보관을 금지하고 publisher·Firebase·phone eligibility 기능은 기본 비활성, 설정 누락은 fail-closed로 유지한다
 - PUBLISHED event는 cleanupAt TTL·scheduler로 30일 뒤 정리하고 DEAD_LETTER는 90일 review 시각만 기록해 자동 삭제하지 않는다. metric은 event type·schema·outcome·failure code의 제한된 tag만 사용하며 candidate·userId·eventId·credential은 포함하지 않는다
 - TMI-96 구현 후 `./gradlew clean test` 73개 suite·433개 테스트, failure 0·error 0·skipped 0과 `git diff --check`를 통과했다. 실제 consumer·workload identity 발급 인프라·staging E2E는 구현하지 않았고 Jira 댓글·상태도 변경하지 않았다
+- GitHub PR #25가 merge commit `6f02f4a`로 TMI-96 구현을 `develop`에 반영했고, Quality review 역병합 PR #26도 merge commit `24275a5`로 반영됐다. 통합 기준 전체 457개 테스트가 성공했으며 `git merge-base --is-ancestor origin/main origin/develop`도 종료 코드 0이다
+- 사용자 최종 승인에 따라 TMI-96에 구현·테스트·남은 consumer/workload identity/staging 위험을 담은 종료 댓글 ID `10007`을 등록하고 transition ID `41`만 적용했다. 후속 조회에서 상태 ID `10003`과 Resolution이 모두 `완료`임을 확인했다
+- 승인된 Stage 6 Payload로 Jira `TMI-97` `[Identity] Stage 6 Guest MEMBER 승격 및 인증수단 동기화`를 TMI `작업`, 우선순위 `High`, 기본 상태 `해야 할 일`로 생성했다. 담당자·라벨·컴포넌트는 없고 Resolution도 없으며 설명·완료 조건·제외 범위가 승인안대로 저장됐음을 재조회했다
+- TMI-97 구현 전에 Jira·ADR-001·social login 계획과 코드를 대조했다. 계획의 보호 API는 `/api/v1/auth/firebase/guest/prepare`, `/api/v1/auth/firebase/guest/upgrade`, `/api/v1/auth/firebase/auth-methods/sync`이며 Guest JWT `sub`를 source로 고정하고, 당시 Guest 전용 API/service·in-place 승격·전용 Session 폐기·`MERGE_REQUIRED`·MEMBER sync 공백을 확인했다
+- TMI-97에서 Bearer 보호 API `/api/v1/auth/firebase/guest/prepare`, `/guest/upgrade`, `/auth-methods/sync`를 추가했다. Request Body userId 없이 JWT `sub`를 사용하며 prepare는 phone link 전 fresh proof로 Guest-bound attempt를 만들고, upgrade는 verified phone·동의·owner를 재검증한다
+- Guest upgrade는 기존 UUID를 유지한 User CAS 승격, guest installation credential 제거, FirebaseIdentity·PhoneIdentity/alias·SocialIdentity·eligibility revision/outbox, 기존 Session의 `GUEST_UPGRADED` 폐기, 신규 RefreshSession과 attempt CAS consume을 하나의 Mongo Transaction으로 처리한다. 다른 ACTIVE MEMBER owner는 mixed Firebase/Social 소유 조합도 mutation 없이 `MERGE_REQUIRED`로 분류한다
+- MEMBER auth-method sync는 JWT User와 기존 FirebaseIdentity UID 및 fresh Firebase proof를 대조해 누락 SocialIdentity만 멱등 추가하고, 다른 User owner는 `SOCIAL_IDENTITY_CONFLICT`로 거절한다. Firebase·provider 기능은 기본 비활성이고 실제 Guest merge·UserMergedOutbox는 Stage 7로 남겼다
+- TMI-97 도메인·service·Transaction·Controller·Security·OpenAPI·설정 테스트를 보강했으며 `./gradlew clean test` 전체 479개 테스트와 `git diff --check`, 신규 경계의 명시적 로그 호출 부재 검사가 성공했다
 
 ## 진행 중
 
-- 현재 브랜치는 `feat/TMI-96-phone-eligibility-outbox-publisher`이며 기준 commit은 PR #23 merge commit `31130fd`다. 애플리케이션·테스트·문서 변경이 있고 Codex는 commit·push를 수행하지 않았다
-- Jira `TMI-96` — Identity outbox schema/revision·revoke, atomic lease·retry/dead-letter HTTPS publisher 구현과 전체 테스트를 완료했다. 상태는 `해야 할 일`, Resolution 없음이며 PR 병합 전 댓글·상태를 변경하지 않는다
+- 현재 브랜치는 `feat/TMI-97-guest-member-promotion`이며 기준 HEAD는 `24275a5`다. TMI-97 구현과 테스트·문서 변경은 미커밋 상태이고 Codex는 commit·push를 수행하지 않는다
+- Jira `TMI-97` — Stage 6 Guest MEMBER 승격 및 인증수단 동기화. 상태는 `해야 할 일`, Resolution 없음이며 Jira 댓글·상태 전환은 수행하지 않았다
 
 ## 다음 작업
 
-- 사용자가 변경을 검토해 직접 commit·push하고 PR을 병합한 뒤에만 TMI-96 종료 댓글과 Done 전환안을 제시한다. 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다
+- 사용자가 TMI-97 diff와 479개 테스트 결과를 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 Jira를 Done으로 바꾸지 않으며 댓글 등록·상태 전환은 별도 승인 후 수행한다
+- 격리 Firebase/mobile과 Transaction 지원 staging MongoDB에서 Guest prepare→same-UID phone link→upgrade, existing MEMBER owner `MERGE_REQUIRED`, concurrent upgrade CAS, outbox·Session·attempt rollback과 성공 응답 유실 뒤 `/exchange` 복구 흐름을 E2E 검증한다
+- Firebase link는 Mongo Transaction 밖에서 먼저 일어나므로 중단 enrollment cleanup·resume 정책과 성공 후 재시도 UX를 확정한다. 실제 Guest source/target merge와 `UserMergedOutbox`는 Stage 7에서 별도 구현한다
+- 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다. Identity Stage 6와 병렬 진행할 수 있지만 consumer와 staging E2E가 준비되기 전 production publisher/Firebase flag는 활성화하지 않는다
 - staging에서 실제 HTTPS consumer mock과 workload identity provider, Mongo replica set Transaction·lease 경쟁·TTL/index 생성, publisher 장애·scope pause·manual replay 운영 절차를 검증한다. 이 검증과 외부 consumer 준비 전 production publisher/Firebase flag를 활성화하지 않는다
 - Stage 5C에서도 Identity에는 TrialClaim·UserEntitlement·시험 코드를 추가하지 않는다. 실제 consumer 구현은 소유 서비스의 별도 Jira로 분리하고, 가입 성공만으로 혜택을 지급하지 않는 계약을 유지한다
 - 격리 Firebase/mobile과 transaction 지원 staging MongoDB에서 same-UID phone link, 국내 SMS·quota/abuse, revoke·recent-auth, unique/write conflict, outbox/Session/consume 주입 rollback 및 운영 index 생성을 재검증한다
@@ -462,6 +473,7 @@
 - 현재 Firebase 검증 adapter는 모든 Firebase 목적에서 revoke 확인과 최신 UserRecord 확인을 수행하므로 인증 교환마다 원격 호출·latency·quota 영향을 받는다. 공개 전 timeout·429/503 mapping, circuit/alert 기준과 기존 Identity RefreshSession reissue의 Firebase 비호출 정책을 실제 배포 환경에서 확인해야 한다.
 - 회원가입 필수 OTP는 가입 전환율을 낮추고 무료시험을 사용하지 않는 회원에게도 SMS 비용·개인정보 수집을 발생시키므로 funnel·발송 비용·동의 고지를 함께 관찰해야 한다.
 - FirebaseEnrollmentAttempt는 짧은 TTL·Firebase UID·purpose·Guest binding·조건부 일회성 소비가 없으면 ID Token 재사용이나 가입 흐름 혼합 위험이 있다. 동시 신규 가입은 FirebaseIdentity·SocialIdentity·PhoneIdentity unique 충돌 시 User·RefreshSession까지 전체 rollback돼야 한다.
+- TMI-97의 Guest 승격 원자성은 모의 TransactionManager와 Repository mock으로 검증했지만 실제 Mongo replica set의 nested `REQUIRED` 참여·write conflict·unique race는 staging에서 재검증해야 한다. Firebase provider/phone link는 Mongo 밖에서 먼저 완료되므로 finalize 중단 cleanup·resume과 성공 응답 유실 뒤 로그인 교환 복구 UX도 운영 계약이 필요하다.
 - binding별 PENDING partial unique는 만료 document를 application CAS로 EXPIRED 전환하기 전 새 attempt를 막는다. 만료 판정·상태 전환·동시 insert loser 재조회가 일관되지 않으면 여러 attempt 또는 가입 재개 실패가 생길 수 있으며 TTL 삭제 시각을 correctness에 사용하면 안 된다.
 - Identity가 Firebase ID Token의 서명·issuer·audience·만료·폐기 여부·auth_time·sign-in provider를 검증하지 않거나 raw Token을 장기 grant로 재사용하면 replay와 목적 혼합 위험이 있다. Provider redirect의 nonce·state·PKCE 방어는 Firebase client/provider 설정을 PoC에서 별도로 확인한다.
 - TrialClaim fingerprint를 탈퇴 후 유지하면 pseudonymous personal data 보존과 번호 재할당 오탐 문제가 남으므로 목적·기간·삭제·재가입 정책을 개인정보 처리방침과 법무 기준으로 확정해야 한다.

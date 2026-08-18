@@ -222,6 +222,39 @@ public class User {
 		);
 	}
 
+	public void promoteGuestToFederatedMember(
+			String memberNickname,
+			String privacyConsentVersion,
+			String termConsentVersion,
+			Instant promotedAt
+	) {
+		if (status != UserStatus.ACTIVE || !isGuest()) {
+			throw new IllegalStateException("Only an active Guest can be promoted.");
+		}
+		String requiredNickname = Objects.requireNonNull(
+				memberNickname,
+				"memberNickname must not be null"
+		).trim();
+		if (requiredNickname.isEmpty()) {
+			throw new IllegalArgumentException("memberNickname must not be blank");
+		}
+		Instant requiredPromotedAt = Objects.requireNonNull(
+				promotedAt,
+				"promotedAt must not be null"
+		);
+		this.nickname = requiredNickname;
+		this.provider = UserProvider.FEDERATED;
+		this.accountType = UserAccountType.MEMBER;
+		this.guestInstallationIdHash = null;
+		this.consents = getConsents().renewRequiredConsents(
+				privacyConsentVersion,
+				termConsentVersion,
+				requiredPromotedAt
+		);
+		this.updatedAt = requiredPromotedAt;
+		validateAccountFields();
+	}
+
 	private static String requireGuestInstallationIdHash(String hash) {
 		String requiredHash = Objects.requireNonNull(
 				hash,
