@@ -11,6 +11,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
@@ -19,7 +20,9 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollm
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintSet;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
@@ -35,6 +38,7 @@ public class FirebaseSignupTransactionService {
 	private final PhoneIdentityRepository phoneIdentityRepository;
 	private final PhoneFingerprintAliasRepository aliasRepository;
 	private final PhoneEligibilityBindingOutboxRepository outboxRepository;
+	private final PhoneEligibilityBindingRevisionRepository revisionRepository;
 	private final SocialIdentityRepository socialIdentityRepository;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final FirebaseEnrollmentAttemptRepository enrollmentRepository;
@@ -45,6 +49,7 @@ public class FirebaseSignupTransactionService {
 			PhoneIdentityRepository phoneIdentityRepository,
 			PhoneFingerprintAliasRepository aliasRepository,
 			PhoneEligibilityBindingOutboxRepository outboxRepository,
+			PhoneEligibilityBindingRevisionRepository revisionRepository,
 			SocialIdentityRepository socialIdentityRepository,
 			RefreshSessionIssuer refreshSessionIssuer,
 			FirebaseEnrollmentAttemptRepository enrollmentRepository
@@ -54,6 +59,7 @@ public class FirebaseSignupTransactionService {
 		this.phoneIdentityRepository = Objects.requireNonNull(phoneIdentityRepository);
 		this.aliasRepository = Objects.requireNonNull(aliasRepository);
 		this.outboxRepository = Objects.requireNonNull(outboxRepository);
+		this.revisionRepository = Objects.requireNonNull(revisionRepository);
 		this.socialIdentityRepository = Objects.requireNonNull(socialIdentityRepository);
 		this.refreshSessionIssuer = Objects.requireNonNull(refreshSessionIssuer);
 		this.enrollmentRepository = Objects.requireNonNull(enrollmentRepository);
@@ -64,7 +70,8 @@ public class FirebaseSignupTransactionService {
 			User user,
 			FirebaseIdentity firebaseIdentity,
 			PhoneFingerprintSet phoneFingerprints,
-			PhoneEligibilityBindingOutbox outbox,
+			String consumerScopeId,
+			List<PhoneEligibilityFingerprintCandidate> eligibilityCandidates,
 			List<SocialIdentity> socialIdentities,
 			PreparedRefreshSession preparedRefreshSession,
 			FirebaseEnrollmentAttempt enrollmentAttempt,
@@ -72,7 +79,6 @@ public class FirebaseSignupTransactionService {
 	) {
 		String userId = user.getUserId();
 		if (!userId.equals(firebaseIdentity.getUserId())
-				|| !userId.equals(outbox.getUserId())
 				|| !userId.equals(preparedRefreshSession.session().getUserId())
 				|| socialIdentities.stream().anyMatch(identity -> !userId.equals(identity.getUserId()))) {
 			throw new IllegalArgumentException("Firebase signup aggregate user IDs must match.");
@@ -97,6 +103,19 @@ public class FirebaseSignupTransactionService {
 				))
 				.toList();
 		aliasRepository.saveAll(aliases);
+		PhoneEligibilityBindingRevision bindingRevision = revisionRepository.advanceVerified(
+				userId,
+				consumerScopeId,
+				consumedAt
+		);
+		PhoneEligibilityBindingOutbox outbox = PhoneEligibilityBindingOutbox.createVerified(
+				userId,
+				consumerScopeId,
+				bindingRevision.getRevision(),
+				eligibilityCandidates,
+				consumedAt,
+				consumedAt
+		);
 		outboxRepository.save(outbox);
 		if (!socialIdentities.isEmpty()) {
 			socialIdentityRepository.saveAll(socialIdentities);

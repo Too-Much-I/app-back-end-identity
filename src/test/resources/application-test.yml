@@ -40,6 +40,10 @@ app:
     enabled: false
     consumer-scope-id: ""
     key-ring: ""
+  phone-eligibility-publisher:
+    enabled: false
+    endpoint: ""
+    audience: ""
 
 springdoc:
   swagger-ui:

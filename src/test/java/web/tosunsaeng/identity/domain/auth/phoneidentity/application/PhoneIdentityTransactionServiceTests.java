@@ -16,10 +16,15 @@ import org.junit.jupiter.api.Test;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintSet;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
@@ -163,6 +168,45 @@ class PhoneIdentityTransactionServiceTests {
 				NOW
 		);
 		verify(aliases).saveAll(any());
+	}
+
+	@Test
+	void replacementPublishesRevokedThenVerifiedRevisionsInSameOperation() {
+		PhoneIdentityRepository identities = mock(PhoneIdentityRepository.class);
+		PhoneFingerprintAliasRepository aliases = mock(PhoneFingerprintAliasRepository.class);
+		PhoneEligibilityBindingRevisionRepository revisions = mock(
+				PhoneEligibilityBindingRevisionRepository.class);
+		PhoneEligibilityBindingOutboxRepository outbox = mock(
+				PhoneEligibilityBindingOutboxRepository.class);
+		PhoneIdentity oldIdentity = PhoneIdentity.create(USER_A, OLD, NOW.minusSeconds(10));
+		when(aliases.findAllActiveByFingerprints(List.of(ACTIVE))).thenReturn(List.of());
+		when(identities.findByUserIdAndStatus(USER_A, PhoneIdentityStatus.ACTIVE))
+				.thenReturn(Optional.of(oldIdentity));
+		when(aliases.releaseAllActiveByPhoneIdentityId(oldIdentity.getPhoneIdentityId(), NOW))
+				.thenReturn(1L);
+		when(identities.save(any(PhoneIdentity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		PhoneEligibilityBindingRevision active = mock(PhoneEligibilityBindingRevision.class);
+		when(active.isActive()).thenReturn(true);
+		when(active.getRevision()).thenReturn(1L);
+		PhoneEligibilityBindingRevision revoked = mock(PhoneEligibilityBindingRevision.class);
+		when(revoked.getRevision()).thenReturn(2L);
+		PhoneEligibilityBindingRevision verified = mock(PhoneEligibilityBindingRevision.class);
+		when(verified.getRevision()).thenReturn(3L);
+		when(revisions.findByUserIdAndConsumerScopeId(USER_A, "opaque-scope-v1"))
+				.thenReturn(Optional.of(active));
+		when(revisions.advanceRevoked(USER_A, "opaque-scope-v1", 1L, NOW))
+				.thenReturn(Optional.of(revoked));
+		when(revisions.advanceVerified(USER_A, "opaque-scope-v1", NOW)).thenReturn(verified);
+
+		new PhoneIdentityTransactionService(identities, aliases, revisions, outbox).linkOrReplace(
+				USER_A,
+				new PhoneFingerprintSet(ACTIVE, List.of(ACTIVE)),
+				"opaque-scope-v1",
+				List.of(new PhoneEligibilityFingerprintCandidate("v1", "C".repeat(43))),
+				NOW
+		);
+
+		verify(outbox, org.mockito.Mockito.times(2)).save(any(PhoneEligibilityBindingOutbox.class));
 	}
 
 	private PhoneIdentityTransactionService service(

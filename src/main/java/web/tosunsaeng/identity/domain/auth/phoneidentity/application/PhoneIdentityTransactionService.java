@@ -12,10 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintSet;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
@@ -25,6 +30,8 @@ public class PhoneIdentityTransactionService {
 
 	private final PhoneIdentityRepository phoneIdentityRepository;
 	private final PhoneFingerprintAliasRepository aliasRepository;
+	private final PhoneEligibilityBindingRevisionRepository bindingRevisionRepository;
+	private final PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
 
 	public PhoneIdentityTransactionService(
 			PhoneIdentityRepository phoneIdentityRepository,
@@ -38,12 +45,37 @@ public class PhoneIdentityTransactionService {
 				aliasRepository,
 				"aliasRepository must not be null"
 		);
+		this.bindingRevisionRepository = null;
+		this.bindingOutboxRepository = null;
+	}
+
+	public PhoneIdentityTransactionService(
+			PhoneIdentityRepository phoneIdentityRepository,
+			PhoneFingerprintAliasRepository aliasRepository,
+			PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
+			PhoneEligibilityBindingOutboxRepository bindingOutboxRepository
+	) {
+		this.phoneIdentityRepository = Objects.requireNonNull(phoneIdentityRepository);
+		this.aliasRepository = Objects.requireNonNull(aliasRepository);
+		this.bindingRevisionRepository = bindingRevisionRepository;
+		this.bindingOutboxRepository = bindingOutboxRepository;
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
 	public PhoneIdentityLinkResult linkOrReplace(
 			String userId,
 			PhoneFingerprintSet fingerprints,
+			Instant verifiedAt
+	) {
+		return linkOrReplace(userId, fingerprints, null, null, verifiedAt);
+	}
+
+	@Transactional(transactionManager = "mongoTransactionManager")
+	public PhoneIdentityLinkResult linkOrReplace(
+			String userId,
+			PhoneFingerprintSet fingerprints,
+			String consumerScopeId,
+			List<PhoneEligibilityFingerprintCandidate> eligibilityCandidates,
 			Instant verifiedAt
 	) {
 		String requiredUserId = Objects.requireNonNull(userId, "userId must not be null");
@@ -67,29 +99,74 @@ public class PhoneIdentityTransactionService {
 				PhoneIdentityStatus.ACTIVE
 		);
 		if (!matchedAliases.isEmpty()) {
-			return reuseOrRotate(
+			PhoneIdentityLinkResult result = reuseOrRotate(
 					requiredUserId,
 					requiredFingerprints,
 					requiredVerifiedAt,
 					matchedAliases,
 					current
 			);
+			if (result.outcome() == PhoneIdentityLinkOutcome.ROTATED) {
+				publishVerified(requiredUserId, consumerScopeId, eligibilityCandidates, requiredVerifiedAt);
+			}
+			return result;
 		}
 		if (current.isPresent()) {
 			releaseCurrent(current.orElseThrow(), requiredVerifiedAt);
-			return create(
+			publishRevoked(requiredUserId, consumerScopeId, requiredVerifiedAt);
+			PhoneIdentityLinkResult result = create(
 					requiredUserId,
 					requiredFingerprints,
 					requiredVerifiedAt,
 					PhoneIdentityLinkOutcome.REPLACED
 			);
+			publishVerified(requiredUserId, consumerScopeId, eligibilityCandidates, requiredVerifiedAt);
+			return result;
 		}
-		return create(
+		PhoneIdentityLinkResult result = create(
 				requiredUserId,
 				requiredFingerprints,
 				requiredVerifiedAt,
 				PhoneIdentityLinkOutcome.CREATED
 		);
+		publishVerified(requiredUserId, consumerScopeId, eligibilityCandidates, requiredVerifiedAt);
+		return result;
+	}
+
+	private void publishVerified(
+			String userId,
+			String consumerScopeId,
+			List<PhoneEligibilityFingerprintCandidate> candidates,
+			Instant verifiedAt
+	) {
+		if (consumerScopeId == null && candidates == null) return;
+		requireBindingRepositories();
+		PhoneEligibilityBindingRevision revision = bindingRevisionRepository.advanceVerified(
+				userId, Objects.requireNonNull(consumerScopeId), verifiedAt);
+		bindingOutboxRepository.save(PhoneEligibilityBindingOutbox.createVerified(
+				userId, consumerScopeId, revision.getRevision(),
+				Objects.requireNonNull(candidates), verifiedAt, verifiedAt));
+	}
+
+	private void publishRevoked(String userId, String consumerScopeId, Instant revokedAt) {
+		if (consumerScopeId == null) return;
+		requireBindingRepositories();
+		bindingRevisionRepository.findByUserIdAndConsumerScopeId(userId, consumerScopeId)
+				.filter(PhoneEligibilityBindingRevision::isActive)
+				.ifPresent(active -> {
+					PhoneEligibilityBindingRevision revoked = bindingRevisionRepository.advanceRevoked(
+							userId, consumerScopeId, active.getRevision(), revokedAt)
+							.orElseThrow(() -> new IllegalStateException(
+									"Eligibility binding revision changed during phone release."));
+					bindingOutboxRepository.save(PhoneEligibilityBindingOutbox.createRevoked(
+							userId, consumerScopeId, revoked.getRevision(), revokedAt, revokedAt));
+				});
+	}
+
+	private void requireBindingRepositories() {
+		if (bindingRevisionRepository == null || bindingOutboxRepository == null) {
+			throw new IllegalStateException("Phone eligibility binding repositories are unavailable.");
+		}
 	}
 
 	private PhoneIdentityLinkResult reuseOrRotate(

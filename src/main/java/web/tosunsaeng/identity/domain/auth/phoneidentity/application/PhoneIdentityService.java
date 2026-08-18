@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.phoneidentity.application;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -9,6 +10,7 @@ import org.springframework.dao.DuplicateKeyException;
 
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintSet;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
@@ -20,6 +22,7 @@ public final class PhoneIdentityService {
 	private final PhoneNumberNormalizer phoneNumberNormalizer;
 	private final PhoneFingerprintHasher fingerprintHasher;
 	private final PhoneIdentityTransactionService transactionService;
+	private final PhoneEligibilityFingerprintHasher eligibilityFingerprintHasher;
 	private final Clock clock;
 
 	public PhoneIdentityService(
@@ -40,7 +43,22 @@ public final class PhoneIdentityService {
 				transactionService,
 				"transactionService must not be null"
 		);
+		this.eligibilityFingerprintHasher = null;
 		this.clock = Objects.requireNonNull(clock, "clock must not be null");
+	}
+
+	public PhoneIdentityService(
+			PhoneNumberNormalizer phoneNumberNormalizer,
+			PhoneFingerprintHasher fingerprintHasher,
+			PhoneEligibilityFingerprintHasher eligibilityFingerprintHasher,
+			PhoneIdentityTransactionService transactionService,
+			Clock clock
+	) {
+		this.phoneNumberNormalizer = Objects.requireNonNull(phoneNumberNormalizer);
+		this.fingerprintHasher = Objects.requireNonNull(fingerprintHasher);
+		this.eligibilityFingerprintHasher = eligibilityFingerprintHasher;
+		this.transactionService = Objects.requireNonNull(transactionService);
+		this.clock = Objects.requireNonNull(clock);
 	}
 
 	public PhoneIdentityLinkResult linkOrReplace(
@@ -57,11 +75,14 @@ public final class PhoneIdentityService {
 		PhoneFingerprintSet fingerprints = fingerprintHasher.fingerprint(normalizedE164);
 		for (int attempt = 0; attempt < MAX_CONCURRENCY_ATTEMPTS; attempt++) {
 			try {
+				Instant verifiedAt = clock.instant();
+				if (eligibilityFingerprintHasher == null) {
+					return transactionService.linkOrReplace(requiredUserId, fingerprints, verifiedAt);
+				}
 				return transactionService.linkOrReplace(
-						requiredUserId,
-						fingerprints,
-						clock.instant()
-				);
+						requiredUserId, fingerprints,
+						eligibilityFingerprintHasher.consumerScopeId(),
+						eligibilityFingerprintHasher.fingerprint(normalizedE164), verifiedAt);
 			} catch (DuplicateKeyException | ConcurrencyFailureException exception) {
 				// 재실행하면 승자의 alias를 조회해 멱등 성공 또는 PHONE_ALREADY_LINKED로 수렴한다.
 			}

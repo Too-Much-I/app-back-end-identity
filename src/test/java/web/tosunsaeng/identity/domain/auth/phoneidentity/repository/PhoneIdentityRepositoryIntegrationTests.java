@@ -32,6 +32,7 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBinding
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
+import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneEligibilityBindingOutboxStatus;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
 
@@ -72,7 +73,12 @@ class PhoneIdentityRepositoryIntegrationTests {
 						new PhoneFingerprintAliasRepositoryImpl(mongoTemplate)
 				)
 		);
-		outboxRepository = factory.getRepository(PhoneEligibilityBindingOutboxRepository.class);
+		outboxRepository = factory.getRepository(
+				PhoneEligibilityBindingOutboxRepository.class,
+				RepositoryFragments.just(
+						new PhoneEligibilityBindingOutboxRepositoryCustomImpl(mongoTemplate)
+				)
+		);
 	}
 
 	@AfterEach
@@ -232,19 +238,40 @@ class PhoneIdentityRepositoryIntegrationTests {
 				.getIndexInfo();
 		IndexInfo bindingLookup = index(
 				indexes,
-				"ix_phone_eligibility_binding_user_scope_created_at"
+				"uk_phone_eligibility_outbox_user_scope_revision"
 		);
 		IndexInfo pendingLookup = index(
 				indexes,
-				"ix_phone_eligibility_outbox_status_created_at"
+				"ix_phone_eligibility_outbox_due"
 		);
-		assertThat(bindingLookup.isUnique()).isFalse();
+		assertThat(bindingLookup.isUnique()).isTrue();
 		assertThat(bindingLookup.getIndexFields())
 				.extracting(IndexField::getKey)
-				.containsExactly("userId", "consumerScopeId", "createdAt");
+				.containsExactly("userId", "consumerScopeId", "bindingRevision");
 		assertThat(pendingLookup.getIndexFields())
 				.extracting(IndexField::getKey)
-				.containsExactly("status", "createdAt");
+				.containsExactly("consumerScopeId", "status", "nextAttemptAt", "occurredAt");
+	}
+
+	@Test
+	void outboxClaimIsAtomicAndExpiredLeaseCanBeReclaimed() {
+		PhoneEligibilityBindingOutbox event = outbox(USER_A, "consumer-a");
+		outboxRepository.save(event);
+
+		PhoneEligibilityBindingOutbox firstClaim = outboxRepository.claimNext(
+				"consumer-a", "worker-a", CREATED_AT, CREATED_AT.plusSeconds(60))
+				.orElseThrow();
+		assertThat(firstClaim.getStatus()).isEqualTo(PhoneEligibilityBindingOutboxStatus.IN_FLIGHT);
+		assertThat(firstClaim.getAttemptCount()).isEqualTo(1);
+		assertThat(outboxRepository.claimNext(
+				"consumer-a", "worker-b", CREATED_AT.plusSeconds(30), CREATED_AT.plusSeconds(90)))
+				.isEmpty();
+
+		PhoneEligibilityBindingOutbox reclaimed = outboxRepository.claimNext(
+				"consumer-a", "worker-b", CREATED_AT.plusSeconds(60), CREATED_AT.plusSeconds(120))
+				.orElseThrow();
+		assertThat(reclaimed.getEventId()).isEqualTo(event.getEventId());
+		assertThat(reclaimed.getAttemptCount()).isEqualTo(2);
 	}
 
 	private boolean claimWhenReleased(
@@ -303,10 +330,12 @@ class PhoneIdentityRepositoryIntegrationTests {
 	}
 
 	private PhoneEligibilityBindingOutbox outbox(String userId, String scope) {
-		return PhoneEligibilityBindingOutbox.create(
+		return PhoneEligibilityBindingOutbox.createVerified(
 				userId,
 				scope,
+				outboxRepository.count() + 1,
 				List.of(new PhoneEligibilityFingerprintCandidate("v1", "E".repeat(43))),
+				CREATED_AT,
 				CREATED_AT
 		);
 	}

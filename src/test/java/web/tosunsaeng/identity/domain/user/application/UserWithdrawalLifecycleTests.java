@@ -34,6 +34,8 @@ import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverte
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.registration.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.local.dto.request.LoginRequest;
 import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
@@ -132,7 +134,12 @@ class UserWithdrawalLifecycleTests {
 
 		currentUserProvider = mock(CurrentUserProvider.class);
 		UserWithdrawalTransactionService withdrawalTransactionService =
-				new UserWithdrawalTransactionService(userRepository, sessionRepository);
+				new UserWithdrawalTransactionService(
+						userRepository,
+						sessionRepository,
+						mock(PhoneEligibilityBindingRevisionRepository.class),
+						mock(PhoneEligibilityBindingOutboxRepository.class)
+				);
 		withdrawalService = new UserWithdrawalService(
 				currentUserProvider,
 				userRepository,

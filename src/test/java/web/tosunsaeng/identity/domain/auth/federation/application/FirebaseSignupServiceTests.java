@@ -148,7 +148,7 @@ class FirebaseSignupServiceTests {
 					)
 			);
 		});
-		when(transactionService.register(any(), any(), any(), any(), any(), any(), any(), any()))
+		when(transactionService.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
 				.thenReturn(new IssuedRefreshSession(
 						"refresh-secret",
 						NOW,
@@ -176,7 +176,7 @@ class FirebaseSignupServiceTests {
 		verify(transactionService).register(
 				userCaptor.capture(),
 				firebaseCaptor.capture(),
-				any(), any(), any(), any(), any(), any()
+				any(), any(), any(), any(), any(), any(), any()
 		);
 		User user = userCaptor.getValue();
 		assertThat(user.getProvider()).isEqualTo(UserProvider.FEDERATED);
@@ -186,7 +186,7 @@ class FirebaseSignupServiceTests {
 		assertThat(firebaseCaptor.getValue().getUserId()).isEqualTo(user.getUserId());
 
 		InOrder order = inOrder(transactionService, accessTokenIssuer);
-		order.verify(transactionService).register(any(), any(), any(), any(), any(), any(), any(), any());
+		order.verify(transactionService).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
 		order.verify(accessTokenIssuer).issue(user.getUserId(), Set.of());
 		assertThat(response.toString())
 				.doesNotContain("access-secret", "refresh-secret", FIREBASE_UID, PHONE);
@@ -199,7 +199,7 @@ class FirebaseSignupServiceTests {
 		assertAuthError(() -> service.signup(request()), AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
 
 		verify(refreshSessionIssuer, never()).prepare(any());
-		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any());
+		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
 	}
 
 	@Test
@@ -212,7 +212,7 @@ class FirebaseSignupServiceTests {
 		);
 
 		verify(refreshSessionIssuer, never()).prepare(any());
-		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any());
+		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
 	}
 
 	@Test
@@ -230,12 +230,12 @@ class FirebaseSignupServiceTests {
 		assertAuthError(() -> service.signup(request()), AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
 
 		verify(refreshSessionIssuer, never()).prepare(any());
-		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any());
+		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
 	}
 
 	@Test
 	void uniqueRaceIsClassifiedAsPhoneConflictAndAccessTokenIsNotIssued() {
-		when(transactionService.register(any(), any(), any(), any(), any(), any(), any(), any()))
+		when(transactionService.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
 				.thenThrow(new DuplicateKeyException("test-only unique conflict"));
 		when(aliasRepository.findAllActiveByFingerprints(any()))
 				.thenReturn(List.of())

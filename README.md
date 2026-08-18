@@ -77,6 +77,14 @@ Identity Service는 다음 기능을 소유한다.
 | `PHONE_ELIGIBILITY_BINDING_ENABLED` | 선택 | consumer-scoped eligibility outbox fingerprint 활성화 여부, 기본값 `false` |
 | `PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID` | eligibility binding 활성화 시 필수 | Identity가 의미를 해석하지 않는 allowlist된 opaque consumer scope |
 | `PHONE_ELIGIBILITY_BINDING_KEY_RING` | eligibility binding 활성화 시 필수 | PhoneIdentity key와 분리해 Secret으로 주입하는 retained key ring |
+| `PHONE_ELIGIBILITY_PUBLISHER_ENABLED` | 선택 | eligibility event HTTPS publisher 활성화 여부, 기본값 `false` |
+| `PHONE_ELIGIBILITY_PUBLISHER_ENDPOINT` | publisher 활성화 시 필수 | allowlist된 consumer의 HTTPS endpoint |
+| `PHONE_ELIGIBILITY_PUBLISHER_AUDIENCE` | publisher 활성화 시 필수 | workload identity credential의 대상 audience |
+| `PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION` | 선택 | atomic claim lease, 기본값 `PT60S` |
+| `PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY` | 선택 | publisher polling 간격, 기본값 `PT5S` |
+| `PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS` | 선택 | transient delivery 최대 시도 횟수, 기본값 `12` |
+| `PHONE_ELIGIBILITY_PUBLISHER_PUBLISHED_RETENTION` | 선택 | 발행 완료 event 보존 기간, 기본값 `P30D` |
+| `PHONE_ELIGIBILITY_PUBLISHER_DEAD_LETTER_REVIEW` | 선택 | dead-letter 검토 기준 기간, 기본값 `P90D`이며 자동 삭제하지 않음 |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 

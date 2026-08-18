@@ -14,7 +14,6 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
-import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseSignupRequest;
@@ -127,12 +126,6 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 						now
 				))
 				.toList();
-		PhoneEligibilityBindingOutbox outbox = PhoneEligibilityBindingOutbox.create(
-				user.getUserId(),
-				eligibilityFingerprintHasher.consumerScopeId(),
-				eligibilityCandidates,
-				now
-		);
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(
 				user.getUserId()
 		);
@@ -143,7 +136,8 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 					user,
 					firebaseIdentity,
 					phoneFingerprints,
-					outbox,
+					eligibilityFingerprintHasher.consumerScopeId(),
+					eligibilityCandidates,
 					socialIdentities,
 					preparedRefreshSession,
 					attempt,

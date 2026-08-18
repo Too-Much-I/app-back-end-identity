@@ -5,7 +5,7 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Stage 5A·5B 구현 PR #22가 `develop`에 병합됐고 Jira `TMI-94`도 완료 처리했다. 현재 진행 중인 Jira `TMI-95`의 Stage 5C `Phone eligibility binding` 서버 간 계약 ADR을 로컬 브랜치에서 구현·검증했으며 Jira 상태는 PR 병합 전이므로 `해야 할 일`을 유지한다
+- 현재 단계: Jira `TMI-96` Stage 5D Phone eligibility binding outbox publisher 구현과 전체 회귀 검증을 완료했다. Jira 상태는 `해야 할 일`로 유지하며 PR 병합 전 댓글·상태를 변경하지 않는다
 - 상태 기준일: 2026-08-14
 
 ## 완료
@@ -252,19 +252,42 @@
 - Stage 5C 서버 간 계약 ADR 전체 목적을 사용자 흐름으로 설명했다. 가입 Transaction이 verified phone의 consumer 전용 fingerprint candidate와 PENDING outbox를 함께 저장하고, 추후 publisher가 lease로 한 건을 점유해 versioned event를 at-least-once 전달한다. 외부 Entitlement/Billing consumer는 eventId inbox와 최신 binding을 같은 로컬 Transaction으로 저장한 뒤에만 성공 응답하며, 중복은 no-op·역순은 bindingRevision으로 무시·일시 실패는 retry/backoff·영구 실패는 dead-letter 처리한다. 이 event는 혜택 지급이 아니라 first free-trial 시 TrialClaim 조회에 쓸 준비 정보이며 outbox 미도착은 fail-closed다
 - eligibility key rotation은 새 version을 retained lookup candidate로 먼저 배포하고 writer 동기화 뒤 active write를 전환하며 이전 version은 lookup-only로 유지한다. raw phone을 저장하지 않으므로 기존 old-only binding을 임의 backfill할 수 없고, consumer reference가 만료되거나 재인증으로 새 candidate가 생기기 전에는 legacy version과 key를 제거하지 않는다. producer outbox와 consumer binding/claim의 보존·탈퇴 삭제는 서로 다른 목적·기간으로 ADR에서 명시해야 한다
 - 계획서의 Entitlement/Billing은 Learning Core 자체를 뜻하지 않고 TrialClaim·UserEntitlement·EntitlementReservation을 소유하는 별도 논리적 bounded context다. Learning Core는 사용권을 reserve한 뒤 exam 생성과 confirm을 조율한다. 장기 권장안은 별도 서비스·저장소지만, 초기 배포를 Learning Core 애플리케이션 내부 독립 모듈로 시작할지는 TMI-95 ADR과 외부 저장소 설계에서 확정해야 하며 동일 배포물이어도 데이터·Transaction·패키지·API 경계를 분리한다
+- 현재 Identity 작업은 Entitlement/Billing 구현이 이미 존재한다고 전제하지 않는다. 외부 별도 저장소에서 consumer가 구현될 것을 목표 구조로 두고 Identity가 verified phone candidate와 outbox를 안전하게 생성·전달할 producer 계약을 먼저 준비한다. consumer와 staging end-to-end 전달이 준비되기 전에는 production signup eligibility 연동을 활성화하지 않는다
+- 현재 데이터 모델을 역할별로 구분하면 계정 root는 `User`와 embedded `UserConsents`, 인증수단 연결은 `FirebaseIdentity`·`SocialIdentity`·`PhoneIdentity`·`PhoneFingerprintAlias`, 로그인 지속은 `RefreshSession`, 가입 전 단기 절차는 `FirebaseEnrollmentAttempt`, 외부 eligibility 전달·운영은 `PhoneEligibilityBindingOutbox`·`PhoneEligibilityBindingRevision`·`PhoneEligibilityBindingDeliveryScopeState`다. `PreparedRefreshSession`·`IssuedRefreshSession`·`IssuedAccessToken`은 DB entity가 아니라 처리 중 결과 객체다
+- Identity의 이후 계획 후보는 Guest merge용 `UserMergedOutbox`와 탈퇴·Firebase cleanup용 lifecycle outbox/saga 상태이며 아직 모두 확정·구현된 entity는 아니다. 별도 Entitlement/Billing 저장소는 inbox·revision high-water와 `VerifiedPhoneBenefitBinding`·`TrialClaim`·`UserEntitlement`·`EntitlementReservation`을 소유하고, Learning Core는 시험 entity만 소유한다
+- Phone eligibility 용어는 다음처럼 구분한다. fingerprint는 원문 phone을 목적별 HMAC으로 바꾼 비교용 가명값, candidate는 Entitlement가 비교할 수 있도록 만든 eligibility 전용 fingerprint 한 개, `fingerprintCandidates`는 key rotation 동안 retained key version별 candidate를 모두 담은 현재 binding의 완전한 집합이다. `keyVersion`은 candidate 생성 key 판본, `consumerScopeId`는 어느 consumer 목적용인지 나타내는 서버 설정의 opaque 식별자, `bindingRevision`은 user+scope 상태 변경 순번이다
+- 전달 용어에서 outbox는 producer 발송함, publisher는 outbox 전달 작업자, inbox는 consumer 수신 장부, current binding은 최신 검증 연결, high-water mark는 이미 처리한 최고 revision이다. at-least-once는 중복 가능 전달, eventId 멱등성은 같은 event 중복 무효화, lease는 worker의 임시 점유권, retry/backoff는 재시도와 간격 증가, dead-letter는 자동 재시도를 중단한 격리 상태, fail-closed는 확인 불가 시 혜택을 허용하지 않는 정책이다
+- 선택적 quality review 동의 추가안은 필수 privacy·terms와 다른 정책이 필요하다. 동의 `true`는 현재 quality-review version 일치를 요구하지만 철회 `false`는 stale client version 때문에 거절하지 않아야 하며, 저장 snapshot은 false일 때 consentedVersion·consentedAt을 null로 만들고 별도 changedAt 또는 append-only audit로 철회 시점을 남기는 방향을 권장한다. 현재 `ConsentPolicyStatusResponse`에는 이미 `consented`가 있고 기존 계산은 false를 `requiresConsent=true`로 만들기 때문에 optional 전용 factory/DTO 또는 `required` flag가 필요하다
+- quality review가 시험 답안·음성의 사람 검토나 품질 개선 이용을 제어한다면 Identity snapshot 변경만으로 철회가 완료되지 않는다. 실제 데이터를 소유한 Learning Core·저장 서비스로 versioned consent changed/revoked event를 전달하고 이후 이용 중지·보존/삭제 정책을 별도 계약으로 구현해야 한다. Guest 외 LOCAL signup·Firebase signup 등 모든 생성 경로와 PUT 성공 응답·profile 노출 범위도 함께 결정해야 한다
+- quality review 프론트 계약은 Guest·consent PUT에 선택 boolean과 정책 version을 보내고 GET의 `qualityReview` 상태를 표시하며 false로 철회하는 additive 변경이다. 다만 새 request 필드를 즉시 `@NotNull`로 강제하면 구버전 client가 400이 되므로, 안전한 rollout은 backend가 누락을 false로 처리하는 호환 기간을 먼저 배포하고 frontend 전환 후 필수화 여부를 재결정하는 순서다
+- 이 저장소의 현재 통합 기준은 `develop` `31130fd`이며 `main` `b6eb73e`는 develop의 ancestor로 16개 commit 뒤에 있다. TMI-96 작업 트리에는 아직 커밋되지 않은 다수 변경이 있으므로 main으로 직접 checkout해 새 기능을 섞지 않는다. 사용자가 TMI-96 변경을 먼저 commit·push한 뒤 최신 develop에서 별도 feature/hotfix branch를 만들어 quality review 변경을 진행하는 것이 안전하다
+- `docs/contracts/quality-review-consent-implementation-plan.md`에 외부 필드명 `isQualityReviewConsented`·`qualityReviewConsentVersion`과 GET `qualityReview` 구조를 고정한 구현 계획을 추가했다. true만 current version 일치를 요구하고 false 철회는 stale version으로 차단하지 않으며, false 저장은 version/time null, 반복 요청 멱등, 기존 client 누락=false 호환, 외부 데이터 소유 서비스의 철회 consumer 준비 전 실제 품질 검토 비활성을 기준으로 한다
+- 사용자가 quality review 변경만 main에 즉시 반영하고 develop은 main에 포함하지 않는다고 배포 경계를 확정했다. `main` `b6eb73e`에도 Guest·LOCAL signup과 consent API 기반이 있으므로 `origin/main`에서 별도 `hotfix/quality-review-consent` worktree를 만들고 main 패키지 구조에서 지정 endpoint만 수정한다. PR base는 main이며 TMI-95·TMI-96·Firebase·refactor 등 develop 전용 diff가 0인지 검증한다
+- 별도 worktree `/Users/msde76/identity-quality-review-hotfix`가 생성됐고 `hotfix/quality-review-consent` branch가 `origin/main`의 `b6eb73e`에 checkout된 것을 확인했다. 기존 `/Users/msde76/identity`는 `feat/TMI-96-phone-eligibility-outbox-publisher`와 미커밋 변경을 그대로 유지하므로 여기서 branch switch하지 않고 hotfix 폴더로 이동해 작업한다
+- 사용자가 hotfix worktree에서 직접 `git branch --show-current`와 `git status --short`를 실행해 `hotfix/quality-review-consent`와 clean status를 확인했다. 터미널·IDE 작업 경로는 `/Users/msde76/identity-quality-review-hotfix`를 사용하고 기존 Identity worktree와 계속 분리한다
+- 별도 hotfix worktree에서 Quality review 구현 후 커밋 전 재검증을 완료했다. 변경은 관련 API·도메인·설정·문서·테스트에 한정되고 develop의 TMI-95·TMI-96 파일은 없으며 `./gradlew clean test` 42개 suite·319개 테스트와 `git diff --check`가 성공했다. 아직 staged·commit·push는 사용자가 수행하기 전 상태다
+- 사용자가 Quality review hotfix를 commit `4745652`로 생성해 `origin/hotfix/quality-review-consent`에 push했고 worktree는 clean하다. 배포 환경에는 필수 비밀이 아닌 정책 식별자 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 추가해야 하며 frontend가 보내는 version과 정확히 일치해야 한다. 설정 누락·공백은 기동 실패이고 test profile은 repository의 가짜 test value를 사용한다
+- Staging frontend의 `EXPO_PUBLIC_IDENTITY_API_BASE_URL`은 기존 Identity staging domain, `EXPO_PUBLIC_LEARNING_API_BASE_URL`은 기존 Learning staging domain을 계속 사용한다. Quality review hotfix에는 별도 점검 서버 endpoint나 외부 HTTP 호출이 없으므로 새 공개 domain을 만들지 않는다. Identity staging runtime에 URL이 아닌 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`만 추가한다
 - TMI-95로 `ADR-002-phone-eligibility-binding-server-contract.md`를 작성해 Entitlement/Billing을 별도 bounded context·배포 서비스의 consumer owner로 확정했다. wire schema v1은 verified/revoked state event, eventId immutable payload 멱등성, user+scope 단조 revision, opaque scope와 Identity 소유 HMAC key, HTTPS push·workload identity, publisher lease/retry/dead-letter, 목적별 30/90/120일 보존과 민감정보 금지를 정의한다
-- ADR-002는 현재 TMI-94 outbox가 별도 key/domain·scope·PENDING 저장·redaction·기본 비활성은 충족하지만 eventType·schemaVersion·bindingRevision, revoke, lease/retry/dead-letter publisher와 consumer inbox/high-water Transaction은 아직 구현되지 않았음을 후속 production gate로 명시했다. JSON 예시 2개 파싱과 전체 `./gradlew clean test` 70개 suite·421개 테스트가 성공했다
+- ADR-002 작성 시 확인했던 producer의 eventType·schemaVersion·bindingRevision, revoke와 lease/retry/dead-letter publisher 공백은 TMI-96에서 구현했다. consumer inbox/high-water Transaction과 staging E2E는 계속 별도 production gate다
+- GitHub PR #23 `docs(TMI-95): define phone eligibility binding contract ADR`이 merge commit `31130fd`로 `develop`에 병합됐고 feature commit `cfefbec`이 이력에 포함된 것을 확인했다. Jira TMI-95의 댓글 없음·상태 `해야 할 일`·Resolution 없음과 완료 transition ID `41` 사용 가능 여부를 읽기 전용 확인했으며, 승인 전에는 Jira를 변경하지 않았다
+- 사용자 승인에 따라 TMI-95에 ADR 결정·변경 문서·70개 suite·421개 테스트와 잔여 publisher/consumer 위험을 담은 종료 댓글 ID `10006`을 등록하고 완료 transition ID `41`만 적용했다. 후속 조회에서 상태 ID `10003`과 Resolution이 모두 `완료`임을 확인했다
+- 승인된 Payload로 Jira `TMI-96` `[Identity] Stage 5D Phone eligibility binding outbox publisher`를 TMI `작업`, 우선순위 `High`, 기본 상태 `해야 할 일`로 생성했다. 담당자·라벨·컴포넌트는 없고 Resolution도 없으며 댓글과 상태 전환은 적용하지 않았다
+- TMI-96에서 ADR-002 schema v1 verified/revoked wire event, `(userId, consumerScopeId)`별 atomic `bindingRevision`, 가입 verified와 전화 교체·회원 탈퇴 revoke를 각 lifecycle Mongo Transaction에 연결했다
+- outbox는 `PENDING`·`IN_FLIGHT`·`PUBLISHED`·`DEAD_LETTER`, 60초 atomic lease, 만료 lease reclaim, 지수 backoff와 ±20% jitter, 최대 12회, HTTP/전송 실패 분류, 401/403 scope pause, 동일 event 수동 replay를 지원한다
+- HTTPS-only JDK delivery adapter와 최대 5분 workload identity credential provider port를 추가했다. redirect와 response body 보관을 금지하고 publisher·Firebase·phone eligibility 기능은 기본 비활성, 설정 누락은 fail-closed로 유지한다
+- PUBLISHED event는 cleanupAt TTL·scheduler로 30일 뒤 정리하고 DEAD_LETTER는 90일 review 시각만 기록해 자동 삭제하지 않는다. metric은 event type·schema·outcome·failure code의 제한된 tag만 사용하며 candidate·userId·eventId·credential은 포함하지 않는다
+- TMI-96 구현 후 `./gradlew clean test` 73개 suite·433개 테스트, failure 0·error 0·skipped 0과 `git diff --check`를 통과했다. 실제 consumer·workload identity 발급 인프라·staging E2E는 구현하지 않았고 Jira 댓글·상태도 변경하지 않았다
 
 ## 진행 중
 
-- 현재 브랜치는 `docs/TMI-95-phone-eligibility-binding-adr`이며 기준 commit은 `455db00`이다. TMI-95 ADR과 교차 참조·작업 기록만 변경했고 Codex는 commit·push를 수행하지 않았다
-- Jira `TMI-95` — ADR 구현과 검증은 완료했지만 PR 병합을 확인하지 않았으므로 상태 `해야 할 일`, Resolution 없음과 댓글 없음 상태를 유지한다
-- Jira `TMI-75` — 구현 commit `672b631`과 GitHub PR #14의 main 병합을 확인했으며 Jira 상태는 `해야 할 일`로 유지 중이다. 회원 탈퇴 관측 로그까지 구현했고 Jira 댓글·상태는 변경하지 않음
+- 현재 브랜치는 `feat/TMI-96-phone-eligibility-outbox-publisher`이며 기준 commit은 PR #23 merge commit `31130fd`다. 애플리케이션·테스트·문서 변경이 있고 Codex는 commit·push를 수행하지 않았다
+- Jira `TMI-96` — Identity outbox schema/revision·revoke, atomic lease·retry/dead-letter HTTPS publisher 구현과 전체 테스트를 완료했다. 상태는 `해야 할 일`, Resolution 없음이며 PR 병합 전 댓글·상태를 변경하지 않는다
 
 ## 다음 작업
 
-- 사용자가 TMI-95 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 뒤에만 승인된 Jira 종료 댓글과 완료 전환을 별도로 수행한다
-- ADR-002 후속 Identity Jira는 outbox schema/revision·revoke와 atomic lease claim, at-least-once HTTPS publisher, retry/backoff·dead-letter·보존 cleanup을 구현한다. 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다
+- 사용자가 변경을 검토해 직접 commit·push하고 PR을 병합한 뒤에만 TMI-96 종료 댓글과 Done 전환안을 제시한다. 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다
+- staging에서 실제 HTTPS consumer mock과 workload identity provider, Mongo replica set Transaction·lease 경쟁·TTL/index 생성, publisher 장애·scope pause·manual replay 운영 절차를 검증한다. 이 검증과 외부 consumer 준비 전 production publisher/Firebase flag를 활성화하지 않는다
 - Stage 5C에서도 Identity에는 TrialClaim·UserEntitlement·시험 코드를 추가하지 않는다. 실제 consumer 구현은 소유 서비스의 별도 Jira로 분리하고, 가입 성공만으로 혜택을 지급하지 않는 계약을 유지한다
 - 격리 Firebase/mobile과 transaction 지원 staging MongoDB에서 same-UID phone link, 국내 SMS·quota/abuse, revoke·recent-auth, unique/write conflict, outbox/Session/consume 주입 rollback 및 운영 index 생성을 재검증한다
 - production provider 활성화와 기존 password signup/login/check-email 종료는 Stage 5A·5B 코드와 분리한다. 격리 Firebase/mobile/SMS 검증, outbox consumer 계약, 운영 index와 mixed-writer gate가 준비되기 전에는 Firebase flag를 활성화하거나 legacy credential writer를 닫지 않는다
@@ -311,7 +334,7 @@
 - Atlassian 연동은 저장소 설정이 아닌 Codex 사용자 전역 MCP 설정으로 관리하며 Remote MCP URL은 `https://mcp.atlassian.com/v1/mcp/authv2`를 사용
 - Spring Boot 3.4.2
 - MongoDB
-- 현재 작업 기준 브랜치는 `develop`, HEAD는 PR #22 merge commit `455db00`이며 `origin/develop`과 일치한다. Codex는 commit·push를 수행하지 않음
+- 현재 작업 기준 브랜치는 `feat/TMI-96-phone-eligibility-outbox-publisher`, 기준 commit은 PR #23 merge commit `31130fd`다. Codex는 commit·push를 수행하지 않음
 - 주석은 비자명한 인증·세션·보안 의도에만 한 줄로 추가하고 DTO 필드·getter·단순 대입에는 추가하지 않음
 - 애플리케이션 코드는 `domain.auth`, `domain.user`, `global`의 세 최상위 역할로 나누고 실제 클래스가 없는 빈 패키지는 만들지 않음
 - 현재 `domain.auth`는 78개 파일에서 local login/signup, Session, Firebase federation·enrollment, SocialIdentity와 PhoneIdentity를 horizontal layer별로 함께 담아 탐색 비용이 커졌다. `firebase`·`phone`을 `auth`와 동급 최상위 도메인으로 올리지는 않고, 후속 구조 개선에서는 `auth/local`, `auth/session`, `auth/firebase`, `auth/phoneidentity`처럼 business capability별 vertical slice 안에 application·domain·infrastructure를 모으는 방향을 우선 검토한다. Firebase는 외부 인증 기술 adapter이고 phone은 독립 통신 도메인이 아니라 verified identity ownership이므로 최상위 이름만으로 bounded context를 만들지 않는다
@@ -405,8 +428,6 @@
 - 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - 실제 격리 Firebase project·모바일 client의 email/password·Google·Apple·same-UID phone link, 국내 SMS와 Identity Platform Kakao Generic OIDC·billing·deep-link·Apple revoke 및 production 배포의 ADC/Workload Identity·timeout/quota 동작 검증
-- Firebase enrollment를 소비해 신규 User·FirebaseIdentity·PhoneIdentity·SocialIdentity·RefreshSession과 PhoneEligibilityBindingOutbox를 원자적으로 생성하는 signup finalize Transaction
-- PhoneEligibilityBindingOutbox와 Firebase verified phone proof를 TMI-92 내부 PhoneIdentity service에 연결하는 공개 exchange/signup·finalize 흐름
 - Guest를 거치지 않는 신규 가입, Guest 승격·인증수단 sync, merge outbox publisher와 source Access Token gate
 - 기존 직접 email/password signup·login과 passwordHash writer의 Firebase cutover·제거, Firebase unlink·disable·withdrawal·orphan cleanup·reconciliation
 - 별도 Entitlement/Billing의 benefit-scoped VerifiedPhoneBenefitBinding·TrialClaim·UserEntitlement·무료시험 consume과 결제 연동
@@ -442,6 +463,7 @@
 - Identity가 Firebase ID Token의 서명·issuer·audience·만료·폐기 여부·auth_time·sign-in provider를 검증하지 않거나 raw Token을 장기 grant로 재사용하면 replay와 목적 혼합 위험이 있다. Provider redirect의 nonce·state·PKCE 방어는 Firebase client/provider 설정을 PoC에서 별도로 확인한다.
 - TrialClaim fingerprint를 탈퇴 후 유지하면 pseudonymous personal data 보존과 번호 재할당 오탐 문제가 남으므로 목적·기간·삭제·재가입 정책을 개인정보 처리방침과 법무 기준으로 확정해야 한다.
 - benefit-scoped fingerprint binding도 pseudonymous data다. PhoneIdentity와 key·domain을 분리해도 가입 시 파생 outbox·Entitlement binding의 접근·보존·rotation·삭제와 outbox 지연 시 fail-closed 재시도 계약이 없으면 correlation 또는 무료체험 우회 위험이 남는다.
+- TMI-96 publisher는 실제 consumer endpoint와 workload identity 발급 인프라를 제공하지 않는다. production 활성화 전 credential audience·HTTPS endpoint allowlist, consumer commit 뒤 2xx, timeout/429/5xx 재시도, 401/403 scope pause와 운영자 manual replay를 staging E2E로 확인해야 한다.
 - Entitlement consume과 Learning Core exam 생성은 분산 Transaction이므로 문서의 reserve/create/confirm/cancel/reconciliation 상태 머신, CAS와 idempotency를 양쪽 서비스가 동일하게 구현하지 않으면 무료 권리가 중복되거나 유실될 수 있다.
 - 기존 User 문서는 migration 없이 읽을 수 있지만 새 정책 미동의로 취급되므로 프론트의 재동의 유도와 정책 전환 시점 합의가 필요하다.
 - 기존 User 문서의 provider가 없으면 LOCAL로 읽지만 소셜 로그인 도입 전에는 provider 필드 명시적 이행과 계정 연결 정책이 필요하다.

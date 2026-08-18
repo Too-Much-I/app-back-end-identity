@@ -24,6 +24,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibility
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
@@ -141,6 +142,7 @@ public class FirebaseAuthenticationConfiguration {
 				PhoneIdentityRepository phoneIdentityRepository,
 				PhoneFingerprintAliasRepository aliasRepository,
 				PhoneEligibilityBindingOutboxRepository outboxRepository,
+				PhoneEligibilityBindingRevisionRepository revisionRepository,
 				SocialIdentityRepository socialIdentityRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseEnrollmentAttemptRepository enrollmentRepository
@@ -151,6 +153,7 @@ public class FirebaseAuthenticationConfiguration {
 					phoneIdentityRepository,
 					aliasRepository,
 					outboxRepository,
+					revisionRepository,
 					socialIdentityRepository,
 					refreshSessionIssuer,
 					enrollmentRepository
