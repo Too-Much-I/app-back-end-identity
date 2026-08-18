@@ -3477,3 +3477,364 @@
 - 결정사항: schemaVersion·keyVersion·bindingRevision은 각각 wire 구조, HMAC candidate origin, user+scope 상태 순서를 관리한다. event 수신은 혜택 지급이 아니며 binding 미도착은 fail-closed processing 상태다. ADR은 조건부 채택이고 publisher·consumer 구현과 staging gate가 끝나기 전 production ready가 아니다.
 - 위험 요소: Identity outbox publisher·revoke lifecycle과 Entitlement/Billing service가 아직 구현되지 않았다. 실제 workload identity issuer·audience, consumer on-call, abuse ledger 법적 최대 보존 기간, key reference count와 staging Mongo/transport 장애 검증이 남아 있다.
 - 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 TMI-95를 Done으로 변경하지 않으며 Jira 종료 댓글은 초안을 먼저 승인받은 뒤에만 등록한다. 후속 Jira는 Identity publisher와 별도 Entitlement/Billing consumer 구현으로 나눈다.
+
+## 2026-08-14 — TMI-95 PR 병합 확인·Jira 종료 변경안 및 다음 개발 범위
+
+<!-- codex-turn:019fff2d-3d4c-7060-9f6b-c5188635c04e -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`31130fd`, GitHub PR #23 merge commit, Codex commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: TMI-95 ADR PR 병합과 Jira 완료 가능 여부를 확인하고, 실제 Jira 변경 전에 종료 댓글·상태 전환안을 공개하며 다음 Identity·consumer 개발 범위를 분리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·ADR·테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 `develop`과 `origin/develop`이 PR #23 merge commit `31130fd`를 가리키고 TMI-95 feature commit `cfefbec`이 이력에 포함된 것을 확인했다. GitHub CLI 원격 조회는 sandbox network 제한으로 실패했지만 fetch된 origin ref와 merge commit 제목·부모 이력으로 병합을 확인했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-95의 제목, 댓글 없음, 상태 `해야 할 일`, Resolution 없음과 사용할 수 있는 완료 transition ID `41`을 읽기 전용 조회했다. Jira 댓글·상태·Resolution·필드는 변경하지 않았다.
+- 추가한 댓글의 목적: ADR-002의 versioned verified/revoked schema, eventId·revision 처리, scope·key·transport·보존 결정, 전체 테스트 결과와 publisher·consumer 미구현 위험을 인수인계하는 종료 댓글 초안을 사용자에게 공개한다.
+- 변경한 상태: TMI-95는 `해야 할 일`, Resolution 없음 상태를 유지한다. 실제 완료 전환은 공개된 변경안의 사용자 승인을 받은 뒤에만 수행한다.
+- 승인 여부: 사용자가 Jira 종료를 요청했지만 저장소 규칙상 실제 변경 전에 댓글과 transition 내용을 먼저 공개하고 별도 승인을 받아야 하므로 이번 조회 turn에서는 변경하지 않았다.
+- 실행한 테스트와 결과: 병합·Jira 읽기 확인, 다음 범위 정리와 문서 기록만 수행해 Gradle 테스트를 재실행하지 않았다. PR #23에 포함된 최종 검증은 ADR JSON 예시 2개 파싱 성공과 `./gradlew clean test` 70개 suite·421개 테스트 failure 0, error 0, skipped 0이다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity·Entitlement/Billing·Learning Core 도메인 경계, Firebase/provider 기본 비활성과 가입 event·혜택 지급 분리를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira 변경안이나 기록에 포함하지 않았다.
+- 결정사항: 다음 Identity 저장소 작업은 outbox schema/revision·revoke와 atomic lease·retry/dead-letter HTTPS publisher다. 외부 Entitlement/Billing consumer는 별도 저장소·Jira에서 inbox·current binding·revision high-water와 abuse ledger를 구현하고, 두 트랙의 staging contract test가 끝나기 전 production Firebase signup을 활성화하지 않는다.
+- 위험 요소: Identity publisher, withdrawal/phone lifecycle revoke와 실제 workload identity adapter가 아직 없다. Entitlement/Billing 서비스·datastore·on-call, abuse ledger 보존 기간과 key reference count도 미구현이므로 ADR 완료가 production ready를 뜻하지 않는다.
+- 다음 작업: 사용자가 종료 댓글과 완료 transition을 승인하면 Atlassian 공식 MCP로 댓글을 등록하고 transition ID `41`만 적용한 뒤 결과를 재조회한다. 이후 Identity publisher 작업 Jira 생성안을 먼저 제시한다.
+
+## 2026-08-14 — TMI-95 Jira 종료 댓글 등록·완료 전환
+
+<!-- codex-turn:019fff30-11a4-7da1-a051-d18a36cd8cd3 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`31130fd`, GitHub PR #23 merge commit, Codex commit·push 미수행)
+- Jira: TMI-95
+- 작업 목표: PR #23 병합이 확인된 TMI-95에 승인된 종료 댓글을 등록하고 완료 상태로 전환한 뒤 결과를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·ADR·테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 직전 turn에서 PR #23 merge commit `31130fd`, TMI-95의 `해야 할 일` 상태·Resolution 없음·빈 댓글과 완료 transition ID `41`을 확인하고, 적용할 종료 댓글과 상태 변경을 사용자에게 공개했다.
+- 수행한 Jira 작업: 사용자 승인에 따라 TMI-95에 ADR-002의 versioned verified/revoked schema, eventId·bindingRevision 처리, scope·key·transport·보존 결정, 변경 문서, 테스트 결과와 후속 위험을 요약한 댓글 ID `10006`을 등록했다. 이어서 transition ID `41`만 적용하고 후속 조회에서 상태 ID `10003` `완료`와 Resolution `완료`를 확인했다.
+- 추가한 댓글의 목적: 구현·검증 결과와 Identity publisher·revoke lifecycle, 외부 Entitlement/Billing consumer, workload identity 및 staging E2E가 후속 범위임을 인수인계하기 위해 등록했다.
+- 변경한 상태: Jira TMI-95를 `해야 할 일`에서 `완료`로 전환했고 Resolution도 `완료`가 됐다. 다른 Jira·필드는 변경하지 않았다.
+- 승인 여부: 직전 응답에서 댓글 전문과 transition ID `41`, 변경하지 않을 필드를 공개했고 사용자가 `어 닫아줘`라고 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira 댓글·상태 전환과 기록 문서 변경만 수행해 Gradle 테스트를 재실행하지 않았다. PR #23의 최종 검증은 ADR JSON 예시 2개 파싱 성공과 `./gradlew clean test` 70개 suite·421개 테스트 failure 0, error 0, skipped 0이다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity·Entitlement/Billing·Learning Core 도메인 경계, Firebase/provider 기본 비활성과 가입 event·혜택 지급 분리를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira 댓글이나 작업 기록에 포함하지 않았다.
+- 결정사항: TMI-95 ADR 작업은 완료됐지만 production 기능은 아직 활성화할 수 없다. 다음 Identity 범위는 outbox schema/revision·revoke와 atomic lease·retry/dead-letter HTTPS publisher이며 외부 consumer는 별도 저장소·Jira로 유지한다.
+- 위험 요소: Identity publisher와 withdrawal/phone lifecycle revoke, 실제 workload identity adapter, Entitlement/Billing consumer·datastore·on-call, abuse ledger 보존 기간과 staging E2E가 아직 남아 있다.
+- 다음 작업: Identity publisher 구현 Jira 생성안을 제목·설명·완료 조건·제외 범위로 먼저 제시하고 승인 뒤 생성한다. publisher와 consumer contract test가 staging에서 통과하기 전 production Firebase signup flag를 활성화하지 않는다.
+
+## 2026-08-14 — Stage 5D Phone eligibility binding outbox publisher Jira 생성 초안
+
+<!-- codex-turn:019fff35-8654-7af1-a97c-74bf817f22c3 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`31130fd`, commit·push 미수행)
+- 작업 목표: 완료된 TMI-95 ADR의 다음 Identity 구현인 outbox schema/revision·revoke와 atomic lease·retry/dead-letter HTTPS publisher를 추적할 Jira Payload를 준비한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·ADR·테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 다음 Jira를 `[Identity] Stage 5D Phone eligibility binding outbox publisher`, TMI `작업`, High, 기본 `해야 할 일`로 제안했다. schema v1 immutable event, user+scope atomic revision, verified/revoked lifecycle, lease claim, retry/backoff·dead-letter, HTTPS delivery/credential port, retention cleanup과 외부 인프라 없는 테스트를 범위로 정리했다.
+- 구현 내용: 외부 Entitlement/Billing consumer의 inbox·binding·claim ledger, TrialClaim·Entitlement·시험 코드, cloud 인프라 provisioning, production Firebase 활성화, legacy password route 종료와 Git commit·push는 제외 범위로 분리했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP 검색으로 TMI 프로젝트에 PhoneEligibilityBindingOutbox publisher·bindingRevision·lease/retry/dead-letter 관련 중복 이슈가 없음을 읽기 전용 확인했다. Jira 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 기존 Jira 상태나 Resolution을 변경하지 않았고 신규 Jira도 아직 생성하지 않았다.
+- 승인 여부: 사용자가 다음 작업 Jira 생성을 요청했지만 저장소 규칙상 실제 생성 전에 전체 Payload를 공개하고 별도 승인을 받아야 하므로 승인을 기다린다.
+- 실행한 테스트와 결과: Jira 중복 조회·Payload 작성과 기록 문서 변경만 수행해 Gradle 테스트를 실행하지 않았다. 현재 병합 기준선은 `./gradlew clean test` 70개 suite·421개 테스트 성공 상태이며 종료 전 `git diff --check`와 turn marker 단일 존재를 확인한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity producer와 별도 Entitlement/Billing consumer 경계, Firebase/provider 기본 비활성과 event 수신·혜택 지급 분리를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira 초안이나 기록에 포함하지 않았다.
+- 결정사항: 다음 Identity Jira는 publisher 구현까지 소유하되 consumer와 cloud 인프라 생성은 소유하지 않는다. workload identity는 static credential을 설정에 저장하지 않는 provider port로 격리하고 기능은 기본 비활성·설정 누락 fail-closed로 유지한다.
+- 위험 요소: 실제 consumer endpoint·workload identity 발급 인프라와 운영 on-call이 아직 없으므로 Identity publisher 코드만 완료돼도 production ready가 아니다. withdrawal/phone lifecycle Transaction에 revoke event를 연결할 때 기존 User·Session rollback 계약을 깨지 않도록 별도 동시성 테스트가 필요하다.
+- 다음 작업: 사용자에게 Jira 제목·설명·완료 조건·제외 범위와 미설정 필드를 공개한다. 승인하면 동일 Payload로 생성하고 발급된 Jira 키·상태·우선순위를 재조회해 기록한다.
+
+## 2026-08-14 — TMI-96 Stage 5D Phone eligibility binding outbox publisher Jira 생성
+
+<!-- codex-turn:019fff37-f0be-7be0-936e-727f407d501e -->
+
+- 날짜: 2026-08-14
+- 브랜치: `develop` (`31130fd`, commit·push 미수행)
+- Jira: TMI-96
+- 작업 목표: 사용자에게 공개한 Stage 5D Identity outbox publisher Jira Payload를 승인 내용 그대로 생성하고 저장 결과를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·ADR·테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: TMI-96 설명에 ADR-002 schema v1 verified/revoked event, user+scope atomic bindingRevision, lifecycle Transaction, PENDING·IN_FLIGHT·PUBLISHED·DEAD_LETTER 상태 머신, atomic lease, retry/backoff·실패 분류, HTTPS delivery·credential port, 보존 cleanup·안전한 metric과 외부 인프라 없는 테스트를 기록했다.
+- 구현 내용: 외부 Entitlement/Billing consumer, TrialClaim·Entitlement·시험 코드, cloud workload identity 인프라 provisioning, production Firebase 활성화, legacy password API 종료, 공개 수동 replay API와 Git commit·push는 제외 범위로 유지했다.
+- 수행한 Jira 작업: 사용자 승인에 따라 Atlassian 공식 MCP로 TMI `작업` 이슈 `TMI-96`을 생성했다. 생성 직후 읽기 전용 재조회해 승인한 제목·설명, 유형 `작업`, 우선순위 `High`, 상태 `해야 할 일`, Resolution 없음, 담당자 없음, 빈 라벨·컴포넌트를 확인했다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 생성 시 기본 상태 `해야 할 일`을 유지하고 별도 transition을 적용하지 않았다. 기존 Jira의 상태나 Resolution은 변경하지 않았다.
+- 승인 여부: 직전 응답에서 프로젝트·유형·제목·우선순위·설명·완료 조건·제외 범위와 미설정 필드를 공개했고 사용자가 `어 생성해줘`라고 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira 생성·검증과 기록 문서 변경만 수행해 Gradle 테스트를 실행하지 않았다. 현재 병합 기준선은 `./gradlew clean test` 70개 suite·421개 테스트 성공 상태이며 종료 전 `git diff --check`를 실행한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Identity producer와 별도 Entitlement/Billing consumer 경계, Firebase/provider 기본 비활성과 event 수신·혜택 지급 분리를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 Jira나 작업 기록에 포함하지 않았다.
+- 결정사항: TMI-96은 Identity publisher 코드까지 소유하지만 외부 consumer와 cloud 인프라 생성을 소유하지 않는다. static credential 설정을 금지하고 workload identity credential provider를 격리하며 production gate는 계속 닫아 둔다.
+- 위험 요소: 실제 consumer endpoint·workload identity 발급 인프라·운영 on-call이 없으므로 TMI-96만 완료돼도 production ready가 아니다. withdrawal/phone lifecycle revoke와 기존 User·Session rollback 경계의 동시성 검증이 필요하다.
+- 다음 작업: 구현 전에 Atlassian 공식 MCP로 TMI-96 설명과 완료 조건을 다시 읽고 ADR-002와 현재 outbox를 대조한다. schema/revision·lifecycle Transaction을 먼저 구현한 뒤 lease publisher·delivery·cleanup 순으로 검증한다.
+
+## 2026-08-14 — Identity와 외부 Entitlement 선행 개발 관계 확인
+
+<!-- codex-turn:019fff46-5b57-7391-900a-1c773aa6b562 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- Jira: TMI-96
+- 작업 목표: 현재 Identity 수정이 별도 저장소의 Entitlement/Billing을 전제로 진행되는 것인지와 실제 구현 준비 상태를 구분해 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 이번 설명을 위해 갱신했다. 동시에 진행 중인 TMI-96 애플리케이션 변경에는 손대지 않았고 WORKLOG의 다른 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 목표 구조에서는 Entitlement/Billing consumer가 별도 저장소에서 구현된다고 가정하고 Identity가 producer 측 verified phone candidate·outbox와 전달 기능을 먼저 준비한다고 정리했다. 그러나 외부 consumer가 이미 구현돼 있거나 현재 end-to-end 전달이 동작한다는 가정은 하지 않는다.
+- 구현 내용: TMI-95에서 서버 간 ADR을 확정했고 현재 TMI-96 범위로 Identity publisher 구현을 진행한다. 외부 consumer·inbox와 TrialClaim·UserEntitlement 처리는 별도 저장소 책임이며, 양쪽 구현과 staging 검증 전에는 production eligibility 연동을 활성화하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-96 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 현재 개발 전제에 대한 설명을 요청했다. 외부 저장소 변경·Jira 변경·Git commit·push는 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 이번 설명과 기록을 위한 별도 Gradle 테스트는 실행하지 않았다. 현재 TMI-96 구현 변경은 완료 전이므로 그 검증 결과를 이번 분석 결과로 주장하지 않으며 종료 전 문서 정적 검증만 수행한다.
+- 유지한 계약: Identity는 verified phone과 generic eligibility outbox·publisher만 소유하며 TrialClaim·UserEntitlement·시험 코드를 포함하지 않는다. 외부 consumer가 준비되지 않은 상태에서 중복 혜택 방지를 우회하지 않고 fail-closed하며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 별도 Entitlement/Billing은 목표 아키텍처상의 downstream이며 현재 존재·완료한 시스템으로 간주하지 않는다. Identity와 consumer는 확정된 계약을 기준으로 독립 개발하되 production 활성화 전에 양쪽 구현과 end-to-end 전달을 검증한다.
+- 위험 요소: Identity producer만 배포하고 consumer 없이 가입 연동을 활성화하면 outbox가 누적되고 사용자의 첫 무료시험 eligibility가 계속 processing 상태가 될 수 있다.
+- 다음 작업: TMI-96에서 Identity publisher를 구현하고 별도 저장소 consumer를 후속 작업으로 구현한 뒤 staging end-to-end 전달과 fail-closed 동작을 검증한다.
+
+## 2026-08-14 — Identity 현재·예정 entity 연결 구조 설명
+
+<!-- codex-turn:019fff4a-078b-7a30-8239-b16eda760d5e -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- Jira: TMI-96
+- 작업 목표: Identity에 현재 존재하는 Mongo entity와 앞으로 Identity 또는 외부 Entitlement/Billing에 생길 예정인 entity의 책임과 전체 연결 흐름을 쉽게 구분해 설명한다.
+- 변경 파일: 이번 분석 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 동시에 진행 중인 TMI-96 애플리케이션 변경에는 손대지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 Identity Mongo document를 계정 root `User`, 인증수단 mapping `FirebaseIdentity`·`SocialIdentity`·`PhoneIdentity`·`PhoneFingerprintAlias`, 인증 세션 `RefreshSession`, 가입 전 임시 절차 `FirebaseEnrollmentAttempt`, 외부 전달 `PhoneEligibilityBindingOutbox`로 분류했다. embedded `UserConsents`와 비영속 결과인 `PreparedRefreshSession`·`IssuedRefreshSession`·`IssuedAccessToken`도 entity와 구별했다.
+- 구현 내용: TMI-96 작업 트리에 추가 중인 `PhoneEligibilityBindingRevision`은 user+scope별 event 순번과 현재 활성 여부, `PhoneEligibilityBindingDeliveryScopeState`는 contract·인증 오류가 난 consumer scope의 전송 중지를 기억하는 producer 운영 document라고 정리했다. 두 모델은 현재 구현 진행 중이므로 완료된 기능으로 단정하지 않는다.
+- 구현 내용: 이후 Identity 계획 후보인 Guest merge `UserMergedOutbox`, 탈퇴·Firebase cleanup lifecycle outbox/saga 상태는 아직 확정·완료 entity가 아님을 표시했다. 별도 Entitlement/Billing의 inbox·revision high-water, `VerifiedPhoneBenefitBinding`, `TrialClaim`, `UserEntitlement`, `EntitlementReservation`과 Learning Core 시험 entity는 Identity에 추가하지 않는 경계를 유지했다.
+- 구현 내용: Firebase proof 검증과 `FirebaseEnrollmentAttempt(PENDING)`에서 시작해 가입 Transaction이 User·각 identity·RefreshSession·eligibility outbox를 저장하고 attempt를 CONSUMED로 바꾼 뒤, publisher와 Entitlement inbox/binding, 첫 무료시험의 TrialClaim·UserEntitlement, Learning Core의 reserve·exam 생성·confirm으로 이어지는 전체 생명주기를 연결했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-96 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 현재·예정 entity의 개념 설명을 요청했다. 애플리케이션 구현·외부 저장소 변경·Jira 변경·Git commit·push는 이번 요청의 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 분석과 기록이므로 이번 요청을 위한 Gradle 테스트는 실행하지 않았다. TMI-96 작업 트리의 구현은 진행 중이므로 완료나 테스트 성공을 이번 설명의 결과로 주장하지 않았고 종료 전 문서 정적 검증만 수행한다.
+- 유지한 계약: canonical UUID userId/JWT `sub`, Firebase credential broker와 Identity account owner, PhoneIdentity fingerprint와 benefit candidate의 key/domain 분리, Identity·Entitlement/Billing·Learning Core 소유 경계를 유지했다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: entity를 장기 계정, 인증수단 mapping, 세션, 단기 가입 절차, 전달/운영, 외부 혜택 ledger로 구분해 이해한다. event outbox는 혜택 자체가 아니며 Entitlement의 binding도 혜택 지급 자체가 아니다.
+- 위험 요소: TMI-96의 revision·delivery scope document와 publisher 상태 머신은 현재 작업 중이므로 최종 코드·테스트에 따라 세부 필드가 달라질 수 있다. lifecycle outbox/saga 이름과 구조도 후속 ADR 전에는 확정 모델로 취급하면 안 된다.
+- 다음 작업: TMI-96 완료 후 실제 확정된 producer entity와 상태 전이를 다시 대조하고, 별도 Entitlement/Billing 저장소 작업에서는 inbox·binding·claim·entitlement·reservation 모델과 unique/Transaction 계약을 별도 문서로 작성한다.
+
+## 2026-08-14 — Phone eligibility 이벤트 용어집 설명
+
+<!-- codex-turn:019fff68-7d26-71d3-b8c4-5da4fb2e0335 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- Jira: TMI-96
+- 작업 목표: `fingerprintCandidates`처럼 entity 설명만으로 이해하기 어려운 Phone eligibility의 보안·이벤트·전달 용어를 쉬운 정의와 서로의 관계로 정리한다.
+- 변경 파일: 이번 분석 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 동시에 진행 중인 TMI-96 애플리케이션 변경에는 손대지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: raw phone, E.164 정규화, fingerprint, HMAC-SHA-256, domain separator, eligibility candidate, `fingerprintCandidates`, key ring·`keyVersion`·rotation을 한 흐름으로 설명했다. candidate 한 개는 한 key version으로 만든 비교값이며 candidates 배열은 rotation 중 retained version 전체를 지원하는 현재 binding의 완전한 집합이지 여러 전화번호 목록이 아님을 명확히 했다.
+- 구현 내용: `consumerScopeId`, opaque, binding, verified/revoked, `bindingRevision`, state event를 목적·상태 용어로 구분했다. 같은 phone도 scope·domain이 다르면 다른 값이 나오고 bindingRevision은 event schema나 key 판본이 아니라 같은 user+scope의 최신 상태 순서임을 유지했다.
+- 구현 내용: producer·consumer, payload·envelope, outbox·publisher·inbox, eventId·멱등성, at-least-once, lease·retry·backoff·dead-letter, high-water mark·stale event·poison event, canonical payload·digest, fail-closed·pseudonymous data를 택배 발송·수령 비유와 함께 정리했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-96 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 문서에 반복되는 기술 용어 설명을 요청했다. 애플리케이션 구현·계약 변경·외부 저장소 변경·Jira 변경·Git commit·push는 이번 요청의 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 개념 설명과 기록이므로 이번 요청을 위한 Gradle 테스트는 실행하지 않았다. 종료 전 `git diff --check`와 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: raw phone과 PhoneIdentity fingerprint를 Entitlement payload로 전달하지 않고, eligibility candidate는 consumer scope와 별도 key/domain으로 분리한다. candidate도 가명정보로 취급하며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: `fingerprintCandidates`는 복수 전화번호가 아니라 key rotation 호환을 위한 동일 전화번호의 version별 eligibility candidate 집합이다. outbox event 수신은 binding 준비일 뿐 TrialClaim·UserEntitlement 지급을 의미하지 않는다.
+- 위험 요소: fingerprint를 익명정보나 암호화된 phone으로 오해하면 복호화 가능성·보존 정책을 잘못 판단할 수 있다. candidate 배열을 patch나 여러 번호로 해석하거나 keyVersion·schemaVersion·bindingRevision을 혼용하면 중복 혜택과 역순 상태 적용 위험이 있다.
+- 다음 작업: TMI-96 구현·운영 문서에서 같은 용어와 상태명을 일관되게 사용하고, 외부 Entitlement/Billing consumer 문서에도 동일 glossary와 event 예시를 포함한다.
+
+## 2026-08-14 — TMI-96 Stage 5D Phone eligibility binding outbox publisher 구현
+
+<!-- codex-turn:019fff41-8908-73f2-8998-45043cdbd1b0 -->
+
+- 날짜: 2026-08-14
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd` 기준, commit·push 미수행)
+- Jira: TMI-96
+- 작업 목표: ADR-002에 고정된 Phone eligibility binding schema v1, user+scope revision·verified/revoked lifecycle, atomic lease·retry/dead-letter HTTPS publisher와 보존·보안 계약을 Identity producer에 구현한다.
+- 변경 파일: `PhoneEligibilityBindingOutbox`와 event/status/failure enum, `PhoneEligibilityBindingRevision`, `PhoneEligibilityBindingDeliveryScopeState`, 세 Mongo repository와 custom fragment, federation signup·PhoneIdentity·withdrawal Transaction, publisher application·wire mapper·retry policy, HTTPS/workload identity infrastructure·scheduler·properties/configuration, `application.yml`·`application-test.yml`, `.env.example`, `README.md`, 관련 단위·Transaction·Mongo 통합 테스트, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 변경했다. WORKLOG 과거 항목은 수정·삭제하지 않았다.
+- 구현 내용: immutable UUID eventId, `PhoneEligibilityBindingVerified`·`PhoneEligibilityBindingRevoked`, `schemaVersion=1`, producer `identity`, `(userId, consumerScopeId, bindingRevision)` unique와 user+scope atomic revision을 추가했다. 가입 verified와 phone create/rotation/replace, 교체 release revoke, 회원 탈퇴 revoke를 해당 Mongo Transaction 안에서 outbox와 함께 저장한다.
+- 구현 내용: outbox를 `PENDING`·`IN_FLIGHT`·`PUBLISHED`·`DEAD_LETTER`로 확장하고 due/expired lease atomic claim, attempt 증가, lease owner 조건부 상태 전이, 5초 시작·15분 cap·±20% jitter backoff, 최대 12회, 400/409/422 등 permanent dead-letter, 408/425/429/5xx·timeout/connection retry, 401/403 dead-letter와 scope pause, 동일 eventId/payload 수동 replay를 구현했다.
+- 구현 내용: 최대 16 KiB canonical JSON wire mapper, HTTPS-only·redirect 금지·response body 미보관 JDK adapter, 최대 5분 credential을 발급하는 workload identity provider port와 민감 Token redaction을 추가했다. publisher는 기본 비활성이고 활성화 시 phone eligibility binding·HTTPS endpoint·audience·credential provider를 요구해 fail-closed한다.
+- 구현 내용: PUBLISHED는 30일 cleanupAt TTL과 scheduler로 정리하고 DEAD_LETTER는 90일 review 시각만 기록해 자동 삭제하지 않는다. metric tag는 eventType·schemaVersion·outcome·failureCode로 제한하고 userId·eventId·candidate·credential을 포함하지 않는다. raw phone·last4·Firebase UID·provider subject·PhoneIdentity fingerprint를 wire·로그·metric에 추가하지 않았다.
+- 실행한 테스트와 결과: 중간에 `./gradlew compileJava`, `testClasses`와 publisher·signup·withdrawal·PhoneIdentity·Mongo custom fragment 대상 테스트를 실행했다. 최종 `./gradlew clean test`는 73개 suite·433개 테스트가 failure 0, error 0, skipped 0으로 성공했고 `git diff --check`도 성공했다. 실제 Atlas·Firebase·consumer endpoint는 호출하지 않았다.
+- 유지한 계약: UUID userId와 JWT `sub`, Identity producer와 외부 Entitlement/Billing consumer·Learning Core 경계, PhoneIdentity와 eligibility candidate의 key/domain 분리, eventId 멱등성과 bindingRevision 역순 방어, Refresh Token 원문 비저장, Firebase·publisher 기본 비활성을 유지했다. TrialClaim·Entitlement·시험 코드는 추가하지 않았다.
+- 결정사항: delivery credential 실제 발급은 환경별 `WorkloadIdentityCredentialProvider` 구현 책임으로 남기고 static Token·key 설정을 만들지 않았다. 2xx만 publish 성공이며 consumer 응답 본문은 저장하지 않는다. DEAD_LETTER는 자동 삭제하지 않고 명시적 replay가 같은 event를 재사용한다.
+- 위험 요소: 실제 consumer·workload identity 발급 인프라·endpoint allowlist·운영 on-call은 아직 없다. 인메모리 Mongo 검증은 실제 replica set Transaction, TTL 지연, 동시 lease/index rollout을 완전히 증명하지 않으므로 staging E2E가 필요하다. publisher만 준비된 상태에서 production flag를 켜면 outbox가 누적될 수 있다.
+- 다음 작업: 사용자가 diff를 검토해 직접 commit·push하고 PR을 병합한다. 병합 확인 전 Jira를 Done으로 바꾸지 않으며, 별도 Entitlement/Billing consumer의 eventId inbox·payload digest·revision high-water·binding Transaction Jira를 생성·구현한 뒤 staging E2E를 수행한다.
+- 수행한 Jira 작업: 구현 전에 Atlassian 공식 MCP로 TMI-96 설명·완료 조건·상태를 읽기 전용 확인했다. Jira 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: 종료 댓글 초안에는 구현 요약, 변경 파일, 73개 suite·433개 테스트 결과와 남은 staging/consumer 위험만 포함할 예정이며 자동 등록하지 않았다.
+- 변경한 상태: TMI-96은 `해야 할 일`, Resolution 없음으로 유지했다.
+- 승인 여부: 사용자가 `구현 해줘`라고 구현을 승인했다. Jira 댓글·상태 변경과 Git commit·push는 승인하지 않았고 수행하지 않았다.
+
+## 2026-08-15 — 선택적 quality review 동의 API 설계 검토
+
+<!-- codex-turn:01a00467-1fc9-7601-8493-c1e844d47a38 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- 작업 목표: Guest 생성·동의 갱신·동의 상태 조회에 선택적 quality review 동의 필드를 추가하는 제안이 현재 필수 동의 모델과 철회 요구를 올바르게 표현하는지 검토한다.
+- 변경 파일: 이번 분석 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 진행 중인 TMI-96 애플리케이션 변경과 동의 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 `ConsentPolicyStatusResponse`에는 privacy·terms에도 이미 `consented` 필드가 있으며 factory는 미동의 또는 version 불일치를 모두 `requiresConsent=true`로 계산함을 확인했다. 선택 동의를 같은 factory에 그대로 넣으면 false인데 requiresConsent가 false여야 한다는 제안과 충돌하므로 optional 전용 factory/DTO 또는 명시적 `required` flag를 권장했다.
+- 구현 내용: `isQualityReviewConsented=true`는 요청 version이 서버 current version과 정확히 일치할 때만 저장하고, `false` 철회는 stale app version 때문에 차단하지 않는 조건부 검증을 권장했다. false snapshot은 `consentedVersion`·`consentedAt`을 null로 만들되 최초 미동의와 철회를 구분하고 철회 시점을 증명해야 한다면 별도 `changedAt`·`withdrawnAt` 또는 append-only consent history가 필요하다고 정리했다.
+- 구현 내용: 동일한 상태로 반복 PUT하면 저장 시각을 바꾸지 않는 멱등성, true→false 철회 시 Mongo partial update의 과거 version/time `$unset`, 기존 문서의 누락 필드를 false/null로 읽는 하위 호환, privacy·terms true 강제 유지와 quality review false 허용을 요구사항으로 제안했다.
+- 구현 내용: quality review가 실제 시험 답안·음성의 사람 검토나 품질 개선 이용을 제어한다면 Identity의 현재 상태만 변경해서는 철회가 완료되지 않으며, 데이터를 소유한 외부 서비스에 versioned consent changed/revoked event를 전달해 이후 처리 중지와 승인된 보존·삭제를 수행해야 함을 위험으로 표시했다. Guest 외 LOCAL·Firebase 가입 경로와 PUT 성공 응답·profile 응답도 계약 범위를 결정해야 한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-96 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 API·도메인 설계 검토를 요청했다. 동의 기능 구현, 외부 lifecycle event, Jira 변경과 Git commit·push는 이번 요청의 승인 범위에 포함되지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설계 검토와 기록이므로 Gradle 테스트를 실행하지 않았다. 종료 전 `git diff --check`와 turn marker 단일 존재를 정적으로 검증한다.
+- 유지한 계약: privacy·terms는 필수 true와 current version 일치를 계속 요구하고 quality review만 선택 동의로 분리한다. 사용자 요청 시각을 신뢰하지 않고 서버 Clock을 사용하며 동의 내용이나 개인정보를 로그에 추가하지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 제안한 API 방향은 유효하지만 단순 두 필드 추가만으로는 부족하다. 철회 비차단 version 규칙, optional `requiresConsent` 계산, 멱등 timestamp, 철회 감사와 downstream 이용 중지 계약을 먼저 명시해야 한다.
+- 위험 요소: false 요청에도 current version 일치를 강제하면 오래된 앱에서 철회를 못 할 수 있다. 반대로 false에서 version/time을 모두 지우고 별도 이력을 남기지 않으면 철회 사실과 시각을 증명할 수 없으며, Identity만 갱신하면 외부 서비스가 기존 데이터를 계속 품질 검토에 사용할 수 있다.
+- 다음 작업: 구현 전에 quality review 데이터의 실제 소유 서비스·철회 후 보존/삭제·기존 데이터 적용 범위와 audit 수준을 확정한다. 이후 request/response·UserConsents·ConsentPolicy·Mongo partial update·모든 signup 경로·OpenAPI와 회귀 테스트를 하나의 Jira 범위로 구현한다.
+
+## 2026-08-15 — Quality review 프론트 계약과 긴급 브랜치 적용 순서 검토
+
+<!-- codex-turn:01a0046b-99c3-7013-b1e2-97eebe0bc441 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- 작업 목표: 프론트가 quality review 동의 변경을 어떻게 이해해야 하는지와 즉시 적용을 위해 main checkout 후 수정해도 되는지 현재 Git 상태 기준으로 판단한다.
+- 변경 파일: 이번 분석 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 진행 중인 TMI-96 애플리케이션 변경과 동의 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 프론트는 Guest와 consent PUT에 optional boolean·policy version을 추가하고, false를 가입 차단 없이 허용하며, GET의 qualityReview currentVersion·consented·nullable consent metadata·optional action 상태를 표시하고 false PUT을 철회로 사용한다고 정리했다. PUT 성공 응답에도 저장된 quality review 상태를 반환할지 계약을 맞춰야 한다.
+- 구현 내용: response에 qualityReview object를 추가하는 것은 일반적으로 additive지만 POST/PUT의 신규 `@NotNull` request 필드는 구버전 client 요청을 400으로 만들 수 있음을 확인했다. 안전한 즉시 rollout은 backend가 누락 필드를 false로 취급하는 호환 모드로 먼저 배포하고 frontend가 새 필드를 전송하도록 전환한 뒤, 구버전 종료 후 명시 입력 강제 여부를 결정하는 순서다.
+- 구현 내용: 현재 `main` `b6eb73e`는 `develop` `31130fd`의 ancestor이고 develop보다 16개 commit 뒤에 있음을 read-only Git 명령으로 확인했다. 또한 현재 TMI-96 branch에 tracked·untracked 미커밋 변경이 많으므로 바로 main checkout하면 변경 반입·충돌 또는 기능 누락 위험이 있다.
+- 구현 내용: 사용자가 현재 TMI-96 변경을 먼저 commit·push하고 작업 트리를 깨끗하게 만든 다음 `develop`을 최신화해 별도 quality-review feature/hotfix branch를 생성하는 순서를 권장했다. 실제 운영이 main 배포만 허용한다면 develop 변경을 정식 PR로 main에 반영한 후 배포해야 하며 main에서 직접 개발하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 프론트 계약과 Git 작업 순서에 대한 설명을 요청했다. checkout·stash·commit·push·branch 생성·동의 구현은 이번 요청의 승인 범위에 포함되지 않았고 수행하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 계약·Git 상태 분석과 기록이므로 Gradle 테스트를 실행하지 않았다. `git merge-base --is-ancestor main develop` 성공과 `main...develop` 차이 0/16을 확인했으며 종료 전 `git diff --check`와 turn marker 단일 존재를 검증한다.
+- 유지한 계약: privacy·terms 필수 동의와 quality review 선택 동의를 구분하고 false 철회를 허용한다. 기존 client를 갑자기 차단하지 않는 rollout과 feature branch·PR 흐름을 유지하며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 프론트에는 단순 필드 추가뿐 아니라 선택 동의·철회·nullable·버전 규칙을 함께 전달한다. Git 작업은 main 직접 수정이 아니라 현재 변경 보존 후 최신 develop 기반 별도 branch로 진행한다.
+- 위험 요소: backend와 frontend를 동시에 강제 변경하면 모바일 구버전이 장기간 400을 받을 수 있다. main에서 직접 작업하면 develop의 16개 commit과 TMI-96 변경이 빠지거나 나중에 큰 merge conflict가 발생할 수 있다.
+- 다음 작업: quality review 정책·downstream 철회 범위를 Jira로 확정하고, 사용자가 TMI-96 변경을 commit·push한 뒤 최신 develop 기반 새 branch에서 backward-compatible backend, frontend, downstream 순으로 배포한다.
+
+## 2026-08-15 — Quality review 선택 동의 구현 계획서 작성
+
+<!-- codex-turn:01a00479-f4dc-7aa2-80fd-5a91610c8278 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, commit·push 미수행)
+- 작업 목표: 사용자가 처음 설계한 quality review 외부 필드명을 유지하면서 Identity API·도메인·저장·하위 호환·테스트·배포와 외부 철회 연동의 구현 계획서를 작성한다.
+- 변경 파일: 신규 `docs/contracts/quality-review-consent-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 진행 중인 TMI-96 애플리케이션 변경과 실제 동의 코드는 수정하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 요청 필드 `isQualityReviewConsented`·`qualityReviewConsentVersion`과 GET `qualityReview.currentVersion`·`consented`·`consentedVersion`·`consentedAt`·`requiresConsent`를 변경하지 않는 계약으로 고정했다. Guest POST·consent PUT·GET 예시와 PUT 성공 응답 범위를 문서화했다.
+- 구현 내용: privacy·terms는 기존 필수 true/current version 규칙을 유지하고 quality review는 선택 동의로 분리했다. true는 current version exact match, false는 stale version으로 차단하지 않으며 false 저장은 version·consentedAt null, 동일 상태 반복 요청은 시각과 User updatedAt을 바꾸지 않는 성공 no-op으로 결정했다.
+- 구현 내용: 기존 client가 새 request 필드를 보내지 않아도 초기 backend가 false로 처리하는 하위 호환 배포, 기존 Mongo 문서 누락=false/null 해석, 모든 가입 경로의 묵시적 true 금지, server Clock·ACTIVE User·CAS 갱신과 OpenAPI·설정·README 수정 범위를 계획했다.
+- 구현 내용: 현재 snapshot만으로 최초 미동의와 철회를 구분하지 못하는 audit 한계를 명시하고 필요 시 append-only history를 별도 설계하도록 했다. 답안·음성·시험 결과는 Identity 소유가 아니므로 versioned consent changed/revoked event와 외부 멱등 consumer·보존/삭제 계약 전 실제 품질 검토를 활성화하지 않는 gate를 포함했다.
+- 구현 내용: 요청 검증, 상태 전이·멱등성, GET 유효 동의 계산, Mongo 저장·동시성, 보안·로그와 전체 `./gradlew clean test`를 완료 조건으로 정리했으며 Learning Core·음성 저장·운영 검토 도구·법적 보존 기간 결정은 제외 범위로 분리했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 고정 필드명 기반 계획서 작성을 명시적으로 요청했다. 애플리케이션 구현, checkout·branch 생성, Jira 변경과 Git commit·push는 승인 범위에 포함되지 않았고 수행하지 않았다.
+- 실행한 테스트와 결과: 문서 작성만 수행해 Gradle 테스트를 실행하지 않았다. 계획서의 코드·설정 경로를 현재 구현과 대조했고 종료 전 `git diff --check`, turn marker 단일 존재와 WORKLOG EOF append를 정적으로 검증한다.
+- 유지한 계약: privacy·terms 필수 동의, quality review 선택 동의·철회, canonical userId와 서버 Clock, Identity와 Learning Core 데이터 소유 경계를 유지했다. 요청 본문·동의 상세값을 로그에 추가하지 않고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 외부 필드명은 사용자의 최초 설계대로 유지한다. Quality review 미동의는 가입·일반 기능을 막지 않고 `requiresConsent=false`이며, 저장된 true가 current version과 일치할 때만 현재 유효 동의로 사용한다.
+- 위험 요소: false snapshot만 저장하면 철회 이력 증명이 불가능하고, 외부 consumer 없이 Identity만 false로 바꾸면 실제 데이터 이용이 계속될 수 있다. 새 request 필드를 즉시 필수화하면 구버전 client가 400을 받을 수 있다.
+- 다음 작업: 사용자가 계획서를 검토한 뒤 별도 Jira와 최신 develop 기반 branch를 준비한다. 구현 시 backend 호환 모드, frontend 필드 전송, audit·downstream 철회 계약 순으로 진행하고 전체 테스트·staging 검증 후 활성화한다.
+
+## 2026-08-15 — Quality review main-only hotfix 계획으로 수정
+
+<!-- codex-turn:01a00486-d2e1-7b50-b1a7-9ffc0701c69b -->
+
+- 날짜: 2026-08-15
+- 브랜치: `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`, checkout·commit·push 미수행)
+- 작업 목표: develop을 main에 포함하지 않고 현재 요청한 quality review 동의 변경만 main에 반영하도록 구현 계획의 Git 기준·적용 코드·검증 범위를 수정한다.
+- 변경 파일: `docs/contracts/quality-review-consent-implementation-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 진행 중인 TMI-96 애플리케이션 코드와 실제 동의 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: read-only Git 조회로 `main` `b6eb73e`가 `develop` `31130fd`보다 16개 commit 뒤지만 Guest·LOCAL signup, `UserConsents`, `ConsentPolicy`, consent PUT·GET 기반은 이미 보유함을 확인했다. main에는 현재 develop의 Firebase signup·Phone eligibility publisher가 없으므로 이번 hotfix에 가져오지 않는다.
+- 구현 내용: 현재 TMI-96 작업 트리의 tracked·untracked 변경을 보존하기 위해 checkout·stash하지 않고 `origin/main` 기준 별도 `hotfix/quality-review-consent` worktree를 만드는 절차로 변경했다. hotfix PR base는 main이며 develop merge를 금지하고 `origin/main...HEAD` diff로 quality review 관련 파일만 포함됐는지 확인한다.
+- 구현 내용: main의 기존 refactor 전 package 경로에 맞춘 예상 수정 파일을 계획서에 기록했다. 지정 외부 endpoint는 Guest POST와 consent PUT·GET이며 main의 LOCAL signup은 이번 요청에 새 필드를 임의 추가하지 않고 quality review false/null/null로 초기화한 뒤 인증된 PUT에서 선택하도록 범위를 한정했다. LOCAL signup UI에도 즉시 노출해야 한다면 별도 요구 확인 후 포함한다.
+- 구현 내용: TMI-95 ADR, TMI-96 publisher, Firebase signup foundation, auth vertical slice refactor와 다른 develop commit이 main hotfix diff에 포함되지 않아야 한다는 완료 조건을 추가했다. main 반영 후 develop 동기화가 필요하면 hotfix commit만 별도 cherry-pick 또는 develop 구조에 재구현하며 이번 main PR과 분리한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 develop이 main에 들어가면 안 되고 quality review 수정만 main에 있어야 한다고 명시했다. Git checkout·worktree 생성·commit·push·PR과 애플리케이션 구현은 아직 요청·승인되지 않아 수행하지 않았다.
+- 실행한 테스트와 결과: 계획 문서 수정과 read-only Git 비교만 수행해 Gradle 테스트를 실행하지 않았다. main의 관련 파일 존재와 package 경로를 `git ls-tree`·`git show`로 확인했으며 종료 전 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 외부 quality review 필드명, privacy·terms 필수와 quality review 선택·철회 규칙, 구 client 누락=false 호환을 유지했다. main-only hotfix 경계를 지키고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 이번 변경의 source와 PR base는 main이다. develop은 main에 merge하지 않고 hotfix에도 섞지 않는다. 현재 dirty TMI-96 worktree와 main hotfix worktree를 물리적으로 분리한다.
+- 위험 요소: 현재 작업 트리에서 main으로 checkout하면 TMI-96 변경이 따라가거나 충돌할 수 있다. main과 develop은 package 구조가 달라 develop 코드를 복사하면 불필요한 refactor와 기능이 함께 들어갈 수 있으며, 장기적으로 main hotfix를 develop에 별도 동기화하지 않으면 다음 병합에서 충돌할 수 있다.
+- 다음 작업: 사용자가 구현을 요청하면 별도 main worktree 생성과 main 전용 코드 재검토부터 시작한다. 변경 후 main 전체 테스트와 `origin/main...HEAD` 파일 목록을 검증하고 quality review 변경만 포함한 PR 초안을 준비한다.
+
+## 2026-08-15 — Main hotfix worktree branch 확인
+
+<!-- codex-turn:01a0049d-c800-7f50-a34a-a8815e9f7d6e -->
+
+- 날짜: 2026-08-15
+- 브랜치: 기존 worktree `feat/TMI-96-phone-eligibility-outbox-publisher` (`31130fd`), 별도 worktree `hotfix/quality-review-consent` (`b6eb73e`)
+- 작업 목표: 사용자가 별도 worktree를 생성한 뒤 추가 branch switch가 필요한지 실제 Git worktree·branch 연결 상태로 확인한다.
+- 변경 파일: 이번 확인 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 애플리케이션 코드와 두 worktree의 branch·HEAD는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `git worktree list --porcelain`로 기존 `/Users/msde76/identity`가 TMI-96 branch `31130fd`, 새 `/Users/msde76/identity-quality-review-hotfix`가 `hotfix/quality-review-consent` branch `b6eb73e`에 각각 연결된 것을 확인했다. hotfix branch는 `origin/main`을 tracking하며 생성 순간 새 worktree에 이미 checkout됐다.
+- 구현 내용: worktree마다 서로 다른 branch가 동시에 checkout되는 구조이므로 기존 폴더에서 `git switch`할 필요가 없다. 사용자는 `cd /Users/msde76/identity-quality-review-hotfix`로 이동한 뒤 `pwd`, `git branch --show-current`, `git status --short`를 확인하고 hotfix 작업을 진행하면 된다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 branch switch 필요 여부 확인을 요청했다. checkout·switch·commit·push·애플리케이션 구현은 수행하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Git 상태 확인과 기록이므로 Gradle 테스트를 실행하지 않았다. worktree path·HEAD·branch와 tracking 상태를 read-only로 확인하고 종료 전 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: main-only hotfix와 기존 develop/TMI-96 변경의 물리적 격리를 유지했다. develop을 main에 병합하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 추가 `git switch`는 필요 없다. hotfix 폴더 자체가 이미 hotfix branch 작업 트리이며 기존 폴더는 TMI-96 branch 보존용으로 유지한다.
+- 위험 요소: 기존 `/Users/msde76/identity`에서 계속 수정하면 quality review 변경이 TMI-96 worktree에 섞일 수 있다. 터미널과 IDE의 열린 프로젝트 경로가 hotfix 폴더인지 확인해야 한다.
+- 다음 작업: hotfix 폴더로 이동해 branch와 clean status를 확인한 뒤 main 패키지 구조 기준으로 quality review 변경만 구현한다. PR 전 `origin/main...HEAD` diff에 develop 변경이 없는지 검증한다.
+
+## 2026-08-15 — Quality review hotfix 작업 위치 최종 확인
+
+<!-- codex-turn:01a0049f-fb35-7401-9054-f36d1de5c84f -->
+
+- 날짜: 2026-08-15
+- 브랜치: 별도 worktree `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기준)
+- 작업 목표: 사용자가 새 hotfix worktree로 이동한 뒤 현재 branch와 clean working tree를 올바르게 확인했는지 검증한다.
+- 변경 파일: 이번 확인 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 수정했다. 애플리케이션 코드와 Git branch·HEAD·index·working tree는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 사용자가 `/Users/msde76/identity-quality-review-hotfix`에서 실행한 `git branch --show-current` 결과가 `hotfix/quality-review-consent`임을 확인했다. 이어진 `git status --short` 출력이 없으므로 hotfix worktree가 clean한 상태임을 확인했다.
+- 구현 내용: 추가 branch switch는 필요하지 않으며 터미널과 IDE 모두 hotfix worktree 경로를 사용해야 기존 `/Users/msde76/identity`의 TMI-96 변경과 quality review main hotfix가 섞이지 않는다고 안내했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 branch와 status 실행 결과를 공유해 확인을 요청했다. checkout·switch·commit·push·PR과 애플리케이션 구현은 수행하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 Git 상태 확인과 기록이므로 Gradle 테스트를 실행하지 않았다. 사용자가 제공한 branch·status 결과와 앞서 조회한 worktree 연결 상태가 일치하며 종료 전 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: main-only hotfix와 develop/TMI-96 worktree 격리를 유지했다. develop을 main에 병합하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: hotfix 구현 준비 상태는 정상이다. 현재 worktree와 branch를 그대로 사용하고 추가 `git switch`는 하지 않는다.
+- 위험 요소: IDE가 기존 `/Users/msde76/identity`를 계속 열고 있으면 잘못된 branch에 수정할 수 있으므로 프로젝트 root 표시를 확인해야 한다.
+- 다음 작업: 사용자가 구현을 요청하면 hotfix worktree에서 main의 기존 consent 구조를 다시 읽고 quality review 관련 변경만 적용한 뒤 전체 테스트와 `origin/main...HEAD` diff를 검증한다.
+
+## 2026-08-15 — Quality review hotfix 커밋 가능 상태 확인 동기화
+
+<!-- codex-turn:01a004b3-4ee4-79a3-afe7-66ede4bae4b5 -->
+
+- 날짜: 2026-08-15
+- 브랜치: 별도 worktree `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기준, commit·push 미수행)
+- 작업 목표: Quality review 구현을 지금 커밋해도 되는지 hotfix worktree의 변경 범위·정적 검사·전체 테스트로 확인하고 기존 Identity worktree 기록에도 동기화한다.
+- 변경 파일: 이번 Hook 대응으로 기존 worktree의 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. hotfix 애플리케이션 구현은 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: hotfix worktree의 변경 파일이 Guest·consent API, User consent 도메인·저장, quality review 설정·오류·OpenAPI·README·계획서와 관련 테스트에 한정되고 Firebase·TMI-95·TMI-96 같은 develop 전용 파일이 없음을 확인했다.
+- 구현 내용: staged 파일은 아직 없으며 사용자가 전체 의도 변경을 stage한 뒤 cached diff를 확인하고 단일 hotfix commit을 생성하도록 안내했다. Codex는 저장소 규칙에 따라 stage·commit·push를 수행하지 않았다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 커밋 가능 여부를 질문했다. Git commit·push는 사용자가 직접 수행하도록 명령만 제공했다.
+- 실행한 테스트와 결과: hotfix worktree에서 `./gradlew clean test`가 BUILD SUCCESSFUL로 끝났고 42개 suite·319개 테스트가 failure 0, error 0, skipped 0이었다. `git diff --check`도 성공했으며 실제 Atlas·OAuth Provider·외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: main-only hotfix와 develop/TMI-96 격리, privacy·terms 필수와 quality review 선택·철회·구 client 호환을 유지했다. Identity 밖의 시험·답안·음성 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 사용자가 staged diff를 마지막으로 확인한 뒤 커밋 가능한 상태다. PR base는 main이며 quality review 변경만 포함해야 한다.
+- 위험 요소: 일부 파일만 stage하면 코드·테스트·설정·문서가 분리될 수 있다. production 배포 전 Quality review version 환경설정과 외부 데이터 철회 연동 부재를 확인해야 한다.
+- 다음 작업: 사용자가 `git add -A`, cached diff 검증, commit·push를 수행하고 main 대상 PR에서 `origin/main...HEAD` 변경 목록을 다시 확인한다.
+
+## 2026-08-15 — Quality review 배포 환경변수 확인
+
+<!-- codex-turn:01a004b7-968c-7be0-b4ac-6f16bffdb94e -->
+
+- 날짜: 2026-08-15
+- 브랜치: 별도 worktree `hotfix/quality-review-consent`, commit `4745652`, 원격 `origin/hotfix/quality-review-consent`
+- 작업 목표: Quality review 선택 동의 hotfix 배포에 새 환경변수가 필요한지 코드·설정·문서와 현재 Git 상태로 확인한다.
+- 변경 파일: 이번 확인 기록으로 기존 worktree의 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. hotfix 코드·설정·commit은 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: hotfix의 `.env.example`에 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`, `application.yml`에 `app.consent.quality-review-version: ${QUALITY_REVIEW_CONSENT_VERSION}`, `ConsentPolicy`에 non-null·non-blank 기동 검증이 연결된 것을 확인했다. README도 이 값을 필수로 문서화한다.
+- 구현 내용: 환경변수는 Secret이 아니라 서버가 현재 제공하는 Quality review 정책 version 식별자다. local·staging·production 배포 환경에 명시적으로 추가하고 frontend 요청의 `qualityReviewConsentVersion`과 정확히 일치시켜야 한다. 누락 또는 공백이면 fail-fast 기동 실패하며 test profile은 `application-test.yml`의 가짜 `quality-review-v1`을 사용한다.
+- 구현 내용: hotfix worktree HEAD가 commit `4745652` `feat: add optional quality review consent`이고 원격 hotfix branch와 일치하며 working tree가 clean한 것을 read-only Git 조회로 확인했다. main보다 한 commit 앞이고 아직 main 병합 여부는 확인하지 않았다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 배포 환경변수 필요 여부를 질문했다. 환경 설정·배포·Git 변경은 수행하지 않고 필요한 이름과 값만 안내했다.
+- 실행한 테스트와 결과: 이번에는 코드 변경이 없는 설정 확인이므로 Gradle 테스트를 다시 실행하지 않았다. 직전 hotfix 전체 결과는 42개 suite·319개 테스트 failure 0, error 0, skipped 0이며 이번 종료 전 기록 문서의 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 실제 정책 문구나 개인정보를 환경변수에 넣지 않고 version 식별자만 사용한다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았으며 main-only hotfix와 develop 격리를 유지했다.
+- 결정사항: 배포 전 `QUALITY_REVIEW_CONSENT_VERSION` 추가는 필수다. 현재 version 값은 frontend 계약과 같은 `quality-review-v1`로 맞춘다.
+- 위험 요소: 환경변수가 없으면 애플리케이션이 기동하지 않고, frontend와 server version이 다르면 `true` 동의 요청이 version mismatch로 거절된다. 정책 내용이 변경되면 기존 값을 재사용하지 말고 새 version을 배포 계약으로 함께 전환해야 한다.
+- 다음 작업: main 대상 PR과 배포 설정에 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 반영하고, 배포 후 GET currentVersion과 Guest·PUT true/false 흐름을 staging에서 검증한다.
+
+## 2026-08-15 — Quality review staging 도메인·환경변수 구분 확인
+
+<!-- codex-turn:01a004be-d763-7163-95ac-0d4594cc5973 -->
+
+- 날짜: 2026-08-15
+- 브랜치: 별도 worktree `hotfix/quality-review-consent`, commit `4745652`, 원격 `origin/hotfix/quality-review-consent`
+- 작업 목표: Staging frontend의 Identity·Learning API base URL을 Quality review 점검 때문에 다른 domain으로 바꿔야 하는지와 backend 배포 환경변수의 역할을 구분한다.
+- 변경 파일: 이번 확인 기록으로 기존 worktree의 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. hotfix 애플리케이션 코드·설정·Git 상태는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: hotfix 코드·설정·문서를 검색해 Quality review 전용 base URL, endpoint 설정 또는 외부 HTTP adapter가 없음을 확인했다. 선택 동의는 기존 Identity의 Guest POST와 consent PUT·GET에서 저장·조회되므로 frontend는 기존 Identity staging base URL을 계속 사용한다.
+- 구현 내용: `EXPO_PUBLIC_IDENTITY_API_BASE_URL`과 `EXPO_PUBLIC_LEARNING_API_BASE_URL`은 frontend가 각각 Identity·Learning staging 서버로 요청할 공개 base URL이다. `QUALITY_REVIEW_CONSENT_VERSION`은 Identity runtime의 현재 정책 version 문자열이며 URL이나 점검 서버 주소가 아니다.
+- 구현 내용: Staging frontend는 기존 두 staging domain을 유지하고 `qualityReviewConsentVersion=quality-review-v1`을 Identity 요청 body에 보낸다. Identity staging 배포 설정에는 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 추가해 양쪽 값을 일치시킨다. Learning API base URL은 이번 hotfix로 변경하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 staging domain과 배포 환경변수 사용법을 질문했다. frontend·backend 환경설정, 배포, Git과 외부 시스템을 변경하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설정·호출 경계 확인이므로 Gradle 테스트를 다시 실행하지 않았다. 직전 hotfix 전체는 42개 suite·319개 테스트 성공 상태이며 종료 전 기록 문서의 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 인증·동의 API는 Identity domain, 학습 API는 Learning domain으로 분리하고 Quality review 동의 때문에 Learning 또는 별도 도메인으로 사용자 인증 요청을 보내지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 현재 staging에서는 별도 Quality review domain이 필요 없다. 기존 staging API base URL을 유지하고 Identity staging runtime에 정책 version 환경변수만 추가한다.
+- 위험 요소: frontend version 문자열과 Identity 환경변수가 다르면 true 동의 요청이 version mismatch로 거절된다. 향후 실제 검토 데이터 consumer가 별도 서비스로 생겨도 그 내부 endpoint는 server-side 계약이며 frontend의 `EXPO_PUBLIC_*` 값으로 노출하지 않는다.
+- 다음 작업: Staging Identity 환경에 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 추가하고 앱 요청 version을 일치시킨 뒤 기존 Identity staging domain에서 Guest·GET·PUT true/false 흐름을 점검한다.

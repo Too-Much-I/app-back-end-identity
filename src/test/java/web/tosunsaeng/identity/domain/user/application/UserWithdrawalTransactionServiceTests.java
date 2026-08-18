@@ -35,8 +35,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
@@ -54,6 +58,8 @@ class UserWithdrawalTransactionServiceTests {
 
 	private UserRepository userRepository;
 	private RefreshSessionRepository sessionRepository;
+	private PhoneEligibilityBindingRevisionRepository bindingRevisionRepository;
+	private PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
 	private RecordingTransactionManager transactionManager;
 	private AtomicReference<User> persistedTombstone;
 	private AtomicReference<List<RefreshSession>> persistedSessions;
@@ -64,6 +70,8 @@ class UserWithdrawalTransactionServiceTests {
 	void setUp() {
 		userRepository = mock(UserRepository.class);
 		sessionRepository = mock(RefreshSessionRepository.class);
+		bindingRevisionRepository = mock(PhoneEligibilityBindingRevisionRepository.class);
+		bindingOutboxRepository = mock(PhoneEligibilityBindingOutboxRepository.class);
 		transactionManager = new RecordingTransactionManager();
 		persistedTombstone = new AtomicReference<>();
 		persistedSessions = new AtomicReference<>(List.of());
@@ -80,11 +88,15 @@ class UserWithdrawalTransactionServiceTests {
 			clearAfterRollback(persistedSessions);
 			return sessions;
 		});
+		when(bindingRevisionRepository.findAllByUserIdAndActiveTrue(any()))
+				.thenReturn(List.of());
 
 		context = new AnnotationConfigApplicationContext();
 		context.register(TransactionTestConfiguration.class);
 		context.registerBean(UserRepository.class, () -> userRepository);
 		context.registerBean(RefreshSessionRepository.class, () -> sessionRepository);
+		context.registerBean(PhoneEligibilityBindingRevisionRepository.class, () -> bindingRevisionRepository);
+		context.registerBean(PhoneEligibilityBindingOutboxRepository.class, () -> bindingOutboxRepository);
 		context.registerBean(
 				"mongoTransactionManager",
 				PlatformTransactionManager.class,
@@ -93,6 +105,33 @@ class UserWithdrawalTransactionServiceTests {
 		context.registerBean(UserWithdrawalTransactionService.class);
 		context.refresh();
 		service = context.getBean(UserWithdrawalTransactionService.class);
+	}
+
+	@Test
+	void createsRevocationEventInWithdrawalTransactionForEveryActiveBinding() {
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId()))
+				.thenReturn(List.of(credential));
+		PhoneEligibilityBindingRevision active = mock(PhoneEligibilityBindingRevision.class);
+		when(active.getUserId()).thenReturn(user.getUserId());
+		when(active.getConsumerScopeId()).thenReturn("opaque-scope-v1");
+		when(active.getRevision()).thenReturn(1L);
+		PhoneEligibilityBindingRevision revoked = mock(PhoneEligibilityBindingRevision.class);
+		when(revoked.getUserId()).thenReturn(user.getUserId());
+		when(revoked.getConsumerScopeId()).thenReturn("opaque-scope-v1");
+		when(revoked.getRevision()).thenReturn(2L);
+		when(bindingRevisionRepository.findAllByUserIdAndActiveTrue(user.getUserId()))
+				.thenReturn(List.of(active));
+		when(bindingRevisionRepository.advanceRevoked(
+				user.getUserId(), "opaque-scope-v1", 1L, WITHDRAWN_AT))
+				.thenReturn(Optional.of(revoked));
+
+		service.withdraw(user, CREDENTIAL_HASH, WITHDRAWN_AT);
+
+		verify(bindingOutboxRepository).save(any(PhoneEligibilityBindingOutbox.class));
+		assertThat(transactionManager.commits).isEqualTo(1);
 	}
 
 	@AfterEach

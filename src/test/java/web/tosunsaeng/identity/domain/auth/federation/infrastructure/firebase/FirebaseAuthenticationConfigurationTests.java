@@ -24,6 +24,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibility
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneNumberNormalizer;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
@@ -87,6 +88,7 @@ class FirebaseAuthenticationConfigurationTests {
 				.withBean(PhoneIdentityRepository.class, () -> mock(PhoneIdentityRepository.class))
 				.withBean(PhoneFingerprintAliasRepository.class, () -> mock(PhoneFingerprintAliasRepository.class))
 				.withBean(PhoneEligibilityBindingOutboxRepository.class, () -> mock(PhoneEligibilityBindingOutboxRepository.class))
+				.withBean(PhoneEligibilityBindingRevisionRepository.class, () -> mock(PhoneEligibilityBindingRevisionRepository.class))
 				.withBean(PhoneNumberNormalizer.class, () -> mock(PhoneNumberNormalizer.class))
 				.withBean(PhoneFingerprintHasher.class, () -> mock(PhoneFingerprintHasher.class))
 				.withBean(PhoneEligibilityFingerprintHasher.class, () -> mock(PhoneEligibilityFingerprintHasher.class))

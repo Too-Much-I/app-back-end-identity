@@ -32,6 +32,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
@@ -44,6 +45,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibility
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintSet;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
@@ -62,6 +64,7 @@ class FirebaseSignupTransactionServiceTests {
 	private PhoneIdentityRepository phoneIdentityRepository;
 	private PhoneFingerprintAliasRepository aliasRepository;
 	private PhoneEligibilityBindingOutboxRepository outboxRepository;
+	private PhoneEligibilityBindingRevisionRepository revisionRepository;
 	private SocialIdentityRepository socialIdentityRepository;
 	private RefreshSessionIssuer refreshSessionIssuer;
 	private FirebaseEnrollmentAttemptRepository enrollmentRepository;
@@ -76,6 +79,7 @@ class FirebaseSignupTransactionServiceTests {
 		phoneIdentityRepository = mock(PhoneIdentityRepository.class);
 		aliasRepository = mock(PhoneFingerprintAliasRepository.class);
 		outboxRepository = mock(PhoneEligibilityBindingOutboxRepository.class);
+		revisionRepository = mock(PhoneEligibilityBindingRevisionRepository.class);
 		socialIdentityRepository = mock(SocialIdentityRepository.class);
 		refreshSessionIssuer = mock(RefreshSessionIssuer.class);
 		enrollmentRepository = mock(FirebaseEnrollmentAttemptRepository.class);
@@ -83,6 +87,9 @@ class FirebaseSignupTransactionServiceTests {
 
 		when(aliasRepository.findAllActiveByFingerprints(any())).thenReturn(List.of());
 		when(phoneIdentityRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		PhoneEligibilityBindingRevision revision = mock(PhoneEligibilityBindingRevision.class);
+		when(revision.getRevision()).thenReturn(1L);
+		when(revisionRepository.advanceVerified(any(), any(), any())).thenReturn(revision);
 		when(refreshSessionIssuer.savePrepared(any())).thenAnswer(invocation -> {
 			PreparedRefreshSession prepared = invocation.getArgument(0);
 			return new IssuedRefreshSession(
@@ -102,6 +109,7 @@ class FirebaseSignupTransactionServiceTests {
 		context.registerBean(PhoneIdentityRepository.class, () -> phoneIdentityRepository);
 		context.registerBean(PhoneFingerprintAliasRepository.class, () -> aliasRepository);
 		context.registerBean(PhoneEligibilityBindingOutboxRepository.class, () -> outboxRepository);
+		context.registerBean(PhoneEligibilityBindingRevisionRepository.class, () -> revisionRepository);
 		context.registerBean(SocialIdentityRepository.class, () -> socialIdentityRepository);
 		context.registerBean(RefreshSessionIssuer.class, () -> refreshSessionIssuer);
 		context.registerBean(FirebaseEnrollmentAttemptRepository.class, () -> enrollmentRepository);
@@ -134,6 +142,7 @@ class FirebaseSignupTransactionServiceTests {
 				firebaseIdentityRepository,
 				phoneIdentityRepository,
 				aliasRepository,
+				revisionRepository,
 				outboxRepository,
 				socialIdentityRepository,
 				refreshSessionIssuer,
@@ -143,7 +152,9 @@ class FirebaseSignupTransactionServiceTests {
 		order.verify(firebaseIdentityRepository).save(aggregate.firebaseIdentity());
 		order.verify(phoneIdentityRepository).save(any(PhoneIdentity.class));
 		order.verify(aliasRepository).saveAll(any());
-		order.verify(outboxRepository).save(aggregate.outbox());
+		order.verify(revisionRepository).advanceVerified(
+				aggregate.user().getUserId(), aggregate.consumerScopeId(), NOW);
+		order.verify(outboxRepository).save(any(PhoneEligibilityBindingOutbox.class));
 		order.verify(socialIdentityRepository).saveAll(aggregate.socialIdentities());
 		order.verify(refreshSessionIssuer).savePrepared(aggregate.preparedSession());
 		order.verify(enrollmentRepository).consumeIfPendingAndNotExpired(
@@ -210,7 +221,8 @@ class FirebaseSignupTransactionServiceTests {
 				aggregate.user(),
 				aggregate.firebaseIdentity(),
 				aggregate.phoneFingerprints(),
-				aggregate.outbox(),
+				aggregate.consumerScopeId(),
+				aggregate.eligibilityCandidates(),
 				aggregate.socialIdentities(),
 				aggregate.preparedSession(),
 				aggregate.attempt(),
@@ -235,12 +247,9 @@ class FirebaseSignupTransactionServiceTests {
 				fingerprint,
 				List.of(fingerprint)
 		);
-		PhoneEligibilityBindingOutbox outbox = PhoneEligibilityBindingOutbox.create(
-				user.getUserId(),
-				"opaque-scope-v1",
-				List.of(new PhoneEligibilityFingerprintCandidate("v1", "B".repeat(43))),
-				NOW
-		);
+		String consumerScopeId = "opaque-scope-v1";
+		List<PhoneEligibilityFingerprintCandidate> eligibilityCandidates = List.of(
+				new PhoneEligibilityFingerprintCandidate("v1", "B".repeat(43)));
 		List<SocialIdentity> socialIdentities = List.of(SocialIdentity.create(
 				user.getUserId(),
 				SocialProvider.GOOGLE,
@@ -270,7 +279,8 @@ class FirebaseSignupTransactionServiceTests {
 				user,
 				firebaseIdentity,
 				fingerprints,
-				outbox,
+				consumerScopeId,
+				eligibilityCandidates,
 				socialIdentities,
 				prepared,
 				attempt
@@ -281,7 +291,8 @@ class FirebaseSignupTransactionServiceTests {
 			User user,
 			FirebaseIdentity firebaseIdentity,
 			PhoneFingerprintSet phoneFingerprints,
-			PhoneEligibilityBindingOutbox outbox,
+			String consumerScopeId,
+			List<PhoneEligibilityFingerprintCandidate> eligibilityCandidates,
 			List<SocialIdentity> socialIdentities,
 			PreparedRefreshSession preparedSession,
 			FirebaseEnrollmentAttempt attempt
