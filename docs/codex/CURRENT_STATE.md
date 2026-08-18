@@ -5,14 +5,17 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-96` Stage 5D Phone eligibility binding outbox publisher 구현과 전체 회귀 검증을 완료했다. Jira 상태는 `해야 할 일`로 유지하며 PR 병합 전 댓글·상태를 변경하지 않는다
-- 상태 기준일: 2026-08-14
+- 현재 단계: `codex/sync-main-quality-review-hotfix`에서 `origin/main`의 Quality review hotfix를 최신 `origin/develop` 구조에 통합하고 전체 457개 테스트를 통과했다. merge commit·push·develop PR은 사용자가 수행하기 전 상태다
+- 상태 기준일: 2026-08-18
 
 ## 완료
 
 - Spring Boot 프로젝트 및 Identity용 의존성 구성
 - 저장소 Codex 작업 규칙과 Identity–Learning Core JWT 계약 문서화
 - CURRENT_STATE/WORKLOG 작업 기록 체계와 Codex Hook 구성
+- `origin/develop` 기준 동기화 브랜치에서 `origin/main`을 `--no-ff --no-commit`으로 병합하고, develop의 Firebase·TMI-96 구조와 main의 Quality review 선택 동의·철회 계약을 함께 유지하도록 충돌을 해결함
+- Guest POST와 인증된 consent GET·PUT에 `isQualityReviewConsented`, `qualityReviewConsentVersion` 계약을 통합하고 필수 runtime 설정 `QUALITY_REVIEW_CONSENT_VERSION` 및 기존 Mongo 문서·구버전 client 호환 테스트를 develop에 반영함
+- 병합 뒤 Firebase 전용 `ConsentPolicy` test fixture와 동의 성공 로그를 조정해 동의 시각을 로그에 남기지 않도록 유지했으며 `./gradlew clean test` 전체 457개 테스트 성공
 - Codex 사용자 전역 설정에 Atlassian Remote MCP(`atlassian`) 등록 및 OAuth 연결 확인
 - Atlassian MCP의 읽기 전용 조회로 `to-teacher` 사이트의 접근 가능 Jira 프로젝트 1개(`TMI`)와 이슈 생성 권한, 사용 가능한 이슈 유형 `에픽`·`하위 작업`·`작업`·`스토리`를 생성·수정 호출 없이 확인
 - 승인된 Refresh Token 재발급·Rotation·재사용 탐지·멱등 로그아웃 Payload로 TMI `작업` 이슈 `TMI-6`을 `High` 우선순위와 기본 상태 `해야 할 일`로 생성하고 담당자·라벨·상태 전환은 적용하지 않음

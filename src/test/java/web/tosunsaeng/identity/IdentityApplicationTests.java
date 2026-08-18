@@ -179,6 +179,10 @@ class IdentityApplicationTests {
 						+ ".content['application/json'].examples.TERM_CONSENT_REQUIRED.value.code")
 						.value("TERM_CONSENT_REQUIRED"))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
+						+ ".content['application/json'].examples"
+						+ ".QUALITY_REVIEW_CONSENT_VERSION_MISMATCH.value.code")
+						.value("QUALITY_REVIEW_CONSENT_VERSION_MISMATCH"))
+				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']"
 						+ ".content['application/json'].examples.INVALID_REQUEST.value.code")
 						.value("INVALID_REQUEST"))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']"
@@ -192,6 +196,17 @@ class IdentityApplicationTests {
 								"isTermConsented",
 								"termConsentVersion"
 						)))
+				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.required")
+						.value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItems(
+								"isQualityReviewConsented",
+								"qualityReviewConsentVersion"
+						))))
+				.andExpect(jsonPath(
+						"$.components.schemas.GuestAuthRequest.properties.isQualityReviewConsented"
+				).exists())
+				.andExpect(jsonPath(
+						"$.components.schemas.GuestAuthRequest.properties.qualityReviewConsentVersion.maxLength"
+				).value(100))
 				.andExpect(jsonPath(
 						"$.components.schemas.GuestAuthRequest.properties.isAudioConsent"
 				).doesNotExist())
@@ -209,16 +224,19 @@ class IdentityApplicationTests {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].get.summary")
-						.value("개인정보 처리방침 및 이용약관 동의 상태 조회"))
+						.value("정책 동의 상태 조회"))
 				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].get.requestBody")
 						.doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/users/me/consents'].put.summary")
-						.value("개인정보 처리방침 및 이용약관 동의 갱신"))
+						.value("정책 동의 갱신"))
 				.andExpect(jsonPath(
 						"$.components.schemas.UserConsentStatusResponse.properties.privacy"
 				).exists())
 				.andExpect(jsonPath(
 						"$.components.schemas.UserConsentStatusResponse.properties.terms"
+				).exists())
+				.andExpect(jsonPath(
+						"$.components.schemas.UserConsentStatusResponse.properties.qualityReview"
 				).exists())
 				.andExpect(jsonPath(
 						"$.components.schemas.ConsentPolicyStatusResponse.properties.currentVersion.type"
@@ -242,6 +260,20 @@ class IdentityApplicationTests {
 								"isTermConsented",
 								"termConsentVersion"
 						)))
+				.andExpect(jsonPath("$.components.schemas.UserConsentUpdateRequest.required")
+						.value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItems(
+								"isQualityReviewConsented",
+								"qualityReviewConsentVersion"
+						))))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserConsentResponse.properties.qualityReviewConsentVersion.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserConsentResponse.properties.qualityReviewConsentedAt.type"
+				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.qualityReviewConsented"
+				).doesNotExist())
 				.andExpect(jsonPath(
 						"$.components.schemas.UserProfileResponse.properties.privacyConsentVersion.type"
 				).value(org.hamcrest.Matchers.hasItems("string", "null")))

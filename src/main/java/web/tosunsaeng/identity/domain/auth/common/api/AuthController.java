@@ -97,7 +97,7 @@ public class AuthController {
 	@Operation(
 			summary = "Guest 사용자 생성 및 인증",
 			description = "설치 UUID를 중복 방지용으로만 사용해 ACTIVE Guest 사용자를 한 번 생성하고 "
-					+ "서버의 현재 개인정보 처리방침과 이용약관 버전 동의를 저장한 뒤 "
+					+ "서버의 현재 개인정보 처리방침과 이용약관 버전 동의 및 선택한 품질 검토 이용 동의를 저장한 뒤 "
 					+ "기존 RS256 Access Token과 Opaque Refresh Token을 발급합니다. "
 					+ "설치 UUID는 인증 수단이 아니므로 이미 생성된 Guest의 Token을 다시 발급하지 않습니다. "
 					+ "응답 유실 또는 Token 분실 시 설치 UUID만으로 계정을 복구할 수 없습니다."
@@ -126,7 +126,7 @@ public class AuthController {
 			),
 			@ApiResponse(
 					responseCode = "400",
-					description = "설치 UUID 검증 실패, 필수 동의 누락 또는 현재 정책 버전 불일치",
+					description = "설치 UUID 검증 실패, 필수 동의 누락 또는 동의한 정책의 현재 버전 불일치",
 					content = @Content(
 							mediaType = "application/json",
 							schema = @Schema(implementation = BaseResponse.class),
@@ -151,7 +151,18 @@ public class AuthController {
 												  "message": "이용약관 동의가 필요합니다.",
 												  "result": null
 												}
-												"""
+											"""
+									),
+									@ExampleObject(
+										name = "QUALITY_REVIEW_CONSENT_VERSION_MISMATCH",
+										value = """
+											{
+											  "isSuccess": false,
+											  "code": "QUALITY_REVIEW_CONSENT_VERSION_MISMATCH",
+											  "message": "현재 품질 검토 이용 동의 버전과 일치하지 않습니다.",
+											  "result": null
+											}
+											"""
 									),
 									@ExampleObject(
 											name = "INVALID_REQUEST",
@@ -199,7 +210,7 @@ public class AuthController {
 	public BaseResponse<GuestAuthResponse> guest(
 			@io.swagger.v3.oas.annotations.parameters.RequestBody(
 					required = true,
-					description = "앱 설치 UUID와 현재 필수 개인정보 처리방침·이용약관 동의",
+					description = "앱 설치 UUID, 현재 필수 개인정보 처리방침·이용약관 동의와 선택 품질 검토 이용 동의",
 					content = @Content(
 							schema = @Schema(implementation = GuestAuthRequest.class),
 							examples = @ExampleObject(value = """
@@ -208,7 +219,9 @@ public class AuthController {
 									  "isPrivacyConsented": true,
 									  "privacyConsentVersion": "privacy-v1",
 									  "isTermConsented": true,
-									  "termConsentVersion": "term-v1"
+									  "termConsentVersion": "term-v1",
+									  "isQualityReviewConsented": false,
+									  "qualityReviewConsentVersion": "quality-review-v1"
 									}
 									""")
 					)

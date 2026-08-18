@@ -1,7 +1,7 @@
 # Quality review 선택 동의 구현 계획
 
 - 작성일: 2026-08-15
-- 상태: 구현 전 계획
+- 상태: 구현 완료 (`hotfix/quality-review-consent`, 2026-08-15)
 - 적용 저장소: Identity Service
 - 적용 기준: `main` (`b6eb73e`)에서 분기한 독립 hotfix
 - 병합 대상: `main`만 사용하며 `develop` 병합은 이번 작업에서 금지
@@ -62,7 +62,7 @@ Identity는 동의의 현재 상태와 서버 시각을 소유한다. 실제 품
 | quality review `false` + stale version | 철회를 차단하지 않고 미동의 처리 |
 | quality review 필드 전체 누락 | 하위 호환 기간에는 `false`로 처리 |
 
-새 프론트 계약에서는 `qualityReviewConsentVersion`을 항상 보내지만, backend는 철회와 구버전 client 보호를 위해 `false` 요청의 version 불일치를 차단 근거로 사용하지 않는다. 문자열이 존재하면 trim과 최대 길이·허용 형식 검증만 수행한다.
+새 프론트 계약에서는 `qualityReviewConsentVersion`을 항상 보내지만, backend는 철회와 구버전 client 보호를 위해 `false` 요청의 version 불일치를 차단 근거로 사용하지 않는다. 문자열이 존재하면 trim 후 최대 100자와 `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` 형식을 검증한다.
 
 ### 3.2 `PUT /api/v1/users/me/consents`
 
@@ -261,6 +261,7 @@ LOCAL signup 화면에도 즉시 선택 동의를 노출해야 한다는 별도 
 - `domain/auth/dto/request/GuestAuthRequest.java`
 - `domain/auth/application/GuestAuthService.java`
 - `domain/user/domain/ConsentPolicy.java`
+- `domain/user/domain/UserFactory.java`
 - `domain/user/domain/entity/UserConsents.java`
 - `domain/user/domain/entity/User.java`
 - `domain/user/application/UserConsentService.java`
@@ -269,10 +270,13 @@ LOCAL signup 화면에도 즉시 선택 동의를 노출해야 한다는 별도 
 - `domain/user/dto/response/UserConsentStatusResponse.java`
 - `domain/user/dto/response/UserConsentResponse.java`
 - `domain/user/domain/repository/UserRepositoryCustomImpl.java`
+- `domain/user/exception/UserErrorStatus.java`
 - `domain/auth/api/AuthController.java`
 - `domain/user/api/UserController.java`
 
 실제 구현 시작 시 반드시 `main` 파일을 다시 읽고 위 목록을 확정한다. `develop`의 refactor 이후 경로를 main에 복사하지 않는다.
+
+실제 구현에서는 `UserRepositoryCustomImpl`의 기존 embedded `consents` 전체 교체와 ACTIVE+`updatedAt` CAS가 요구사항을 이미 충족해 실행 코드는 변경하지 않고 회귀 테스트만 보강했다.
 
 ## 7. 외부 데이터 소유 서비스 연동
 
