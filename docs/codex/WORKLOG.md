@@ -3838,3 +3838,116 @@
 - 결정사항: 현재 staging에서는 별도 Quality review domain이 필요 없다. 기존 staging API base URL을 유지하고 Identity staging runtime에 정책 version 환경변수만 추가한다.
 - 위험 요소: frontend version 문자열과 Identity 환경변수가 다르면 true 동의 요청이 version mismatch로 거절된다. 향후 실제 검토 데이터 consumer가 별도 서비스로 생겨도 그 내부 endpoint는 server-side 계약이며 frontend의 `EXPO_PUBLIC_*` 값으로 노출하지 않는다.
 - 다음 작업: Staging Identity 환경에 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 추가하고 앱 요청 version을 일치시킨 뒤 기존 Identity staging domain에서 Guest·GET·PUT true/false 흐름을 점검한다.
+
+## 2026-08-15 — Quality review 선택 동의 구현 계획의 main hotfix 적용 분석
+
+<!-- codex-turn:01a004a3-4aa2-7a71-a250-e8ff5ae61949 -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main`과 동일, commit·push 미수행)
+- 작업 목표: `/Users/msde76/identity/docs/contracts/quality-review-consent-implementation-plan.md`를 현재 `main` 기반 hotfix 코드와 대조해 실제 구현 순서, 수정 파일, 상태 전이, 하위 호환, 테스트 범위와 선결 결정을 제시한다.
+- 변경 파일: 애플리케이션 코드는 변경하지 않았고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: Guest POST와 인증된 동의 PUT·GET에만 `isQualityReviewConsented`와 `qualityReviewConsentVersion` 계약을 추가하고 LOCAL signup request와 프로필 응답은 유지하는 범위를 확인했다. 누락은 false, true만 현재 version exact match, false는 stale version으로 차단하지 않는 호환 규칙을 확정했다.
+- 구현 내용: `ConsentPolicy`·`UserConsents`·`User`·`UserConsentService` 흐름을 따라 false→true, true→true current no-op, old→current 갱신, true→false 정리와 false→false no-op을 immutable 결과로 처리하고, 실제 변경 시에만 기존 ACTIVE+`updatedAt` CAS로 embedded `consents` 전체를 교체하는 방식을 정리했다.
+- 구현 내용: 계획서 예상 목록 외에 `UserFactory`와 `UserErrorStatus`가 필수 수정이며 `UserRepositoryCustomImpl`은 현재 전체 embedded object 저장 구조라 실행 코드 변경 없이 회귀 테스트만 보강할 수 있음을 확인했다. 필수 정책 factory와 분리된 선택 정책 응답 factory로 유효 동의만 `consented=true`, `requiresConsent=false`를 만들고 PUT 응답에는 저장 snapshot 세 필드를 추가하도록 설계했다.
+- 실행한 테스트와 결과: 첫 `./gradlew clean test`는 sandbox의 Gradle cache lock 접근 제한으로 실행 전에 중단됐다. 승인된 재실행은 BUILD SUCCESSFUL이며 전체 41개 suite·295개 테스트, 실패·오류·건너뜀 0개였다. 실제 Atlas, OAuth Provider, Sentry 또는 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId와 JWT 계약을 변경하지 않고 외부 Request Body에 userId나 요청 시각을 추가하지 않는다. Identity 밖의 답안·음성·시험 데이터 코드를 추가하지 않으며 실제 품질 검토 이용은 별도 outbox·consumer·보존 정책 전 활성화하지 않는다. Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 원본 계획 문서는 구현 시 hotfix의 `docs/contracts`에 포함한다. Quality review request 두 필드는 호환 기간에는 OpenAPI required로 강제하지 않고, false snapshot은 false/null/null로 정규화하며 같은 상태 반복 요청은 동의 시각·User `updatedAt`·저장을 변경하지 않는다. 프로필과 LOCAL signup request에는 신규 외부 필드를 추가하지 않는다. Jira 키가 없어 Jira 조회·댓글·상태 변경은 수행하지 않았다.
+- 위험 요소: 계획서가 version 문자열의 정확한 최대 길이와 허용 문자를 고정하지 않아 구현 전에 프론트와 합의가 필요하다. 현재 회원 탈퇴 tombstone은 `consents`를 보존하므로 quality review true 상태를 탈퇴 시 자동 철회할지 감사 snapshot으로 유지할지 결정해야 한다. snapshot만으로 철회 이력을 증명할 수 없고 외부 데이터 이용 중지는 lifecycle consumer 없이는 보장되지 않는다.
+- 다음 작업: 버전 형식과 회원 탈퇴 처리 원칙을 확정한 뒤 설정·오류 코드·DTO, 도메인 전이, 서비스·API, OpenAPI·README·테스트 순으로 구현하고 `./gradlew clean test`, `git diff --check`, `origin/main...HEAD` 범위 검사를 수행한다.
+
+## 2026-08-15 — Quality review 선택 동의 main hotfix 구현
+
+<!-- codex-turn:01a00528-3a0c-7094-8dbf-2ae9c7b28a5f -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기반, commit·push 미수행)
+- 작업 목표: 승인된 구현 계획에 따라 Guest 생성과 인증된 동의 PUT·GET에 Quality review 선택 동의·철회 상태, version 정책, 하위 호환, OpenAPI·문서와 회귀 테스트를 구현한다.
+- 변경 파일: `.env.example`, `README.md`, `docs/contracts/quality-review-consent-implementation-plan.md`, `src/main/resources/application.yml`, Guest request·service·controller, User consent policy·factory·entity·service·request·response·controller·오류 코드 파일을 변경했다. `UserConsentsTests.java`를 추가하고 Guest·User consent·Mongo mapping·OpenAPI·설정 관련 기존 테스트를 갱신했으며 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 최신화했다. WORKLOG의 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 외부 필드 `isQualityReviewConsented`, `qualityReviewConsentVersion`을 Guest POST와 동의 PUT에 추가했다. 호환 기간에는 누락 Boolean을 false로 정규화하고 version 누락을 허용하며, true만 current server version exact match를 요구하고 false 선택·철회는 stale version으로 차단하지 않는다. 제공된 version은 trim 후 최대 100자와 영문·숫자·점·밑줄·하이픈 형식을 검증한다.
+- 구현 내용: `UserConsents` embedded model에 Quality review boolean·version·서버 `Instant`를 추가했다. false→true, true/current→true no-op, true/old→true/current 갱신, true→false의 false/null/null 정리, false→false no-op을 immutable 결과로 처리하고 같은 상태에서는 기존 instance를 반환한다. LOCAL signup은 false/null/null, Guest는 요청 선택 상태로 생성하며 기존 Mongo 문서의 누락 필드는 false/null/null로 읽는다.
+- 구현 내용: 실제 변경일 때만 User `updatedAt`을 바꾸고 기존 ACTIVE+`updatedAt` CAS와 embedded `consents` 전체 교체를 재사용했다. 철회 후 과거 Quality review version/time을 남기지 않으며 저장 실패·동시 탈퇴의 기존 오류 정책을 유지한다. 로그에서는 기존 동의 시각 field를 제거해 userId·provider·outcome만 사용한다.
+- 구현 내용: GET 응답에 `qualityReview`를 추가해 저장 true·current version·동의 시각을 모두 만족할 때만 현재 `consented=true`로 계산하고 선택 정책의 `requiresConsent`는 항상 false로 유지했다. PUT 응답에는 저장된 Quality review 상태·version·시각을 추가했으며 LOCAL signup request와 프로필 응답은 변경하지 않았다. 계획 원문, README, 환경변수와 Controller OpenAPI 예시·nullable/required schema를 동기화했다.
+- 실행한 테스트와 결과: 최초 `compileTestJava`는 변경된 constructor 호출부 19곳이 남아 실패했고 모두 갱신했다. 첫 targeted 실행은 기존 OpenAPI·record component·설정 기대값 5건이 새 계약과 달라 실패했으며 테스트와 계약을 동기화했다. 이후 targeted 테스트가 성공했고 최종 `./gradlew clean test`는 BUILD SUCCESSFUL, 전체 42개 suite·319개 테스트, 실패·오류·건너뜀 0개였다. `git diff --check`도 성공했으며 실제 Atlas, OAuth Provider, Sentry 또는 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId, JWT sub·RS256·kid·issuer·audience 계약과 기존 RefreshSession·회원 탈퇴·Transaction 동작을 변경하지 않았다. 외부 Request Body에 userId나 사용자 시각을 추가하지 않았고 Learning Core의 답안·시험·음성 코드를 가져오지 않았다. Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 소스·문서·기록에 추가하지 않았다.
+- 결정사항: `QUALITY_REVIEW_CONSENT_VERSION`은 필수 비공백 기동 설정으로 추가했다. Quality review version 외부 형식은 최대 100자와 `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`로 고정했다. 기존 회원 탈퇴 tombstone의 `consents` 보존 동작은 이번 hotfix에서 변경하지 않고 별도 제품·개인정보 결정으로 남겼다. Jira 키가 없어 Jira 조회·댓글·상태 변경은 수행하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: 현재 snapshot만으로 최초 미동의와 동의 후 철회를 법적으로 구분할 수 없으므로 필요한 경우 append-only 감사 이력이 별도 필요하다. 회원 탈퇴 시 Quality review true snapshot 처리 원칙도 미확정이다. Identity false 저장만으로 외부 답안·음성 이용을 중지할 수 없으므로 outbox·멱등 consumer·보존/삭제 정책과 SLA 검증 전 실제 품질 검토 이용을 활성화하면 안 된다.
+- 다음 작업: 사용자가 working tree diff를 검토해 직접 commit·push하고 PR base를 `main`으로 지정한다. 배포 환경에 `QUALITY_REVIEW_CONSENT_VERSION`을 주입한 backend 호환 배포 후 프론트가 두 필드를 항상 전송하도록 전환하고 staging에서 Guest false/true, GET current/old, PUT 선택/철회·멱등성과 구버전 client를 검증한다.
+
+## 2026-08-15 — Quality review hotfix 종료 Hook 작업 기록 동기화
+
+<!-- codex-turn:01a004a8-1042-7692-bf0d-5282d02f33ee -->
+
+- 날짜: 2026-08-15
+- 브랜치: `hotfix/quality-review-consent` (`b6eb73e`, `origin/main` 기반, commit·push 미수행)
+- 작업 목표: 종료 Hook이 요구한 현재 turn marker로 Quality review 선택 동의 구현 결과와 최종 저장소 상태를 WORKLOG 끝에 기록하고 CURRENT_STATE를 다시 동기화한다.
+- 변경 파일: 이번 Hook 대응에서는 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 변경했다. 직전 구현의 애플리케이션·설정·README·계약·테스트 변경은 그대로 유지했으며 WORKLOG 과거 기록을 수정하거나 삭제하지 않았다.
+- 구현 내용: Guest 생성과 인증된 동의 PUT·GET의 Quality review 선택 동의·철회, 누락=false 호환, true의 current version 검증, false/null/null 정규화, 멱등 상태 전이, GET `requiresConsent=false`, PUT 저장 결과 반환이 구현된 최종 상태임을 재확인했다. 이번 Hook 대응에서 실행 코드는 추가 변경하지 않았다.
+- 실행한 테스트와 결과: 직전 최종 `./gradlew clean test`는 BUILD SUCCESSFUL, 전체 42개 suite·319개 테스트, 실패·오류·건너뜀 0개였다. Hook 문서 동기화 후 `git diff --check`를 다시 실행한다. 실제 Atlas, OAuth Provider, Sentry와 외부 데이터 소유 서비스는 호출하지 않았다.
+- 유지한 계약: UUID 실제 userId, JWT, RefreshSession, 회원 탈퇴와 MongoDB CAS·Transaction 계약을 유지했다. Identity 밖의 답안·음성·시험 코드를 추가하지 않았고 Secret, Token, Password, 실제 Key와 전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 현재 구현과 검증 결과를 변경하지 않고 Hook이 지정한 별도 turn marker를 append-only 기록으로 추가했다. Jira 키가 없어 Jira 작업을 수행하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: snapshot만으로 최초 미동의와 철회를 법적으로 구분할 수 없고 회원 탈퇴 시 Quality review true snapshot 처리 원칙도 미확정이다. 외부 데이터 이용 중지는 outbox·멱등 consumer·보존/삭제 정책과 SLA가 준비되기 전 보장되지 않는다.
+- 다음 작업: 사용자가 working tree를 검토해 직접 commit·push하고 `main` 대상 PR을 만든다. 배포 환경에 Quality review version을 주입한 뒤 staging에서 Guest·GET·PUT·철회·멱등·구버전 client 흐름을 검증한다.
+
+## 2026-08-15 — Staging Identity 기동 실패 원인 분석
+
+<!-- codex-turn:01a004c0-1bfd-7920-a9fb-9364945924ce -->
+
+- 날짜: 2026-08-15
+- 브랜치: Quality review main hotfix 배포 진단
+- 작업 목표: 사용자가 공유한 staging Identity `Application run failed` 로그의 실제 원인과 복구 방법을 확인한다.
+- 변경 파일: 이번 누락 Hook 기록으로 기존 worktree의 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·배포 설정·Git 상태는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 긴 `UnsatisfiedDependencyException` chain에서 최하위 cause가 `PlaceholderResolutionException: Could not resolve placeholder 'QUALITY_REVIEW_CONSENT_VERSION'`임을 확인했다. `ConsentPolicy` 생성 실패가 UserFactory·SignupService·AuthController로 전파돼 전체 기동이 실패한 것이며 API domain이나 MongoDB 장애가 아니다.
+- 구현 내용: Identity staging Task Definition의 Identity container에 비밀이 아닌 정책 version `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`을 추가하고 새 task revision·service deployment를 수행해야 한다고 안내했다. frontend `qualityReviewConsentVersion`과 정확히 일치해야 한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 오류 원인 진단을 요청했다. ECS·환경변수·Git·외부 시스템을 변경하지 않았다.
+- 실행한 테스트와 결과: 로그 분석만 수행해 Gradle 테스트를 실행하지 않았다. 최하위 exception과 hotfix 설정 연결을 대조했으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 유지한 계약: Quality review version 누락은 fail-fast하고 별도 review domain을 만들지 않는다. staging frontend는 기존 Identity domain을 유지한다.
+- 결정사항: 장애 원인은 필수 backend runtime 환경변수 누락이다.
+- 위험 요소: 변수 추가 후에도 ECS service가 이전 task revision을 사용하면 같은 오류가 반복된다. 다른 container나 frontend에만 설정해도 Identity 기동 문제는 해결되지 않는다.
+- 다음 작업: Identity staging의 새 task revision에 version을 추가하고 새 task 로그·health와 Guest·GET·PUT 요청을 확인한다.
+
+## 2026-08-18 — Main hotfix 이후 develop 병합 전략 분석
+
+<!-- codex-turn:01a012db-dd0f-7572-a959-a289a662c2db -->
+
+- 날짜: 2026-08-18
+- 브랜치: 로컬 `feat/TMI-96-phone-eligibility-outbox-publisher` (`feaf095`), 원격 비교 `main=3894627`, `develop=6f02f4a`
+- 작업 목표: Quality review hotfix를 main에 먼저 반영한 뒤 develop→main merge가 충돌하는 이유와 향후 안전한 동기화 절차를 설명한다.
+- 변경 파일: 이번 분석 기록으로 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. merge·checkout·애플리케이션 코드·Jira는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 원격 `git ls-remote`와 fetch로 main `3894627`이 hotfix merge PR #24와 commit `4745652`를 포함하고, develop `6f02f4a`가 TMI-96 merge PR #25를 포함함을 확인했다. 공통 merge base는 hotfix 전 `b6eb73e`이며 main-only 2개, develop-only 18개 commit으로 양쪽이 분기됐다.
+- 구현 내용: read-only `git merge-tree` 시뮬레이션에서 `.env.example`, README, consent domain·factory·DTO·tests와 기록 문서처럼 양쪽이 수정한 파일에서 충돌이 재현됐다. 이는 이전 main-only hotfix 때문에 생긴 정상적인 branch divergence와 develop의 package refactor·Firebase 확장이 겹친 결과다.
+- 구현 내용: Quality review 기능을 develop에도 반영하는 것이 맞지만 hotfix commit만 cherry-pick하면 내용은 복제돼도 main ancestry가 develop에 들어오지 않아 향후 merge 문제를 확실히 없애지 못한다고 정리했다. 최신 develop 기반 sync branch에서 `origin/main`을 `--no-ff` merge하고 develop 구조를 기준으로 Quality review 동작·설정·테스트를 수동 통합하는 방식을 권장했다.
+- 구현 내용: sync PR은 develop을 대상으로 하고 squash/rebase가 아니라 merge commit으로 반영해 main commit이 develop ancestry에 포함되게 해야 한다. 그 뒤 `git merge-base --is-ancestor origin/main origin/develop`을 확인하면 나중에 준비된 시점의 develop→main release merge에서 이번 hotfix를 다시 충돌 원인으로 다루지 않는다. 현재 당장 develop을 main에 merge할 필요는 없다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 향후 병합 방법에 대한 분석을 요청했다. 실제 merge·conflict resolution·branch 생성·commit·push는 승인 범위에 포함되지 않아 수행하지 않았다.
+- 실행한 테스트와 결과: 코드 변경 없이 원격 ref·commit graph·merge base·left/right count와 merge-tree를 확인했다. Gradle 테스트는 실행하지 않았고 종료 전 `git diff --check`, 두 turn marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 지금 develop 전체를 main에 반영하지 않고 Quality review hotfix만 main에 유지한다. 추후 동기화에서도 develop의 Firebase·TMI-96 기능을 main에 조기 배포하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 문제는 hotfix 자체가 잘못된 것이 아니라 main과 develop이 각각 다른 변경을 가진 분기 상태라서 발생한다. 다음 release 전 main→develop 동기화 merge를 한 번 수행하고 develop 구조에 Quality review를 통합한다.
+- 위험 요소: conflict에서 main 파일 전체를 선택하면 develop의 refactor·Firebase·TMI-96 기능을 잃고, develop 파일 전체를 선택하면 Quality review hotfix가 사라진다. sync PR을 squash하면 ancestry 연결 목적을 달성하지 못할 수 있다.
+- 다음 작업: 당장 release merge는 하지 않는다. 준비된 시점에 최신 develop 기반 `sync/main-quality-review-hotfix` branch를 만들어 main을 merge하고 각 conflict를 의미 단위로 해결한 뒤 전체 테스트·main ancestry·diff를 검증해 develop 대상 merge-commit PR로 반영한다.
+
+## 2026-08-18 — Main Quality review hotfix를 develop에 선제 동기화
+
+<!-- codex-turn:01a012df-464a-7833-9cd8-94a42975b582 -->
+
+- 날짜: 2026-08-18
+- 브랜치: `codex/sync-main-quality-review-hotfix` (`origin/develop` 기반, `origin/main` merge 진행 중, commit·push 미수행)
+- 작업 목표: main에 먼저 반영된 Quality review 선택 동의 hotfix를 develop의 Firebase·TMI-96 구조와 함께 유지하도록 미리 역병합하고 향후 develop→main release merge의 분기와 충돌을 줄인다.
+- 변경 파일: main hotfix의 환경변수 예시·README·Quality review 계획서, Guest request·service·controller, User consent policy·factory·entity·service·DTO·controller·오류 코드, application 설정과 관련 테스트를 develop에 통합했다. develop 전용 Firebase test fixture와 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 추가 갱신했으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 최신 `origin/develop`에서 별도 동기화 브랜치를 만들고 `git merge --no-ff --no-commit origin/main`을 수행했다. CURRENT_STATE·WORKLOG·계획서·UserConsentService·UserFactoryTests 충돌을 의미 단위로 해결해 develop의 Firebase 회원 생성과 accountType 로그, main의 Quality review Guest 생성·선택·철회·조회 계약과 테스트를 모두 보존했다.
+- 구현 내용: 자동 병합 뒤 develop 전용 `FirebaseSignupServiceTests`가 3개 인자의 `ConsentPolicy`를 생성하도록 Quality review test version을 추가했다. 동의 성공 로그는 userId·accountType·provider·outcome을 유지하되 동의 시각은 남기지 않아 기존 로그 비노출 테스트와 main hotfix의 민감정보 방어 결정을 함께 유지했다.
+- 구현 내용: main에만 존재하던 Quality review 구현 WORKLOG 기록 중 develop에 없던 항목을 파일 끝에 보존하고, 직전 staging 기동 실패·branch divergence 분석 기록도 임시 보관본에서 복원했다. 필수 외부 필드명 `isQualityReviewConsented`, `qualityReviewConsentVersion`과 runtime 설정 `QUALITY_REVIEW_CONSENT_VERSION`을 변경하지 않았다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자가 main hotfix를 develop에 지금 미리 통합하도록 승인했다. 저장소 규칙에 따라 Codex는 merge commit·push를 수행하지 않고 충돌 해결과 검증된 staged 상태까지만 준비했다.
+- 실행한 테스트와 결과: 첫 `./gradlew clean test`는 Gradle 사용자 cache lock의 sandbox 접근 제한으로 시작 전 실패해 승인된 동일 명령으로 재실행했다. 첫 재실행은 Firebase 전용 test fixture의 이전 생성자 호출로 compile 실패했고 수정 후 두 번째는 동의 시각 로그 비노출 assertion 1건이 실패했다. 로그에서 동의 시각을 제거한 최종 실행은 BUILD SUCCESSFUL이며 전체 457개 테스트가 통과했다.
+- 유지한 계약: UUID userId, JWT sub·RS256·kid·issuer·audience, RefreshSession, Firebase broker와 TMI-96 outbox publisher를 유지했다. Identity 밖의 시험·답안·음성 코드를 추가하지 않았고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 지금 main→develop을 동기화하는 것이 이후 충돌 확대를 줄이므로 별도 branch에서 선제 수행했다. 사용자가 현재 merge를 일반 merge commit으로 완료하고 develop 대상 PR도 squash/rebase가 아닌 merge commit 방식으로 병합해야 main ancestry가 develop에 보존된다.
+- 위험 요소: 아직 merge commit이 없어 `origin/main`은 현재 HEAD의 ancestor가 아니다. commit 전에 일부 staged 파일을 제외하면 계약·설정·테스트가 분리될 수 있고, develop PR을 squash하면 ancestry 연결 목적을 달성하지 못한다. 배포 환경에는 `QUALITY_REVIEW_CONSENT_VERSION=quality-review-v1`이 계속 필요하며 외부 품질 검토 데이터의 철회 lifecycle은 별도 계약이 필요하다.
+- 다음 작업: 사용자가 staged diff를 검토해 현재 merge commit을 생성하고 branch를 push한 뒤 develop 대상 PR을 Create a merge commit 방식으로 병합한다. 병합 후 `git merge-base --is-ancestor origin/main origin/develop`의 종료 코드 0과 staging Guest·GET·PUT 선택·철회 흐름을 확인한다.

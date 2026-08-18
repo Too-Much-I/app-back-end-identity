@@ -19,7 +19,8 @@ class ConsentPolicyTests {
 	void startsWithNonBlankConfiguredVersions() {
 		contextRunner.withPropertyValues(
 				"app.consent.privacy-version=privacy-v1",
-				"app.consent.term-version=term-v1"
+				"app.consent.term-version=term-v1",
+				"app.consent.quality-review-version=quality-review-v1"
 		).run(context -> {
 			assertThat(context).hasNotFailed();
 			assertThat(context).hasSingleBean(ConsentPolicy.class);
@@ -29,7 +30,8 @@ class ConsentPolicyTests {
 	@Test
 	void failsFastWhenPrivacyVersionIsMissing() {
 		contextRunner.withPropertyValues(
-				"app.consent.term-version=term-v1"
+				"app.consent.term-version=term-v1",
+				"app.consent.quality-review-version=quality-review-v1"
 		).run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(rootCause(context.getStartupFailure()).getMessage())
@@ -40,7 +42,8 @@ class ConsentPolicyTests {
 	@Test
 	void failsFastWhenTermVersionIsMissing() {
 		contextRunner.withPropertyValues(
-				"app.consent.privacy-version=privacy-v1"
+				"app.consent.privacy-version=privacy-v1",
+				"app.consent.quality-review-version=quality-review-v1"
 		).run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(rootCause(context.getStartupFailure()).getMessage())
@@ -49,10 +52,23 @@ class ConsentPolicyTests {
 	}
 
 	@Test
+	void failsFastWhenQualityReviewVersionIsMissing() {
+		contextRunner.withPropertyValues(
+				"app.consent.privacy-version=privacy-v1",
+				"app.consent.term-version=term-v1"
+		).run(context -> {
+			assertThat(context).hasFailed();
+			assertThat(rootCause(context.getStartupFailure()).getMessage())
+					.contains("app.consent.quality-review-version");
+		});
+	}
+
+	@Test
 	void failsFastWhenEitherVersionIsBlank() {
 		contextRunner.withPropertyValues(
 				"app.consent.privacy-version=",
-				"app.consent.term-version=term-v1"
+				"app.consent.term-version=term-v1",
+				"app.consent.quality-review-version=quality-review-v1"
 		).run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(rootCause(context.getStartupFailure()).getMessage())
@@ -61,11 +77,22 @@ class ConsentPolicyTests {
 
 		contextRunner.withPropertyValues(
 				"app.consent.privacy-version=privacy-v1",
-				"app.consent.term-version= "
+				"app.consent.term-version= ",
+				"app.consent.quality-review-version=quality-review-v1"
 		).run(context -> {
 			assertThat(context).hasFailed();
 			assertThat(rootCause(context.getStartupFailure()).getMessage())
 					.contains("termConsentVersion must not be blank");
+		});
+
+		contextRunner.withPropertyValues(
+				"app.consent.privacy-version=privacy-v1",
+				"app.consent.term-version=term-v1",
+				"app.consent.quality-review-version= "
+		).run(context -> {
+			assertThat(context).hasFailed();
+			assertThat(rootCause(context.getStartupFailure()).getMessage())
+					.contains("qualityReviewConsentVersion must not be blank");
 		});
 	}
 

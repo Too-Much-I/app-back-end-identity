@@ -27,6 +27,7 @@ class UserFactoryTests {
 
 	private static final String PRIVACY_CONSENT_VERSION = "privacy-v1";
 	private static final String TERM_CONSENT_VERSION = "term-v1";
+	private static final String QUALITY_REVIEW_CONSENT_VERSION = "quality-review-v1";
 	private static final String GUEST_INSTALLATION_HASH = "A".repeat(43);
 	private static final Instant GUEST_CREATED_AT = Instant.parse("2026-07-30T08:00:00Z");
 
@@ -34,7 +35,11 @@ class UserFactoryTests {
 	private final UserFactory userFactory = new UserFactory(
 			new EmailNormalizer(),
 			passwordEncoder,
-			new ConsentPolicy(PRIVACY_CONSENT_VERSION, TERM_CONSENT_VERSION)
+			new ConsentPolicy(
+					PRIVACY_CONSENT_VERSION,
+					TERM_CONSENT_VERSION,
+					QUALITY_REVIEW_CONSENT_VERSION
+			)
 	);
 
 	@Test
@@ -79,6 +84,9 @@ class UserFactoryTests {
 		assertThat(guest.getConsents().isTermConsented()).isTrue();
 		assertThat(guest.getConsents().getTermConsentVersion()).isEqualTo(TERM_CONSENT_VERSION);
 		assertThat(guest.getConsents().getTermConsentedAt()).isEqualTo(GUEST_CREATED_AT);
+		assertThat(guest.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isNull();
 		assertThat(guest.getCreatedAt()).isEqualTo(GUEST_CREATED_AT);
 		assertThat(guest.getUpdatedAt()).isEqualTo(GUEST_CREATED_AT);
 	}
@@ -101,6 +109,21 @@ class UserFactoryTests {
 				.isEqualTo(PRIVACY_CONSENT_VERSION);
 		assertThat(member.getConsents().getTermConsentVersion())
 				.isEqualTo(TERM_CONSENT_VERSION);
+	}
+
+	@Test
+	void createsGuestWithExplicitQualityReviewConsentUsingServerTime() {
+		User guest = userFactory.createGuest(
+				GUEST_INSTALLATION_HASH,
+				true,
+				GUEST_CREATED_AT
+		);
+
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_CONSENT_VERSION);
+		assertThat(guest.getConsents().getQualityReviewConsentedAt())
+				.isEqualTo(GUEST_CREATED_AT);
 	}
 
 	@Test
@@ -163,6 +186,9 @@ class UserFactoryTests {
 		assertThat(storedConsents.getString("termConsentVersion"))
 				.isEqualTo(TERM_CONSENT_VERSION);
 		assertThat(storedConsents.get("termConsentedAt")).isNotNull();
+		assertThat(storedConsents.getBoolean("qualityReviewConsented")).isFalse();
+		assertThat(storedConsents.get("qualityReviewConsentVersion")).isNull();
+		assertThat(storedConsents.get("qualityReviewConsentedAt")).isNull();
 		assertThat(firstDocument).doesNotContainKey("audioConsent");
 	}
 
@@ -213,6 +239,36 @@ class UserFactoryTests {
 		assertThat(user.getConsents().isTermConsented()).isTrue();
 		assertThat(user.getConsents().getTermConsentVersion()).isEqualTo(TERM_CONSENT_VERSION);
 		assertThat(user.getConsents().getTermConsentedAt()).isEqualTo(user.getCreatedAt());
+		assertThat(user.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(user.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(user.getConsents().getQualityReviewConsentedAt()).isNull();
+	}
+
+	@Test
+	void legacyMongoConsentDocumentWithoutQualityReviewFieldsReadsAsUnconsented() {
+		MongoCustomConversions customConversions = MongoCustomConversions.create(adapter -> {
+		});
+		MongoMappingContext mappingContext = new MongoMappingContext();
+		mappingContext.setSimpleTypeHolder(customConversions.getSimpleTypeHolder());
+		mappingContext.afterPropertiesSet();
+		MappingMongoConverter converter = new MappingMongoConverter(
+				NoOpDbRefResolver.INSTANCE,
+				mappingContext
+		);
+		converter.setCustomConversions(customConversions);
+		converter.afterPropertiesSet();
+		org.bson.Document legacyDocument = new org.bson.Document();
+		converter.write(createUser(), legacyDocument);
+		org.bson.Document consents = legacyDocument.get("consents", org.bson.Document.class);
+		consents.remove("qualityReviewConsented");
+		consents.remove("qualityReviewConsentVersion");
+		consents.remove("qualityReviewConsentedAt");
+
+		User legacyUser = converter.read(User.class, legacyDocument);
+
+		assertThat(legacyUser.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(legacyUser.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(legacyUser.getConsents().getQualityReviewConsentedAt()).isNull();
 	}
 
 	@Test

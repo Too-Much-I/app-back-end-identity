@@ -17,6 +17,12 @@ public class UserConsents {
 
 	private Instant termConsentedAt;
 
+	private boolean qualityReviewConsented;
+
+	private String qualityReviewConsentVersion;
+
+	private Instant qualityReviewConsentedAt;
+
 	private UserConsents() {
 	}
 
@@ -26,7 +32,10 @@ public class UserConsents {
 			Instant privacyConsentedAt,
 			boolean termConsented,
 			String termConsentVersion,
-			Instant termConsentedAt
+			Instant termConsentedAt,
+			boolean qualityReviewConsented,
+			String qualityReviewConsentVersion,
+			Instant qualityReviewConsentedAt
 	) {
 		this.privacyConsented = privacyConsented;
 		this.privacyConsentVersion = privacyConsentVersion;
@@ -34,11 +43,30 @@ public class UserConsents {
 		this.termConsented = termConsented;
 		this.termConsentVersion = termConsentVersion;
 		this.termConsentedAt = termConsentedAt;
+		this.qualityReviewConsented = qualityReviewConsented;
+		this.qualityReviewConsentVersion = qualityReviewConsentVersion;
+		this.qualityReviewConsentedAt = qualityReviewConsentedAt;
 	}
 
 	public static UserConsents consented(
 			String privacyConsentVersion,
 			String termConsentVersion,
+			Instant consentedAt
+	) {
+		return consented(
+				privacyConsentVersion,
+				termConsentVersion,
+				false,
+				null,
+				consentedAt
+		);
+	}
+
+	public static UserConsents consented(
+			String privacyConsentVersion,
+			String termConsentVersion,
+			boolean qualityReviewConsented,
+			String qualityReviewConsentVersion,
 			Instant consentedAt
 	) {
 		Instant requiredConsentedAt = Objects.requireNonNull(
@@ -51,17 +79,37 @@ public class UserConsents {
 				requiredConsentedAt,
 				true,
 				requireVersion(termConsentVersion, "termConsentVersion"),
-				requiredConsentedAt
+				requiredConsentedAt,
+				qualityReviewConsented,
+				qualityReviewConsented
+						? requireVersion(
+								qualityReviewConsentVersion,
+								"qualityReviewConsentVersion"
+						)
+						: null,
+				qualityReviewConsented ? requiredConsentedAt : null
 		);
 	}
 
 	public static UserConsents unconsented() {
-		return new UserConsents(false, null, null, false, null, null);
+		return new UserConsents(
+				false,
+				null,
+				null,
+				false,
+				null,
+				null,
+				false,
+				null,
+				null
+		);
 	}
 
 	public UserConsents renew(
 			String requiredPrivacyVersion,
 			String requiredTermVersion,
+			boolean requestedQualityReviewConsent,
+			String requiredQualityReviewVersion,
 			Instant consentedAt
 	) {
 		String privacyVersion = requireVersion(
@@ -69,6 +117,10 @@ public class UserConsents {
 				"privacyConsentVersion"
 		);
 		String termVersion = requireVersion(requiredTermVersion, "termConsentVersion");
+		String qualityReviewVersion = requireVersion(
+				requiredQualityReviewVersion,
+				"qualityReviewConsentVersion"
+		);
 		Instant requiredConsentedAt = Objects.requireNonNull(
 				consentedAt,
 				"consentedAt must not be null"
@@ -80,8 +132,22 @@ public class UserConsents {
 		boolean termCurrent = termConsented
 				&& termVersion.equals(termConsentVersion)
 				&& termConsentedAt != null;
-		if (privacyCurrent && termCurrent) {
+		boolean qualityReviewCurrent = qualityReviewConsented
+				&& qualityReviewVersion.equals(qualityReviewConsentVersion)
+				&& qualityReviewConsentedAt != null;
+		boolean qualityReviewUnchanged = requestedQualityReviewConsent
+				? qualityReviewCurrent
+				: !qualityReviewConsented
+						&& qualityReviewConsentVersion == null
+						&& qualityReviewConsentedAt == null;
+		if (privacyCurrent && termCurrent && qualityReviewUnchanged) {
 			return this;
+		}
+		Instant renewedQualityReviewAt = null;
+		if (requestedQualityReviewConsent) {
+			renewedQualityReviewAt = qualityReviewCurrent
+					? qualityReviewConsentedAt
+					: requiredConsentedAt;
 		}
 
 		return new UserConsents(
@@ -90,7 +156,10 @@ public class UserConsents {
 				privacyCurrent ? privacyConsentedAt : requiredConsentedAt,
 				true,
 				termVersion,
-				termCurrent ? termConsentedAt : requiredConsentedAt
+				termCurrent ? termConsentedAt : requiredConsentedAt,
+				requestedQualityReviewConsent,
+				requestedQualityReviewConsent ? qualityReviewVersion : null,
+				renewedQualityReviewAt
 		);
 	}
 
@@ -127,5 +196,17 @@ public class UserConsents {
 
 	public Instant getTermConsentedAt() {
 		return termConsentedAt;
+	}
+
+	public boolean isQualityReviewConsented() {
+		return qualityReviewConsented;
+	}
+
+	public String getQualityReviewConsentVersion() {
+		return qualityReviewConsentVersion;
+	}
+
+	public Instant getQualityReviewConsentedAt() {
+		return qualityReviewConsentedAt;
 	}
 }

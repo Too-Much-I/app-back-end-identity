@@ -69,9 +69,10 @@ public class UserController {
 	}
 
 	@Operation(
-			summary = "개인정보 처리방침 및 이용약관 동의 상태 조회",
+			summary = "정책 동의 상태 조회",
 			description = "검증된 Access Token의 subject 사용자가 저장한 동의 버전과 "
-					+ "서버의 현재 필수 버전을 비교해 신규 동의 필요 여부를 반환합니다."
+					+ "서버의 현재 버전을 비교해 개인정보 처리방침·이용약관의 재동의 필요 여부와 "
+					+ "품질 검토 이용의 현재 유효한 선택 동의 상태를 반환합니다."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
@@ -98,16 +99,17 @@ public class UserController {
 	}
 
 	@Operation(
-			summary = "개인정보 처리방침 및 이용약관 동의 갱신",
+			summary = "정책 동의 갱신",
 			description = "검증된 Access Token의 subject 사용자가 서버의 현재 필수 정책 버전에 "
-					+ "동의한 상태를 저장합니다. 동일 버전 재요청은 기존 동의 시각을 유지합니다."
+					+ "동의한 상태와 품질 검토 이용 선택 동의 또는 철회를 함께 저장합니다. "
+					+ "동일 상태 재요청은 기존 동의 시각을 유지합니다."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "동의 갱신 또는 멱등 확인 성공"),
+			@ApiResponse(responseCode = "200", description = "필수·선택 동의 갱신 또는 멱등 확인 성공"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "필수 동의 누락 또는 현재 정책 버전 불일치",
+					description = "필수 동의 누락 또는 동의한 정책의 현재 버전 불일치",
 					content = @Content(
 							mediaType = "application/json",
 							schema = @Schema(implementation = BaseResponse.class),

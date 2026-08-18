@@ -37,6 +37,7 @@ app:
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}
     term-version: ${TERM_CONSENT_VERSION}
+    quality-review-version: ${QUALITY_REVIEW_CONSENT_VERSION}
   refresh-token:
     ttl: ${REFRESH_TOKEN_TTL:P14D}
     random-bytes: ${REFRESH_TOKEN_RANDOM_BYTES:32}

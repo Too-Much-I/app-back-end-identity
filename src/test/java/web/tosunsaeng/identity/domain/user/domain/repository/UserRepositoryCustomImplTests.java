@@ -72,7 +72,13 @@ class UserRepositoryCustomImplTests {
 		UserRepositoryCustomImpl repository = new UserRepositoryCustomImpl(mongoOperations);
 		User user = localUser();
 		Instant previousUpdatedAt = user.getUpdatedAt();
-		user.updateConsents("privacy-v2", "term-v2", WITHDRAWN_AT);
+		user.updateConsents(
+				"privacy-v2",
+				"term-v2",
+				false,
+				"quality-review-v1",
+				WITHDRAWN_AT
+		);
 		ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);
 		ArgumentCaptor<Update> updateCaptor = ArgumentCaptor.forClass(Update.class);
 		when(mongoOperations.updateFirst(
@@ -95,6 +101,10 @@ class UserRepositoryCustomImplTests {
 				"passwordHash",
 				"guestInstallationIdHash"
 		);
+		UserConsents storedConsents = (UserConsents) set.get("consents");
+		assertThat(storedConsents.isQualityReviewConsented()).isFalse();
+		assertThat(storedConsents.getQualityReviewConsentVersion()).isNull();
+		assertThat(storedConsents.getQualityReviewConsentedAt()).isNull();
 		verify(mongoOperations).updateFirst(
 				any(Query.class),
 				any(Update.class),
@@ -108,7 +118,13 @@ class UserRepositoryCustomImplTests {
 				"repository.user@example.test",
 				"encoded-password",
 				"저장소테스트",
-				UserConsents.consented("privacy-v1", "term-v1", CREATED_AT),
+				UserConsents.consented(
+						"privacy-v1",
+						"term-v1",
+						true,
+						"quality-review-v1",
+						CREATED_AT
+				),
 				CREATED_AT
 		);
 	}

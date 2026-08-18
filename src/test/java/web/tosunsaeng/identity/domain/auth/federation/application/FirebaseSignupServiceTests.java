@@ -86,7 +86,11 @@ class FirebaseSignupServiceTests {
 		transactionService = mock(FirebaseSignupTransactionService.class);
 		accessTokenIssuer = mock(AccessTokenIssuer.class);
 
-		ConsentPolicy consentPolicy = new ConsentPolicy("privacy-v1", "term-v1");
+		ConsentPolicy consentPolicy = new ConsentPolicy(
+				"privacy-v1",
+				"term-v1",
+				"quality-review-v1"
+		);
 		UserFactory userFactory = new UserFactory(
 				new EmailNormalizer(),
 				mock(PasswordEncoder.class),
