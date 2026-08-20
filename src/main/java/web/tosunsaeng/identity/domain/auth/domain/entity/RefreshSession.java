@@ -163,6 +163,10 @@ public class RefreshSession {
 		revoke(revokedAt, RevocationReason.GUEST_UPGRADED, null);
 	}
 
+	public void mergeGuestAccount(Instant revokedAt) {
+		revoke(revokedAt, RevocationReason.GUEST_MERGED, null);
+	}
+
 	public boolean isRevoked() {
 		return revokedAt != null || revocationReason != null;
 	}

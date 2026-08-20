@@ -2,6 +2,8 @@ package web.tosunsaeng.identity.global.security.currentuser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
@@ -15,13 +17,18 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 class JwtCurrentUserProviderTests {
 
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
 	private static final Instant NOW = Instant.parse("2026-07-27T01:02:03Z");
 
-	private final JwtCurrentUserProvider currentUserProvider = new JwtCurrentUserProvider();
+	private final UserRepository userRepository = mock(UserRepository.class);
+	private final JwtCurrentUserProvider currentUserProvider = new JwtCurrentUserProvider(
+			userRepository
+	);
 
 	@AfterEach
 	void clearSecurityContext() {
@@ -82,6 +89,25 @@ class JwtCurrentUserProviderTests {
 				new JwtAuthenticationToken(jwt("not-a-uuid"))
 		);
 		assertUnauthorized(currentUserProvider::getCurrentUserId);
+	}
+
+	@Test
+	void rejectsMergedSourceTokenWithoutAliasingItToTarget() {
+		when(userRepository.existsByUserIdAndStatus(
+				USER_ID,
+				web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.MERGED
+		)).thenReturn(true);
+		SecurityContextHolder.getContext().setAuthentication(
+				new JwtAuthenticationToken(jwt(USER_ID), List.of())
+		);
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				currentUserProvider::getCurrentUserId
+		);
+
+		assertThat(exception.getErrorCode())
+				.isEqualTo(AuthErrorStatus.ACCOUNT_MERGED_TOKEN_REJECTED);
 	}
 
 	private Jwt jwt(String subject) {

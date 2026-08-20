@@ -4532,3 +4532,235 @@
 - 결정사항: Guest upgrade는 새 User 생성이나 email·phone 기반 자동 merge가 아니라 기존 UUID User의 in-place 전이다. 성공 Transaction의 첫 경계는 Guest·updatedAt CAS이며, identity/outbox/기존·신규 Session/attempt가 모두 같은 Transaction에서 완료돼야 한다. 성공 응답 유실 후 재호출은 중복 aggregate를 만들지 않고 기존 Firebase exchange로 canonical MEMBER Session을 복구하는 운영 흐름을 staging에서 확인한다.
 - 위험 요소: Firebase provider/phone link는 Mongo Transaction 밖에서 먼저 완료되므로 finalize 중단 cleanup·resume 정책이 필요하다. 모의 TransactionManager 테스트는 inner phone service의 `REQUIRED` 참여와 rollback을 고정하지만 실제 replica set의 write conflict·unique race·index 상태를 대체하지 않는다. production flag 활성화 전 격리 Firebase/mobile과 staging Mongo에서 같은 UID phone link, owner 충돌, concurrent upgrade, outbox·Session·attempt rollback을 재검증해야 한다.
 - 다음 작업: 사용자가 diff와 테스트 결과를 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 후 별도 승인을 받아 Jira 종료 댓글과 상태 전환을 수행하며, 그 전에는 TMI-97 상태를 유지한다.
+
+## 2026-08-18 — PR #27 병합 확인 및 Jira TMI-97 완료 처리
+
+<!-- codex-turn:01a01374-3d75-7d93-9f5e-db564831e4b4 -->
+
+- 날짜: 2026-08-18
+- 브랜치: `develop` (`5801868`, `origin/develop`과 일치, Codex commit·push 미수행)
+- Jira: TMI-97
+- 작업 목표: Stage 6 구현 PR의 `develop` 병합을 확인한 뒤 승인된 종료 댓글과 완료 전환만 적용해 TMI-97을 안전하게 종료한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 로컬 Git과 GitHub CLI 읽기 조회로 PR #27이 2026-08-18 merge commit `5801868`로 `develop`에 병합됐고 HEAD와 `origin/develop`이 해당 commit으로 일치함을 확인했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-97의 사전 상태 `해야 할 일`, Resolution 없음, 댓글 없음과 완료 transition ID `41` 사용 가능 여부를 읽기 전용 확인했다. 이후 승인된 종료 댓글 ID `10008`을 등록하고 transition ID `41`만 적용했으며 다른 필드·이슈는 변경하지 않았다.
+- 추가한 댓글의 목적: Guest UUID 유지 승격, identity·eligibility outbox·Session·enrollment Transaction, MEMBER 인증수단 동기화 구현과 주요 변경 범위, 전체 479개 테스트 성공, 실제 Firebase/mobile·Mongo replica set staging 재검증 위험을 인수인계하기 위해 등록했다.
+- 변경한 상태: TMI-97을 `해야 할 일`에서 `완료`로 전환했다. 후속 조회에서 status ID `10003`의 `완료`와 Resolution `완료`, 댓글 ID `10008` 존재를 확인했다.
+- 승인 여부: 앞선 응답에서 종료 댓글 초안과 완료 transition ID `41`, PR 병합 gate를 공개했고 사용자가 PR #27 병합 뒤 다시 `지라 닫아줘`라고 명시적으로 요청해 댓글 등록과 상태 전환을 승인했다.
+- 실행한 테스트와 결과: Jira·GitHub 상태 확인과 문서 기록만 수행해 Gradle 테스트를 재실행하지 않았다. 병합 전 최종 `./gradlew clean test`는 전체 479개 성공이고 `git diff --check`도 성공했다. 이번 turn에서는 PR merge commit, Jira 댓글·상태·Resolution을 후속 조회로 검증했다.
+- 유지한 계약: PR 병합 확인 전 Done 전환 금지와 Jira mutation 사전 공개·승인 규칙을 지켰다. 실제 userId·JWT·Firebase·Session·Identity 경계는 변경하지 않았고 민감 인증값·개인정보·인프라 접속값을 Jira나 작업 기록에 추가하지 않았다.
+- 결정사항: TMI-97 Stage 6 구현과 행정적 종료가 모두 완료됐다. 실제 Guest merge·UserMergedOutbox는 Stage 7의 별도 Jira로 유지하고 production Firebase flag는 격리 Firebase/mobile·staging Mongo E2E 전에 활성화하지 않는다.
+- 위험 요소: 실제 Firebase provider/phone link는 Mongo Transaction 밖에서 진행되므로 중단 enrollment cleanup·resume 정책과 concurrent upgrade·unique/write conflict·outbox·Session·attempt rollback은 staging에서 계속 검증해야 한다.
+- 다음 작업: 다음 Identity 범위를 Stage 7 Guest merge·UserMergedOutbox로 검토하되, 새 Jira 생성 전 제목·설명·완료 조건·제외 범위를 사용자에게 공개하고 승인을 받는다.
+
+## 2026-08-18 — Stage 7 Guest merge 신규 Jira Payload 준비
+
+<!-- codex-turn:01a01378-8acc-7191-9527-79d2046e28be -->
+
+- 날짜: 2026-08-18
+- 브랜치: `develop` (`5801868`, `origin/develop`과 일치, Codex commit·push 미수행)
+- Jira: Stage 7 신규 이슈 초안, 아직 미생성
+- 작업 목표: TMI-97 다음 Identity 작업을 설명하고 중복 없는 Stage 7 Guest merge Jira의 정확한 생성 Payload를 사용자 승인 전에 준비한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: ADR-001과 social login 계획의 Guest merge proof, source/target 불변식, `MERGED` tombstone, source Session 폐기, target Session, `UserMergedOutbox`, source token gate, lease·retry·dead-letter publisher와 feature flag gate를 현재 TMI-97 코드 기반과 대조했다.
+- 구현 내용: 다음 Jira는 Identity가 소유하는 보호 merge API와 이중 proof, source User·Session·outbox·target Session Transaction, source JWT 거절, UserMerged publisher까지만 포함하도록 정리했다. Learning Core의 멱등 consumer와 실제 학습 데이터 이전, Entitlement/Billing, MEMBER→MEMBER merge, phone·email 기반 merge, Firebase credential 이전과 production 활성화는 제외한다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 Stage 7 Guest merge·UserMergedOutbox 관련 이슈를 검색했으나 중복 결과가 없었다. TMI 프로젝트의 `작업` 유형 ID `10003`, High 우선순위 ID `2`, 생성 필드를 읽기 전용 확인했으며 이슈 생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. 신규 Jira는 아직 존재하지 않는다.
+- 승인 여부: 사용자는 다음 Jira 생성과 작업 설명을 요청했다. AGENTS.md의 Jira mutation 사전 공개·승인 규칙에 따라 이번 turn에서는 프로젝트·유형·제목·우선순위·설명·완료 조건·제외 범위·미설정 필드를 먼저 공개하고 별도 승인을 기다린다.
+- 실행한 테스트와 결과: Jira·문서·코드 읽기 분석만 수행해 Gradle 테스트를 재실행하지 않았다. 직전 최종 `./gradlew clean test`는 전체 479개 성공이며 이번 turn 종료 전 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 확인한다.
+- 유지한 계약: source는 Identity JWT `sub`의 ACTIVE GUEST, target은 fresh Firebase proof와 기존 identity mapping이 가리키는 ACTIVE MEMBER로만 결정하고 외부 Body userId·email·phone으로 target을 선택하지 않는다. source JWT를 target actor로 재해석하지 않고 실제 학습 데이터 이전 코드를 Identity 저장소에 추가하지 않으며 민감 인증값·개인정보·인프라 접속값을 기록하지 않았다.
+- 결정사항: 제안 이슈는 TMI `작업`, High, 기본 `해야 할 일`이며 담당자·라벨·컴포넌트·스프린트·에픽·기한·상태 전환을 설정하지 않는다. 보호 서비스 consumer 준비와 staging E2E 전에는 merge feature를 기본 비활성으로 유지한다.
+- 위험 요소: outbox는 Identity Transaction과 downstream 데이터 이전 사이의 eventual consistency를 만든다. source token gate와 Learning Core consumer가 준비되기 전에 merge를 활성화하면 source·target ownership이 갈리거나 source JWT가 계속 actor로 사용될 수 있으므로 production gate를 강제해야 한다.
+- 다음 작업: 사용자가 공개된 Payload를 동일 내용으로 승인하면 Atlassian 공식 MCP로 신규 Jira 하나만 생성하고, 생성된 키·상태·우선순위·본문과 미설정 필드를 후속 조회한다.
+
+## 2026-08-18 — Stage 7 Jira TMI-98 생성
+
+<!-- codex-turn:01a0137e-bac8-78a1-a882-3932bda6871d -->
+
+- 날짜: 2026-08-18
+- 브랜치: `develop` (`5801868`, `origin/develop`과 일치, Codex commit·push 미수행)
+- Jira: TMI-98
+- 작업 목표: 사용자에게 공개한 Stage 7 Guest canonical merge·UserMerged outbox Jira Payload를 승인 내용 그대로 생성하고 저장된 필드를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드와 테스트는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 신규 이슈는 현재 Guest JWT source와 기존 MEMBER owner의 fresh Firebase proof target 이중 검증, source `MERGED` tombstone·Guest credential 제거·source Session 폐기·target Session·`UserMergedOutbox` Transaction, source JWT 거절, lease·retry·dead-letter publisher와 기본 비활성 gate를 범위로 한다.
+- 구현 내용: Learning Core의 멱등 consumer·실제 학습 데이터 이전, Entitlement/Billing, MEMBER→MEMBER 및 email·phone 기반 merge, Firebase credential 이전, Kakao·Apple lifecycle과 production 활성화는 제외 범위로 저장했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI `작업` 이슈 `TMI-98`을 High 우선순위와 기본 상태 `해야 할 일`로 생성했다. 생성 후 제목·설명·완료 조건·제외 범위·유형·우선순위·상태를 후속 조회했으며 다른 기존 이슈는 변경하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: 신규 TMI-98은 기본 상태 `해야 할 일`, Resolution 없음이다. 별도 상태 전환을 적용하지 않았다.
+- 승인 여부: 직전 응답에서 프로젝트·유형·제목·우선순위·설명·완료 조건·제외 범위와 미설정 필드를 모두 공개했고 사용자가 `지라 생성해줘`라고 동일 내용의 생성을 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira 생성·후속 조회와 문서 기록만 수행해 Gradle 테스트를 재실행하지 않았다. 직전 최종 `./gradlew clean test`는 전체 479개 성공이다. 종료 전 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 확인한다.
+- 유지한 계약: source는 JWT `sub`의 ACTIVE GUEST, target은 fresh Firebase proof와 기존 identity mapping의 ACTIVE MEMBER로만 결정하고 외부 Body userId·email·phone으로 target을 선택하지 않는다. source JWT를 target actor로 해석하지 않으며 Learning Core 구현을 Identity 범위에 포함하지 않고 민감 인증값·개인정보·인프라 접속값을 Jira나 기록에 추가하지 않았다.
+- 결정사항: TMI-98은 TMI `작업`, High로 생성했고 담당자·라벨·컴포넌트·스프린트·에픽·기한·댓글·상태 전환은 설정하지 않았다. 모든 downstream consumer와 staging E2E가 준비되기 전에는 merge feature와 publisher를 기본 비활성으로 유지한다.
+- 위험 요소: Identity merge Transaction과 downstream 학습 데이터 이전 사이에는 eventual consistency가 존재한다. source token gate와 Learning Core consumer가 준비되기 전에 활성화하면 source·target ownership 분리 또는 source actor 재사용 위험이 있으므로 기능 gate와 staging 통합 검증이 필요하다.
+- 다음 작업: TMI-98을 구현하기 전에 이슈 본문을 다시 읽고 `feat/TMI-98-guest-canonical-merge` 브랜치를 준비한 뒤 User merge domain·Transaction·source token gate·outbox/publisher·API/Security/OpenAPI·rollback/동시성 테스트 순으로 진행한다.
+
+## 2026-08-20 — Guest JWT sub를 merge source로 사용한다는 의미 설명
+
+<!-- codex-turn:01a01cc2-8e7d-7bd1-a8e5-755c309c8621 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: “현재 Guest JWT의 sub를 source로 사용한다”는 Stage 7 canonical merge 문구에서 source와 JWT sub의 관계를 쉽게 설명한다.
+- 변경 파일: 설명 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: JWT `sub`는 검증된 현재 Guest의 canonical UUID userId이며, merge 요청에서 이 값을 `sourceUserId`로 삼는다는 뜻으로 정리했다. source는 병합으로 소유권을 넘기고 폐기·MERGED 상태가 될 출발 Guest이고 target은 Firebase proof와 기존 identity mapping으로 결정되는 최종 ACTIVE MEMBER다.
+- 구현 내용: 클라이언트가 Body로 source userId를 보내 선택하는 것이 아니며, JWT 자체나 `sub` 문자열을 다른 User에 복사한다는 뜻도 아니다. JWT를 인증한 서버가 현재 요청자의 Guest User를 안전하게 특정하는 입력으로 사용한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 용어 설명만 요청했으며 외부 시스템이나 애플리케이션 상태 변경을 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이므로 Gradle 테스트를 실행하지 않았다. 종료 전 `git diff --check`와 marker 단일 존재를 확인한다.
+- 유지한 계약: source는 검증된 Guest JWT `sub`의 ACTIVE GUEST로만 결정하고 외부 Body userId·email·phone을 신뢰하지 않는다. target은 별도 Firebase proof와 identity mapping으로 정하며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: source는 “데이터와 소유권이 이동하는 출발 계정”, target은 “병합 후 남는 canonical 계정”이라는 용어로 설명한다.
+- 위험 요소: source JWT를 target 회원의 인증 수단으로 오해하면 병합 전 Guest token으로 target 권한을 행사하게 만들 수 있다. merge 완료 후 source token과 session을 폐기하고 target token은 별도 정상 절차로 발급해야 한다.
+- 다음 작업: TMI-98 구현 시 source userId가 검증된 JWT subject에서만 유도되고 request DTO에 임의 userId가 추가되지 않는지 API·Security·Transaction 테스트로 고정한다.
+
+## 2026-08-20 — Jira TMI-98 구현 범위 설명
+
+<!-- codex-turn:01a01cc5-4c73-73c3-9afe-1d6cf1490633 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: Stage 7 Guest canonical merge와 UserMerged outbox에서 구현할 기능, 처리 순서, TMI-97과의 차이 및 제외 범위를 쉽게 설명한다.
+- 변경 파일: 설명 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: TMI-97은 외부 identity owner가 없는 Guest를 같은 UUID의 MEMBER로 in-place 승격하지만, TMI-98은 Firebase identity가 이미 다른 ACTIVE MEMBER에 귀속된 MERGE_REQUIRED 상황에서 Guest source와 기존 MEMBER target 두 User를 하나의 canonical target으로 합치는 범위임을 구분했다.
+- 구현 내용: 보호 merge API가 source를 검증된 Guest JWT sub로, target을 fresh Firebase proof와 기존 identity mapping으로 결정한다. 성공 Transaction은 source를 MERGED tombstone으로 전환하고 Guest credential과 source Session을 정리하며 target Session과 UserMergedOutbox를 함께 저장한다. 성공 뒤 source JWT는 target actor로 재사용할 수 없게 차단한다.
+- 구현 내용: outbox publisher는 lease·retry·dead-letter와 기본 비활성 feature gate를 사용해 UserMerged event를 downstream에 전달한다. Identity는 source→target 매핑 사실만 발행하고 실제 시험·결과 등 Learning Core 데이터는 수정하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. 저장소에 이미 기록된 TMI-98 생성 결과와 범위를 읽어 설명했다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 작업 내용 설명만 요청했으며 구현, Jira mutation 또는 외부 시스템 변경을 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이므로 Gradle 테스트를 실행하지 않았다. 종료 전 `git diff --check`와 marker 단일 존재를 확인한다.
+- 유지한 계약: source는 Guest JWT sub의 ACTIVE GUEST, target은 fresh Firebase proof와 identity mapping의 ACTIVE MEMBER로만 결정한다. 외부 Body userId·email·phone으로 merge 대상을 고르지 않고 민감 인증값·개인정보·인프라 접속값을 기록하지 않았다.
+- 결정사항: User 상태·Session·outbox의 원자적 변경과 source token gate는 Identity 범위이며, Learning Core 멱등 consumer·실제 학습 데이터 이전, Entitlement/Billing, MEMBER→MEMBER 및 email·phone 기반 merge는 별도 범위다.
+- 위험 요소: Identity Transaction commit과 downstream 데이터 이전 사이에는 eventual consistency가 있다. consumer와 source token 차단이 준비되기 전에 기능을 활성화하면 두 userId에 데이터가 갈리거나 이전 Guest JWT가 잘못 사용될 수 있다.
+- 다음 작업: 구현 시작 전에 Atlassian 공식 MCP로 TMI-98 본문과 완료 조건을 다시 읽고 User merge domain·Transaction·source token gate·outbox/publisher·API/Security/OpenAPI·rollback/동시성 테스트 순으로 구현한다.
+
+## 2026-08-20 — Merge source JWT sub 조회와 차단 경계 설명
+
+<!-- codex-turn:01a01ccb-8915-7de3-bf6c-da3adf2f897e -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: Guest JWT `sub=sourceUserId`를 조회하는 것이 보안상 잘못된 것인지 질문에 답하고 merge 전 식별과 merge 후 token 차단을 구분한다.
+- 변경 파일: 설명 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: merge 전에는 인증된 Guest 본인을 source로 고정해야 하므로 서버가 서명·issuer·audience·만료를 검증한 JWT sub를 내부 sourceUserId로 읽는 것이 올바르다. 외부 Body·Query·Path에서 sourceUserId를 받거나 응답에 별도 merge 식별자로 노출하는 것은 금지한다.
+- 구현 내용: 현재 `JwtCurrentUserProvider`는 JWT principal에서 canonical UUID sub만 반환하고 DB User 상태를 검사하지 않는다. 따라서 TMI-98에서는 source를 ACTIVE GUEST로 확인한 merge 요청만 허용하고, commit 후 같은 sub가 MERGED 상태이면 `ACCOUNT_MERGED_TOKEN_REJECTED`로 거절하는 일관된 source token gate가 필요하다.
+- 구현 내용: source JWT를 target userId로 치환하거나 target actor alias로 인정하면 안 된다. Access JWT가 암호학적으로 아직 유효해도 source Session 폐기와 User 상태 gate로 Identity 사용을 막고, stateless 검증을 하는 downstream은 UserMerged consumer가 source deny marker와 ownership migration을 함께 저장해야 한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 설계 의미와 보안성 설명만 요청했으며 구현이나 외부 시스템 변경을 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이므로 Gradle 테스트를 실행하지 않았다. 현재 provider와 User status 검사 호출부를 정적으로 확인했으며 종료 전 `git diff --check`와 marker 단일 존재를 검증한다.
+- 유지한 계약: JWT sub에는 실제 canonical userId가 들어가지만 userId 비밀성에 의존해 권한을 보호하지 않는다. 클라이언트가 보낸 userId를 신뢰하지 않고 source MERGED token을 target 권한으로 승격하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: “조회 금지” 대상은 외부 입력으로 임의 source를 선택하거나 merge 후 source를 정상 actor로 계속 사용하는 행위다. 검증된 JWT에서 source를 식별하고 DB 상태를 조회해 거절하는 것은 오히려 필요한 보안 절차다.
+- 위험 요소: Security filter가 JWT 서명만 검증하고 endpoint service가 User 상태를 확인하지 않으면 MERGED source token이 만료 전까지 일부 API를 호출할 수 있다. Learning Core는 매 요청 Identity introspection을 하지 않으므로 consumer와 deny marker가 준비되기 전에 merge 기능을 활성화하면 안 된다.
+- 다음 작업: TMI-98 구현에서 중앙 source token gate 또는 모든 보호 경로에 적용 가능한 상태 검사를 설계하고, merge 전 ACTIVE GUEST 허용·merge 후 source 거절·target alias 금지·downstream event 처리 전 feature disabled를 테스트로 고정한다.
+
+## 2026-08-20 — JWT sub의 userId 가시성과 비밀성 설명
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: JWT를 가진 클라이언트가 payload의 `sub`를 통해 실제 userId를 알 수 있어도 되는지 현재 계약과 대안 설계를 구분해 설명한다.
+- 변경 파일: 설명 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 Access Token은 RS256 서명 JWS이며 암호화된 JWE가 아니므로 token 보유자가 payload를 Base64URL decode해 `sub`의 UUID userId를 읽을 수 있다. 서명은 내용 위조를 막지만 내용 열람을 막지 않는다.
+- 구현 내용: 현재 계약은 UUID userId를 secret이나 credential로 취급하지 않고, 실제 권한은 JWT 서명·issuer·audience·만료와 User 상태·resource ownership 검사로 보호한다. userId를 안다는 사실만으로 다른 사용자의 리소스에 접근할 수 있다면 JWT 노출 문제가 아니라 IDOR authorization 결함이다.
+- 구현 내용: 내부 userId 비공개가 요구사항이면 JWT payload에 실제 userId를 넣지 않고 외부용 opaque 또는 pairwise subject를 넣어 서버 내부 mapping으로 canonical userId를 찾는 방식이 적합하다. JWE도 내용을 숨길 수 있지만 모든 소비 서비스의 복호화 key 관리가 필요하고 식별자 분리 문제를 단독으로 해결하지 않는다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 보안 설계 설명만 요청했으며 JWT 계약 변경이나 구현을 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이므로 Gradle 테스트를 실행하지 않았다. 종료 전 `git diff --check`를 확인한다.
+- 유지한 계약: 현재 실제 UUID userId를 JWT sub에 넣는 저장소 계약을 임의로 변경하지 않았다. Token 원문이나 사용자 식별값 예시를 기록하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI를 추가하지 않았다.
+- 결정사항: 현재 설계에서는 userId 가시성을 허용하고 authorization으로 보호한다. userId 기밀성이 실제 요구사항이면 TMI-98에 즉흥적으로 섞지 않고 Identity·Learning Core·RefreshSession·event 계약을 포함한 별도 migration으로 결정한다.
+- 위험 요소: UUID가 예측하기 어렵더라도 이를 authorization 수단처럼 신뢰하면 안 된다. JWT payload에 개인정보나 provider subject를 추가하면 token 보유자와 로그·도구에서 노출될 수 있으므로 최소 claim 원칙을 유지해야 한다.
+- 다음 작업: 제품·보안이 내부 userId 비공개를 요구하는지 먼저 확정하고, 필요하면 opaque/pairwise subject mapping, token migration, downstream consumer 변경과 기존 token 전환 계획을 별도 ADR·Jira로 설계한다.
+
+## 2026-08-20 — JWT sub 가시성 설명 Hook 기록 보완
+
+<!-- codex-turn:01a01ccd-a757-7592-8c0a-9609945cd2b2 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: 현재 JWT `sub`에 실제 내부 userId를 넣는 계약의 가시성과 대안 설명 결과를 지정된 turn marker로 append-only 기록한다.
+- 변경 파일: 이번 Hook 보완으로 `docs/codex/WORKLOG.md`를 append하고, 직전 설명에서 최신화한 `docs/codex/CURRENT_STATE.md`의 상태를 유지했다. 애플리케이션 코드는 변경하지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: RS256 Access Token은 암호화된 JWE가 아니라 서명된 JWS이므로 token 보유자가 payload의 UUID `sub`를 읽을 수 있음을 명확히 했다. 현재 계약은 userId를 secret credential로 보지 않고 authorization과 User 상태 검사로 보호한다.
+- 구현 내용: 내부 userId 비공개가 실제 요구사항이면 JWT sub에 외부용 opaque 또는 pairwise subject를 넣고 서버 내부에서 canonical userId로 매핑해야 한다. 이 변경은 TMI-98에 국소 적용할 수 없으며 Identity·Learning Core·RefreshSession·event와 기존 token migration을 함께 설계해야 한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 JWT userId 가시성에 대한 설명을 요청했으며 계약 변경이나 구현을 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명·문서 기록이므로 Gradle 테스트를 실행하지 않았다. `git diff --check`는 성공했다.
+- 유지한 계약: 현재 실제 UUID userId를 JWT sub에 넣는 계약을 임의로 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: userId를 반드시 숨겨야 하는지 제품·보안 요구를 먼저 확정하고, 필요할 때 별도 ADR·Jira로 subject mapping migration을 설계한다.
+- 위험 요소: JWT payload 가시성을 암호화로 오해하거나 UUID 난수성을 authorization으로 사용하면 안 된다. claim에는 개인정보·provider subject를 추가하지 않고 최소화해야 한다.
+- 다음 작업: TMI-98 착수 전에 내부 userId 노출 허용 여부를 결정한다. 비공개 요구가 확정되면 TMI-98과 분리된 subject 계약 migration을 먼저 계획한다.
+
+## 2026-08-20 — 현재 Access JWT payload claim 확인
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: 내부 UUID userId의 JWT sub 노출을 허용한다는 사용자 결정 뒤 현재 Access Token payload와 header에 실제로 포함되는 값을 코드 기준으로 설명한다.
+- 변경 파일: 설명 기록을 위해 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `JwtAccessTokenIssuer`가 payload에 UUID `sub`, 설정 `iss`, 단일 원소 배열 `aud`, 초 단위 `iat`·`exp`, 매 발급마다 새 UUID `jti`, 정렬된 공백 구분 문자열 `scope`를 넣음을 확인했다. 현재 모든 발급 호출은 빈 scope set을 전달해 기본 `learning:read learning:write`를 사용한다.
+- 구현 내용: JWS header에는 `alg=RS256`, 설정된 `kid`, `typ=JWT`가 들어가며 이는 payload claim과 구분된다. payload에는 email·normalizedEmail·nickname·accountType·provider·Firebase UID·phone·consent·installationId·Refresh Token 정보가 없다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 내부 UUID userId를 JWT sub에서 숨기지 않아도 된다고 결정하고 현재 payload 설명을 요청했다. 코드나 계약 변경은 요청하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 확인 작업이므로 Gradle 테스트를 실행하지 않았다. JWT issuer·설정·모든 AccessTokenIssuer 호출부를 읽었고 종료 전 `git diff --check`를 확인한다.
+- 유지한 계약: 실제 userId는 JWT sub, audience는 `tosunsaeng-learning-core`, 서명은 RS256이며 실제 token 원문·실제 key·사용자 개인정보를 기록하지 않았다. Secret·Token·Password·전체 MongoDB URI도 추가하지 않았다.
+- 결정사항: 현재 최소 claim 구성을 유지하고 userId 비공개용 opaque subject migration은 진행하지 않는다.
+- 위험 요소: payload는 token 보유자에게 보이므로 향후 개인정보나 provider subject를 claim에 추가하면 안 된다. `scope`는 현재 endpoint별 세부 인가가 완전히 강제되는 권한 모델과 동일하다고 과대 해석하면 안 된다.
+- 다음 작업: TMI-98 구현에서도 target userId·source 상태·provider identity·merge metadata를 Access JWT에 추가하지 않고 기존 claim 계약을 유지한다.
+
+## 2026-08-20 — Access JWT payload 설명 Hook 기록 보완
+
+<!-- codex-turn:01a01cd0-811d-7483-a099-2cd2fce14718 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: 현재 Access JWT payload와 header 구성 설명을 지정된 turn marker로 append-only 기록한다.
+- 변경 파일: 이번 Hook 보완으로 `docs/codex/WORKLOG.md`를 append하고 직전 설명에서 갱신한 `docs/codex/CURRENT_STATE.md`를 유지했다. 애플리케이션 코드는 변경하지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: payload claim은 실제 UUID `sub`, 설정 `iss`, 단일 audience 배열 `aud`, `iat`, `exp`, token별 UUID `jti`, 공백 구분 `scope`로 확인했다. 현재 기본 scope는 `learning:read learning:write`다.
+- 구현 내용: JWS header의 `alg=RS256`, `kid`, `typ=JWT`를 payload와 구분하고, 이메일·닉네임·계정 유형·provider·Firebase UID·전화번호·동의·Refresh Token·merge metadata는 JWT payload에 포함되지 않음을 확인했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98 상태나 Resolution을 변경하지 않았다.
+- 승인 여부: 사용자는 UUID userId의 sub 노출을 허용하고 현재 payload 설명을 요청했으며 코드 변경은 승인하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없는 정적 확인·문서 기록이므로 Gradle 테스트를 실행하지 않았다. 직전 `git diff --check`는 성공했다.
+- 유지한 계약: 실제 userId를 JWT sub에 두고 RS256·kid·issuer·audience·scope 계약을 유지했다. 실제 Token·Key·Secret·Password·전체 MongoDB URI·사용자 개인정보를 기록하지 않았다.
+- 결정사항: 현재 최소 claim 구성을 유지하며 TMI-98 merge 상태나 source/target 정보를 JWT claim에 추가하지 않는다.
+- 위험 요소: JWT payload는 token 보유자에게 보이므로 향후 개인정보나 provider subject를 추가하지 않아야 한다.
+- 다음 작업: TMI-98 구현 시 기존 Access JWT claim 계약을 회귀 테스트로 유지하고 MERGED 차단은 DB User 상태 기반 source token gate에서 처리한다.
+
+## 2026-08-20 — Jira TMI-98 Guest canonical merge 및 UserMerged outbox 구현
+
+<!-- codex-turn:01a01cd1-5382-7d60-8e95-b9fca318189d -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `feat/TMI-98-guest-canonical-merge`
+- 작업 목표: 검증된 Guest JWT `sub`의 ACTIVE GUEST를 source로, fresh Firebase proof의 기존 identity owner인 ACTIVE MEMBER를 target으로 확정해 canonical merge를 수행하고 `UserMerged` v1 outbox와 source token gate를 구현한다.
+- 변경 파일: User 상태·entity·custom repository, RefreshSession 폐기 사유, Firebase merge request/use case/service/target resolver/Transaction/controller/configuration, `UserMergedOutbox` entity·enum·repository, publisher application·HTTP adapter·설정·scheduler, JWT current-user gate, application/test 설정과 관련 도메인·repository·service·Transaction·controller·Security/OpenAPI·publisher·configuration 테스트를 추가·갱신했다. `docs/codex/CURRENT_STATE.md`를 최신화하고 이 WORKLOG 항목은 EOF에 append했으며 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: `POST /api/v1/auth/firebase/guest/merge`는 write-only `firebaseIdToken`만 받고 source/target userId를 외부에서 받지 않는다. source는 `CurrentUserProvider`가 검증된 JWT `sub`에서 가져오며 ACTIVE GUEST가 아니면 거절한다.
+- 구현 내용: fresh Firebase proof의 FirebaseIdentity와 linked SocialIdentity owner를 모아 정확히 하나의 다른 ACTIVE MEMBER일 때만 target으로 인정한다. owner 없음·source 자신·mixed owner·비활성·Guest target을 거절하고 email·phone·nickname으로 target을 추론하거나 credential/identity mapping을 이전하지 않는다.
+- 구현 내용: source User를 CAS로 `MERGED` tombstone으로 전환해 `mergedIntoUserId`·`mergedAt`을 기록하고 Guest installation credential을 제거한다. 모든 source RefreshSession을 `GUEST_MERGED`로 폐기하고 target RefreshSession과 schema v1 `UserMergedOutbox(eventId, schemaVersion, sourceUserId, targetUserId, occurredAt)`를 같은 Mongo Transaction에 저장한다. target Access Token은 Transaction 반환 뒤에만 발급한다.
+- 구현 내용: `JwtCurrentUserProvider`는 JWT `sub`가 DB의 MERGED User인지 확인해 `ACCOUNT_MERGED_TOKEN_REJECTED`로 차단하고 source를 target actor로 alias하지 않는다. Access JWT claim에는 target userId나 merge metadata를 추가하지 않았다.
+- 구현 내용: 별도 `UserMerged` publisher가 원자적 lease claim, expired lease 회수, 지수 backoff+jitter, 최대 시도, dead-letter, replay, published TTL cleanup과 at-least-once 전달을 제공한다. wire payload는 v1 다섯 필드만 포함하고 userId를 로그·metric tag에 넣지 않는다. `GUEST_MERGE_ENABLED`와 `USER_MERGED_PUBLISHER_ENABLED`는 기본 false다.
+- 실행한 테스트와 결과: `./gradlew compileJava` 성공, 관련 merge·controller·security·publisher·configuration targeted test 성공, 최종 `./gradlew clean test` 전체 496개 성공(실패 0, 오류 0), `git diff --check` 성공. 신규 merge 경계의 명시적 logger/System 출력 부재와 credential·provider subject·phone의 로그/metric 노출 부재를 정적으로 확인했다.
+- 유지한 계약: 실제 UUID userId는 JWT `sub`에 유지하고 RS256·kid·issuer·`tosunsaeng-learning-core` audience·기존 최소 claim을 변경하지 않았다. 클라이언트 Body userId를 신뢰하지 않고 Learning Core 시험·결과 데이터나 Python AI `user_id` 계약을 수정하지 않았다. Refresh Token 원문·Firebase credential·provider subject·phone·Secret·Password·실제 Key·전체 MongoDB URI를 DB outbox·로그·metric·문서에 추가하지 않았다.
+- 결정사항: TMI-97 same-UUID in-place 승격과 TMI-98 source→target canonical merge를 분리한다. Identity는 source tombstone·Session·target Session·outbox와 Identity 보호 API의 MERGED gate까지만 소유하며, Learning Core consumer·source deny marker·실제 학습 데이터 이전은 별도 범위다. downstream readiness 전 두 feature flag를 켜지 않는다.
+- 위험 요소: 실제 Mongo replica set의 다중 collection rollback·write conflict·index/TTL 생성, publisher 다중 인스턴스 lease와 workload identity/HTTPS delivery는 staging E2E가 필요하다. Learning Core는 매 요청 Identity introspection을 하지 않으므로 consumer가 source deny marker와 migration을 원자적으로 적용하기 전 merge를 활성화하면 source JWT가 만료 전까지 downstream에서 받아들여질 수 있다.
+- 수행한 Jira 작업: 구현 전 공식 Atlassian MCP 재조회는 OAuth refresh 실패 `unauthorized_client`로 완료하지 못했다. 이전에 공식 MCP로 확인해 저장된 TMI-98 설명·완료 조건을 구현 기준으로 사용했으며 Jira 생성·수정·댓글·상태 전환·삭제는 수행하지 않았다.
+- 추가한 댓글의 목적: 자동 등록하지 않은 종료 댓글 초안은 “Guest merge API와 MERGED tombstone/CAS, source Session GUEST_MERGED 폐기, target Session·UserMergedOutbox Transaction, MERGED JWT gate, lease/retry/dead-letter publisher 구현 및 전체 496개 테스트 성공; 남은 위험은 Learning Core consumer와 staging Mongo/workload identity E2E”를 전달하는 것이다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. 마지막 확인 상태는 `해야 할 일`, Resolution 없음이며 이번 turn에는 OAuth 문제로 재확인하지 못했다.
+- 승인 여부: 사용자는 TMI-98 구현을 명시적으로 요청했다. Jira mutation은 요청·승인하지 않았으므로 수행하지 않았다.
+- 다음 작업: 사용자가 diff를 검토해 직접 commit·push·PR을 진행한다. 별도 Learning Core Jira에서 멱등 `UserMerged` consumer·eventId inbox·source deny marker·학습 데이터 이전을 구현하고 staging E2E를 통과한 뒤에만 merge와 publisher flag 활성화를 검토한다.

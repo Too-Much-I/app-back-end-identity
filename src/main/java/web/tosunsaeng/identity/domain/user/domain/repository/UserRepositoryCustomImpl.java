@@ -96,4 +96,39 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 		UpdateResult result = mongoOperations.updateFirst(query, update, User.class);
 		return result.getModifiedCount() == 1;
 	}
+
+	@Override
+	public boolean mergeGuestIfUnchanged(User user, Instant expectedUpdatedAt) {
+		User requiredUser = Objects.requireNonNull(user, "user must not be null");
+		if (requiredUser.getStatus() != UserStatus.MERGED
+				|| requiredUser.getMergedIntoUserId() == null
+				|| requiredUser.getMergedAt() == null) {
+			throw new IllegalArgumentException("User must be a merged Guest tombstone.");
+		}
+		Criteria legacyOrExplicitGuest = new Criteria().orOperator(
+				Criteria.where("accountType").is("GUEST"),
+				new Criteria().andOperator(
+						Criteria.where("accountType").exists(false),
+						Criteria.where("provider").is("GUEST")
+				)
+		);
+		Query query = Query.query(Criteria.where("_id")
+				.is(requiredUser.getUserId())
+				.and("status").is(UserStatus.ACTIVE)
+				.and("updatedAt").is(Objects.requireNonNull(expectedUpdatedAt))
+				.andOperator(legacyOrExplicitGuest));
+		Update update = new Update()
+				.set("status", UserStatus.MERGED)
+				.set("nickname", requiredUser.getNickname())
+				.set("updatedAt", requiredUser.getUpdatedAt())
+				.set("mergedIntoUserId", requiredUser.getMergedIntoUserId())
+				.set("mergedAt", requiredUser.getMergedAt())
+				.unset("email")
+				.unset("normalizedEmail")
+				.unset("passwordHash")
+				.unset("guestInstallationIdHash")
+				.unset("withdrawnAt");
+		UpdateResult result = mongoOperations.updateFirst(query, update, User.class);
+		return result.getModifiedCount() == 1;
+	}
 }

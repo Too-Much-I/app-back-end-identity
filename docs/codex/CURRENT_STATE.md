@@ -5,8 +5,8 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-97` Stage 6 Guest MEMBER 승격·인증수단 동기화를 `feat/TMI-97-guest-member-promotion`에서 구현하고 전체 479개 테스트를 통과했으며, 사용자 검토·commit·push·PR과 Jira 종료는 아직 남아 있다
-- 상태 기준일: 2026-08-18
+- 현재 단계: Jira `TMI-98` Stage 7 Guest canonical merge·`UserMergedOutbox` 로컬 구현과 전체 회귀 검증을 마쳤다. source는 검증된 Guest JWT `sub`의 ACTIVE GUEST, target은 fresh Firebase proof의 기존 identity mapping이 가리키는 ACTIVE MEMBER로만 정하며 기능과 publisher는 기본 비활성이다
+- 상태 기준일: 2026-08-20
 
 ## 완료
 
@@ -289,15 +289,30 @@
 - Guest upgrade는 기존 UUID를 유지한 User CAS 승격, guest installation credential 제거, FirebaseIdentity·PhoneIdentity/alias·SocialIdentity·eligibility revision/outbox, 기존 Session의 `GUEST_UPGRADED` 폐기, 신규 RefreshSession과 attempt CAS consume을 하나의 Mongo Transaction으로 처리한다. 다른 ACTIVE MEMBER owner는 mixed Firebase/Social 소유 조합도 mutation 없이 `MERGE_REQUIRED`로 분류한다
 - MEMBER auth-method sync는 JWT User와 기존 FirebaseIdentity UID 및 fresh Firebase proof를 대조해 누락 SocialIdentity만 멱등 추가하고, 다른 User owner는 `SOCIAL_IDENTITY_CONFLICT`로 거절한다. Firebase·provider 기능은 기본 비활성이고 실제 Guest merge·UserMergedOutbox는 Stage 7로 남겼다
 - TMI-97 도메인·service·Transaction·Controller·Security·OpenAPI·설정 테스트를 보강했으며 `./gradlew clean test` 전체 479개 테스트와 `git diff --check`, 신규 경계의 명시적 로그 호출 부재 검사가 성공했다
+- GitHub PR #27이 merge commit `5801868`로 TMI-97 구현을 `develop`에 반영했다. 사용자 승인에 따라 Jira TMI-97에 구현·변경 범위·479개 테스트·staging 잔여 위험을 담은 종료 댓글 ID `10008`을 등록하고 transition ID `41`만 적용했으며, 후속 조회에서 상태와 Resolution이 모두 `완료`임을 확인했다
+- 다음 Identity 범위를 social login 계획의 Stage 7 Guest source→MEMBER target merge, source token gate와 `UserMergedOutbox`로 정리했다. Atlassian 공식 MCP 검색에서 중복 Jira가 없음을 확인하고 TMI `작업`·High 우선순위의 제목·설명·완료 조건·제외 범위 초안을 준비했으며 승인 전에는 생성하지 않았다
+- 사용자 승인에 따라 `[Identity] Stage 7 Guest canonical merge 및 UserMerged outbox`를 Jira `TMI-98`, TMI `작업`, High, 기본 상태 `해야 할 일`로 생성했다. 담당자·라벨·컴포넌트·기한·댓글·Resolution은 없고 별도 상태 전환도 적용하지 않았으며 저장된 본문과 필드를 후속 조회했다
+- TMI-98은 TMI-97의 동일 UUID in-place 승격과 달리, 현재 Guest source와 이미 Firebase identity를 소유한 기존 MEMBER target이라는 두 User를 하나의 canonical MEMBER로 합치는 작업이다. Identity Transaction에는 source MERGED tombstone·credential 제거·Session 폐기, target Session, UserMerged outbox를 포함하고 실제 Learning Core 데이터 이전 consumer는 별도 범위로 유지한다
+- 현재 `JwtCurrentUserProvider`는 검증된 JWT `sub`의 canonical UUID 형식만 확인하고 User 상태를 조회하지 않는다. TMI-98 source token gate는 merge 전에는 sub로 ACTIVE GUEST source를 식별하되 merge 후에는 같은 sub의 MERGED User를 `ACCOUNT_MERGED_TOKEN_REJECTED`로 거절해야 하며, source를 target actor alias로 변환해서는 안 된다
+- 현재 RS256 JWT는 서명된 JWS이지 암호화된 JWE가 아니므로 token 보유자는 payload의 실제 UUID `sub`를 읽을 수 있다. 현 계약은 userId를 비밀 credential로 보지 않으며 권한은 서명·audience·상태·resource ownership 검사로 보호한다. client에게 내부 userId 자체를 숨겨야 한다는 제품·위협 모델이 확정되면 실제 userId 대신 외부용 opaque/pairwise subject를 도입하는 별도 계약 migration이 필요하다
+- 사용자는 현재 UUID userId의 JWT sub 노출을 허용하기로 했다. Access Token payload는 `sub`, `iss`, `aud`, `iat`, `exp`, `jti`, 공백 구분 `scope`만 포함하고 이메일·닉네임·accountType·provider·Firebase UID·전화번호·동의 상태는 포함하지 않는다. JWS header의 `alg=RS256`, `kid`, `typ=JWT`는 payload claim이 아니다
+- TMI-98에서 보호 API `POST /api/v1/auth/firebase/guest/merge`를 추가했다. Request Body는 write-only `firebaseIdToken`만 받으며 source/target userId, email, phone, nickname을 merge selector로 받지 않는다
+- source User는 CAS로 `MERGED` tombstone이 되며 `mergedIntoUserId`·`mergedAt`을 저장하고 Guest installation credential을 제거한다. 모든 source RefreshSession은 `GUEST_MERGED`로 폐기하고 target RefreshSession과 schema v1 `UserMergedOutbox`를 같은 Mongo Transaction에 저장한 뒤 commit 이후 target Access Token만 발급한다
+- Firebase UID와 linked SocialIdentity의 기존 owner 집합이 정확히 하나인 ACTIVE MEMBER일 때만 target으로 인정한다. owner 없음·source 자신·mixed owner·비활성·Guest target은 mutation 없이 충돌로 거절하고 credential·identity mapping은 source에서 target으로 이전하지 않는다
+- `JwtCurrentUserProvider`는 검증된 JWT `sub`가 DB의 `MERGED` User인지 조회해 `ACCOUNT_MERGED_TOKEN_REJECTED`로 거절하며 source를 target actor alias로 변환하지 않는다. JWT claim 구성은 기존 최소 계약을 유지한다
+- `UserMerged` publisher는 원자적 lease claim, 지수 backoff, dead-letter, replay와 at-least-once 전달을 구현하고 운영 메트릭에는 userId를 tag로 쓰지 않는다. merge 기능 `GUEST_MERGE_ENABLED`와 publisher `USER_MERGED_PUBLISHER_ENABLED`는 모두 기본 false다
+- TMI-98 도메인·CAS·Transaction·API·Security/OpenAPI·publisher·설정 테스트를 추가하고 `./gradlew clean test` 전체 성공, `git diff --check`, 신규 merge 경계의 명시적 로그 호출·민감정보 노출 정적 검사를 통과했다
 
 ## 진행 중
 
-- 현재 브랜치는 `feat/TMI-97-guest-member-promotion`이며 기준 HEAD는 `24275a5`다. TMI-97 구현과 테스트·문서 변경은 미커밋 상태이고 Codex는 commit·push를 수행하지 않는다
-- Jira `TMI-97` — Stage 6 Guest MEMBER 승격 및 인증수단 동기화. 상태는 `해야 할 일`, Resolution 없음이며 Jira 댓글·상태 전환은 수행하지 않았다
+- 현재 브랜치는 `feat/TMI-98-guest-canonical-merge`이며 기준 commit은 PR #27 merge commit `5801868`이다. TMI-98 구현과 테스트·문서 변경이 미커밋 상태이고 Codex는 commit·push를 수행하지 않는다
+- 현재 진행 중인 Jira는 `TMI-98`이다. 로컬 구현은 완료했지만 Jira는 마지막 확인 기준 상태 `해야 할 일`, Resolution 없음이다. 이번 작업에서는 Jira OAuth refresh 실패로 재조회하지 못했고 댓글·필드·상태를 변경하지 않았다
 
 ## 다음 작업
 
-- 사용자가 TMI-97 diff와 479개 테스트 결과를 검토한 뒤 직접 commit·push하고 PR을 생성한다. PR 병합 확인 전 Jira를 Done으로 바꾸지 않으며 댓글 등록·상태 전환은 별도 승인 후 수행한다
+- 사용자가 TMI-98 변경을 검토하고 직접 commit·push·PR을 진행한다. PR 병합 확인 전에는 Jira 댓글 등록이나 Done 전환을 수행하지 않는다
+- Learning Core에 `UserMerged` v1 멱등 consumer, eventId inbox, source deny marker와 학습 데이터 source→target 이전을 별도 Jira로 구현하고 staging E2E가 준비되기 전 `GUEST_MERGE_ENABLED`와 `USER_MERGED_PUBLISHER_ENABLED`를 활성화하지 않는다
+- Transaction 지원 staging MongoDB에서 source User·Session·target Session·outbox rollback, CAS/write conflict, lease 경쟁·TTL/index 생성과 성공 응답 유실 뒤 target `/exchange` 복구를 검증한다
 - 격리 Firebase/mobile과 Transaction 지원 staging MongoDB에서 Guest prepare→same-UID phone link→upgrade, existing MEMBER owner `MERGE_REQUIRED`, concurrent upgrade CAS, outbox·Session·attempt rollback과 성공 응답 유실 뒤 `/exchange` 복구 흐름을 E2E 검증한다
 - Firebase link는 Mongo Transaction 밖에서 먼저 일어나므로 중단 enrollment cleanup·resume 정책과 성공 후 재시도 UX를 확정한다. 실제 Guest source/target merge와 `UserMergedOutbox`는 Stage 7에서 별도 구현한다
 - 별도 Entitlement/Billing Jira는 eventId inbox, canonical payload digest, current binding·revision high-water Transaction과 abuse ledger 보존을 구현한다. Identity Stage 6와 병렬 진행할 수 있지만 consumer와 staging E2E가 준비되기 전 production publisher/Firebase flag는 활성화하지 않는다
@@ -442,7 +457,7 @@
 - 구조화 운영 로그를 사용하는 수집 플랫폼 대시보드·메트릭·알림과 환경별 보존 정책
 - 다중 Active/Retiring Key를 지원하는 Key Rotation
 - 실제 격리 Firebase project·모바일 client의 email/password·Google·Apple·same-UID phone link, 국내 SMS와 Identity Platform Kakao Generic OIDC·billing·deep-link·Apple revoke 및 production 배포의 ADC/Workload Identity·timeout/quota 동작 검증
-- Guest를 거치지 않는 신규 가입, Guest 승격·인증수단 sync, merge outbox publisher와 source Access Token gate
+- TMI-98의 Learning Core 멱등 `UserMerged` consumer, source deny marker와 실제 학습 데이터 이전
 - 기존 직접 email/password signup·login과 passwordHash writer의 Firebase cutover·제거, Firebase unlink·disable·withdrawal·orphan cleanup·reconciliation
 - 별도 Entitlement/Billing의 benefit-scoped VerifiedPhoneBenefitBinding·TrialClaim·UserEntitlement·무료시험 consume과 결제 연동
 - 사용자 프로필 수정 API
@@ -450,6 +465,9 @@
 
 ## 남아 있는 위험 요소
 
+- TMI-98의 Mongo Transaction·CAS·outbox lease는 로컬 mock과 인메모리 회귀로 검증했지만 실제 replica set의 다중 collection rollback, source/target 경쟁 변경, unique/TTL index 생성과 publisher 다중 인스턴스 lease는 staging에서 재검증해야 한다.
+- Identity의 MERGED source gate는 Identity 보호 API에서 DB User 상태를 조회하지만 Learning Core는 매 요청 Identity introspection을 하지 않는다. downstream consumer가 source deny marker와 ownership migration을 원자적으로 반영하기 전에 merge 기능을 켜면 기존 source JWT가 Learning Core에서 만료 전까지 받아들여질 수 있다.
+- `UserMerged` publisher의 실제 HTTPS endpoint와 workload identity 발급 인프라, consumer commit 뒤 2xx·멱등 inbox·timeout/429/5xx·401/403·manual replay 운영 절차는 제공 환경에서 E2E 검증이 필요하다. 따라서 merge와 publisher flag는 계속 기본 비활성으로 유지한다.
 - `RefreshSession`의 사용자별 미폐기 조회를 위한 `{userId, revokedAt}` compound index 계약을 추가했지만 운영 배포 전 실제 index 생성 상태와 데이터 규모별 `explain`을 확인해야 한다.
 - 패키지 이동으로 신규 Mongo 문서의 `_class` FQCN이 바뀔 수 있으므로 외부 시스템이 `_class`를 조회 조건으로 사용하는지는 운영 데이터와 소비자에서 확인해야 한다.
 - OpenAPI 오류 응답은 raw `BaseResponse` schema를 사용해 Validation의 `result` 배열을 완전히 구체화하지 못하므로 문서 전용 wrapper 도입 범위를 후속 검토해야 한다.

@@ -204,6 +204,9 @@ class SecurityIntegrationTests {
 						"$.paths['/api/v1/auth/firebase/guest/upgrade'].post.security[0].bearerAuth"
 				).isArray())
 				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/merge'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
 						"$.paths['/api/v1/auth/firebase/auth-methods/sync'].post.security[0].bearerAuth"
 				).isArray())
 				.andExpect(jsonPath(
@@ -212,6 +215,12 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath(
 						"$.components.schemas.FirebaseGuestUpgradeRequest.properties.firebaseIdToken.writeOnly"
 				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestMergeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestMergeRequest.properties.userId"
+				).doesNotExist())
 				.andExpect(jsonPath(
 						"$.components.schemas.FirebaseAuthMethodsSyncRequest.properties.firebaseIdToken.writeOnly"
 				).value(true))

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseGuestMergeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncService;
@@ -21,6 +22,10 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchan
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeTargetResolver;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeTransactionService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeTransactionService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
@@ -33,6 +38,7 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentit
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.usermerge.repository.UserMergedOutboxRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneIdentityTransactionService;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
@@ -78,6 +84,11 @@ public class FirebaseAuthenticationConfiguration {
 		@Bean
 		FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase() {
 			return new DisabledFirebaseGuestUpgradeUseCase();
+		}
+
+		@Bean
+		FirebaseGuestMergeUseCase firebaseGuestMergeUseCase() {
+			return new DisabledFirebaseGuestMergeUseCase();
 		}
 
 		@Bean
@@ -310,6 +321,83 @@ public class FirebaseAuthenticationConfiguration {
 					phoneFingerprintHasher,
 					eligibilityFingerprintHasher,
 					consentPolicy,
+					refreshSessionIssuer,
+					transactionService,
+					accessTokenIssuer,
+					clock
+			);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.guest-merge",
+				name = "enabled",
+				havingValue = "false",
+				matchIfMissing = true
+		)
+		FirebaseGuestMergeUseCase disabledFirebaseGuestMergeUseCase() {
+			return new DisabledFirebaseGuestMergeUseCase();
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.guest-merge",
+				name = "enabled",
+				havingValue = "true"
+		)
+		FirebaseGuestMergeTargetResolver firebaseGuestMergeTargetResolver(
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				UserRepository userRepository
+		) {
+			return new FirebaseGuestMergeTargetResolver(
+					firebaseIdentityRepository,
+					socialIdentityRepository,
+					userRepository
+			);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.guest-merge",
+				name = "enabled",
+				havingValue = "true"
+		)
+		FirebaseGuestMergeTransactionService firebaseGuestMergeTransactionService(
+				UserRepository userRepository,
+				RefreshSessionRepository refreshSessionRepository,
+				RefreshSessionIssuer refreshSessionIssuer,
+				UserMergedOutboxRepository outboxRepository
+		) {
+			return new FirebaseGuestMergeTransactionService(
+					userRepository,
+					refreshSessionRepository,
+					refreshSessionIssuer,
+					outboxRepository
+			);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.guest-merge",
+				name = "enabled",
+				havingValue = "true"
+		)
+		FirebaseGuestMergeUseCase enabledFirebaseGuestMergeUseCase(
+				CurrentUserProvider currentUserProvider,
+				UserRepository userRepository,
+				FirebaseAuthenticationVerifier authenticationVerifier,
+				FirebaseGuestMergeTargetResolver targetResolver,
+				RefreshSessionIssuer refreshSessionIssuer,
+				FirebaseGuestMergeTransactionService transactionService,
+				AccessTokenIssuer accessTokenIssuer,
+				Clock clock
+		) {
+			return new FirebaseGuestMergeService(
+					currentUserProvider,
+					userRepository,
+					authenticationVerifier,
+					targetResolver,
 					refreshSessionIssuer,
 					transactionService,
 					accessTokenIssuer,
