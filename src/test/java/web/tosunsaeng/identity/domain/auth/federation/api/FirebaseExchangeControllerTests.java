@@ -24,12 +24,14 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseAuthMethodsSyncRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseExchangeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestPrepareRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestUpgradeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseSignupRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthMethodsSyncResponse;
@@ -59,6 +61,9 @@ class FirebaseExchangeControllerTests {
 
 	@MockitoBean
 	private FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase;
+
+	@MockitoBean
+	private FirebaseGuestMergeUseCase firebaseGuestMergeUseCase;
 
 	@MockitoBean
 	private FirebaseAuthMethodsSyncUseCase firebaseAuthMethodsSyncUseCase;
@@ -266,6 +271,30 @@ class FirebaseExchangeControllerTests {
 				.doesNotContain("guest-upgrade-credential", "승격회원");
 		assertThat(request.toString())
 				.doesNotContain("guest-upgrade-credential", "승격회원", request.enrollmentId());
+	}
+
+	@Test
+	void guestMergeAcceptsOnlyFirebaseProofAndReturnsTargetTokens() throws Exception {
+		FirebaseGuestMergeRequest request = new FirebaseGuestMergeRequest("merge-proof");
+		when(firebaseGuestMergeUseCase.merge(request)).thenReturn(new FirebaseSignupResponse(
+				"target-access",
+				"target-refresh",
+				"Bearer",
+				1_800_000,
+				1_209_600_000
+		));
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/merge")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"merge-proof\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.accessToken").value("target-access"))
+				.andExpect(jsonPath("$.result.refreshToken").value("target-refresh"))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString()).doesNotContain("merge-proof");
+		assertThat(request.toString()).doesNotContain("merge-proof");
 	}
 
 	@Test

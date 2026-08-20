@@ -67,6 +67,8 @@ app:
     read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
     enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  guest-merge:
+    enabled: ${GUEST_MERGE_ENABLED:false}
   phone-identity:
     fingerprint:
       enabled: ${PHONE_IDENTITY_FINGERPRINT_ENABLED:false}
@@ -87,6 +89,18 @@ app:
     connect-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_CONNECT_TIMEOUT:PT3S}
     read-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_READ_TIMEOUT:PT5S}
     max-batch-size: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_BATCH_SIZE:20}
+  user-merged-publisher:
+    enabled: ${USER_MERGED_PUBLISHER_ENABLED:false}
+    endpoint: ${USER_MERGED_PUBLISHER_ENDPOINT:}
+    audience: ${USER_MERGED_PUBLISHER_AUDIENCE:}
+    lease-duration: ${USER_MERGED_PUBLISHER_LEASE_DURATION:PT60S}
+    fixed-delay: ${USER_MERGED_PUBLISHER_FIXED_DELAY:PT5S}
+    max-attempts: ${USER_MERGED_PUBLISHER_MAX_ATTEMPTS:12}
+    published-retention: ${USER_MERGED_PUBLISHER_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${USER_MERGED_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${USER_MERGED_PUBLISHER_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${USER_MERGED_PUBLISHER_READ_TIMEOUT:PT5S}
+    max-batch-size: ${USER_MERGED_PUBLISHER_MAX_BATCH_SIZE:20}
 
 springdoc:
   swagger-ui:

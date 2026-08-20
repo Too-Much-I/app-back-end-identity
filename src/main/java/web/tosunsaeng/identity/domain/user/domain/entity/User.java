@@ -16,6 +16,7 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 public class User {
 
 	public static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
+	public static final String MERGED_NICKNAME = "통합된 사용자";
 
 	@Id
 	private String userId;
@@ -54,6 +55,10 @@ public class User {
 
 	private Instant withdrawnAt;
 
+	private String mergedIntoUserId;
+
+	private Instant mergedAt;
+
 	private User() {
 	}
 
@@ -70,7 +75,9 @@ public class User {
 			UserStatus status,
 			Instant createdAt,
 			Instant updatedAt,
-			Instant withdrawnAt
+			Instant withdrawnAt,
+			String mergedIntoUserId,
+			Instant mergedAt
 	) {
 		this.userId = Objects.requireNonNull(userId, "userId must not be null");
 		this.email = email;
@@ -85,6 +92,8 @@ public class User {
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
 		this.withdrawnAt = withdrawnAt;
+		this.mergedIntoUserId = mergedIntoUserId;
+		this.mergedAt = mergedAt;
 		validateAccountFields();
 	}
 
@@ -118,6 +127,8 @@ public class User {
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt,
+				null,
+				null,
 				null
 		);
 	}
@@ -141,6 +152,8 @@ public class User {
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt,
+				null,
+				null,
 				null
 		);
 	}
@@ -163,11 +176,32 @@ public class User {
 				UserStatus.ACTIVE,
 				createdAt,
 				createdAt,
+				null,
+				null,
 				null
 		);
 	}
 
 	private void validateAccountFields() {
+		if (status == UserStatus.MERGED) {
+			if (email != null
+					|| normalizedEmail != null
+					|| passwordHash != null
+					|| guestInstallationIdHash != null) {
+				throw new IllegalArgumentException(
+						"Merged user credentials must be absent."
+				);
+			}
+			requireUuid(mergedIntoUserId, "mergedIntoUserId");
+			Objects.requireNonNull(mergedAt, "mergedAt must not be null");
+			if (userId.equals(mergedIntoUserId)) {
+				throw new IllegalArgumentException("Merged user must target another user.");
+			}
+			return;
+		}
+		if (mergedIntoUserId != null || mergedAt != null) {
+			throw new IllegalArgumentException("Only a merged user can have merge metadata.");
+		}
 		if (status == UserStatus.WITHDRAWN) {
 			if (email != null
 					|| normalizedEmail != null
@@ -218,7 +252,37 @@ public class User {
 				UserStatus.WITHDRAWN,
 				createdAt,
 				requiredWithdrawalTime,
-				requiredWithdrawalTime
+				requiredWithdrawalTime,
+				null,
+				null
+		);
+	}
+
+	public User toMergedTombstone(String targetUserId, Instant mergeTime) {
+		if (status != UserStatus.ACTIVE || !isGuest()) {
+			throw new IllegalStateException("Only an active Guest can be merged.");
+		}
+		String requiredTargetUserId = requireUuid(targetUserId, "targetUserId");
+		Instant requiredMergeTime = Objects.requireNonNull(
+				mergeTime,
+				"mergeTime must not be null"
+		);
+		return new User(
+				userId,
+				null,
+				null,
+				null,
+				null,
+				MERGED_NICKNAME,
+				getProvider(),
+				getAccountType(),
+				getConsents(),
+				UserStatus.MERGED,
+				createdAt,
+				requiredMergeTime,
+				null,
+				requiredTargetUserId,
+				requiredMergeTime
 		);
 	}
 
@@ -264,6 +328,20 @@ public class User {
 			throw new IllegalArgumentException("Guest installation hash has an invalid format.");
 		}
 		return requiredHash;
+	}
+
+	private static String requireUuid(String value, String fieldName) {
+		try {
+			UUID parsed = UUID.fromString(value);
+			if (!parsed.toString().equals(value)) {
+				throw new IllegalArgumentException("non-canonical UUID");
+			}
+			return value;
+		} catch (IllegalArgumentException | NullPointerException exception) {
+			throw new IllegalArgumentException(
+					fieldName + " must be a lowercase canonical UUID."
+			);
+		}
 	}
 
 	public String getUserId() {
@@ -360,5 +438,13 @@ public class User {
 
 	public Instant getWithdrawnAt() {
 		return withdrawnAt;
+	}
+
+	public String getMergedIntoUserId() {
+		return mergedIntoUserId;
+	}
+
+	public Instant getMergedAt() {
+		return mergedAt;
 	}
 }

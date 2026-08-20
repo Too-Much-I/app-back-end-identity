@@ -106,6 +106,26 @@ public enum AuthErrorStatus implements ErrorCode {
 			"MERGE_REQUIRED",
 			"이미 연결된 MEMBER 계정으로 로그인해야 합니다."
 	),
+	GUEST_MERGE_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_NOT_ALLOWED",
+			"현재 계정은 Guest 통합을 진행할 수 없습니다."
+	),
+	GUEST_MERGE_TARGET_CONFLICT(
+			HttpStatus.CONFLICT,
+			"GUEST_MERGE_TARGET_CONFLICT",
+			"통합할 MEMBER 계정을 확정할 수 없습니다."
+	),
+	GUEST_MERGE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"GUEST_MERGE_CONFLICT",
+			"Guest 통합 처리 중 계정 정보가 변경되었습니다. 다시 시도해 주세요."
+	),
+	ACCOUNT_MERGED_TOKEN_REJECTED(
+			HttpStatus.UNAUTHORIZED,
+			"ACCOUNT_MERGED_TOKEN_REJECTED",
+			"통합된 Guest 계정의 인증 정보는 사용할 수 없습니다."
+	),
 	INVALID_PHONE_NUMBER(
 			HttpStatus.BAD_REQUEST,
 			"INVALID_PHONE_NUMBER",

@@ -19,11 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseAuthMethodsSyncRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseExchangeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestPrepareRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestUpgradeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseSignupRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthMethodsSyncResponse;
@@ -44,6 +46,7 @@ public class FirebaseExchangeController {
 	private final FirebaseSignupUseCase firebaseSignupUseCase;
 	private final FirebaseGuestPrepareUseCase firebaseGuestPrepareUseCase;
 	private final FirebaseGuestUpgradeUseCase firebaseGuestUpgradeUseCase;
+	private final FirebaseGuestMergeUseCase firebaseGuestMergeUseCase;
 	private final FirebaseAuthMethodsSyncUseCase firebaseAuthMethodsSyncUseCase;
 
 	@Operation(
@@ -164,6 +167,29 @@ public class FirebaseExchangeController {
 			@Valid @RequestBody FirebaseGuestUpgradeRequest request
 	) {
 		return BaseResponse.success(firebaseGuestUpgradeUseCase.upgrade(request));
+	}
+
+	@Operation(
+			summary = "Guest를 기존 Firebase MEMBER로 통합",
+			description = "인증된 Guest JWT subject를 source로, fresh Firebase proof가 가리키는 "
+					+ "기존 ACTIVE MEMBER를 target으로 확정해 source를 MERGED tombstone으로 "
+					+ "전환하고 target Identity Token을 발급합니다."
+	)
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "target MEMBER Identity Token 발급 성공"),
+			@ApiResponse(responseCode = "400", description = "요청 형식 오류", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아님", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "target 소유권 또는 merge 동시성 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "503", description = "Firebase 또는 Guest merge 기능 비활성", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
+	})
+	@PostMapping(value = "/guest/merge", consumes = "application/json", produces = "application/json")
+	public BaseResponse<FirebaseSignupResponse> mergeGuest(
+			@Valid @RequestBody FirebaseGuestMergeRequest request
+	) {
+		return BaseResponse.success(firebaseGuestMergeUseCase.merge(request));
 	}
 
 	@Operation(

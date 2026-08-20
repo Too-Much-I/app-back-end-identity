@@ -17,6 +17,8 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMe
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestMergeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
@@ -24,6 +26,7 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentit
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.usermerge.repository.UserMergedOutboxRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneIdentityTransactionService;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintHasher;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
@@ -62,6 +65,7 @@ class FirebaseAuthenticationConfigurationTests {
 			assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
 			assertThat(context).hasSingleBean(FirebaseGuestPrepareUseCase.class);
 			assertThat(context).hasSingleBean(FirebaseGuestUpgradeUseCase.class);
+			assertThat(context).hasSingleBean(FirebaseGuestMergeUseCase.class);
 			assertThat(context).hasSingleBean(FirebaseAuthMethodsSyncUseCase.class);
 		});
 	}
@@ -82,7 +86,8 @@ class FirebaseAuthenticationConfigurationTests {
 		contextRunner
 				.withPropertyValues(
 						"app.firebase-auth.enabled=true",
-						"app.firebase-auth.project-id=test-project"
+						"app.firebase-auth.project-id=test-project",
+						"app.guest-merge.enabled=true"
 				)
 				.withBean(Clock.class, Clock::systemUTC)
 				.withBean(
@@ -95,6 +100,7 @@ class FirebaseAuthenticationConfigurationTests {
 				.withBean(AccessTokenIssuer.class, () -> mock(AccessTokenIssuer.class))
 				.withBean(RefreshSessionIssuer.class, () -> mock(RefreshSessionIssuer.class))
 				.withBean(RefreshSessionRepository.class, () -> mock(RefreshSessionRepository.class))
+				.withBean(UserMergedOutboxRepository.class, () -> mock(UserMergedOutboxRepository.class))
 				.withBean(CurrentUserProvider.class, () -> mock(CurrentUserProvider.class))
 				.withBean(
 						PhoneIdentityTransactionService.class,
@@ -125,6 +131,9 @@ class FirebaseAuthenticationConfigurationTests {
 					assertThat(context).hasSingleBean(FirebaseSignupUseCase.class);
 					assertThat(context).hasSingleBean(FirebaseGuestPrepareUseCase.class);
 					assertThat(context).hasSingleBean(FirebaseGuestUpgradeUseCase.class);
+					assertThat(context).hasSingleBean(FirebaseGuestMergeUseCase.class);
+					assertThat(context.getBean(FirebaseGuestMergeUseCase.class))
+							.isInstanceOf(FirebaseGuestMergeService.class);
 					assertThat(context).hasSingleBean(FirebaseAuthMethodsSyncUseCase.class);
 				});
 	}
