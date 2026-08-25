@@ -33,6 +33,8 @@ app:
     apple-enabled: false
     kakao-enabled: false
     phone-enabled: false
+  firebase-withdrawal-cleanup:
+    enabled: false
   guest-merge:
     enabled: false
   phone-identity:

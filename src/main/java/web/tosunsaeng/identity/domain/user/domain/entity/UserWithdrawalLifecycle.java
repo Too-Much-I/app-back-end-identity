@@ -35,6 +35,7 @@ public class UserWithdrawalLifecycle {
 	private String leaseOwner;
 	private Instant leaseUntil;
 	private String lastErrorCode;
+	private boolean maxAttemptsExceeded;
 	private Instant externalDeletedAt;
 	private Instant identitiesReleasedAt;
 	private Instant cleanedAt;
@@ -115,6 +116,7 @@ public class UserWithdrawalLifecycle {
 	public String getLeaseOwner() { return leaseOwner; }
 	public Instant getLeaseUntil() { return leaseUntil; }
 	public String getLastErrorCode() { return lastErrorCode; }
+	public boolean isMaxAttemptsExceeded() { return maxAttemptsExceeded; }
 	public Instant getExternalDeletedAt() { return externalDeletedAt; }
 	public Instant getIdentitiesReleasedAt() { return identitiesReleasedAt; }
 	public Instant getCleanedAt() { return cleanedAt; }

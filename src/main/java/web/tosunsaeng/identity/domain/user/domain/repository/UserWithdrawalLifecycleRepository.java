@@ -7,7 +7,8 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
 
 public interface UserWithdrawalLifecycleRepository
-		extends MongoRepository<UserWithdrawalLifecycle, String> {
+		extends MongoRepository<UserWithdrawalLifecycle, String>,
+		UserWithdrawalLifecycleRepositoryCustom {
 
 	Optional<UserWithdrawalLifecycle> findByUserId(String userId);
 }
