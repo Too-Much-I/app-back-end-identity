@@ -5420,3 +5420,190 @@
 - 결정사항: 현재 완료된 것은 Stage 1로 내부 계정은 즉시 탈퇴 상태가 되지만 완전 탈퇴 terminal은 아니다. Stage 2 외부 Firebase 삭제와 Stage 3 내부 identity 점유 해제가 끝나 `CLEANED`가 되어야 동일 credential의 신규 가입을 허용한다.
 - 위험 요소: Stage 2 worker 없이 `FIREBASE_WITHDRAWAL_ENABLED`를 활성화하면 lifecycle이 `EXTERNAL_CLEANUP_PENDING`에 머물고 Firebase User와 identity 점유가 남는다.
 - 다음 작업: 구현 순서대로 Stage 2 Firebase disable·refresh revoke·delete worker 계획과 Jira를 별도 승인 후 작성하고, 이후 Stage 3 release와 `CLEANED` gate를 구현한다.
+
+## 2026-08-25 — TMI-103 종료 요청과 상태 전환 승인 대기
+
+<!-- codex-turn:01a03762-dfa2-7883-87cd-5b38133a41e2 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-103` / 상태 전환 전 승인·도구 연결 대기
+- 작업 목표: 구현과 테스트가 완료된 `TMI-103`을 Jira 완료 상태로 종료한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았고 기존 미커밋 변경을 보존했다.
+- 구현 내용: 사용자 종료 요청을 확인하고 변경 범위를 Jira 상태의 `완료` 전환 하나로 제한했다. 댓글·담당자·우선순위·라벨·설명은 변경하지 않는 안을 준비했다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트는 다시 실행하지 않았다. 직전 `./gradlew clean test` 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Jira 상태 변경 전에 정확한 변경안을 사용자에게 제시하고 승인을 받는 규칙을 유지했다. Jira와 작업 기록에 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 포함하지 않았다.
+- 결정사항: 현재 turn에는 Atlassian 공식 Jira 도구가 노출되지 않아 현재 상태·사용 가능한 완료 전환 ID를 재조회하거나 상태를 변경하지 않았다. 마지막 확인 상태는 `해야 할 일`이며 임의의 과거 transition ID를 재사용하지 않는다.
+- 위험 요소: Jira workflow 또는 현재 상태가 외부에서 바뀌었을 수 있으므로 도구가 다시 제공되면 상태와 전환을 재조회한 뒤 승인된 `완료` 전환만 적용해야 한다.
+- 다음 작업: 사용자가 상태만 `완료`로 전환하는 안을 승인하고 Atlassian 도구가 가용해지면 현재 상태·전환 ID를 재조회해 적용하고 결과를 다시 확인한다.
+
+## 2026-08-25 — Stage 2 Firebase 외부 cleanup worker Jira 생성안 작성
+
+<!-- codex-turn:01a03765-fa21-7363-bdba-f11866980479 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: 신규 생성 전 payload 승인·도구 연결 대기. `TMI-103` 상태 전환도 미수행
+- 작업 목표: 고정 구현 순서의 다음 항목인 Firebase disable·refresh revoke·delete worker를 독립 Jira 작업으로 생성할 최종 payload를 작성한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았고 기존 미커밋 변경을 보존했다.
+- 구현 내용: Stage 1 lifecycle 인계 계약을 기준으로 `EXTERNAL_CLEANUP_PENDING` atomic claim·lease, Firebase User disable, refresh token revoke, Provider별 계정 삭제 의무, Firebase User delete, retry/backoff, 안전한 오류 code와 `RECONCILIATION_REQUIRED`, external completion fencing을 Jira 범위로 구성했다.
+- 구현 내용: 완료 조건에는 다중 worker 단일 claim, lease 만료 recovery, 각 외부 단계의 멱등 재실행, partial failure 수렴, 원문 Firebase 오류·credential 비노출, scheduler·feature flag 기본 비활성, Emulator 단위 테스트와 staging 실제 Firebase 검증을 포함했다. Firebase/Social/Phone release와 `CLEANED`·재가입 gate는 Stage 3으로 명시적으로 제외했다.
+- 실행한 테스트와 결과: Jira payload 준비와 계획 확인만 수행해 Gradle 테스트는 다시 실행하지 않았다. 직전 `./gradlew clean test` 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase 외부 mutation은 Mongo Transaction 밖의 retry worker가 수행하며 lifecycle의 Firebase project·UID snapshot만 사용한다. Token·Provider credential·email·raw phone·SDK 원문 오류를 저장·로그·Jira에 기록하지 않고 identity release는 별도 단계로 유지한다.
+- 결정사항: 신규 이슈는 TMI 프로젝트 `작업`, 우선순위 `High`, 제목 `[Identity] Firebase 탈퇴 외부 cleanup worker 구축`으로 제안한다. Jira 변경 규칙에 따라 정확한 설명·완료 조건·제외 범위를 사용자에게 먼저 제시하고 승인 전에는 생성하지 않는다.
+- 위험 요소: Apple authorization revoke는 필요한 credential material과 만료·보관 정책이 별도 검증돼야 하며, 지원 material이 없다고 Firebase delete 전체를 무기한 막을지 reconciliation으로 분기할지 구현 전 확정해야 한다. Stage 3 release 전에 external completion을 잘못 terminal로 간주하면 재가입 gate가 조기에 열릴 수 있다.
+- 다음 작업: 사용자가 payload를 승인하고 Atlassian 공식 도구가 가용해지면 TMI `작업`·`High`로 생성해 키와 저장 결과를 재조회한다. `TMI-103` 완료 전환은 별도 승인·도구 가용 시 처리한다.
+- 승인 후 실행 결과: 사용자가 `TMI-103` 완료 전환과 승인된 Stage 2 payload 생성을 함께 승인했다. Atlassian Rovo 공식 연결을 설치한 뒤 `TMI-103`이 `해야 할 일`·Resolution 없음이고 `완료` transition ID `41`이 사용 가능함을 재조회했다.
+- Jira 작업: `TMI-103`에 transition ID `41`만 적용해 상태와 Resolution이 모두 `완료`임을 확인했다. 댓글·담당자·우선순위·라벨·설명은 변경하지 않았다.
+- Jira 작업: 신규 Jira `TMI-104` `[Identity] Firebase 탈퇴 외부 cleanup worker 구축`을 TMI 프로젝트의 `작업`, 우선순위 `High`로 생성했다. 재조회 결과 초기 상태 `해야 할 일`, 담당자 없음, 빈 라벨과 승인한 목표·범위·완료 조건·제외 범위·참고 문서가 저장된 것을 확인했다.
+- 최종 다음 작업: 새 구현 브랜치에서 `TMI-104`를 읽기 전용 재조회한 뒤 lifecycle claim·lease Repository와 Firebase Admin external cleanup port 테스트부터 구현한다. Jira 상태 변경과 댓글은 별도 승인 후 수행한다.
+
+## 2026-08-25 — TMI-103 완료와 TMI-104 생성 결과 turn 동기화
+
+<!-- codex-turn:01a03767-e851-76a1-872c-be8d2efae7f7 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-103`, `TMI-104`
+- 작업 목표: 사용자 승인으로 수행한 Stage 1 Jira 종료와 Stage 2 Jira 생성 결과를 종료 훅의 현재 turn 기준으로 작업 기록에 동기화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았고 기존 미커밋 변경을 보존했다.
+- 구현 내용: Jira `TMI-103`은 transition ID `41` 적용 후 상태와 Resolution이 모두 `완료`인 것을 확인했다. Jira `TMI-104` `[Identity] Firebase 탈퇴 외부 cleanup worker 구축`은 `작업`·`High`·`해야 할 일`, 담당자 없음·빈 라벨로 생성된 것을 확인했다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트는 다시 실행하지 않았다. 직전 `./gradlew clean test` 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Jira에는 승인된 상태 전환과 이슈 생성만 적용했고 댓글·담당자·라벨·기타 필드를 임의 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: Stage 1 Jira는 종료됐고 Stage 2 작업은 `TMI-104`를 구현 범위의 기준으로 사용한다. Firebase/Social/Phone release와 `CLEANED` 재가입 gate는 Stage 3으로 계속 제외한다.
+- 위험 요소: Stage 2 구현 전 `FIREBASE_WITHDRAWAL_ENABLED`를 production에서 활성화하면 lifecycle이 pending에 머물 수 있다.
+- 다음 작업: 새 구현 브랜치에서 `TMI-104`를 읽기 전용 재조회한 뒤 lifecycle claim·lease Repository와 Firebase external cleanup port 테스트부터 구현한다.
+
+## 2026-08-25 — TMI-104 다음 작업 흐름 설명
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-104` (조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: Stage 2 Firebase 외부 cleanup worker가 Stage 1과 Stage 3 사이에서 수행할 책임, 상태 전이와 실패 복구 방식을 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: worker는 `EXTERNAL_CLEANUP_PENDING` 또는 due retry lifecycle을 atomic claim하고 lease owner·leaseUntil·version으로 이전 worker를 fencing한 뒤 Firebase disable, refresh token revoke, Provider별 의무, Firebase User delete를 순서대로 멱등 실행한다.
+- 구현 내용: 성공은 external deleted 시각과 함께 다음 Stage 3의 `IDENTITY_RELEASE_PENDING`으로 인계한다. 재시도 가능한 장애는 `EXTERNAL_CLEANUP_RETRY_WAIT`와 backoff로, 반복 실패·결과 불명·필수 material 부재는 `RECONCILIATION_REQUIRED`로 분류하며 이미 삭제된 Firebase User는 성공으로 수렴한다.
+- 실행한 테스트와 결과: 설명과 계획 재확인만 수행해 Gradle 테스트는 다시 실행하지 않았다. 직전 전체 505개 성공 결과를 유지하고 문서 변경에 대해 `git diff --check`와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase 외부 mutation은 Mongo Transaction 밖에서 실행하며 identity mapping release·`CLEANED`·재가입 허용은 Stage 3까지 수행하지 않는다. credential·Token·email·raw phone·SDK 원문 오류와 Secret을 기록하지 않았다.
+- 결정사항: scheduler와 worker는 기본 비활성이고 Stage 2 배포·staging 검증 뒤에만 Stage 1 Firebase withdrawal activation flag를 연다. Stage 2 성공은 외부 삭제 완료이지 완전 탈퇴 terminal이 아니다.
+- 위험 요소: network timeout 뒤 delete 결과 불명, worker crash, lease 만료와 Apple revoke material 부재를 단순 실패로 취급하면 중복 mutation 또는 영구 pending이 생길 수 있어 멱등 조회·fencing·reconciliation이 필요하다.
+- 다음 작업: `TMI-104` 구현 브랜치에서 lifecycle claim/CAS Repository, Firebase cleanup command port, retry policy와 scheduler를 순서대로 테스트 우선 구현한다.
+
+## 2026-08-25 — TMI-104 설명 turn 동기화
+
+<!-- codex-turn:01a0376b-e2b4-7611-a12e-25fd4e6a7a20 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-104` (조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: Firebase 외부 cleanup worker의 처리 순서, 동시성·실패 복구와 Stage 3 경계를 현재 종료 turn 기준으로 기록한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: Stage 2 worker는 pending/retry lifecycle을 atomic lease로 claim하고 Firebase disable, refresh revoke, Provider별 의무, User delete를 멱등 실행한다. lease 만료 recovery와 fencing으로 worker crash·늦은 결과를 처리하고 성공 시 `IDENTITY_RELEASE_PENDING`으로 인계한다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트는 다시 실행하지 않았다. 직전 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase 외부 mutation은 Mongo Transaction 밖에서 실행하며 Token·credential·email·raw phone·SDK 원문 오류와 Secret을 저장하거나 기록하지 않는다. 내부 identity release와 `CLEANED`는 Stage 3 책임이다.
+- 결정사항: Stage 2는 외부 Firebase 삭제 완료까지이며 완전 탈퇴 terminal이나 동일 credential 재가입 허용이 아니다. worker·scheduler 및 `FIREBASE_WITHDRAWAL_ENABLED`는 staging 검증 전 기본 비활성으로 유지한다.
+- 위험 요소: timeout 뒤 delete 결과 불명, lease 경쟁과 Apple revoke material 부재는 retry만으로 해결하지 못할 수 있어 명시적 reconciliation이 필요하다.
+- 다음 작업: `TMI-104` 구현 브랜치에서 lifecycle claim/CAS Repository와 Firebase cleanup command port 테스트부터 구현한다.
+
+## 2026-08-25 — 탈퇴 시 혜택 연결 해제 이벤트 의미 확인
+
+<!-- codex-turn:01a03782-b9a8-7e61-a8c3-d70fba93fb67 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: 없음 / Jira 작업 미수행
+- 작업 목표: 회원 탈퇴 Transaction에서 생성하는 `PhoneEligibilityBindingRevoked` 이벤트의 대상, 효과와 하지 않는 일을 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 코드를 확인해 active `PhoneEligibilityBindingRevision`이 존재하는 경우에만 revision을 증가시켜 inactive로 전환하고, 같은 탈퇴 Transaction에서 `REVOKED` outbox를 생성함을 확인했다. 이벤트는 userId, consumer scope, 새 revision과 해제 시각을 전달하며 raw phone을 포함하지 않는다.
+- 구현 내용: 이 이벤트는 Billing/Entitlement에 해당 사용자가 현재 검증 전화번호 기반 혜택 자격의 활성 연결 대상이 아님을 알린다. 소비자는 revision high-water로 늦게 도착한 과거 VERIFIED 이벤트가 연결을 되살리지 못하게 한다. 기존 TrialClaim과 무료혜택 사용 이력은 유지하므로 탈퇴·재가입으로 혜택이 복원되지 않는다.
+- 실행한 테스트와 결과: 코드 설명을 위한 정적 확인만 수행해 Gradle 테스트는 다시 실행하지 않았다. 직전 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity는 검증된 전화번호 연결 상태와 outbox만 생산하고 TrialClaim·Entitlement는 소유하지 않는다. 이벤트는 Firebase phone unlink, PhoneIdentity·alias release, 무료시험 기록 삭제를 수행하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 raw phone을 기록하지 않았다.
+- 결정사항: active binding이 없으면 REVOKED 이벤트를 만들지 않는다. active binding이 있으면 탈퇴 commit과 outbox 생성을 원자적으로 묶고 publisher·consumer가 at-least-once로 전달·멱등 적용한다.
+- 위험 요소: consumer 없이 producer를 활성화하면 outbox가 pending으로 쌓이고, REVOKED 전달 전에 동일 user의 eligibility를 계속 active로 보는 외부 상태가 남을 수 있으므로 Billing consumer를 먼저 배포해야 한다.
+- 다음 작업: `TMI-104` external Firebase cleanup과 별개로 Stage 3에서 PhoneIdentity·alias 실제 release를 수행하고, Billing consumer는 TrialClaim을 보존한 채 binding만 inactive로 반영한다.
+
+## 2026-08-25 — TMI-104 Firebase 외부 cleanup worker 구현 계획 작성
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-104` 읽기 전용 재조회. 상태 `해야 할 일`, 유형 `작업`, 우선순위 `High`; Jira 수정·댓글·상태 전환 미수행
+- 작업 목표: Stage 1 lifecycle을 안전하게 claim해 Firebase 외부 User를 disable·revoke·delete하고 Stage 3 identity release로 인계하는 실제 구현 계획서를 작성한다.
+- 변경 파일: 신규 `docs/contracts/firebase-withdrawal-external-cleanup-stage-2-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: 현재 `UserWithdrawalLifecycle`, verify-only Firebase Admin client, phone eligibility publisher의 atomic lease·retry 패턴을 분석했다. claim마다 새 lease token을 사용하고 withdrawalId·status·lease token·version을 모든 update fencing 조건에 넣으며, expired in-progress lease를 recovery하는 custom Mongo Repository 계약을 계획했다.
+- 구현 내용: target guard 뒤 inspect→disable→refresh revoke→Provider 의무→delete→presence 확인을 순서화했다. 이미 삭제된 User는 성공, delete timeout은 presence로 확정, retryable 장애는 exponential backoff, project·owner·permission·configuration·Provider material 문제는 reconciliation으로 분리했다. LOCAL·GUEST null target은 Firebase 호출 없이 Stage 3으로 인계한다.
+- 구현 내용: worker·scheduler 기본 비활성 설정, safe metrics·logs, domain/Repository/worker/adapter/config/scheduler 테스트, Firebase·Mongo staging 시나리오, worker 선활성화 후 withdrawal endpoint 활성화 순서를 정의했다. Apple authorization revoke material은 일반 lifecycle에 저장하지 않고 PoC·보안 경계가 확정되기 전 production activation을 금지했다.
+- 실행한 테스트와 결과: 계획 문서만 변경해 Gradle 테스트는 실행하지 않았다. 종료 전 `git diff --check`, 새 문서 링크, WORKLOG EOF append를 검증한다.
+- 유지한 계약: 내부 탈퇴를 Firebase 장애로 되돌리지 않고 외부 mutation은 Mongo Transaction 밖에서 수행한다. Firebase UID·provider subject·email·phone을 target 추정 키로 사용하지 않으며 Token·credential·SDK 원문 오류·Secret을 lifecycle·로그·문서에 기록하지 않는다. identity release·`CLEANED`·재가입은 Stage 3 범위로 유지한다.
+- 결정사항: Stage 2 terminal은 `IDENTITY_RELEASE_PENDING`이다. `EXTERNAL_CLEANUP_COMPLETED`는 외부 삭제 증적 상태로 먼저 저장하고 별도 local CAS가 Stage 3 인계 상태로 이동해 crash 사이 상태도 복구한다. 공개 cleanup API와 운영 UI는 추가하지 않는다.
+- 위험 요소: Firebase delete timeout의 결과 불명, lease 경계에서 늦은 worker, configured project mismatch와 Apple revoke material 부재를 해결하지 않으면 잘못된 외부 삭제 또는 영구 pending이 발생할 수 있다. 실제 Admin SDK timeout과 lease duration은 staging에서 검증해야 한다.
+- 다음 작업: 새 `TMI-104` 구현 브랜치에서 failure code·retry policy, lifecycle claim/CAS custom Repository와 동시성 integration test부터 작성한다.
+
+## 2026-08-25 — TMI-104 계획서 작성 결과 turn 동기화
+
+<!-- codex-turn:01a03784-891d-7313-908a-585b9861de56 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-104` (추가 조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: Stage 2 Firebase 외부 cleanup worker 계획서와 구현 순서 문서 연결 결과를 현재 종료 turn 기준으로 작업 기록에 동기화한다.
+- 변경 파일: `docs/contracts/firebase-withdrawal-external-cleanup-stage-2-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: atomic claim·lease token·version fencing, target guard, disable→revoke→Provider 의무→delete, 결과 불명 presence 확인, retry/reconciliation, scheduler·feature flag, 테스트·staging·Stage 3 인계를 포함한 계획서를 저장했다.
+- 실행한 테스트와 결과: 문서만 변경해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 새 계획서 존재와 구현 순서 링크, 지정 marker 단일 존재, WORKLOG EOF append를 검증한다.
+- 유지한 계약: 외부 Firebase mutation은 Mongo Transaction 밖에서 처리하고 identity release·`CLEANED`·재가입은 Stage 3으로 유지했다. Token·credential·SDK 원문 오류·Secret·Password·실제 Key·전체 MongoDB URI와 개인정보를 기록하지 않았다.
+- 결정사항: Stage 2 terminal은 `IDENTITY_RELEASE_PENDING`이며 Apple revoke material의 안전한 경로가 검증되기 전에는 관련 production withdrawal을 활성화하지 않는다.
+- 위험 요소: delete timeout, stale worker, project mismatch와 Apple revoke material 부재는 presence 확인·fencing·reconciliation 및 staging 검증이 필요하다.
+- 다음 작업: 새 `TMI-104` 구현 브랜치에서 failure code·retry policy와 lifecycle claim/CAS Repository 테스트부터 구현한다.
+
+## 2026-08-25 — TMI-104 저장소 계획서 요청 정정 확인
+
+<!-- codex-turn:01a0378a-bbc6-7932-834e-e9693dc92eb5 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-104-firebase-withdrawal-cleanup-worker` (Codex commit·push 미수행)
+- Jira: `TMI-104` (조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: 사용자가 요청한 계획서의 위치가 Jira가 아니라 저장소 문서임을 정정하고 기존 생성 결과를 재확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 기존 계획서 `docs/contracts/firebase-withdrawal-external-cleanup-stage-2-plan.md`와 구현 순서 문서는 내용 변경 없이 재확인했다. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: `TMI-104` Stage 2 구현 계획서가 저장소에 존재하고 `docs/contracts/firebase-auth-follow-up-implementation-order.md`의 2단계에서 링크되는 것을 확인했다. 현재 브랜치가 `feat/TMI-104-firebase-withdrawal-cleanup-worker`인 것도 반영했다.
+- 실행한 테스트와 결과: 문서 위치와 연결만 확인했으므로 Gradle 테스트는 실행하지 않았다. `git diff --check`, 계획서 파일 존재, 구현 순서 링크와 지정 marker 단일 존재, WORKLOG EOF append를 검증한다.
+- 유지한 계약: Jira에는 어떤 추가 변경도 수행하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 계획서는 Jira 본문이 아니라 저장소 계약 문서로 관리하며, 이후 구현은 해당 문서를 범위와 순서의 기준으로 사용한다.
+- 위험 요소: 계획서가 아직 커밋되지 않은 untracked 파일이므로 사용자가 커밋할 때 누락하지 않아야 한다.
+- 다음 작업: 계획서에 따라 failure code·retry policy와 lifecycle claim/CAS Repository 테스트부터 구현한다.
+
+## 2026-08-25 — TMI-104 target guard와 Firebase inspect 설명
+
+<!-- codex-turn:01a037bd-23f0-7063-a900-f507853ad7f5 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-104-firebase-withdrawal-cleanup-worker` (Codex commit·push 미수행)
+- Jira: `TMI-104` (조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: Stage 2 실행 순서의 `User·FirebaseIdentity target preflight guard`와 `Firebase account inspect`가 각각 무엇을 검증하는지 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계획서 내용은 변경하지 않았다.
+- 구현 내용: preflight guard는 내부 MongoDB에서 lifecycle의 User가 존재하고 `WITHDRAWN`인지, FirebaseIdentity의 userId·project·UID가 lifecycle snapshot과 일치하는지, 현재 claim의 status·lease token·version이 유효한지를 확인한다. 불일치는 외부 호출 없이 reconciliation으로 분류한다.
+- 구현 내용: account inspect는 검증된 project·UID로 Firebase `getUser`를 호출해 외부 User의 존재 여부, disabled 상태와 Provider 삭제 의무 판정에 필요한 provider 집합을 읽는 외부 조회다. 이미 부재하면 멱등 성공으로 수렴하고, email·phone·provider subject로 target을 추정하지 않는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명 작업이라 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase mutation 전에 내부 ownership과 worker fencing을 확인하며, 민감한 외부 계정 속성을 lifecycle·로그·작업 기록에 저장하지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: preflight는 내부 정합성 검증이고 inspect는 외부 현재 상태 조회로 분리한다. 두 단계 모두 write가 아니며 실제 disable·revoke·delete는 이후 단계에서만 실행한다.
+- 위험 요소: 둘을 생략하거나 합쳐 mismatch를 `NOT_FOUND` 성공으로 처리하면 다른 Firebase User를 삭제하거나 내부 데이터 불일치를 숨길 수 있다.
+- 다음 작업: 계획서에 따라 target guard와 cleanup port를 구현할 때 mismatch·not-found·provider snapshot 테스트를 분리해 작성한다.
+
+## 2026-08-25 — TMI-104 Firebase 탈퇴 외부 cleanup worker 구현
+
+<!-- codex-turn:01a037c0-886a-7ec0-a290-fef1c1330e8a -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-104-firebase-withdrawal-cleanup-worker` (Codex commit·push 미수행)
+- Jira: `TMI-104`. 구현 전 Atlassian 공식 연결로 읽기 전용 검색을 시도했으나 현재 인스턴스에 연결 앱이 설치되지 않았다는 403 응답을 받아 재조회하지 못했다. Jira 수정·댓글·상태 전환은 수행하지 않았다.
+- 작업 목표: Stage 1의 `EXTERNAL_CLEANUP_PENDING` lifecycle을 안전하게 claim해 Firebase User를 disable·refresh revoke·Provider 의무 처리·delete하고, 삭제 확인 후 Stage 3 `IDENTITY_RELEASE_PENDING`으로 인계하는 비동기 worker를 구현한다.
+- 변경 파일: `UserWithdrawalLifecycle.java`와 신규 `WithdrawalCleanupFailureCode.java`; `UserWithdrawalLifecycleRepository.java`와 신규 custom interface·`UserWithdrawalLifecycleRepositoryImpl.java`; `domain/user/application`의 cleanup port·snapshot·presence·provider·exception·retry policy·target guard·worker·outcome·provider result; Firebase infrastructure의 `FirebaseSdkWithdrawalCleanupAdapter.java`, `FirebaseWithdrawalCleanupAppHandle.java`; user infrastructure의 properties·configuration·scheduler; `application.yml`, `application-test.yml`, Stage 2 계획서와 Codex 상태 문서.
+- 변경 파일: 신규 테스트 `UserWithdrawalLifecycleRepositoryIntegrationTests`, `WithdrawalCleanupRetryPolicyTests`, `WithdrawalCleanupTargetGuardTests`, `UserWithdrawalExternalCleanupWorkerTests`, `FirebaseSdkWithdrawalCleanupAdapterTests`, `FirebaseWithdrawalCleanupAppHandleTests`, `UserWithdrawalExternalCleanupPropertiesTests`, `UserWithdrawalExternalCleanupSchedulerTests`를 추가했다. 기존 사용자 미커밋 문서 변경은 보존했다.
+- 구현 내용: `findAndModify`로 pending·due retry·expired in-progress lifecycle을 오래된 순서로 atomic claim하고 claim마다 새 lease token을 저장한다. 모든 renew·retry·reconciliation·complete update를 withdrawalId·status·lease token·version으로 fencing하고 version을 증가시킨다. completed lifecycle은 외부 claim과 분리한 local atomic handoff로 `IDENTITY_RELEASE_PENDING`에 이동한다.
+- 구현 내용: target guard는 현재 claim·lease 만료·version, WITHDRAWN User와 FirebaseIdentity의 userId·project·UID 일치를 검사한다. mismatch·부분 null target은 Firebase mutation 0건으로 reconciliation하고 완전 null LOCAL/GUEST target은 외부 호출 없이 completed로 수렴한다. email·phone·provider subject로 target을 추정하지 않는다.
+- 구현 내용: cleanup 전용 Firebase App과 독립 connect/read timeout을 추가했다. adapter는 configured project 일치 후 inspect, disable, refresh revoke, delete와 presence 확인을 SDK에 매핑하고 안전한 enum 오류만 외부에 노출한다. Firebase User 부재는 멱등 성공이며 delete timeout·unavailable·unknown은 presence를 재조회한다. Google·Kakao는 현재 upstream 계정 삭제 의무가 없고 Apple은 승인된 revoke material 경로가 없으므로 reconciliation으로 차단한다.
+- 구현 내용: retryable 오류는 attempt 기반 지수 backoff와 주입 가능한 bounded jitter를 사용한다. max attempt 초과 여부는 마지막 안전한 failure code와 별도 boolean으로 보존한다. scheduler는 completed handoff를 먼저 처리한 뒤 max batch 안에서 due cleanup을 순차 실행하며 기본 `enabled=false`다. cleanup 활성화 시 Firebase auth·project·양수 설정·batch 범위·단일 호출보다 긴 lease를 fail-closed 검증한다.
+- 구현 내용: metric과 구조화 로그는 outcome·failure code·attempt bucket만 사용하고 NONE tick은 로그를 남기지 않는다. userId·Firebase UID·project·email·phone·provider subject·Token·credential·SDK 원문 message를 로그·metric label·snapshot·lifecycle 오류에 추가하지 않았다.
+- 실행한 테스트와 결과: 단계별 targeted test를 반복 실행해 Repository update conflict와 테스트 fixture 문제를 수정했다. 최종 `./gradlew clean test`에서 전체 541개 테스트가 failure 0·error 0·skip 0으로 성공했다. `git diff --check`도 통과했다.
+- 유지한 계약: 내부 User `WITHDRAWN`과 RefreshSession 폐기를 Firebase 장애로 되돌리지 않는다. Firebase 네트워크 호출을 Mongo Transaction에 넣지 않고, FirebaseIdentity·SocialIdentity·PhoneIdentity release와 `CLEANED`·재가입은 Stage 3 범위로 유지했다. 공개 API, 기존 응답, Identity JWT, Learning Core 계약과 phone eligibility 소유권은 변경하지 않았다.
+- 결정사항: 로그인 검증과 탈퇴 cleanup의 Firebase timeout을 분리하기 위해 cleanup 전용 named Firebase App을 사용한다. Stage 2 local terminal은 `IDENTITY_RELEASE_PENDING`이며 implementation-order 체크는 실제 Firebase·Mongo staging E2E와 Apple revoke gate가 끝날 때까지 완료로 표시하지 않는다.
+- 위험 요소: 실제 Firebase 권한·rate limit·timeout 결과와 Mongo lease takeover는 staging에서 검증하지 못했다. Apple authorization revoke material 경로도 미확정이므로 Apple lifecycle은 자동 삭제하지 않고 reconciliation으로 남는다. 이 검증 전 `FIREBASE_WITHDRAWAL_CLEANUP_ENABLED`와 `FIREBASE_WITHDRAWAL_ENABLED`를 production에서 활성화하면 안 된다.
+- 다음 작업: 사용자가 변경을 커밋·PR한 뒤 staging에서 정상·already deleted·delete timeout absent/present·worker crash·동시 claim·stale completion·권한 오류를 검증하고 Apple revoke 경로를 확정한다. 그 후 Stage 3 Firebase/Social/Phone release와 `CLEANED` 재가입 gate 계획을 작성한다.

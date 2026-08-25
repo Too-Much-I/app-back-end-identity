@@ -7,7 +7,7 @@
 ## 구현 체크리스트
 
 1. [ ] [Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle](firebase-withdrawal-lifecycle-stage-1-plan.md)
-2. [ ] Firebase disable·refresh revoke·delete worker
+2. [ ] [Firebase disable·refresh revoke·delete worker](firebase-withdrawal-external-cleanup-stage-2-plan.md)
 3. [ ] FirebaseIdentity·SocialIdentity·PhoneIdentity release와 `CLEANED` 재가입 gate
 4. [ ] 가입 중단 Firebase User cleanup
 5. [ ] Billing 최소 Entitlement consumer 배포

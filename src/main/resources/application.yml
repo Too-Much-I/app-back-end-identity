@@ -69,6 +69,16 @@ app:
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
   firebase-withdrawal:
     enabled: ${FIREBASE_WITHDRAWAL_ENABLED:false}
+  firebase-withdrawal-cleanup:
+    enabled: ${FIREBASE_WITHDRAWAL_CLEANUP_ENABLED:false}
+    fixed-delay: ${FIREBASE_WITHDRAWAL_CLEANUP_FIXED_DELAY:PT5S}
+    lease-duration: ${FIREBASE_WITHDRAWAL_CLEANUP_LEASE_DURATION:PT1M}
+    max-attempts: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_ATTEMPTS:12}
+    initial-backoff: ${FIREBASE_WITHDRAWAL_CLEANUP_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_BACKOFF:PT1H}
+    max-batch-size: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_BATCH_SIZE:20}
+    connect-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_READ_TIMEOUT:PT5S}
   guest-merge:
     enabled: ${GUEST_MERGE_ENABLED:false}
   phone-identity:
