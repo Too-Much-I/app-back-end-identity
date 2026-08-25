@@ -25,6 +25,7 @@ import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIss
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
@@ -40,6 +41,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final FirebaseEnrollmentAttemptService enrollmentAttemptService;
 	private final Clock clock;
+	private final UserWithdrawalLifecycleRepository withdrawalLifecycleRepository;
 
 	public FirebaseExchangeService(
 			FirebaseAuthenticationVerifier authenticationVerifier,
@@ -50,6 +52,22 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			RefreshSessionIssuer refreshSessionIssuer,
 			FirebaseEnrollmentAttemptService enrollmentAttemptService,
 			Clock clock
+	) {
+		this(authenticationVerifier, firebaseIdentityRepository, socialIdentityRepository,
+				userRepository, accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService,
+				clock, null);
+	}
+
+	public FirebaseExchangeService(
+			FirebaseAuthenticationVerifier authenticationVerifier,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			UserRepository userRepository,
+			AccessTokenIssuer accessTokenIssuer,
+			RefreshSessionIssuer refreshSessionIssuer,
+			FirebaseEnrollmentAttemptService enrollmentAttemptService,
+			Clock clock,
+			UserWithdrawalLifecycleRepository withdrawalLifecycleRepository
 	) {
 		this.authenticationVerifier = Objects.requireNonNull(
 				authenticationVerifier,
@@ -80,6 +98,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 				"enrollmentAttemptService must not be null"
 		);
 		this.clock = Objects.requireNonNull(clock, "clock must not be null");
+		this.withdrawalLifecycleRepository = withdrawalLifecycleRepository;
 	}
 
 	@Override
@@ -126,6 +145,11 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 						AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT
 				));
 		if (user.getStatus() != UserStatus.ACTIVE || !user.isMember()) {
+			if (user.getStatus() == UserStatus.WITHDRAWN
+					&& withdrawalLifecycleRepository != null
+					&& withdrawalLifecycleRepository.findByUserId(user.getUserId()).isPresent()) {
+				throw new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
+			}
 			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
 		}
 		ensureNoSocialIdentityOwner(principal, user.getUserId());

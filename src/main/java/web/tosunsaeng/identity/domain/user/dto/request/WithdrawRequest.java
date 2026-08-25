@@ -22,8 +22,19 @@ public record WithdrawRequest(
 				nullable = true
 		)
 		@Size(max = 64, message = "비밀번호는 64자 이하여야 합니다.")
-		String password
+		String password,
+
+		@Schema(
+				description = "Firebase/SNS 회원의 최근 인증 Firebase ID Token",
+				accessMode = Schema.AccessMode.WRITE_ONLY,
+				nullable = true
+		)
+		@Size(max = 16384, message = "Firebase 인증 정보가 너무 깁니다.")
+		String firebaseIdToken
 ) {
+	public WithdrawRequest(String refreshToken, String password) {
+		this(refreshToken, password, null);
+	}
 
 	@Override
 	public String toString() {

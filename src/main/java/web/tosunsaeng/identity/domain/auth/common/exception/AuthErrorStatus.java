@@ -41,6 +41,21 @@ public enum AuthErrorStatus implements ErrorCode {
 			"INVALID_WITHDRAWAL_CREDENTIALS",
 			"회원 탈퇴 인증 정보가 올바르지 않습니다."
 	),
+	WITHDRAWAL_FIREBASE_PROOF_REQUIRED(
+			HttpStatus.BAD_REQUEST,
+			"WITHDRAWAL_FIREBASE_PROOF_REQUIRED",
+			"Firebase 회원 탈퇴에는 최근 Firebase 인증이 필요합니다."
+	),
+	WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH",
+			"계정 유형과 회원 탈퇴 인증 방식이 일치하지 않습니다."
+	),
+	WITHDRAWAL_CLEANUP_PENDING(
+			HttpStatus.CONFLICT,
+			"WITHDRAWAL_CLEANUP_PENDING",
+			"회원 탈퇴 후 계정 정보를 정리하고 있습니다."
+	),
 	INVALID_FIREBASE_ID_TOKEN(
 			HttpStatus.UNAUTHORIZED,
 			"INVALID_FIREBASE_ID_TOKEN",

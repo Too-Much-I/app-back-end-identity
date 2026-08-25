@@ -330,7 +330,7 @@ class UserWithdrawalServiceTests {
 	void requestContainsNoTargetSelectorAndRedactsCredentials() {
 		assertThat(Arrays.stream(WithdrawRequest.class.getRecordComponents())
 				.map(RecordComponent::getName))
-				.containsExactly("refreshToken", "password")
+				.containsExactly("refreshToken", "password", "firebaseIdToken")
 				.doesNotContain("userId", "installationId", "isConfirmed");
 		assertThat(new WithdrawRequest(REFRESH_VALUE, PASSWORD).toString())
 				.isEqualTo("WithdrawRequest[redacted]")

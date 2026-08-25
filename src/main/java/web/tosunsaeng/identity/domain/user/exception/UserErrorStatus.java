@@ -26,6 +26,11 @@ public enum UserErrorStatus implements ErrorCode {
 			"WITHDRAWAL_CONFLICT",
 			"회원 탈퇴 처리 중 사용자 정보가 변경되었습니다. 다시 시도해 주세요."
 	),
+	WITHDRAWAL_LIFECYCLE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"WITHDRAWAL_LIFECYCLE_CONFLICT",
+			"회원 탈퇴 정리 상태를 확인할 수 없습니다."
+	),
 	USER_UPDATE_CONFLICT(
 			HttpStatus.CONFLICT,
 			"USER_UPDATE_CONFLICT",

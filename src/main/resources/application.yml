@@ -67,6 +67,8 @@ app:
     read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
     enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  firebase-withdrawal:
+    enabled: ${FIREBASE_WITHDRAWAL_ENABLED:false}
   guest-merge:
     enabled: ${GUEST_MERGE_ENABLED:false}
   phone-identity:
