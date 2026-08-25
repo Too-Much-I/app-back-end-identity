@@ -7,7 +7,8 @@ public enum FirebaseVerificationPurpose {
 	GUEST_ENROLLMENT(true),
 	GUEST_MERGE(false),
 	AUTH_METHOD_SYNC(false),
-	HIGH_RISK_REAUTHENTICATION(false);
+	HIGH_RISK_REAUTHENTICATION(false),
+	WITHDRAWAL(false);
 
 	private final boolean enrollment;
 

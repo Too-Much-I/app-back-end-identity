@@ -4764,3 +4764,659 @@
 - 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. 마지막 확인 상태는 `해야 할 일`, Resolution 없음이며 이번 turn에는 OAuth 문제로 재확인하지 못했다.
 - 승인 여부: 사용자는 TMI-98 구현을 명시적으로 요청했다. Jira mutation은 요청·승인하지 않았으므로 수행하지 않았다.
 - 다음 작업: 사용자가 diff를 검토해 직접 commit·push·PR을 진행한다. 별도 Learning Core Jira에서 멱등 `UserMerged` consumer·eventId inbox·source deny marker·학습 데이터 이전을 구현하고 staging E2E를 통과한 뒤에만 merge와 publisher flag 활성화를 검토한다.
+
+## 2026-08-20 — Jira TMI-98 종료 시도 및 Atlassian 연결 차단 확인
+
+<!-- codex-turn:01a01ce8-5717-7081-9724-23a7232df794 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `develop`
+- 작업 목표: PR 병합 상태를 근거로 TMI-98의 현재 Jira 상태와 완료 전환을 재조회하고, 종료 댓글 및 완료 전환을 사용자 승인 뒤 적용한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: Git 이력 기준 PR #29가 merge commit `91671ce`로 `develop`과 `origin/develop`에 반영됐고 구현 commit `b8df69f`가 포함된 상태를 유지했다. 애플리케이션 코드는 변경하지 않았다.
+- 수행한 Jira 작업: Atlassian 공식 MCP의 접근 가능 리소스 조회를 시도했으나 OAuth refresh가 `unauthorized_client`로 실패해 TMI-98 조회, 댓글 등록, 상태 전환을 수행하지 못했다.
+- 추가한 댓글의 목적: Guest merge API, MERGED tombstone/CAS, source Session의 `GUEST_MERGED` 폐기, target Session·`UserMergedOutbox` Transaction, MERGED JWT gate, lease/retry/dead-letter publisher, 전체 496개 테스트 성공과 남은 Learning Core consumer·staging E2E 위험을 요약하려 했으나 등록하지 않았다.
+- 변경한 상태: TMI-98 상태와 Resolution을 변경하지 않았다. 마지막 확인값은 `해야 할 일`, Resolution 없음이며 이번 turn에는 연결 실패로 재검증하지 못했다.
+- 승인 여부: 사용자는 TMI-98 종료를 명시적으로 요청했다. 다만 Jira 변경 전 정확한 댓글·전환을 보여주고 별도 승인을 받는 저장소 규칙을 충족하기 전에 연결이 차단됐다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 새로 실행하지 않았다. 구현 당시 `./gradlew clean test` 전체 496개와 후속 `./gradlew test` 성공 기록을 확인했다. 문서 변경 후 `git diff --check`를 실행한다.
+- 유지한 계약: PR 병합 확인 전 Done 전환 금지 계약을 충족했고, Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 Jira나 문서에 기록하지 않았다. Git commit·push를 수행하지 않았다.
+- 결정사항: 이전 workflow의 완료 transition ID를 추정해 사용하지 않고 Atlassian 연결 복구 뒤 현재 가능한 transition을 반드시 재조회한다. 댓글 등록과 상태 전환은 사용자에게 정확한 변경안을 제시하고 승인받은 뒤 수행한다.
+- 위험 요소: Atlassian OAuth 연결이 복구될 때까지 Jira 상태가 코드 병합 상태와 불일치한다. Learning Core consumer와 source deny marker, staging Mongo Transaction·publisher workload identity E2E는 여전히 별도 후속 범위다.
+- 다음 작업: Atlassian MCP를 재연결하고 TMI-98 상태·전환을 읽기 전용으로 확인한 뒤, 종료 댓글 초안과 완료 transition을 사용자에게 제시해 승인받고 적용·재검증한다.
+
+## 2026-08-20 — Jira TMI-98 종료 전 상태·전환 재확인
+
+<!-- codex-turn:01a01ceb-3e6b-7ce0-9bfa-e48a6debffc1 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `develop`
+- 작업 목표: 병합 완료된 TMI-98의 현재 상태와 완료 전환을 공식 Atlassian MCP로 재확인하고, 저장소 승인 규칙에 따라 정확한 변경안을 사용자에게 제시한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 애플리케이션 코드는 변경하지 않았다. PR #29가 `develop`에 병합됐다는 기존 검증 결과를 유지하고 Jira 종료에 필요한 현재 상태와 전환만 읽기 전용으로 확인했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP로 TMI-98의 설명·완료 조건·현재 상태와 사용 가능한 전환을 조회했다. 현재 상태는 `해야 할 일`, Resolution 없음이며 `완료` transition ID `41`이 사용 가능하다. 이슈 수정·댓글·상태 전환·삭제는 수행하지 않았다.
+- 추가한 댓글의 목적: 댓글을 추가하지 않으며 종료 전환만 적용하는 최소 변경안을 제시했다.
+- 변경한 상태: 상태와 Resolution을 변경하지 않았다. 사용자 승인 시 TMI-98에 transition ID `41`만 적용해 `완료`로 변경할 예정이다.
+- 승인 여부: 사용자는 Jira 종료를 요청했다. 저장소 규칙에 따라 이슈 키, 현재 상태, 목표 상태와 정확한 transition ID를 먼저 보여준 뒤 최종 승인을 기다린다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 실행하지 않았다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: Jira 조회에는 공식 Atlassian MCP만 사용했다. Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 Jira나 문서에 기록하지 않았고 Git commit·push를 수행하지 않았다.
+- 결정사항: 댓글과 다른 필드는 변경하지 않고 승인 후 `해야 할 일`에서 `완료`로 가는 transition ID `41`만 적용한다. 적용 직후 상태와 Resolution을 재조회한다.
+- 위험 요소: 상태 전환 전까지 Jira 상태가 이미 병합된 코드 상태와 불일치한다. Learning Core consumer·source deny marker 및 staging Mongo Transaction·publisher E2E는 별도 후속 범위로 남는다.
+- 다음 작업: 사용자의 최종 승인을 받으면 transition ID `41`만 적용하고 `완료` 상태와 Resolution을 검증한 뒤 작업 기록을 다시 갱신한다.
+
+## 2026-08-20 — Jira TMI-98 완료 전환
+
+<!-- codex-turn:01a01cec-145f-72e2-8a68-43436aa8dc06 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `develop`
+- 작업 목표: 사용자 승인에 따라 병합 완료된 TMI-98을 Jira에서 완료 처리하고 상태와 Resolution을 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 애플리케이션 코드는 변경하지 않았다. TMI-98의 Jira 행정 종료 결과를 현재 상태 문서와 작업 기록에 반영했다.
+- 수행한 Jira 작업: Atlassian 공식 MCP의 `transitionJiraIssue`로 TMI-98에 transition ID `41`만 적용했다. 후속 `getJiraIssue` 조회에서 status ID `10003`의 상태 `완료`와 Resolution ID `10000`의 `완료`를 확인했다.
+- 추가한 댓글의 목적: 댓글을 추가하지 않았다.
+- 변경한 상태: TMI-98을 `해야 할 일`에서 `완료`로 변경했고 Resolution도 `완료`로 설정된 것을 검증했다. 다른 Jira 이슈나 필드는 변경하지 않았다.
+- 승인 여부: 사용자가 이슈 키·현재 상태·목표 상태·transition ID와 댓글 미등록 방침을 확인한 뒤 완료 전환을 명시적으로 승인했다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 새로 실행하지 않았다. 구현 당시 `./gradlew clean test` 전체 496개와 후속 `./gradlew test` 성공 기록을 유지하며 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: PR 병합을 확인한 뒤에만 Jira를 Done으로 변경했고 공식 Atlassian MCP만 사용했다. Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 Jira나 문서에 기록하지 않았으며 Git commit·push를 수행하지 않았다.
+- 결정사항: 승인 범위대로 완료 transition ID `41` 이외의 Jira mutation은 수행하지 않았다. TMI-98 구현과 행정적 종료는 모두 완료됐지만 downstream consumer와 staging E2E 전에는 merge와 publisher 기능을 활성화하지 않는다.
+- 위험 요소: Learning Core의 멱등 `UserMerged` consumer·source deny marker·학습 데이터 이전과 staging Mongo Transaction·publisher workload identity E2E가 별도 후속 범위로 남는다.
+- 다음 작업: 별도 Jira에서 Learning Core consumer와 source deny marker를 설계·구현하고 staging E2E를 통과한 뒤에만 `GUEST_MERGE_ENABLED`와 `USER_MERGED_PUBLISHER_ENABLED` 활성화를 검토한다.
+
+## 2026-08-20 — Jira TMI-98 종료 기록 turn marker 보정
+
+<!-- codex-turn:01a01cec-5390-7c21-93f9-f47d4dea1d70 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98
+- 브랜치: `develop`
+- 작업 목표: 현재 turn의 hook 요구에 맞춰 TMI-98 완료 전환 결과를 정확한 turn marker로 작업 기록에 append하고 CURRENT_STATE를 최신 상태로 유지한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 과거 WORKLOG 항목을 수정하거나 삭제하지 않고 현재 turn marker를 포함한 보정 항목을 파일 끝에 추가했다. 애플리케이션 코드는 변경하지 않았다.
+- 수행한 Jira 작업: 앞선 사용자 승인에 따라 TMI-98에 완료 transition ID `41`만 적용했고 후속 조회에서 상태와 Resolution이 모두 `완료`임을 검증했다. 이번 보정 단계에서는 추가 Jira 조회·수정·댓글·상태 전환·삭제를 수행하지 않았다.
+- 추가한 댓글의 목적: 댓글을 추가하지 않았다.
+- 변경한 상태: 이번 보정 단계에서 Jira 상태를 추가 변경하지 않았다. TMI-98은 검증된 `완료` 상태와 `완료` Resolution을 유지한다.
+- 승인 여부: 사용자가 TMI-98 완료 전환을 명시적으로 승인했으며, 이번 문서 보정은 hook의 작업 기록 요구에 따른 것이다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 재실행하지 않았다. 문서 변경은 `git diff --check`와 turn marker 존재 여부로 검증한다.
+- 유지한 계약: 공식 Atlassian MCP만 사용했고 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 Jira나 문서에 기록하지 않았다. Git commit·push를 수행하지 않았다.
+- 결정사항: TMI-98 구현과 Jira 행정 종료는 완료됐다. merge와 publisher 기능은 downstream consumer 및 staging E2E 전까지 기본 비활성으로 유지한다.
+- 위험 요소: Learning Core 멱등 consumer·source deny marker·학습 데이터 이전과 staging Mongo Transaction·publisher workload identity E2E가 별도 후속 범위로 남는다.
+- 다음 작업: 별도 Jira에서 downstream consumer와 staging E2E 범위를 진행한다.
+
+## 2026-08-20 — TMI-98 후속 작업 설명
+
+- 날짜: 2026-08-20
+- Jira: TMI-98 후속 작업, 아직 미생성
+- 브랜치: `develop`
+- 작업 목표: 완료된 Identity Guest merge 다음에 필요한 Learning Core consumer와 staging E2E의 목적·범위·순서를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: Identity는 이미 `UserMerged` v1 outbox와 at-least-once publisher, MERGED source token gate를 구현했다. 다음 구현은 별도 Learning Core 저장소에서 eventId inbox, source→target 학습 데이터 ownership 이전, source actor deny marker를 같은 로컬 Transaction으로 처리하는 consumer다.
+- 구현 내용: consumer는 중복 event를 멱등 성공시키고 같은 eventId의 다른 payload를 충돌로 거절해야 한다. source deny marker는 authorization alias가 아니므로 source JWT를 target 권한으로 바꾸지 않고 거절해야 한다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환·삭제를 수행하지 않았다. 후속 Jira는 사용자 승인 전 생성하지 않는다.
+- 추가한 댓글의 목적: 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다. TMI-98은 상태와 Resolution 모두 `완료`다.
+- 승인 여부: 사용자는 다음 작업의 설명만 요청했으며 Jira mutation이나 코드 구현은 요청하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 실행하지 않았다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: Learning Core 코드를 Identity 저장소에 추가하지 않고, client userId를 신뢰하지 않으며 Python AI의 `user_id=examId` 계약을 유지한다. Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 기록하지 않았다.
+- 결정사항: 실행 순서는 Learning Core consumer 구현·배포, 양 서비스 staging E2E, Identity publisher 활성화, Guest merge 활성화다. consumer와 source deny marker가 준비되기 전 두 Identity feature flag는 false를 유지한다.
+- 위험 요소: consumer 없이 merge를 활성화하면 Learning Core 데이터가 source에 남고 기존 source Access Token이 만료 전까지 downstream에서 허용될 수 있다. at-least-once 중복, 부분 실패, 이벤트 순서, publisher 재시작과 lease 회수를 staging에서 검증해야 한다.
+- 다음 작업: 별도 Jira Payload를 사용자에게 먼저 제시해 승인받고, Learning Core 저장소에서 consumer와 deny marker를 구현한 뒤 staging E2E를 수행한다.
+
+## 2026-08-20 — TMI-98 후속 작업 설명 기록 확인
+
+<!-- codex-turn:01a01cee-5fdc-7943-a53a-8830656a91d0 -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98 후속 작업, 아직 미생성
+- 브랜치: `develop`
+- 작업 목표: 현재 turn의 hook marker와 함께 TMI-98 다음 작업 설명 결과를 작업 기록에 남기고 CURRENT_STATE를 최신화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`
+- 구현 내용: 다음 작업을 별도 Learning Core 저장소의 `UserMerged` v1 멱등 consumer, eventId inbox, source→target ownership 이전, source actor deny marker와 staging E2E로 설명했다. 애플리케이션 코드는 변경하지 않았다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환·삭제를 수행하지 않았다. TMI-98은 상태와 Resolution 모두 `완료`를 유지한다.
+- 추가한 댓글의 목적: 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태를 변경하지 않았다.
+- 승인 여부: 사용자는 다음 작업 설명만 요청했으며 Jira mutation이나 구현은 승인·요청하지 않았다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트를 실행하지 않았다. 문서 변경은 `git diff --check`와 현재 turn marker 존재 여부로 검증한다.
+- 유지한 계약: Learning Core 코드를 Identity 저장소에 추가하지 않았고 UUID userId·JWT·Python AI `examId` 계약을 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 기록하지 않았으며 Git commit·push를 수행하지 않았다.
+- 결정사항: Learning Core consumer와 staging E2E가 준비된 뒤 Identity publisher를 활성화하고 Guest merge는 마지막에 활성화한다. 준비 전 두 feature flag는 false를 유지한다.
+- 위험 요소: consumer 없이 merge를 활성화하면 source 학습 데이터와 source Access Token 처리의 downstream 불일치가 발생할 수 있다.
+- 다음 작업: 사용자가 원하면 별도 Learning Core Jira의 제목·설명·완료 조건·제외 범위 Payload를 먼저 작성해 승인받는다.
+
+## 2026-08-20 — Learning Core UserMerged consumer 구현 인계 문서 작성
+
+<!-- codex-turn:01a01cf0-62a7-7fe1-a41d-3efeb4eea11f -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98 후속 Learning Core 작업
+- 브랜치: `develop` (`91671ce`, `origin/develop`과 일치, commit·push 미수행)
+- 작업 목표: Identity TMI-98 다음 단계인 Learning Core `UserMerged` v1 consumer 구현을 다른 저장소에 그대로 전달할 수 있는 독립적인 계약·완료 조건 문서로 작성한다.
+- 변경 파일: `docs/contracts/learning-core-user-merged-consumer-handoff.md`를 새로 작성하고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: 현재 구현된 `UserMergedWireEvent`를 기준으로 eventId, schemaVersion 1, sourceUserId, targetUserId, occurredAt의 정확한 JSON 계약과 canonical UUID·source/target 불일치·4 KiB 상한·개인정보 비포함 불변식을 기록했다. v1에는 eventType이 없고 전용 endpoint와 schemaVersion으로 계약을 식별함을 명시했다.
+- 구현 내용: Identity publisher의 HTTPS POST, workload identity Bearer credential, redirect 금지, at-least-once 전달, 모든 2xx 성공, 408·425·429·5xx 재시도, 나머지 3xx·4xx 영구 격리 동작을 코드와 일치시켰다. 동일 eventId·동일 payload duplicate에는 409가 아니라 2xx를 반환해야 함을 강조했다.
+- 구현 내용: Learning Core가 eventId unique inbox와 payload digest를 소유하고 source ownership migration, aggregate별 충돌 정책, source actor deny marker, inbox 완료를 같은 local Transaction으로 처리하도록 요구했다. source mapping은 migration·감사용이며 source JWT를 target authorization alias로 사용하지 않는 금지 규칙을 포함했다.
+- 구현 내용: 시험·결과·풀이 진행·10초 챌린지·스트릭·단어장 등 실제 Learning Core aggregate inventory, direct 또는 durable inbox+worker 처리 선택, concurrency·rollback·response loss·restart·workload auth 테스트, metric·민감정보 비노출, consumer→publisher→merge feature 순차 배포와 Identity 협의 항목을 완료 체크리스트로 정리했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. Learning Core Jira는 생성하지 않고 인계 문서만 작성했다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. Identity TMI-98은 완료 상태를 유지한다.
+- 승인 여부: 사용자는 Learning Core에 그대로 붙여 전달할 문서를 Identity 저장소에 작성하도록 요청했다. Learning Core 저장소·서비스·외부 시스템은 변경하지 않았다.
+- 실행한 테스트와 결과: 문서만 변경해 Gradle 테스트를 실행하지 않았다. Identity event mapper·publisher·delivery adapter·configuration·tests를 정적으로 대조했고 `git diff --check`, Markdown code fence 짝, 필수 계약 항목과 Secret·실제 인프라 값 비포함을 검증한다.
+- 유지한 계약: Identity는 User merge와 outbox producer만 소유하고 Learning Core가 시험·결과·학습 데이터와 consumer를 소유한다. source를 target actor로 승격하지 않고 JWT·RS256·JWKS·RefreshSession 계약을 변경하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 기록하지 않았다.
+- 결정사항: endpoint path, workload audience/principal, direct 처리 또는 inbox worker, aggregate별 충돌 정책과 SLA는 Learning Core가 구현 전 확정해 Identity 팀에 공유한다. wire v1 변경이 필요하면 consumer에서 추측하지 않고 새 schemaVersion을 합의한다.
+- 위험 요소: aggregate별 unique 충돌 정책 없이 userId를 일괄 update하면 target 데이터 overwrite·중복·감사 이력 훼손이 발생할 수 있다. consumer와 source deny marker, staging E2E가 준비되기 전에 Identity merge/publisher flag를 활성화하면 source JWT가 Learning Core에서 만료 전까지 사용될 수 있다.
+- 다음 작업: 문서를 Learning Core 저장소에 전달해 별도 Jira·branch를 만들고 실제 aggregate inventory와 충돌 정책을 채운 뒤 consumer 구현·테스트·staging E2E를 수행한다. 완료 후 endpoint와 audience를 Identity staging에 설정하고 consumer, publisher, merge feature 순서로 활성화한다.
+
+## 2026-08-20 — Learning Core UserMerged 인계서 외부 리뷰 반영
+
+<!-- codex-turn:01a01cf7-b779-7633-8231-de261ef2ac4a -->
+
+- 날짜: 2026-08-20
+- Jira: TMI-98 후속 Learning Core 작업
+- 브랜치: `develop` (`91671ce`, `origin/develop`과 일치, commit·push 미수행)
+- 작업 목표: 사용자가 전달한 Learning Core 인계서 리뷰의 P0·동시성·cache·inventory·metric 제안을 실제 Identity producer 구현과 대조해 타당한 내용을 계약 문서에 반영한다.
+- 변경 파일: `docs/contracts/learning-core-user-merged-consumer-handoff.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`를 갱신했다. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않았다.
+- 구현 내용: v1 consumer를 HTTP 요청 안에서 migration·deny·inbox를 commit하는 direct local Transaction으로 고정하고 신규·정상 duplicate는 commit 확인 후 `204`, 처리 중 결과 미확정은 `425` 또는 `503`으로 정했다. `202`와 durable inbox worker 혼합을 금지하고 Identity 기본 read timeout 5초 안의 staging P99 근거가 없으면 활성화하지 않고 계약을 다시 승인하도록 gate를 추가했다.
+- 구현 내용: raw/canonical JSON 전체 digest를 제거하고 domain separator, schemaVersion 1, canonical lowercase source/target UUID, UTC Instant 정규화만 NUL로 구분한 UTF-8 입력의 SHA-256 lowercase hex를 v1 semantic digest로 고정했다. eventId는 unique key로만 쓰고 optional field·property 순서·공백은 digest에서 제외해 호환 필드 추가 정책과 모순을 제거했다.
+- 구현 내용: workload credential type·issuer·JWKS·algorithm·audience·Identity principal·TTL·clock skew·rotation·refresh 책임을 채우는 필수 프로파일 표를 추가하고 사용자용 Access JWT 재사용을 금지했다. 구체값이 TBD이면 staging publisher도 활성화하지 않도록 했다.
+- 구현 내용: Redis 같은 외부 cache 삭제를 DB Transaction에 포함하지 않고 cache invalidation intent/outbox만 같은 Transaction에 저장하도록 정정했다. source write 경쟁을 막기 위해 모든 user-owned write가 같은 per-user ownership guard의 ACTIVE state와 revision을 Transaction 안에서 CAS/touch하고 merge가 같은 guard를 MERGED로 CAS하도록 구체화했다.
+- 구현 내용: ownership inventory를 consumer 구현의 Phase 0 선행 작업과 별도 Jira 분해 대상으로 올리고 직접·간접 ownership, 모든 write 경로, unique 충돌, 예상 처리량, Transaction·cache·audit 규칙을 산출물로 요구했다. 관측 metric은 delivery lag, processing lag, total lag로 분리했다.
+- 수행한 Jira 작업: Jira 조회·생성·수정·댓글·상태 전환을 수행하지 않았다. Learning Core Jira도 생성하지 않았다.
+- 추가한 댓글의 목적: Jira 댓글을 추가하지 않았다.
+- 변경한 상태: Jira 상태나 Resolution을 변경하지 않았다. Identity TMI-98은 완료 상태를 유지한다.
+- 승인 여부: 사용자는 첨부 리뷰를 읽고 타당한 내용을 기존 Learning Core 인계 문서에 반영하도록 요청했다. Learning Core 저장소·서비스·외부 시스템은 변경하지 않았다.
+- 실행한 테스트와 결과: 문서만 변경해 Gradle 테스트를 실행하지 않았다. Identity event mapper·publisher의 payload와 HTTP 분류를 다시 대조했으며 종료 전 `git diff --check`, code fence 짝, marker 단일 존재, direct/worker·digest·workload·cache·guard·inventory·metric 필수 문구와 Secret 비포함을 검증한다.
+- 유지한 계약: source를 target authorization alias로 사용하지 않고 Learning Core ownership migration과 source deny를 같은 local Transaction으로 처리한다. Identity/Learning Core 경계와 UserMerged v1 wire field를 변경하지 않았으며 Secret·Token·Password·실제 Key·전체 MongoDB URI·사용자 개인정보를 기록하지 않았다.
+- 결정사항: direct v1을 채택하되 ownership inventory와 staging P99가 producer timeout 요구를 충족하지 못하면 timeout만 임의 확장하지 않고 durable worker 계약으로 명시적 재설계를 진행한다. aggregate별 정책과 workload identity 구체값이 확정되기 전 구현 완료·feature 활성화를 금지한다.
+- 위험 요소: 모든 source write가 ownership guard와 같은 Transaction에 참여하지 않으면 migration 직후 source 데이터가 다시 생성될 수 있다. direct migration이 Identity read timeout을 넘거나 workload 인증 TBD가 남은 상태에서 활성화하면 retry 폭증 또는 무인증 내부 endpoint 위험이 있다.
+- 다음 작업: 업데이트된 문서를 Learning Core에 전달해 Phase 0 inventory Jira부터 생성하고 workload profile과 aggregate별 충돌 정책을 확정한다. 이후 direct consumer 구현과 staging latency·concurrency·retry E2E를 완료한 뒤 Identity publisher와 merge feature를 순차 활성화한다.
+
+## 2026-08-24 — Learning Core·Identity Sentry 이벤트와 이메일 조건 확인
+
+<!-- codex-turn:01a03176-aecb-7583-9e21-595921287246 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop`
+- Jira: 없음
+- 작업 목표: Identity를 포함한 두 앱 서버에서 Sentry가 수집하는 오류와 이메일 알림 조건을 코드 기준으로 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: Identity는 `SENTRY_ENABLED` 기본 false이며 enabled+DSN 환경에서 `GlobalExceptionHandler`의 예상 밖 Exception을 500 event로 명시 capture한다. Validation, JSON parse, 404, method/media type 오류, BusinessException과 단순 ERROR 로그는 event로 보내지 않고 tracing·profiling·Sentry Logs·Logback integration은 0/off다.
+- 구현 내용: sanitizer는 request/user/breadcrumb/extra/context와 예외 메시지를 버리고 예외 type·정제 stack frame·안전한 requestId/errorCode/method/route/500 tag만 유지한다. 실제 이메일은 외부 Sentry 프로젝트의 Alert Rule, environment filter, email action과 개인 notification 설정이 충족될 때만 발송된다.
+- 실행한 테스트와 결과: 코드 변경 없는 정적 분석이므로 Gradle 테스트와 실제 Sentry 전송은 실행하지 않았다. 설정·handler·reporter·sanitizer와 기존 수신 검증 기록을 확인했으며 종료 전 `git diff --check`와 marker 단일 포함을 검증한다.
+- 유지한 계약: Identity JWT·RefreshSession·Security·API 계약과 Learning Core 외부 계약을 변경하지 않았다. Secret·Token·실제 DSN·Password·실제 Key·전체 MongoDB URI와 개인정보를 조회하거나 기록하지 않았다.
+- 결정사항: Sentry event 발생과 이메일 수신을 별도 단계로 설명한다. 저장소에는 Alert Rule·수신자·임계값이 없으므로 현재 메일 활성 여부는 저장소만으로 단정하지 않는다.
+- 위험 요소: ECS runtime enabled/DSN/environment 주입과 Sentry 조직의 rule·member notification이 빠지면 500이 발생해도 event 또는 email이 오지 않을 수 있다.
+- 다음 작업: Sentry 프로젝트의 Alerts와 멤버 Notifications에서 prod 신규 issue·regression·빈도/급증 rule, 이메일 action과 environment 조건을 확인한다.
+
+## 2026-08-24 — Disabled Firebase 인증수단 동기화 구현 역할 설명
+
+<!-- codex-turn:01a0320a-a7b6-70c1-8570-b7f2d6e5be56 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- 작업 목표: `DisabledFirebaseAuthMethodsSyncUseCase`가 어떤 상황에서 사용되고 어떤 동작을 하는지 현재 구성·Controller·실제 Service와 대조해 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고, 기존 미커밋 변경과 `docs/contracts/learning-core-user-merged-consumer-handoff.md`는 건드리지 않았으며 WORKLOG 과거 기록을 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: `app.firebase-auth.enabled=false` 또는 설정 누락 시 `DisabledFirebaseAuthenticationConfiguration`이 실제 `FirebaseAuthMethodsSyncService` 대신 이 구현을 `FirebaseAuthMethodsSyncUseCase` Bean으로 제공함을 확인했다. 기본 환경변수 값도 `FIREBASE_AUTH_ENABLED=false`다.
+- 구현 내용: Controller는 동일한 use case interface를 항상 주입받아 `/api/v1/auth/firebase/auth-methods/sync` endpoint 구조를 유지한다. 비활성 구현은 요청을 처리하거나 DB를 변경하지 않고 즉시 `AuthException(FIREBASE_UNAVAILABLE)`을 던지며, 오류 계약은 HTTP 503과 고정 code/message로 변환된다.
+- 구현 내용: Firebase 기능이 활성화되면 실제 `FirebaseAuthMethodsSyncService`가 선택되어 Identity JWT의 ACTIVE MEMBER, FirebaseIdentity의 project·UID, fresh Firebase proof를 검증하고 누락된 SocialIdentity만 멱등 저장한 뒤 연결 Provider 목록을 반환한다. 비활성 구현은 이 모든 작업을 의도적으로 수행하지 않는 feature-off 안전장치다.
+- 실행한 테스트와 결과: 설명·작업 기록만 변경해 Gradle 테스트는 실행하지 않았다. 관련 configuration·controller·service·오류 enum과 기존 configuration/security 테스트를 정적으로 확인했으며 종료 전 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase 기능은 기본 비활성이고 비활성 상태에서 SDK·외부 Firebase·Repository를 호출하지 않는다. canonical UUID userId/JWT `sub`, RS256·JWKS·RefreshSession, Firebase UID 비노출·비자동 merge와 Identity 도메인 경계를 변경하지 않았다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 이 클래스는 불필요한 빈 구현이 아니라 조건부 Bean 누락을 피하면서 disabled 상태를 503으로 명확히 표현하는 fail-closed adapter다. 성공 응답을 반환하는 no-op이나 실제 동기화 로직으로 해석하지 않는다.
+- 위험 요소: endpoint 자체는 Security·OpenAPI에 존재하므로 client는 feature-off 환경에서 404가 아니라 503을 받는다. 운영에서 Firebase를 사용할 환경은 전체 flag와 필수 project/credential 설정을 올바르게 주입해야 하며 provider별 flag는 별도 정책 검증을 계속 적용한다.
+- 다음 작업: 코드 변경은 필요 없다. 사용자가 원하면 enabled/disabled Bean 선택 흐름이나 실제 `FirebaseAuthMethodsSyncService`의 소유권·멱등 동기화 로직을 이어서 설명한다.
+
+## 2026-08-24 — Firebase 인증수단 동기화 Service 설명
+
+<!-- codex-turn:01a0320c-8b84-7a31-9632-d0ad54701e2d -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- 작업 목표: 첨부된 `FirebaseAuthMethodsSyncService`의 책임과 검증·저장·동시성 처리 흐름을 관련 Transaction service·principal·테스트와 대조해 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 서비스는 Identity JWT의 canonical userId로 User를 조회해 ACTIVE MEMBER만 허용하고, userId에 연결된 FirebaseIdentity와 `AUTH_METHOD_SYNC` 목적의 fresh Firebase proof가 같은 project·UID인지 검증한다. 클라이언트 Body의 userId나 Firebase UID를 canonical userId로 사용하지 않는다.
+- 구현 내용: 검증된 Firebase principal의 linked Social provider·subject를 순회해 Identity에 없는 SocialIdentity만 현재 userId로 생성한다. 이미 같은 사용자가 소유하면 건너뛰고 다른 사용자가 소유하면 저장 전 `SOCIAL_IDENTITY_CONFLICT`로 거절한다.
+- 구현 내용: 누락 목록은 별도 Mongo Transaction service에서 한 번에 저장한다. 사전 조회 뒤 동시 insert로 `DuplicateKeyException`이 발생하면 모든 principal identity를 재조회해 현재 userId 소유이면 멱등 성공으로 인정하고, 누락됐거나 다른 user 소유이면 conflict로 변환한다. 마지막에는 DB를 다시 조회해 현재 연결 Provider 집합을 응답한다.
+- 실행한 테스트와 결과: 설명만 수행해 Gradle 테스트는 실행하지 않았다. 첨부 코드와 실제 Transaction service, `VerifiedFirebasePrincipal`, `VerifiedSocialPrincipal`, 기존 Service 테스트를 정적으로 확인했으며 종료 전 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: 실제 userId와 JWT `sub`는 canonical UUID 문자열이며 Firebase UID·provider subject는 userId나 자동 merge 키가 아니다. fresh Firebase proof와 기존 mapping이 모두 일치해야 mutation을 허용하고 Token·provider subject·사용자 개인정보를 로그나 작업 기록에 남기지 않는다. RS256·JWKS·RefreshSession과 Identity 도메인 경계를 변경하지 않았다.
+- 결정사항: 이 서비스는 Firebase 자체 계정을 연결하거나 merge하는 기능이 아니라, 이미 같은 FirebaseIdentity를 소유한 ACTIVE MEMBER의 인증수단 snapshot을 Identity SocialIdentity에 보완하는 단방향·추가 전용 동기화다. 삭제·교체·다른 owner 이전은 수행하지 않는다.
+- 결정사항: 사용자는 향후 이와 같은 단순 코드 설명·리뷰를 WORKLOG에 기록하지 않기를 요청했다. 다만 이번 turn에는 상위 개발자 지침과 저장소 AGENTS.md가 모든 분석 작업의 WORKLOG/CURRENT_STATE 기록을 강제하므로 최소 기록을 남겼으며, 해당 규칙이 변경되기 전에는 사용자 선호만으로 생략할 수 없다.
+- 위험 요소: Firebase에서 provider 연결이 해제돼도 이 서비스는 기존 SocialIdentity를 삭제하지 않는다. 또한 `DuplicateKeyException` 복구 경로를 직접 검증하는 전용 Service 테스트는 현재 파일에서 확인되지 않아, 동시성 회귀를 더 강하게 고정하려면 별도 테스트를 고려할 수 있다.
+- 다음 작업: 코드 변경은 필요 없다. 작업 기록을 정말 생략하려면 저장소의 AGENTS.md와 turn 종료 강제 지침을 먼저 변경해야 하며, 사용자가 원하면 이 서비스의 동시성 분기나 provider unlink 정책을 별도로 검토한다.
+
+## 2026-08-24 — Firebase 인증수단 동기화 Transaction Service 설명
+
+<!-- codex-turn:01a03211-f553-7463-ace9-e26c005ce61a -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- 작업 목표: `FirebaseAuthMethodsSyncTransactionService`의 입력 방어, Mongo Transaction 저장과 별도 Bean 분리 이유를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 생성자는 `SocialIdentityRepository` null 주입을 즉시 거절한다. `saveMissing`은 입력 list null과 null element를 거절하고 `List.copyOf`로 불변 snapshot을 만들어 호출 측의 후속 변경 영향을 차단한다.
+- 구현 내용: 목록이 비어 있으면 Repository를 호출하지 않고, 값이 있으면 `mongoTransactionManager`가 관리하는 Transaction 안에서 `saveAll`한다. 여러 누락 identity 중 하나가 unique 충돌 등으로 실패할 경우 지원되는 MongoDB Transaction 환경에서는 전체 write를 rollback하는 원자적 저장 경계다.
+- 구현 내용: Transaction method를 별도 Spring Bean의 public method로 두어 호출이 Spring proxy를 통과하게 하고, Firebase 검증·사용자/소유권 조회까지 긴 Transaction에 포함하지 않은 채 실제 write 구간만 좁게 묶는다. 같은 클래스 내부의 self-invocation에 `@Transactional`을 붙여 proxy가 우회되는 문제도 피한다.
+- 실행한 테스트와 결과: 설명만 수행해 Gradle 테스트는 실행하지 않았다. 실제 Bean wiring과 호출 위치, 기존 Service 테스트를 정적으로 확인하고 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다. 이 Transaction service를 실제 MongoDB와 함께 직접 검증하는 전용 테스트는 검색 결과에서 확인되지 않았다.
+- 유지한 계약: 저장 대상은 검증 완료 후 생성된 SocialIdentity뿐이며 Firebase ID Token·provider subject·canonical userId 계약을 변경하지 않는다. Token·Secret·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 작업 기록에 추가하지 않았다.
+- 결정사항: 이 클래스는 인증·소유권 판단을 하지 않는 write-only Transaction boundary다. 누락 목록 산출과 동시 `DuplicateKeyException`의 멱등/충돌 해석은 호출자인 `FirebaseAuthMethodsSyncService`가 담당한다.
+- 위험 요소: MongoDB Transaction은 standalone이 아닌 replica set/transaction 지원 환경과 올바른 transaction manager wiring이 필요하다. 또한 `saveAll` 실패 자체를 이 클래스에서 변환하지 않으므로 `DuplicateKeyException` 등은 호출자에게 전파된다.
+- 다음 작업: 코드 변경은 필요 없다. 사용자의 단순 설명 비기록 선호와 달리 현재 강제 규칙 때문에 최소 기록을 남겼으며, 향후 생략하려면 해당 상위 규칙 변경이 필요하다.
+
+## 2026-08-24 — Firebase enrollment attempt Service 설명
+
+<!-- codex-turn:01a0321b-a952-7362-bf52-86132439f3c2 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- 작업 목표: `FirebaseEnrollmentAttemptService`의 active attempt 재사용, 만료 교체, 동시 insert 경쟁과 일회성 consume 흐름을 Entity·Repository CAS·테스트와 대조해 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 생성자에서 Repository·Clock과 양수 enrollment TTL·cleanup retention을 강제한다. `startOrReuse`는 입력 불변식을 검증하며 하나의 candidate를 만든 뒤 같은 project·Firebase UID·bindingType·boundUserId의 PENDING attempt를 최대 4회 재조회한다.
+- 구현 내용: 조회한 PENDING이 application Clock 기준 active면 그대로 반환한다. 만료됐으면 `_id + PENDING + expiresAt <= now` 조건으로 EXPIRED 전환을 시도하고 결과와 무관하게 다음 반복에서 최신 상태를 다시 확인한다. PENDING이 없으면 candidate를 insert한다.
+- 구현 내용: `(firebaseProjectId, firebaseUid, bindingType, boundUserId)`의 PENDING partial unique index가 동시 insert winner 하나만 허용한다. loser의 `DuplicateKeyException`은 다음 반복에서 winner를 재조회·재사용하는 신호이며, 네 번 안에 안정 상태를 찾지 못하면 `IllegalStateException`으로 fail-closed 처리한다.
+- 구현 내용: `consume`은 enrollmentId와 전체 binding, status PENDING, `expiresAt > now`를 하나의 Mongo conditional update로 검사해 CONSUMED·consumedAt으로 전환한다. 한 요청만 true를 얻고 재사용·만료·binding mismatch는 false다. TTL cleanupAt은 correctness가 아니라 보존 기간 뒤 비동기 삭제에만 사용한다.
+- 실행한 테스트와 결과: 설명만 수행해 Gradle 테스트는 실행하지 않았다. Entity의 partial unique·TTL 계약, custom Repository query/update와 active reuse·expired replacement·duplicate loser·consume delegation 테스트를 정적으로 확인했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID는 canonical userId가 아니며 DIRECT_SIGNUP은 boundUserId가 null, GUEST_USER는 canonical UUID binding을 요구한다. attempt는 짧은 수명의 가입 진행 상태이고 Firebase Token·Secret·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 저장하거나 작업 기록에 추가하지 않았다.
+- 결정사항: 동일 binding의 반복 요청은 새 attempt를 계속 만들지 않고 active winner를 반환한다. initial sign-in method가 다른 동시 요청도 binding이 같으면 먼저 생성된 attempt를 재사용하며, 만료·소비 correctness는 Mongo TTL 삭제 시점이 아니라 application `expiresAt`과 CAS가 담당한다.
+- 위험 요소: 재시도는 backoff 없는 최대 4회이므로 비정상적으로 긴 contention에서는 안정 상태가 생겨도 `IllegalStateException`에 도달할 수 있다. `expireIfPendingAndExpired` 결과를 직접 사용하지 않는 것은 다음 반복 재조회로 경쟁 결과를 해석하려는 의도이며, loop 제거 또는 TTL 의존 변경은 동시성 계약을 깨뜨릴 수 있다.
+- 다음 작업: 코드 변경은 필요 없다. 사용자가 원하면 `FirebaseEnrollmentAttempt`의 partial unique/TTL index 또는 Repository의 CAS query를 이어서 설명한다.
+
+## 2026-08-24 — Firebase 로그인 exchange Service 설명
+
+<!-- codex-turn:01a0322f-30f8-7891-8eaa-6a7824cad284 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- 작업 목표: 첨부된 `FirebaseExchangeService`의 Firebase proof 검증, 기존 MEMBER 로그인과 신규 enrollment 분기, SocialIdentity 충돌 방어와 요구사항 계산을 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 요청 Firebase ID Token을 `LOGIN_EXCHANGE` 목적으로 먼저 검증하고 최소 principal을 얻은 뒤 `(firebaseProjectId, firebaseUid)` FirebaseIdentity를 조회한다. verifier 실패 시 Repository·Token issuer·enrollment를 호출하지 않는다.
+- 구현 내용: FirebaseIdentity가 있으면 canonical userId의 User가 존재하는지와 ACTIVE MEMBER 여부를 확인한다. Firebase principal에 연결된 각 SocialIdentity가 없거나 같은 user 소유인 경우에만 빈 scope의 자체 RS256 Access Token과 원문 비저장 RefreshSession을 발급해 `AUTHENTICATED` 응답과 millisecond TTL을 반환한다.
+- 구현 내용: FirebaseIdentity가 없으면 principal의 linked social provider·subject가 하나라도 기존 Identity User에 귀속된 경우 자동 연결·merge·가입을 하지 않고 `SOCIAL_IDENTITY_CONFLICT`로 fail-closed 처리한다. owner가 전혀 없을 때만 DIRECT_SIGNUP enrollment attempt를 생성·재사용하고 User·RefreshSession 없이 `ENROLLMENT_REQUIRED`를 반환한다.
+- 구현 내용: PASSWORD가 linked됐지만 email이 미검증이면 EMAIL_VERIFICATION, PHONE method 누락 또는 phone 미검증이면 PHONE_VERIFICATION을 추가하며 PROFILE·CONSENTS는 신규 enrollment에서 항상 요구한다. expiresIn은 application Clock과 attempt expiresAt의 차이를 millisecond로 계산해 음수이면 0으로 clamp한다.
+- 실행한 테스트와 결과: 설명만 수행해 Gradle 테스트는 실행하지 않았다. 두 response subtype과 기존 MEMBER token 발급, 신규 enrollment 무mutation, 요구사항 계산, 기존/다른 social owner 충돌, mapping orphan, 비활성 User·Guest, verifier 조기 실패 테스트를 정적으로 확인했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase ID Token은 Identity 내부 검증 proof이며 Learning Core Token이 아니다. canonical userId와 JWT `sub`는 Firebase UID·provider subject와 분리하고, 미등록 UID에는 전화 인증·프로필·필수 동의 완료 전 User·RefreshSession을 만들지 않는다. 자동 merge 없이 소유권 충돌을 거절하고 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: exchange 결과는 `AUTHENTICATED` 또는 `ENROLLMENT_REQUIRED`의 명시적 두 subtype이다. 기존 mapping 로그인에서는 누락 SocialIdentity를 이 서비스가 저장하지 않고 별도 auth-method sync가 담당하며, 신규 경로에서도 기존 social owner를 canonical 계정 추정 근거로 자동 연결하지 않는다.
+- 위험 요소: `ensureNoSocialIdentityOwner`는 기존 로그인에서는 같은 user 소유를 허용하므로 이름보다 실제 계약이 넓다. 신규 가입에서 PASSWORD가 없는 social-only principal의 email 미검증은 별도 EMAIL_VERIFICATION 요구사항을 만들지 않는 현재 정책이며 Provider/Firebase 검증 계약과 함께 유지해야 한다. attempt가 응답 직전에 만료되면 expiresIn 0이 반환될 수 있다.
+- 다음 작업: 코드 변경은 필요 없다. 사용자가 원하면 `authenticate`, social owner guard 또는 `missingRequirements` 정책을 각각 더 세분화해 설명한다.
+
+## 2026-08-24 — Firebase 회원 탈퇴 후 재가입 교착 진단
+
+<!-- codex-turn:01a032a3-dd90-7db3-b2e9-44b61945c653 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 기존 Firebase MEMBER가 탈퇴한 뒤 같은 Firebase credential로 로그인도 신규 가입도 할 수 없는 상태가 생기는지 현재 exchange·withdrawal·identity/phone lifecycle 구현을 대조해 진단한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: `FirebaseExchangeService`는 `(project, UID)` FirebaseIdentity가 존재하면 항상 기존 owner 인증 경로로 들어가고 User가 WITHDRAWN이면 `ACCOUNT_NOT_ACTIVE`로 거절한다. 기존 mapping이 있는 상태에서는 DIRECT_SIGNUP enrollment 분기로 돌아가지 않는다.
+- 구현 내용: 현재 일반 `UserWithdrawalService.validateProviderCredential`은 GUEST가 아닌 MEMBER 중 local credential이 없는 social-only/Firebase MEMBER를 `INVALID_WITHDRAWAL_CREDENTIALS`로 거절한다. fresh Firebase proof로 탈퇴를 재인증하는 별도 공개 use case는 검색 결과에서 확인되지 않아 Firebase MEMBER는 정상 탈퇴 진입부터 미구현 상태다.
+- 구현 내용: `UserWithdrawalTransactionService`는 User tombstone CAS, phone eligibility binding revoke outbox와 RefreshSession 전체 폐기만 수행한다. FirebaseIdentityRepository·SocialIdentityRepository·PhoneIdentity/alias Repository와 Firebase Admin lifecycle adapter를 주입받지 않으므로 내부 mapping·번호 점유를 해제하거나 Firebase refresh revoke/user delete를 요청하지 않는다.
+- 구현 내용: 설계 ADR은 withdrawal 시 내부 tombstone·Session 폐기·lifecycle outbox commit 후 외부 Firebase revoke/delete를 retry하고, PhoneIdentity·alias 개인정보 cleanup이 끝난 뒤 가입 uniqueness를 해제하도록 정의한다. 하지만 해당 Firebase withdrawal lifecycle outbox/publisher와 identity/phone cleanup은 현재 코드에서 구현되지 않았다.
+- 실행한 테스트와 결과: 진단만 수행해 Gradle 테스트는 실행하지 않았다. exchange·withdrawal service/transaction, Firebase/Social repositories, Firebase signup과 ADR/구현계획의 lifecycle 구간을 정적으로 확인했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID·provider subject·phone을 canonical userId나 자동 merge 키로 사용하지 않고 WITHDRAWN tombstone과 기존 UUID를 보존한다. Firebase와 MongoDB 외부 작업을 하나의 Transaction으로 가장하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 사용자의 지적은 맞으며 단순 exchange 분기 수정만으로 해결하면 안 된다. 제품이 탈퇴 후 새 UUID 재가입을 허용할지 기존 canonical 계정 재활성화를 허용할지 먼저 결정하고, 그 결정에 맞는 explicit lifecycle state와 cleanup/reconciliation을 구현해야 한다. WITHDRAWN owner를 자동 enrollment로 넘기는 것은 SocialIdentity·phone 점유와 탈퇴 처리 중 재진입을 우회할 수 있어 금지한다.
+- 위험 요소: 현재 기능을 활성화하면 Firebase MEMBER는 탈퇴할 수 없거나, 수동/부분 처리로 WITHDRAWN이 된 경우 로그인·재가입 교착에 빠질 수 있다. mapping만 먼저 삭제하면 외부 Firebase revoke/delete 실패 중 재가입이 열리고, phone/social만 보존하면 unique 충돌이 계속되므로 단계별 상태와 재처리 가능한 outbox가 필요하다.
+- 다음 작업: 별도 승인된 Jira 범위로 Firebase recent-auth 탈퇴 use case, 내부 withdrawal lifecycle state/outbox, Firebase revoke/delete worker, SocialIdentity 및 PhoneIdentity/alias release 정책, 재가입 또는 재활성화 경로와 실패 reconciliation 테스트를 설계·구현한다. 그 전에는 production Firebase signup/exchange 활성화를 유지하지 않는다.
+
+## 2026-08-24 — Firebase 탈퇴 선행·재가입 후속 구현 순서 정리
+
+<!-- codex-turn:01a032b0-f92d-7f50-afc5-76696f568e94 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 확인된 Firebase 탈퇴·재가입 교착을 해결하기 위해 탈퇴 lifecycle과 재가입 로직의 안전한 구현 순서와 단계별 완료 조건을 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 첫 결정은 탈퇴 후 새 canonical UUID User를 만드는 재가입과 기존 tombstone User를 재활성화하는 복구 중 하나를 선택하는 것이다. 현재 LOCAL 재가입·WITHDRAWN tombstone 계약과 Firebase 설계 문서의 credential/phone cleanup 후 uniqueness 해제에는 새 UUID 재가입이 더 일관되며, 재활성화는 별도 계정 복구 정책으로 취급한다.
+- 구현 내용: 1단계는 Firebase MEMBER 탈퇴 진입이다. 기존 Identity 인증과 RefreshSession 소유권에 더해 `WITHDRAWAL` 목적의 fresh Firebase ID Token·recent-auth와 `(project, UID)` mapping 일치를 검증하고, 내부 Mongo Transaction에서 User tombstone, 모든 RefreshSession 폐기, phone eligibility revoke와 lifecycle outbox를 commit한다. Firebase Admin 원격 호출을 Mongo Transaction 안에서 수행하지 않는다.
+- 구현 내용: 2단계는 lifecycle worker다. outbox를 lease·retry·dead-letter/reconciliation으로 처리해 Firebase refresh revoke/user delete와 Apple 등 Provider별 요구사항을 완료한다. 외부 성공 전에는 FirebaseIdentity mapping을 WITHDRAWN owner에 유지해 login과 enrollment를 모두 fail-closed로 막고, 명시적인 withdrawal pending 오류를 반환한다.
+- 구현 내용: 3단계는 cleanup finalize다. 외부 revoke/delete 성공을 확인한 뒤 별도 내부 Transaction에서 FirebaseIdentity·SocialIdentity를 정책대로 release/delete하고 PhoneIdentity·active aliases를 release하며 lifecycle을 CLEANED로 완료한다. User tombstone과 benefit abuse ledger/TrialClaim 성격의 기록은 별도 보존 정책에 따라 유지한다.
+- 구현 내용: 4단계에서만 재가입을 연다. 새 Firebase 계정의 fresh proof로 기존 active/pending owner가 없고 이전 withdrawal cleanup이 완료됐음을 확인해 DIRECT_SIGNUP enrollment를 발급한다. WITHDRAWAL_PENDING·cleanup 실패·잔존 social/phone owner는 신규 enrollment로 자동 우회하지 않는다.
+- 실행한 테스트와 결과: 설계 순서 정리만 수행해 Gradle 테스트는 실행하지 않았다. 앞선 exchange·withdrawal 구현과 ADR lifecycle 계약을 기준으로 검토했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID·provider subject·phone은 canonical userId나 자동 merge 키가 아니며 User tombstone은 보존한다. Firebase와 MongoDB를 하나의 분산 Transaction으로 가장하지 않고 outbox·idempotency·reconciliation을 사용한다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 탈퇴 내부 commit만 끝난 상태를 재가입 가능 상태로 보지 않는다. 외부 revoke/delete와 내부 mapping/phone cleanup까지 완료된 lifecycle terminal state가 재가입 gate다. 기능은 단계별 구현·테스트가 끝날 때까지 기본 비활성을 유지한다.
+- 위험 요소: mapping을 너무 일찍 삭제하면 아직 유효한 Firebase credential로 중복 가입이 열리고, 너무 늦게 영구 보존하면 재가입이 계속 막힌다. 외부 삭제 성공 후 내부 finalize 실패, Provider revoke 실패, phone alias 일부 release 실패를 각각 재처리 가능한 상태로 남겨야 한다.
+- 다음 작업: 사용자 승인을 받아 단계 1~3을 하나의 lifecycle Jira 또는 독립 Jira들로 구체화하고 완료 조건·오류 code·outbox schema·보존 정책을 먼저 확정한다. 해당 PR 병합과 staging failure/retry 검증 뒤 단계 4 재가입 Jira를 별도로 구현한다.
+
+## 2026-08-24 — 동일 휴대폰 번호 재가입·기존 계정 연결 정책 정리
+
+<!-- codex-turn:01a032b4-1168-7ec3-a837-8df06e0ade5b -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 회원 탈퇴 후 같은 휴대폰 번호로 새 계정을 만들 수 있는지와, 같은 번호를 근거로 기존 WITHDRAWN 계정에 다시 연결하는 정책이 타당한지 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 같은 번호의 신규 가입은 withdrawal lifecycle의 Firebase revoke/delete와 PhoneIdentity·active alias release가 모두 완료되고, 새 Firebase account에서 번호를 다시 검증한 경우에 허용할 수 있다. 신규 User는 새 canonical UUID를 가지며 기존 WITHDRAWN tombstone과 서비스 데이터에 자동 연결하지 않는다.
+- 구현 내용: 휴대폰 번호는 재할당될 수 있고 가족·조직이 공유할 수 있으므로 같은 번호라는 사실만으로 같은 사람을 확정할 수 없다. 따라서 phone fingerprint를 기존 userId 탐색, 계정 로그인, 자동 merge, tombstone reactivation 또는 데이터 복원 키로 쓰지 않는 기존 계약을 유지한다.
+- 구현 내용: 기존 계정 복구가 제품 요구사항이면 재가입과 분리한 명시적 `withdrawal cancel/account recovery` 경로로 설계한다. 제한된 복구 기간, 원래 Firebase UID 또는 원래 Provider credential의 fresh recent-auth, 계정 상태·외부 revoke 진행 단계 확인을 요구하고 phone proof는 추가 요인으로만 사용한다. 외부 delete와 내부 cleanup이 끝난 terminal withdrawal은 복구하지 않고 신규 가입으로 처리한다.
+- 구현 내용: 동일 번호의 무료혜택 재수령 방지 등 abuse 정책은 old/new User를 합치는 방식이 아니라 Identity PhoneIdentity와 분리된 benefit-scoped fingerprint/TrialClaim ledger로 처리한다. 이는 계정 데이터 자동 연결 없이 동일 번호 혜택 정책만 유지한다.
+- 실행한 테스트와 결과: 정책 정리만 수행해 Gradle 테스트는 실행하지 않았다. 기존 social login 계획의 `phone은 로그인·자동 merge 키가 아님`, withdrawal cleanup 후 uniqueness 해제, PhoneIdentity와 benefit fingerprint domain separation 계약을 기준으로 검토했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: canonical userId와 JWT `sub`는 서버 UUID이고 phone·fingerprint는 userId나 자동 merge 키가 아니다. raw phone을 장기 저장·로그하거나 교차 서비스에 전달하지 않으며 Firebase proof와 PhoneIdentity/benefit fingerprint 경계를 유지한다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 기본 정책은 `cleanup 완료 후 같은 검증 번호로 새 UUID 재가입 허용, 기존 계정 자동 연결 금지`다. 기존 계정 복구는 신규 가입과 다른 보안·제품 기능이며 phone 단독 proof로 제공하지 않는다.
+- 위험 요소: 번호 재할당 직후 기존 계정을 자동 복구하면 새 번호 소유자에게 과거 개인정보·시험 데이터가 노출될 수 있다. 반대로 PhoneIdentity alias를 영구 점유하면 정상 재가입과 번호 재할당 사용자를 막으므로 cleanup terminal state와 보존·release 시점을 명확히 해야 한다.
+- 다음 작업: lifecycle Jira 작성 전에 새 UUID 재가입을 기본으로 확정하고, 별도 복구 유예 기간을 제공할지 제품 결정을 받는다. 이후 phone release 시점, benefit ledger 보존 기간과 재가입 오류 code·테스트를 완료 조건에 포함한다.
+
+## 2026-08-24 — Firebase·Social·Phone 탈퇴 cleanup 책임 설명
+
+<!-- codex-turn:01a032b6-bc3a-7e51-a356-bb7ac1a7a37d -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 탈퇴 lifecycle에서 Firebase·Social·Phone cleanup이 각각 어떤 외부·내부 상태를 정리하고 무엇을 보존하는지 구체화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Firebase cleanup은 내부 withdrawal outbox를 기준으로 Firebase refresh token revoke, Firebase User delete와 Apple 등 Provider별 account deletion revoke를 멱등·retry·dead-letter/reconciliation으로 처리한다. 외부 성공 전에는 기존 FirebaseIdentity mapping을 유지해 old credential의 login·enrollment를 fail-closed로 막는다.
+- 구현 내용: Social cleanup은 old userId에 귀속된 SocialIdentity의 provider·subject unique 점유를 정책에 따라 release/tombstone/delete한다. cleanup 완료 전에는 같은 Google·Apple·Kakao subject가 새 userId로 연결되지 않게 하고, 완료 후에만 신규 가입 Transaction이 unique claim할 수 있게 한다. phone이나 email로 old user를 자동 탐색·merge하지 않는다.
+- 구현 내용: Phone cleanup은 old user의 ACTIVE PhoneIdentity를 RELEASED 처리하고 해당 PhoneIdentity의 ACTIVE PhoneFingerprintAlias 전체에 releasedAt을 기록해 번호 uniqueness 점유를 해제한다. Firebase User delete로 Firebase 쪽 phone credential도 해제됐음을 확인하고, consumer-scoped phone eligibility binding에는 revoke revision/outbox를 전달한다.
+- 구현 내용: User의 WITHDRAWN tombstone, 기존 canonical UUID와 법적·감사상 필요한 최소 이력은 보존한다. 동일 번호 무료혜택 중복 방지용 benefit-scoped fingerprint/TrialClaim ledger는 PhoneIdentity cleanup과 별도 보존 정책을 적용하며, 과거 시험·프로필 데이터를 새 User에 자동 연결하지 않는다.
+- 구현 내용: 현재 애플리케이션에는 User tombstone CAS, RefreshSession 폐기와 phone eligibility revoke outbox까지만 존재한다. Firebase revoke/delete worker, FirebaseIdentity·SocialIdentity release, PhoneIdentity·alias withdrawal release와 lifecycle terminal state는 아직 구현되지 않았다.
+- 실행한 테스트와 결과: 설명·정책 정리만 수행해 Gradle 테스트는 실행하지 않았다. 현재 withdrawal transaction과 Firebase ADR·social login 계획의 lifecycle/phone release 계약을 기준으로 검토했으며 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: raw phone·provider credential·Firebase ID Token을 저장·로그하지 않고 phone·provider subject를 canonical userId나 자동 merge 키로 사용하지 않는다. Firebase 외부 호출과 MongoDB 내부 변경을 하나의 Transaction으로 가장하지 않고 outbox·idempotency·reconciliation을 사용한다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: cleanup 완료는 Firebase 외부 revoke/delete와 내부 Social/Phone 점유 해제가 모두 성공한 terminal state다. User tombstone 생성만으로 cleanup 완료나 재가입 가능으로 판정하지 않는다.
+- 위험 요소: Firebase 삭제만 성공하고 내부 mapping release가 실패하거나 그 반대가 되면 재가입 차단 또는 credential 재사용 위험이 생긴다. 각 단계의 상태·attempt·nextAttemptAt·lease·lastErrorCode를 저장하고 reconciliation으로 수렴시켜야 한다.
+- 다음 작업: lifecycle Jira에서 cleanup state machine, outbox schema, Firebase/Provider adapter, SocialIdentity release 방식, PhoneIdentity/alias release CAS와 재가입 gate를 완료 조건으로 구체화한다.
+
+## 2026-08-24 — 탈퇴 cleanup의 물리 삭제 범위와 안전 조건 검토
+
+<!-- codex-turn:01a032ba-7c1f-79e2-bd1f-e5d4b81bd5d4 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: Firebase·Social·Phone cleanup에서 실제 물리 삭제가 필요한 대상과 soft release가 필요한 대상을 현재 entity/index 구조와 탈퇴 lifecycle 순서에 맞춰 검토한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며, WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: User는 물리 삭제하지 않고 WITHDRAWN tombstone을 유지하며 RefreshSession은 revoke 후 기존 TTL·보존 정책을 따른다. Firebase User는 내부 탈퇴 commit과 session revoke 이후 retry 가능한 lifecycle worker에서 실제 revoke/delete할 수 있지만, 외부 성공 전 내부 FirebaseIdentity mapping을 제거하지 않는다.
+- 구현 내용: 현재 FirebaseIdentity와 SocialIdentity에는 lifecycle status·releasedAt이 없고 unique index도 unconditional이어서 retained tombstone과 unique 점유 해제를 동시에 지원하지 않는다. 안전한 cleanup을 위해 ACTIVE/RELEASED와 partial unique index를 도입하거나, terminal cleanup 뒤 별도 durable lifecycle audit를 보존한 상태에서만 mapping을 물리 삭제해야 한다.
+- 구현 내용: PhoneIdentity와 PhoneFingerprintAlias에는 이미 ACTIVE/RELEASED, releasedAt 및 ACTIVE 대상 partial unique index가 있으므로 기본 처리는 delete가 아니라 soft release다. 번호 관련 혜택 중복 방지 ledger는 계정 mapping과 분리해 별도 보존 정책을 적용한다.
+- 실행한 테스트와 결과: entity와 index 및 탈퇴 ADR을 정적으로 검토한 분석 작업이므로 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID·provider subject·phone은 canonical userId나 자동 merge 키가 아니며 User tombstone과 새 UUID 재가입 경계를 유지한다. 외부 Firebase 삭제와 MongoDB 변경을 하나의 Transaction으로 가장하지 않고 outbox·retry·reconciliation을 사용하며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: cleanup은 전부 hard delete라는 뜻이 아니다. Firebase 외부 계정 삭제는 가능하지만 내부 mapping의 삭제·release는 내부 탈퇴 확정, 외부 revoke/delete와 Provider 의무 완료, phone release, durable audit 확보가 끝난 terminal 단계에서만 수행한다. 현재 schema에서 FirebaseIdentity·SocialIdentity에 단순 repository delete를 추가하는 것은 안전한 완성안이 아니다.
+- 위험 요소: mapping을 너무 일찍 삭제하면 아직 유효한 Firebase credential이 신규 enrollment를 만들 수 있고, unconditional unique mapping을 tombstone으로 계속 유지하면 정상 재가입이 영구 차단된다. 단계 실패 시 재처리할 lifecycle state와 reconciliation 기록이 없으면 외부·내부 상태가 갈라질 수 있다.
+- 다음 작업: lifecycle Jira에서 FirebaseIdentity·SocialIdentity의 release 모델과 partial unique index 또는 audited hard-delete 정책, cleanup terminal 조건, 보존 기간과 reconciliation 절차를 명시한 뒤 구현한다.
+
+## 2026-08-24 — 탈퇴 시 Firebase 외부 User 보존 가능성 검토
+
+<!-- codex-turn:01a032c4-502b-7033-a63d-b1e459fe8ce0 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 회원 탈퇴 후 Firebase 외부 User를 삭제하지 않고 보존해도 되는지 로그인 차단, 재가입, 개인정보와 Provider 의무 관점에서 검토한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Firebase User를 즉시 물리 삭제하지 않고 disabled 처리와 refresh token revoke로 credential 사용을 차단하는 기술적 선택은 가능하다. 다만 해당 record에 email·phone·provider linkage 등 개인정보와 unique 점유가 남으므로 이를 탈퇴 cleanup 완료와 동일하게 취급할 수는 없다.
+- 구현 내용: 외부 User를 계속 보존하면 같은 Firebase UID의 재활성화와 새 Firebase User 생성 중 제품 정책을 명확히 해야 한다. 새 UUID 재가입 정책에서는 기존 Firebase email·phone/provider 점유가 신규 생성·연결을 막을 수 있으므로 terminal cleanup 전에 삭제 또는 Firebase 측 식별정보 정리 절차가 필요하다.
+- 구현 내용: 보존을 택하려면 법적 근거와 보존 기간, disabled·revoke 확인, 로그인 fail-closed, 재가입 차단 또는 별도 복구 경로, Provider별 계정 삭제·철회 의무, 만료 후 실제 삭제와 reconciliation을 명시해야 한다. 단순히 비용이나 구현 편의를 위해 무기한 보존하는 것은 권장하지 않는다.
+- 실행한 테스트와 결과: 정책 분석만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID·email·phone·provider subject를 canonical userId나 자동 merge 키로 사용하지 않고 User WITHDRAWN tombstone과 새 UUID 경계를 유지한다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 짧은 유예·재처리 기간에는 Firebase User를 disabled·revoked 상태로 유지할 수 있지만, 완전 탈퇴와 새 계정 재가입을 기본 정책으로 삼는다면 외부 cleanup terminal 단계에서 삭제하는 것이 가장 단순하고 안전하다. 장기 보존은 별도의 법적·제품 보존 정책이 있을 때만 허용한다.
+- 위험 요소: revoke만 하고 disable을 누락하면 기존 credential 사용 가능성이 남고, disabled User를 무기한 유지하면 개인정보 삭제 요구와 Firebase email·phone/provider uniqueness 때문에 재가입이 막힐 수 있다. Apple 등 Provider별 철회 요구는 Firebase record 보존 여부와 별개로 처리해야 한다.
+- 다음 작업: withdrawal lifecycle 완료 조건에 Firebase disabled/revoke, 외부 삭제 시점, 유예 기간, Provider별 revoke, 삭제 실패 retry와 재가입 gate를 명시한다.
+
+## 2026-08-24 — Firebase 외부 User 삭제 기반 회원 탈퇴 정책 확정
+
+<!-- codex-turn:01a032c7-849a-7ca0-a38a-d676d7bf61c1 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 회원 탈퇴 시 Firebase 외부 User를 최종 삭제하는 것으로 결정하고 탈퇴 인증, 내부 확정, 외부 cleanup, 내부 release, 재가입 gate와 실패 처리 정책을 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 탈퇴 요청은 로그인된 canonical user와 목적이 WITHDRAWAL인 fresh Firebase proof/recent-auth를 요구하고 Firebase project·UID mapping과 요청 user 소유권을 검증한다. phone은 본인 확인의 보조 수단일 수 있으나 탈퇴 대상 탐색이나 자동 merge 기준으로 사용하지 않는다.
+- 구현 내용: 첫 Mongo Transaction에서 User를 WITHDRAWN tombstone으로 전환하고 모든 RefreshSession을 revoke하며 phone eligibility revoke와 withdrawal lifecycle outbox를 저장한다. 이 commit 이후 로그인과 신규 enrollment는 fail-closed로 차단하고 Firebase 외부 호출 실패가 내부 탈퇴를 되돌리지 않게 한다.
+- 구현 내용: lifecycle worker는 Firebase User disable, refresh token revoke, Provider별 철회 의무, Firebase User delete를 멱등·retry 가능한 단계로 수행한다. 외부 삭제가 확인될 때까지 FirebaseIdentity mapping을 유지하며 단계별 상태·attempt·lease·nextAttemptAt·안전한 error code를 기록하고 dead-letter/reconciliation을 지원한다.
+- 구현 내용: 외부 삭제 성공 후 별도 Mongo Transaction에서 FirebaseIdentity와 SocialIdentity의 active unique 점유를 release하고 PhoneIdentity·PhoneFingerprintAlias를 RELEASED 처리한 뒤 lifecycle을 CLEANED terminal state로 전환한다. User WITHDRAWN tombstone과 법적·감사상 필요한 최소 기록 및 benefit-scoped abuse ledger는 별도 보존 정책에 따라 유지한다.
+- 구현 내용: CLEANED 전에는 동일 Firebase credential·provider subject·phone을 이용한 재가입을 허용하지 않는다. CLEANED 후 새 Firebase User의 fresh proof와 새 전화 검증으로 새 canonical UUID User 가입을 허용하되 과거 User·프로필·시험 데이터에 자동 연결하지 않는다. 탈퇴 철회나 기존 계정 복구는 기본 정책에서 제공하지 않고 필요하면 별도 기능으로 설계한다.
+- 실행한 테스트와 결과: 정책 정리만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: canonical userId와 JWT sub는 서버 UUID이고 Firebase UID·provider subject·phone은 userId·로그인 탐색·자동 merge 키가 아니다. Firebase 외부 작업과 MongoDB 내부 변경을 하나의 Transaction으로 가장하지 않고 outbox·idempotency·retry·reconciliation을 사용한다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 완전 탈퇴의 terminal 조건은 내부 WITHDRAWN만이 아니라 Firebase User 삭제, Provider별 의무 완료, Firebase/Social mapping과 Phone 점유 release가 모두 성공해 lifecycle이 CLEANED가 된 상태다. Firebase 외부 User는 유예 없이 worker가 가능한 즉시 삭제하되 장애 시 안전하게 재시도한다.
+- 위험 요소: Firebase 삭제 성공 후 내부 release 실패 또는 그 반대 순서의 잘못된 구현은 재가입 차단이나 credential 재사용을 만들 수 있다. FirebaseIdentity·SocialIdentity는 현재 release 상태와 partial unique index가 없어 구현 전에 schema/index 정책을 확정해야 하며 개인정보·법정 보존 기간은 서비스 법무 정책과 대조해야 한다.
+- 다음 작업: 별도 Jira에서 withdrawal lifecycle state/outbox, fresh Firebase withdrawal 인증, Firebase Admin delete worker, Provider revoke, Firebase/Social release schema, Phone release CAS, 재가입 gate와 단계별 장애·동시성 테스트를 구현한다.
+
+## 2026-08-24 — Entitlement 부재 시 phone eligibility outbox 정책 정리
+
+<!-- codex-turn:01a032ca-a88a-7182-90b2-5767daa1b7dd -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 결제·Entitlement 기능을 후속으로 미룬 상황에서 PhoneEligibilityBindingOutbox의 전달 대상과 Identity의 임시 소유 여부를 현재 ADR·코드 기준으로 판단한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: ADR-002의 v1 consumer는 별도 Entitlement/Billing 서비스이며 Learning Core가 직접 소비하지 않는다. binding 이벤트는 혜택 지급이 아니라 consumer-scoped phone verification binding이고 TrialClaim·UserEntitlement·중복 혜택 정책은 consumer 소유로 정의되어 있다.
+- 구현 내용: Entitlement/Billing consumer와 전송 endpoint가 없는 현재 단계에서는 publisher와 eligibility binding 기능을 활성화하지 않고 VERIFIED/REVOKED outbox를 생성하지 않는 것이 맞다. 소비자 없는 outbox를 계속 적재하거나 성공으로 간주해 폐기하지 않는다.
+- 구현 내용: Identity는 탈퇴 시 자신의 PhoneIdentity와 PhoneFingerprintAlias를 RELEASED 처리하는 책임만 수행한다. 이전에 외부 consumer로 VERIFIED binding을 발행한 적이 없는 환경이라면 해당 consumer를 위한 REVOKED 이벤트도 필요하지 않다. 반대로 production에서 VERIFIED를 한 번이라도 발행했다면 같은 consumer에 revision이 높은 REVOKED를 반드시 전달해야 한다.
+- 구현 내용: 결제·Entitlement 도입 시 consumer inbox/current binding/high-water와 publisher를 먼저 배포하고 그 이후 eligibility producer를 활성화한다. 도입 전 가입자의 혜택 자격이 필요하면 저장되지 않은 phone 원문을 복원하지 말고 사용 시점에 전화번호를 다시 검증해 binding을 생성하는 migration/onboarding 정책을 사용한다.
+- 실행한 테스트와 결과: ADR·계약과 현재 producer/publisher/withdrawal 코드를 정적으로 검토한 분석 작업이므로 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity는 사용자·PhoneIdentity·검증 lifecycle을 소유하지만 TrialClaim·UserEntitlement·결제·무료시험 정책을 소유하지 않는다. phone fingerprint domain/key를 혜택 ledger와 공유하거나 phone을 canonical userId·자동 merge 키로 사용하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: consumer가 없는 동안 PhoneEligibilityBindingOutbox는 탈퇴의 필수 산출물이 아니다. Identity가 임시로 혜택 상태를 소유하지 않고 eligibility integration 전체를 disabled로 유지하며, 탈퇴 cleanup은 Identity 내부 phone release와 Firebase/Social cleanup만으로 구성한다.
+- 위험 요소: consumer 없이 outbox만 생성하면 PENDING/DEAD_LETTER가 누적되고 운영상 cleanup 완료 여부가 왜곡된다. 반대로 과거 VERIFIED 발행 이력이 있는데 REVOKED를 생략하면 향후 consumer에 탈퇴 사용자의 active binding이 남으므로 deployment history와 scope별 high-water를 확인해야 한다.
+- 다음 작업: 탈퇴 lifecycle 구현 Jira에서 phone eligibility revoke를 조건부 단계로 정의하고, production에서 eligibility 기능이 활성화된 적이 없는지 확인한다. Entitlement 도입 Jira에서는 consumer 선배포, producer activation gate와 기존 가입자의 fresh phone verification 정책을 포함한다.
+
+## 2026-08-24 — 전화번호당 무료 모의고사 1회 제공의 최소 선행 조건 정리
+
+<!-- codex-turn:01a032cd-3a23-7cf3-819c-8714d7290a6c -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 결제 기능과 eligibility consumer를 미룬 상태에서 전화번호당 무료 모의고사 1회 정책을 시행할 수 있는지와 필요한 최소 구성요소를 정리한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 별도의 durable claim ledger가 없으면 탈퇴·재가입이나 새 userId 생성 후 동일 번호의 과거 무료혜택 사용 여부를 판정할 수 없으므로 전화번호당 1회 정책을 보장할 수 없다. User나 PhoneIdentity의 현재 연결 상태만으로는 과거 claim 이력을 대체할 수 없다.
+- 구현 내용: 결제 전체를 먼저 구현할 필요는 없지만 최소 Entitlement bounded context로 consumer inbox/current verified binding, benefit-scoped versioned phone fingerprint candidate, TrialClaim unique ledger와 무료시험 reserve/confirm/cancel·reconciliation을 구현해야 한다. 이 원장은 별도 서비스가 이상적이며 초기 배포 단위가 같더라도 Identity domain/collection/transaction과 분리한다.
+- 구현 내용: Identity는 phone verification 시 consumer-scoped eligibility binding을 전달하고 탈퇴·번호 교체 시 revoke를 전달한다. TrialClaim은 계정 탈퇴 후에도 정책상 필요한 기간 보존해 동일 번호의 새 UUID 계정에 과거 계정 데이터를 연결하지 않으면서 중복 혜택만 차단한다.
+- 실행한 테스트와 결과: 정책 분석만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity는 phone 검증과 계정 연결만 소유하고 시험·TrialClaim·UserEntitlement를 소유하지 않는다. phone fingerprint는 benefit scope와 key version으로 domain separation하고 canonical userId·로그인·자동 merge 키로 사용하지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 전화번호당 무료 모의고사 1회를 출시하려면 결제 기능과 무관하게 최소 Entitlement/TrialClaim 트랙은 선행해야 한다. 이 트랙을 미루면 무료시험 출시도 미루거나 전화번호당 1회 보장을 포기해야 하며 Identity에 임시 claim 필드를 추가하지 않는다.
+- 위험 요소: 단순 boolean을 User나 PhoneIdentity에 저장하면 탈퇴·재가입 우회, 동시 요청 이중 지급, 시험 생성 실패 시 혜택 소진 여부 불일치와 향후 Billing 분리 migration 문제가 생긴다. 번호 재할당과 fingerprint key rotation을 고려한 보존·조회 정책도 필요하다.
+- 다음 작업: 무료시험 출시 범위를 확정한 뒤 별도 Jira로 최소 Entitlement consumer, TrialClaim unique, reserve/confirm/cancel과 Identity eligibility publisher activation gate를 구현한다.
+
+## 2026-08-24 — Billing 서버의 최소 무료혜택 Entitlement 범위 확정
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 전화번호당 무료 모의고사 1회를 위해 Billing 서버에 결제 기능보다 먼저 구현할 최소 Entitlement 범위와 서비스별 책임을 확정한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Billing 서버에는 결제수단·주문·PG 연동 없이 eligibility event inbox, current phone benefit binding과 revision high-water, benefit-scoped fingerprint candidate, TrialClaim unique ledger, 무료시험 entitlement reservation의 reserve/confirm/cancel과 reconciliation만 우선 구현한다.
+- 구현 내용: Identity는 phone verification과 VERIFIED/REVOKED binding event 생산만 소유하고 Billing은 전화번호별 혜택 중복 판정과 claim/reservation을 소유한다. Learning Core는 Billing의 reserve 성공 뒤 시험을 만들고 생성 결과에 따라 confirm 또는 cancel하며 phone fingerprint를 직접 저장하지 않는다.
+- 실행한 테스트와 결과: 책임과 최소 범위 정리만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity는 시험·TrialClaim·Entitlement를 소유하지 않고 Billing은 raw phone을 받거나 phone fingerprint를 canonical userId·자동 merge 키로 사용하지 않는다. Learning Core의 시험 책임과 Identity의 UUID/JWT 계약을 유지하며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: Billing 서버를 먼저 완성하는 것이 아니라 무료시험 출시에 필요한 최소 Entitlement vertical slice만 선행한다. 실제 결제·구독·환불·PG 기능은 후속 단계로 남긴다.
+- 위험 요소: 최소 범위라도 동시 reserve, 시험 생성 결과 불명 timeout, cancel/confirm 중복, fingerprint key rotation과 탈퇴 후 claim 보존을 생략하면 전화번호당 1회 보장이 깨질 수 있다.
+- 다음 작업: Billing 저장소에서 별도 Jira로 최소 entity/API/event contract와 완료 조건을 작성하고 consumer를 먼저 배포한 뒤 Identity eligibility publisher를 활성화한다.
+
+## 2026-08-24 — Billing 최소 Entitlement 결정 기록 동기화
+
+<!-- codex-turn:01a032cf-7429-7f72-b7bc-43107ee3aea0 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: Billing 서버에 무료 모의고사용 최소 Entitlement vertical slice를 먼저 구현한다는 현재 turn 결정을 Hook 식별자와 함께 작업 기록에 동기화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Identity는 phone verification과 VERIFIED/REVOKED binding 생산, Billing은 TrialClaim unique와 reserve/confirm/cancel, Learning Core는 시험 생성을 담당한다는 경계를 유지했다. 결제수단·PG·주문·구독·환불은 후속 범위다.
+- 실행한 테스트와 결과: 기록 동기화만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity에 시험·혜택·결제 책임을 추가하지 않고 raw phone과 Identity fingerprint를 Billing claim key로 전달하지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 앞서 확정한 최소 Entitlement 선행 방침을 변경하지 않았으며 Hook이 요구한 현재 turn 기록만 추가했다.
+- 위험 요소: 실제 구현 전 Billing consumer와 Identity producer의 event schema, key rotation, revision과 장애 복구 계약을 함께 확정해야 한다.
+- 다음 작업: Billing 저장소의 Jira와 계약을 먼저 준비한 뒤 consumer 선배포 및 Identity publisher 활성화 순서로 진행한다.
+
+## 2026-08-24 — 탈퇴·재가입·무료시험 최소 Billing 최종 정책 통합
+
+<!-- codex-turn:01a032d2-5ecf-7201-b038-40f1b33853e0 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: Firebase 외부 User 삭제 기반 탈퇴, 동일 전화번호의 새 UUID 재가입, 전화번호당 무료 모의고사 1회와 Billing 최소 Entitlement 선행 방침을 하나의 최종 정책으로 통합한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 탈퇴는 fresh WITHDRAWAL Firebase proof로 소유권을 검증하고 내부 Transaction에서 User WITHDRAWN, 모든 RefreshSession revoke와 withdrawal lifecycle outbox를 먼저 확정한다. worker가 Firebase disable·refresh revoke·Provider별 철회·Firebase User delete를 수행한 뒤 Firebase/Social mapping과 PhoneIdentity/aliases를 release하고 CLEANED로 완료한다.
+- 구현 내용: CLEANED 전에는 로그인·신규 enrollment·재가입을 차단한다. CLEANED 후 같은 전화번호를 다시 검증해 새 Firebase User와 새 canonical UUID User로 가입할 수 있지만 기존 User·프로필·시험 데이터를 자동 연결하거나 phone을 복구·merge 키로 사용하지 않는다.
+- 구현 내용: 전화번호당 무료 모의고사 1회를 위해 Billing 서버에 결제 전체보다 먼저 최소 Entitlement slice를 구현한다. Billing은 eligibility inbox/current binding/high-water, benefit-scoped fingerprint, TrialClaim unique, reserve/confirm/cancel과 reconciliation을 소유하고 Identity는 VERIFIED/REVOKED binding 생산, Learning Core는 시험 생성을 담당한다.
+- 구현 내용: TrialClaim은 계정 탈퇴와 PhoneIdentity release 후에도 별도 정책 기간 유지해 동일 번호의 새 계정에 과거 개인정보를 연결하지 않으면서 혜택 중복만 차단한다. PG·결제수단·주문·구독·환불은 후속 범위로 남기며 Billing consumer를 먼저 배포한 뒤 Identity publisher를 활성화한다.
+- 실행한 테스트와 결과: 최종 정책 통합만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: canonical userId/JWT sub는 서버 UUID이고 Firebase UID·provider subject·phone은 userId·로그인 탐색·자동 merge 키가 아니다. Identity는 시험·TrialClaim·Entitlement를 소유하지 않고 Learning Core는 phone 정보를 저장하지 않으며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 완전 탈퇴 terminal은 Firebase 외부 삭제와 모든 내부 점유 release가 끝난 CLEANED다. 무료시험 출시에 필요한 최소 Entitlement는 Billing에 선행 구현하되 실제 결제 기능은 미룬다. consumer 준비 전 eligibility outbox 생산·publisher는 활성화하지 않는다.
+- 위험 요소: Firebase/Social release schema 미비, 외부 삭제와 내부 release 사이의 부분 실패, Billing reserve 결과 불명, fingerprint key rotation과 TrialClaim 보존 기간을 해결하지 않으면 재가입 또는 전화번호당 1회 정책이 깨질 수 있다.
+- 다음 작업: Identity withdrawal lifecycle Jira와 Billing 최소 Entitlement Jira를 분리해 contract와 완료 조건을 작성하고 Billing consumer 선배포, Identity producer 활성화, Learning Core reserve/confirm/cancel 연동 순서로 구현한다.
+
+## 2026-08-24 — 탈퇴 후 동일 SNS 계정 로그인·재가입 동작 확정
+
+<!-- codex-turn:01a032d9-4e4f-7283-b061-5db9908506a2 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: Firebase 외부 User 삭제 기반 탈퇴 후 동일 Google·Kakao·Apple 계정으로 다시 SNS 인증할 때 cleanup 상태별 로그인과 재가입 동작을 확정한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Firebase User 삭제는 Google·Kakao·Apple Provider의 원본 계정을 삭제하지 않는다. 사용자가 같은 SNS credential로 Firebase 인증을 다시 수행하면 Firebase 측에서 새 User·UID가 만들어질 수 있으며 Identity는 이를 기존 canonical User 로그인으로 취급하지 않는다.
+- 구현 내용: withdrawal lifecycle이 CLEANED 전이면 기존 mapping 또는 withdrawal tombstone/lifecycle을 기준으로 로그인과 신규 enrollment를 WITHDRAWAL_PENDING 성격의 오류로 fail-closed 차단한다. 외부 삭제나 내부 mapping release가 끝나기 전에 같은 Provider subject가 새 User를 claim하지 못하게 한다.
+- 구현 내용: CLEANED 후에는 기존 FirebaseIdentity·SocialIdentity의 active unique 점유가 해제되어 있으므로 같은 SNS 계정의 fresh proof는 미등록 principal로 판정한다. 즉시 로그인 Token을 발급하지 않고 신규 회원가입 enrollment로 보내 전화번호 재검증과 약관 동의를 거친 뒤 새 canonical UUID User, 새 FirebaseIdentity·SocialIdentity를 생성한다.
+- 구현 내용: 새 계정은 기존 WITHDRAWN User·프로필·시험 데이터와 자동 연결하지 않는다. Billing의 TrialClaim은 별도 보존되므로 같은 전화번호로 재가입해도 이미 사용한 무료 모의고사 혜택은 다시 지급되지 않는다.
+- 실행한 테스트와 결과: 정책 동작 정리만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Provider account·Firebase UID·provider subject·phone을 canonical userId나 자동 merge/복구 키로 사용하지 않고 새 가입마다 서버 UUID를 발급한다. Firebase 외부 User 삭제와 Provider별 철회 의무를 구분하며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 동일 SNS 계정 재사용은 기존 계정 로그인이 아니라 CLEANED 후 가능한 신규 가입이다. 기본 정책에는 탈퇴 철회·기존 User 재활성화를 포함하지 않으며 필요하면 별도 account recovery 기능으로 설계한다.
+- 위험 요소: SocialIdentity를 영구 unique tombstone으로 남기면 같은 SNS 재가입이 막히고 너무 일찍 release하면 cleanup 중 중복 가입이 열린다. Firebase가 재인증 때 부여하는 UID 변화만 신뢰하지 말고 Provider subject의 withdrawal terminal/release 상태도 함께 fencing해야 한다.
+- 다음 작업: withdrawal lifecycle과 Firebase exchange/signup Jira에 CLEANED gate, 동일 provider subject 재가입, cleanup 중 차단, 새 UID·새 UUID 생성과 이전 데이터 비연결 테스트를 포함한다.
+
+## 2026-08-24 — 인증 전체 흐름·정상 사용자 오류 가능성 감사
+
+<!-- codex-turn:01a032de-2abf-7e93-a61c-3a83cf881cc4 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: Guest 생성, Firebase/SNS 교환·가입·승격·merge·인증수단 동기화, Session 재발급·로그아웃, phone과 탈퇴·재가입 흐름을 실제 코드와 테스트로 추적해 정상적인 사용자 행위가 교착·일반 오류·세션 유실로 이어질 수 있는 지점을 찾는다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 현재 정상 경로는 Firebase exchange가 기존 FirebaseIdentity의 ACTIVE MEMBER에는 Token을 발급하고 미등록 UID에는 enrollment를 발급하며, signup이 phone·동의와 attempt를 검증해 User·Firebase/Social/Phone identity·eligibility outbox·Session을 Transaction으로 생성한다. Guest는 unowned credential이면 같은 UUID 승격, existing active owner면 explicit merge를 수행한다.
+- 구현 내용: 출시 차단 수준으로 federated MEMBER 탈퇴 재인증 경로가 없어 `hasLocalCredential=false`가 `INVALID_WITHDRAWAL_CREDENTIALS`로 끝나고, withdrawal Transaction에는 Firebase revoke/delete·lifecycle outbox·Firebase/Social/Phone release가 없다. 따라서 수동 WITHDRAWN 뒤 같은 UID는 ACCOUNT_NOT_ACTIVE, 새 UID의 같은 provider subject는 SOCIAL_IDENTITY_CONFLICT, 같은 phone은 PHONE_ALREADY_LINKED가 되어 CLEANED 재가입 정책을 구현하지 못한다.
+- 구현 내용: Firebase Admin port가 verify만 제공해 disable·refresh revoke·delete와 가입 중단 Firebase User cleanup을 실행할 수 없다. 사용자가 phone을 Firebase에 link한 뒤 가입을 중단하면 내부 User가 없어도 Firebase 쪽 번호 점유가 남을 수 있다. withdrawal pending/cleaned 상태와 전용 오류도 없어 클라이언트가 대기·재시도·신규 가입을 구분할 수 없다.
+- 구현 내용: auth-method sync는 현재 FirebaseIdentity와 같은 UID의 누락 SocialIdentity만 추가하고 provider 제거와 phone replacement를 반영하지 않는다. 사용자가 Firebase에서 provider unlink 또는 번호 변경을 하면 Identity에는 stale SocialIdentity·PhoneIdentity가 남아 이전 provider/번호가 계속 점유되고 Billing VERIFIED/REVOKED 상태도 어긋날 수 있다. 외부 Firebase User를 재생성해 새 UID가 된 ACTIVE MEMBER도 기존 SocialIdentity owner 때문에 exchange에서 conflict가 나며 명시적 account recovery/rebind 경로가 없다.
+- 구현 내용: logout-all은 내부 RefreshSession만 폐기해 Firebase refresh revoke를 하지 않으므로 남은 Firebase credential로 exchange를 호출하면 즉시 새 Identity Session을 만들 수 있다. withdrawal과 logout 뒤 stateless Access Token도 만료 전 Learning Core에서 유효하며 UserWithdrawn/deny consumer는 없다.
+- 구현 내용: Refresh Token rotation은 기존 Session을 ROTATED 저장한 뒤 새 Session을 별도 저장하므로 중간 실패 시 현재 Session을 잃는다. 성공 응답 유실 후 정상 네트워크 재시도도 old token reuse로 판정해 새 Session을 포함한 모든 활성 Session을 폐기한다. Guest 생성 역시 commit 후 응답 유실 시 같은 installation 재시도가 GUEST_ALREADY_EXISTS로 고정되어 Token 복구 경로가 없다.
+- 구현 내용: Firebase signup·Guest upgrade·merge의 commit 후 응답 유실은 같은 finalize 재시도에는 conflict/not-allowed를 반환하지만 Firebase exchange로 복구할 수 있어 클라이언트 fallback 계약이 필요하다. 반복 exchange는 매번 새 RefreshSession을 만들며 기본 login auth_time 15분 정책은 Firebase persistent session 사용자가 자주 recent-auth 오류를 만날 수 있어 제품 UX 확인이 필요하다.
+- 구현 내용: Firebase signup/upgrade는 PhoneEligibilityFingerprintHasher와 eligibility repositories를 필수 주입하고 항상 VERIFIED outbox를 저장한다. 따라서 Billing consumer·publisher·key가 준비되기 전 Firebase 가입을 켜면 기동 실패 또는 미전달 outbox 누적이 생길 수 있으며, 최종 합의대로 Billing consumer 선배포를 실제 activation gate로 강제해야 한다.
+- 실행한 테스트와 결과: 관련 5개 test class(`FirebaseExchangeServiceTests`, `FirebaseAuthenticationConfigurationTests`, `UserWithdrawalServiceTests`, `RefreshTokenUseCaseServicesTests`, `GuestAuthServiceTests`)를 선택 실행했고 `BUILD SUCCESSFUL`이었다. 이 테스트들은 WITHDRAWN 로그인 거절, rotated token reuse 시 전체 Session 폐기와 Guest response-loss retry conflict 등 현재 동작을 고정하지만 withdrawal cleanup·rejoin·logout-all Firebase revoke·unlink/phone replacement 복구는 검증하지 않는다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: email·phone만으로 기존 User를 자동 merge/recover하지 않고 canonical userId/JWT sub는 서버 UUID로 유지한다. Identity·Billing·Learning Core 책임과 Firebase/Mongo 분산 작업의 outbox·retry 경계를 지키며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 구현 우선순위는 (1) federated withdrawal 인증과 lifecycle/CLEANED/rejoin fencing, (2) Firebase Admin revoke/delete와 abandoned enrollment cleanup, (3) Billing consumer activation gate, (4) logout-all coordination과 Refresh rotation/Guest response-loss 복구, (5) provider unlink·phone replacement·active account rebind다. 현재 production Firebase/merge/publisher flag는 이 선결 조건과 staging E2E 전까지 비활성으로 유지한다.
+- 위험 요소: 단위 테스트가 성공해도 현재 의도된 conflict를 검증하는 경우가 있어 정상 사용자 복구 UX까지 증명하지 않는다. 실제 Firebase/mobile, Mongo replica-set Transaction, Billing/Learning consumer, timeout과 응답 유실을 포함한 staging E2E 없이는 부분 실패 수렴을 확인할 수 없다.
+- 다음 작업: 발견 사항을 독립 Jira로 나누되 먼저 withdrawal lifecycle 상태·오류·Admin port·release index와 재가입 테스트를 명세하고, Billing consumer 최소 slice와 함께 배포 gate를 확정한다. 이후 Session idempotency/grace와 auth-method lifecycle Jira를 진행한다.
+
+## 2026-08-24 — Firebase 인증 후속 10단계 구현 순서 문서화
+
+<!-- codex-turn:01a032e9-b93a-7913-8043-2062da0a11e8 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 인증 흐름 감사에서 확정한 탈퇴·cleanup·Billing·Session·인증수단 복구 작업 10개를 순서대로 구현해야 하는 고정 체크리스트로 저장한다.
+- 변경 파일: `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: Firebase/SNS 탈퇴 재인증과 lifecycle부터 Firebase revoke/delete, 내부 identity release와 CLEANED gate, 가입 중단 cleanup, Billing 최소 consumer, logout-all revoke, Refresh rotation 복구, provider/phone lifecycle, Guest response-loss 복구, ACTIVE 회원 rebind까지 1~10번 체크리스트로 고정했다.
+- 구현 내용: 앞 단계의 코드·테스트·운영 계약 완료 전 다음 production 기능을 활성화하지 않고, Billing consumer 선배포, 외부·내부 부분 실패, 응답 유실, retry·reconciliation과 staging E2E를 각 단계 완료 조건에 포함했다.
+- 실행한 테스트와 결과: 문서만 변경해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 지정 marker 단일 존재, 새 체크리스트 순서와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Identity·Billing·Learning Core의 책임을 분리하고 email·phone·provider subject를 canonical userId나 자동 merge 키로 사용하지 않는다. Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 체크리스트 번호가 기본 구현 순서이며 선행 단계가 완료되지 않은 상태에서 후속 production flag를 활성화하지 않는다. 실제 Jira는 단계 또는 안전한 lifecycle 묶음 단위로 별도 승인 후 생성한다.
+- 위험 요소: 여러 저장소 작업을 병렬 개발하더라도 배포 순서까지 병렬로 간주하면 consumer 부재, stale mapping, 재가입 교착과 세션 유실이 다시 발생할 수 있다.
+- 다음 작업: 1단계 Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle의 Jira 범위·상태 모델·오류 계약·완료 조건을 먼저 작성한다.
+
+## 2026-08-24 — 1단계 Firebase/SNS 탈퇴 lifecycle 구현 계획 작성
+
+<!-- codex-turn:01a032ec-32c4-7f81-8f92-ec1cd1ddce34 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음
+- 작업 목표: 후속 구현 순서의 1단계인 Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle을 실제 구현 가능한 API·상태·Transaction·테스트·배포 계획으로 구체화한다.
+- 변경 파일: `docs/contracts/firebase-withdrawal-lifecycle-stage-1-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 미커밋 변경과 다른 새 계약 문서는 건드리지 않았으며 WORKLOG 과거 기록은 수정하거나 삭제하지 않고 이번 항목만 파일 끝에 append했다.
+- 구현 내용: 기존 withdraw endpoint에 optional write-only Firebase proof를 추가하고 실제 FirebaseIdentity 보유 여부로 GUEST·LOCAL·Firebase MEMBER credential을 구분한다. WITHDRAWAL purpose의 revoked·disabled·recent-auth와 Access/Refresh/Firebase/Social owner 일치를 검증한 뒤 User WITHDRAWN, 모든 Session revoke, 필요한 eligibility revoke와 lifecycle insert를 한 Mongo Transaction으로 commit하도록 계획했다.
+- 구현 내용: 신규 UserWithdrawalLifecycle의 target snapshot, status, attempt·lease·retry·fencing 필드와 EXTERNAL_CLEANUP_PENDING에서 CLEANED까지의 상태 계약을 정의했다. 1단계는 PENDING 생성까지만 담당하고 Firebase disable/revoke/delete와 identity release·CLEANED는 2·3단계로 명시적으로 제외했다.
+- 구현 내용: 반복·동시 요청, 응답 유실, legacy WITHDRAWN without lifecycle, pending 로그인/enrollment 오류, Firebase feature kill switch와 법적 탈퇴 가용성, LOCAL·GUEST 하위 호환, 민감정보 비저장·비로그, staging activation gate를 완료 조건에 포함했다.
+- 실행한 테스트와 결과: 구현 계획 문서만 변경해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 지정 marker 단일 존재, 구현 순서 문서의 1단계 링크와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Firebase UID·provider subject·email·phone을 canonical userId나 자동 merge 키로 사용하지 않고 Firebase 원격 mutation을 Mongo Transaction 안에서 수행하지 않는다. Identity·Billing·Learning Core 경계와 UUID/JWT 계약을 유지하며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 1단계 성공은 내부 WITHDRAWN과 `EXTERNAL_CLEANUP_PENDING` 생성이며 완전 탈퇴 terminal이나 재가입 허용이 아니다. 2단계 worker가 준비되기 전 production 탈퇴 endpoint만 단독 활성화하지 않는다.
+- 위험 요소: optional credential 필드의 기존 client 호환, lifecycle target의 pseudonymous data 보존, provider kill switch 중 탈퇴 가용성, commit 후 응답 유실 재조회 방식과 실제 Mongo replica-set Transaction은 구현·staging 단계에서 확정 검증해야 한다.
+- 다음 작업: 계획서를 기준으로 1단계 Jira 초안을 작성하고 사용자 승인 후에만 생성한다. 구현 시 lifecycle domain/Repository와 Transaction 테스트를 먼저 만든 뒤 Firebase withdrawal verifier와 API를 연결한다.
+
+## 2026-08-24 — 결제 연기 뒤 SNS·무료시험·챌린지 우선순위 분석
+
+<!-- codex-turn:01a032ed-fff8-7351-863d-a5737a2aa780 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop`
+- Jira: 없음
+- 작업 목표: 개정된 1차 범위에서 Identity의 SNS·phone 준비 상태와 다음 작업을 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: Firebase exchange/signup, Guest flow, auth-method sync, SocialIdentity, PhoneIdentity, eligibility publisher가 이미 존재하므로 새 로그인 endpoint 구현보다 탈퇴 lifecycle 1~3과 실제 Google/Apple/Phone 모바일·staging E2E가 선행임을 정리했다.
+- 실행한 테스트와 결과: 코드 변경 없는 정적 분석이라 Gradle 테스트와 외부 Firebase 호출은 실행하지 않았다. Controller·계획·ADR·후속 구현 순서를 읽고 종료 전 `git diff --check`와 marker 단일 포함을 검증한다.
+- 유지한 계약: Identity는 canonical userId와 credential mapping만 소유하고 TrialClaim·시험·10초 챌린지를 소유하지 않는다. Firebase ID Token·raw phone·provider credential을 Learning Core로 전달하지 않고 Secret·Token·Password·실제 Key·전체 MongoDB URI를 기록하지 않았다.
+- 결정사항: 무료 TrialClaim은 기존 결정대로 최소 Billing/Entitlement가 소유한다. 1차 provider는 Google+Apple 우선, Kakao 후속을 권장하며 provider 범위는 최종 사용자 승인이 필요하다. phone eligibility consumer가 준비되기 전 production signup flag를 열지 않는다.
+- 위험 요소: lifecycle·consumer 없이 SNS signup을 먼저 활성화하면 탈퇴·재가입과 phone 혜택 원장이 일관되지 않을 수 있다.
+- 다음 작업: provider 범위 확정 후 이미 작성된 Firebase/SNS 탈퇴 lifecycle 1단계 Jira 초안을 승인받아 생성한다.
+
+## 2026-08-24 — 1단계 withdrawal lifecycle Jira 생성안 검증
+
+<!-- codex-turn:01a032fc-14cc-70b2-993f-17f09cb518e5 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 없음 / 생성 전 승인 대기
+- 작업 목표: Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle 1단계 구현 계획을 TMI Jira 작업으로 생성하기 전에 실제 생성 가능 필드와 최종 payload를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션 코드는 변경하지 않았고 기존 계약 문서와 사용자 소유 미커밋 변경은 보존했다.
+- 구현 내용: Atlassian 공식 MCP의 읽기 전용 조회로 `to-teacher` 사이트 연결, TMI 프로젝트 생성 권한, 이슈 유형 `작업`(ID `10003`)과 우선순위 `High`(ID `2`)를 확인했다. 제목·목표·구현 범위·완료 조건·제외 범위·참조 문서가 포함된 생성 payload를 준비했다.
+- 실행한 테스트와 결과: Jira와 문서 기록 준비만 수행해 Gradle 테스트는 실행하지 않았다. 종료 전 `git diff --check`, 이 turn marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Jira에는 Secret·Token·Password·전체 MongoDB URI·RSA Private Key·사용자 개인정보를 포함하지 않는다. Identity·Billing·Learning Core 경계, canonical UUID/JWT 계약과 1단계의 외부 cleanup 제외 범위를 유지한다.
+- 결정사항: 실제 Jira 생성, 댓글, 상태 전환은 수행하지 않았다. 사용자에게 정확한 생성 payload를 먼저 제시하고 명시적 승인을 받은 뒤 `작업`·`High`로 생성한다.
+- 위험 요소: 1단계만 production에 활성화하면 외부 cleanup이 진행되지 않으므로 Stage 2 worker 준비 전 endpoint 단독 활성화를 금지하는 조건을 완료 기준에 포함해야 한다.
+- 다음 작업: 사용자가 제시된 payload를 승인하면 Jira를 생성하고 발급된 이슈 키와 저장 결과를 재조회한 뒤 WORKLOG와 CURRENT_STATE에 기록한다.
+- 승인 후 실행 결과: 사용자가 제시된 payload 생성을 명시적으로 승인했다. Atlassian 공식 MCP로 Jira `TMI-103` `[Identity] Firebase/SNS 탈퇴 재인증 및 withdrawal lifecycle 구축`을 TMI 프로젝트의 `작업`, 우선순위 `High`로 생성했다.
+- Jira 작업: `TMI-103` 생성. 재조회 결과 상태는 `해야 할 일`, 담당자는 없고 라벨은 비어 있으며 승인한 설명·완료 조건·제외 범위·참고 문서가 저장된 것을 확인했다. 댓글, 상태 전환과 다른 필드 변경은 수행하지 않았다.
+- 최종 다음 작업: 구현 시작 전에 `TMI-103`을 읽기 전용 재조회하고 계획서에 따라 lifecycle domain/Repository와 Mongo Transaction 테스트부터 구현한다.
+
+## 2026-08-24 — TMI-103 생성 결과 turn 동기화
+
+<!-- codex-turn:01a032ff-6c16-7902-8a83-7f1b347060f1 -->
+
+- 날짜: 2026-08-24
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-103`
+- 작업 목표: 사용자 승인에 따른 Firebase/SNS 탈퇴 재인증 및 withdrawal lifecycle 1단계 Jira 생성 결과를 현재 종료 turn 기준으로 작업 기록에 동기화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았고 기존 미커밋 파일은 보존했다.
+- 구현 내용: Jira `TMI-103`이 TMI 프로젝트의 `작업`, 우선순위 `High`, 상태 `해야 할 일`로 생성됐음을 기록했다. 승인된 제목·설명·완료 조건·제외 범위가 저장됐고 담당자와 라벨은 비어 있다.
+- 실행한 테스트와 결과: 코드 변경이 없어 Gradle 테스트는 실행하지 않았다. 문서 변경에 대해 `git diff --check`, 지정 marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: Jira와 작업 기록에 Secret·Token·Password·전체 MongoDB URI·RSA Private Key·사용자 개인정보를 포함하지 않았다. Identity·Billing·Learning Core 책임과 canonical UUID/JWT 계약을 유지했다.
+- 결정사항: 사용자의 명시적 승인으로 이슈 생성만 수행했으며 댓글과 상태 전환, 담당자·라벨 지정은 수행하지 않았다.
+- 위험 요소: Stage 2 Firebase cleanup worker가 준비되기 전에 Stage 1 탈퇴 endpoint만 production에 활성화하면 lifecycle이 `EXTERNAL_CLEANUP_PENDING`에 머물 수 있다.
+- 다음 작업: 구현 전에 Jira `TMI-103`을 다시 조회하고 lifecycle domain/Repository와 Mongo Transaction 테스트부터 진행한다.
+
+## 2026-08-25 — TMI-103 Firebase/SNS 탈퇴 재인증과 lifecycle Stage 1 구현
+
+<!-- codex-turn:01a0373a-a723-70f2-8046-f6aa615d8c24 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-103`
+- 작업 목표: Firebase/SNS MEMBER가 fresh Firebase proof로 탈퇴할 수 있게 하고 User tombstone, 전체 RefreshSession 폐기, 필요한 phone eligibility revoke, durable withdrawal lifecycle 생성을 하나의 Mongo Transaction으로 처리한다.
+- 변경 파일: `.env.example`, `src/main/resources/application.yml`, `src/main/java/web/tosunsaeng/identity/domain/auth/common/exception/AuthErrorStatus.java`, `domain/auth/federation/application/FirebaseExchangeService.java`, `FirebaseVerificationPurpose.java`, `domain/auth/federation/infrastructure/firebase/FirebaseAdminAuthenticationVerifier.java`, `FirebaseAuthenticationConfiguration.java`, `domain/user/application/UserWithdrawalService.java`, `UserWithdrawalTransactionService.java`, 신규 `FirebaseWithdrawalCredentialVerifier.java`, `FirebaseWithdrawalTarget.java`, `domain/user/domain/entity/UserWithdrawalLifecycle.java`, `domain/user/domain/enums/UserWithdrawalCleanupStatus.java`, `domain/user/domain/repository/UserWithdrawalLifecycleRepository.java`, `domain/user/dto/request/WithdrawRequest.java`, `domain/user/dto/response/WithdrawResponse.java`, `domain/user/exception/UserErrorStatus.java`, 관련 신규·기존 테스트와 이 작업 기록 문서다. 기존 untracked Learning Core handoff 문서는 변경하지 않았다.
+- 구현 내용: 기존 `POST /api/v1/users/withdraw` 요청에 optional write-only `firebaseIdToken`을 추가하고 `toString` redaction과 16 KiB 제한을 유지했다. GUEST는 추가 credential을 거절하고, LOCAL MEMBER는 password만, FirebaseIdentity 보유 MEMBER는 Firebase proof만 허용하며 혼합·모호한 credential ownership은 안정적인 400 오류로 거절한다.
+- 구현 내용: `FirebaseVerificationPurpose.WITHDRAWAL`을 high-risk recent-auth 경로로 추가했다. 탈퇴 목적은 일반 provider 로그인 feature flag와 분리하되 phone-only sign-in은 허용하지 않고 revoke·disabled 원격 검증을 유지한다. 검증된 project·UID가 현재 FirebaseIdentity와 canonical userId에 일치하고 linked SocialIdentity가 다른 user owner가 아닌지 확인하며 credential·UID·provider subject를 로그나 응답에 노출하지 않는다.
+- 구현 내용: `UserWithdrawalLifecycle`에 userId unique index와 `status + nextAttemptAt + leaseUntil` worker claim index, Firebase target snapshot, attempt·lease·오류·완료 시각·version 필드를 추가했다. 초기 상태는 `EXTERNAL_CLEANUP_PENDING`이며 Stage 2·3이 사용할 retry, external completed, release pending, CLEANED, reconciliation 전이 계약을 enum 테스트로 고정했다.
+- 구현 내용: Mongo Transaction 안에서 요청 RefreshSession을 재검증하고 User CAS tombstone, FirebaseIdentity target 재검증, lifecycle insert, 기존 active phone eligibility binding의 REVOKED outbox, 모든 active RefreshSession 폐기를 처리한다. userId lifecycle unique와 User CAS, duplicate winner 재조회로 동시 요청과 응답 유실 재시도가 동일 lifecycle 결과로 수렴하며 lifecycle 없는 legacy WITHDRAWN은 `WITHDRAWAL_LIFECYCLE_CONFLICT`로 fail-closed 처리한다.
+- 구현 내용: 기존 FirebaseIdentity가 남은 WITHDRAWN 사용자의 Firebase exchange는 lifecycle 존재 시 `WITHDRAWAL_CLEANUP_PENDING`을 반환한다. `FIREBASE_WITHDRAWAL_ENABLED`를 기본 `false`로 추가해 Stage 2 cleanup worker가 준비되기 전 Firebase 탈퇴 경로의 production 활성화를 막았고 LOCAL·GUEST 기존 경로는 유지했다.
+- 실행한 테스트와 결과: 신규 lifecycle domain/index/transition, Firebase proof·Firebase/Social owner conflict, credential 조합, target lifecycle Transaction 테스트를 추가했다. 선택 테스트와 Spring wiring 회귀를 거친 뒤 `./gradlew clean test`를 실행해 전체 505개 테스트가 실패·오류 없이 성공했다. `git diff --check`도 통과했다.
+- 유지한 계약: canonical userId와 JWT sub는 서버 UUID이고 Firebase UID·provider subject·phone을 userId·로그인 탐색·자동 merge 키로 사용하지 않는다. Firebase 원격 mutation은 Mongo Transaction 안에서 실행하지 않고 Firebase ID Token·Provider Token·raw phone·email·SDK 오류를 lifecycle에 저장하지 않는다. Identity는 시험·TrialClaim을 소유하지 않으며 기존 `BaseResponse`, Refresh Token 원문 비저장, LOCAL·GUEST 탈퇴 계약을 유지했다.
+- 결정사항: Stage 1 성공은 User `WITHDRAWN`과 lifecycle `EXTERNAL_CLEANUP_PENDING`이며 완전 탈퇴나 재가입 허용이 아니다. Firebase disable·refresh revoke·delete worker, Firebase/Social/Phone release와 `CLEANED` 전환은 Stage 2·3으로 남기고 activation flag는 그 전까지 기본 비활성으로 유지한다. 현재 turn에는 Atlassian 도구가 노출되지 않아 Jira 재조회·댓글·상태 전환을 수행하지 않았으며 직전 검증된 `TMI-103` 계약을 기준으로 구현했다.
+- 위험 요소: 실제 Mongo replica-set의 다중 collection rollback, Firebase/mobile fresh reauth, provider flag가 꺼진 기존 사용자 탈퇴, timeout·응답 유실·동시 요청은 staging E2E가 필요하다. Stage 2 worker 없이 flag를 활성화하면 lifecycle이 pending에 머물며 Firebase 외부 User와 내부 identity 점유가 정리되지 않는다. 기존 lifecycle 없는 WITHDRAWN 데이터는 자동 target 추정 없이 운영 reconciliation이 필요하다.
+- 다음 작업: diff 리뷰 후 staging에서 Mongo Transaction과 Firebase withdrawal proof E2E를 검증하고, 별도 승인 아래 Jira 진행 상태·댓글을 갱신한다. 이후 구현 순서 2단계인 Firebase disable·revoke·delete worker를 진행한다.
+
+## 2026-08-25 — 완전 탈퇴 구현 범위 재확인
+
+<!-- codex-turn:01a03747-53b2-7a91-8cae-367e83da8830 -->
+
+- 날짜: 2026-08-25
+- 브랜치: `feat/TMI-103-firebase-withdrawal-lifecycle` (Codex commit·push 미수행)
+- Jira: `TMI-103` (조회·수정·댓글·상태 전환 미수행)
+- 작업 목표: 현재 계획과 구현에 회원 탈퇴가 어디까지 포함됐는지 내부 탈퇴, Firebase 외부 cleanup, identity release 기준으로 구분해 확인한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았고 기존 미커밋 변경을 보존했다.
+- 구현 내용: 구현 순서 문서와 Stage 1 계획을 확인해 완전 탈퇴가 1단계 Firebase/SNS 재인증·내부 `WITHDRAWN`·lifecycle, 2단계 Firebase disable·refresh revoke·delete worker, 3단계 Firebase/Social/Phone release·`CLEANED`·재가입 gate로 구성됨을 재확인했다.
+- 실행한 테스트와 결과: 코드 변경 없는 계획 확인이라 Gradle 테스트는 다시 실행하지 않았다. 직전 구현 turn의 `./gradlew clean test` 전체 505개 성공 결과를 유지하며 문서 변경에 대해 `git diff --check`, marker 단일 존재와 WORKLOG EOF append를 검증한다.
+- 유지한 계약: User tombstone과 canonical UUID는 유지하고 Firebase 외부 mutation은 Mongo Transaction 밖의 retry worker가 담당한다. phone·provider subject는 자동 복구·merge 키가 아니며 Secret·Token·Password·실제 Key·전체 MongoDB URI와 사용자 개인정보를 기록하지 않았다.
+- 결정사항: 현재 완료된 것은 Stage 1로 내부 계정은 즉시 탈퇴 상태가 되지만 완전 탈퇴 terminal은 아니다. Stage 2 외부 Firebase 삭제와 Stage 3 내부 identity 점유 해제가 끝나 `CLEANED`가 되어야 동일 credential의 신규 가입을 허용한다.
+- 위험 요소: Stage 2 worker 없이 `FIREBASE_WITHDRAWAL_ENABLED`를 활성화하면 lifecycle이 `EXTERNAL_CLEANUP_PENDING`에 머물고 Firebase User와 identity 점유가 남는다.
+- 다음 작업: 구현 순서대로 Stage 2 Firebase disable·refresh revoke·delete worker 계획과 Jira를 별도 승인 후 작성하고, 이후 Stage 3 release와 `CLEANED` gate를 구현한다.

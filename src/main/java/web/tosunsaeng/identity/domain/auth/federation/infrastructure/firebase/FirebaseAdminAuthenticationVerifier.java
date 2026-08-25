@@ -70,7 +70,7 @@ public final class FirebaseAdminAuthenticationVerifier
 		}
 
 		validateIdentityAndTime(data, requiredPurpose);
-		ProviderResolution providers = resolveProviders(data);
+		ProviderResolution providers = resolveProviders(data, requiredPurpose);
 		validateProviderPolicy(data, providers, requiredPurpose);
 
 		try {
@@ -131,9 +131,12 @@ public final class FirebaseAdminAuthenticationVerifier
 		}
 	}
 
-	private ProviderResolution resolveProviders(FirebaseAdminPrincipalData data) {
+	private ProviderResolution resolveProviders(
+			FirebaseAdminPrincipalData data,
+			FirebaseVerificationPurpose purpose
+	) {
 		FirebaseAuthenticationMethod signInMethod = methodFor(data.signInProviderId());
-		if (signInMethod == null || !isEnabled(signInMethod)) {
+		if (signInMethod == null || !isAllowedForPurpose(signInMethod, purpose)) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
 		}
 
@@ -143,7 +146,7 @@ public final class FirebaseAdminAuthenticationVerifier
 		Map<SocialProvider, VerifiedSocialPrincipal> socialPrincipals = new LinkedHashMap<>();
 		for (FirebaseLinkedProviderData provider : data.linkedProviders()) {
 			FirebaseAuthenticationMethod method = methodFor(provider.providerId());
-			if (method == null || !isEnabled(method)) {
+			if (method == null || !isAllowedForPurpose(method, purpose)) {
 				continue;
 			}
 			linkedMethods.add(method);
@@ -180,6 +183,9 @@ public final class FirebaseAdminAuthenticationVerifier
 			ProviderResolution providers,
 			FirebaseVerificationPurpose purpose
 	) {
+		if (!isAllowedForPurpose(providers.signInMethod(), purpose)) {
+			throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+		}
 		if (!providers.linkedMethods().contains(providers.signInMethod())) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
 		}
@@ -188,7 +194,8 @@ public final class FirebaseAdminAuthenticationVerifier
 		if (!hasPrimaryMethod) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
 		}
-		if (purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
+		if ((purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
+				|| purpose == FirebaseVerificationPurpose.WITHDRAWAL)
 				&& providers.signInMethod() == FirebaseAuthenticationMethod.PHONE) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
 		}
@@ -205,6 +212,13 @@ public final class FirebaseAdminAuthenticationVerifier
 				&& !data.emailVerified()) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_EMAIL_VERIFICATION_REQUIRED);
 		}
+	}
+
+	private boolean isAllowedForPurpose(
+			FirebaseAuthenticationMethod method,
+			FirebaseVerificationPurpose purpose
+	) {
+		return purpose == FirebaseVerificationPurpose.WITHDRAWAL || isEnabled(method);
 	}
 
 	private FirebaseAuthenticationMethod methodFor(String providerId) {

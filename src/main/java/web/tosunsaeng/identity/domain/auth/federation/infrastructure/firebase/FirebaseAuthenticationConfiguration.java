@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseAuthMethodsSyncUseCase;
@@ -50,6 +51,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentit
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 
@@ -175,7 +177,8 @@ public class FirebaseAuthenticationConfiguration {
 				AccessTokenIssuer accessTokenIssuer,
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseEnrollmentAttemptService enrollmentAttemptService,
-				Clock clock
+				Clock clock,
+				@Nullable UserWithdrawalLifecycleRepository withdrawalLifecycleRepository
 		) {
 			return new FirebaseExchangeService(
 					authenticationVerifier,
@@ -185,7 +188,8 @@ public class FirebaseAuthenticationConfiguration {
 					accessTokenIssuer,
 					refreshSessionIssuer,
 					enrollmentAttemptService,
-					clock
+					clock,
+					withdrawalLifecycleRepository
 			);
 		}
 

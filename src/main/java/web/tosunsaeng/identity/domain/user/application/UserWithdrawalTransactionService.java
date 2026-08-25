@@ -7,6 +7,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
@@ -19,6 +20,9 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
+import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
@@ -30,6 +34,25 @@ public class UserWithdrawalTransactionService {
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final PhoneEligibilityBindingRevisionRepository bindingRevisionRepository;
 	private final PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
+	private final UserWithdrawalLifecycleRepository lifecycleRepository;
+	private final FirebaseIdentityRepository firebaseIdentityRepository;
+
+	@Autowired
+	public UserWithdrawalTransactionService(
+			UserRepository userRepository,
+			RefreshSessionRepository refreshSessionRepository,
+			@Nullable PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
+			@Nullable PhoneEligibilityBindingOutboxRepository bindingOutboxRepository,
+			@Nullable UserWithdrawalLifecycleRepository lifecycleRepository,
+			@Nullable FirebaseIdentityRepository firebaseIdentityRepository
+	) {
+		this.userRepository = userRepository;
+		this.refreshSessionRepository = refreshSessionRepository;
+		this.bindingRevisionRepository = bindingRevisionRepository;
+		this.bindingOutboxRepository = bindingOutboxRepository;
+		this.lifecycleRepository = lifecycleRepository;
+		this.firebaseIdentityRepository = firebaseIdentityRepository;
+	}
 
 	public UserWithdrawalTransactionService(
 			UserRepository userRepository,
@@ -37,17 +60,16 @@ public class UserWithdrawalTransactionService {
 			@Nullable PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
 			@Nullable PhoneEligibilityBindingOutboxRepository bindingOutboxRepository
 	) {
-		this.userRepository = userRepository;
-		this.refreshSessionRepository = refreshSessionRepository;
-		this.bindingRevisionRepository = bindingRevisionRepository;
-		this.bindingOutboxRepository = bindingOutboxRepository;
+		this(userRepository, refreshSessionRepository, bindingRevisionRepository,
+				bindingOutboxRepository, null, null);
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
 	public WithdrawalTransactionResult withdraw(
 			User currentUser,
 			String credentialTokenHash,
-			Instant withdrawnAt
+			Instant withdrawnAt,
+			@Nullable FirebaseWithdrawalTarget firebaseTarget
 	) {
 		validateCredentialSession(
 				credentialTokenHash,
@@ -66,6 +88,9 @@ public class UserWithdrawalTransactionService {
 		if (!userUpdated) {
 			throw new UserException(UserErrorStatus.WITHDRAWAL_CONFLICT);
 		}
+
+		validateFirebaseTarget(currentUser.getUserId(), firebaseTarget);
+		createLifecycle(currentUser.getUserId(), firebaseTarget, withdrawnAt);
 
 		publishBindingRevocations(currentUser.getUserId(), withdrawnAt);
 
@@ -87,6 +112,55 @@ public class UserWithdrawalTransactionService {
 				WithdrawResponse.from(tombstone),
 				activeSessions.size()
 		);
+	}
+
+	@Transactional(transactionManager = "mongoTransactionManager")
+	public WithdrawalTransactionResult withdraw(
+			User currentUser,
+			String credentialTokenHash,
+			Instant withdrawnAt
+	) {
+		return withdraw(currentUser, credentialTokenHash, withdrawnAt, null);
+	}
+
+	private void validateFirebaseTarget(
+			String userId,
+			@Nullable FirebaseWithdrawalTarget firebaseTarget
+	) {
+		if (firebaseTarget == null) {
+			return;
+		}
+		if (firebaseIdentityRepository == null) {
+			throw new UserException(UserErrorStatus.WITHDRAWAL_LIFECYCLE_CONFLICT);
+		}
+		boolean matches = firebaseIdentityRepository
+				.findByFirebaseProjectIdAndFirebaseUid(
+						firebaseTarget.firebaseProjectId(), firebaseTarget.firebaseUid()
+				)
+				.map(identity -> identity.getUserId().equals(userId))
+				.orElse(false);
+		if (!matches) {
+			throw new UserException(UserErrorStatus.WITHDRAWAL_LIFECYCLE_CONFLICT);
+		}
+	}
+
+	private void createLifecycle(
+			String userId,
+			@Nullable FirebaseWithdrawalTarget firebaseTarget,
+			Instant withdrawnAt
+	) {
+		if (lifecycleRepository == null) {
+			return;
+		}
+		if (lifecycleRepository.findByUserId(userId).isPresent()) {
+			throw new UserException(UserErrorStatus.WITHDRAWAL_LIFECYCLE_CONFLICT);
+		}
+		lifecycleRepository.save(UserWithdrawalLifecycle.create(
+				userId,
+				firebaseTarget == null ? null : firebaseTarget.firebaseProjectId(),
+				firebaseTarget == null ? null : firebaseTarget.firebaseUid(),
+				withdrawnAt
+		));
 	}
 
 	private void publishBindingRevocations(String userId, Instant withdrawnAt) {
