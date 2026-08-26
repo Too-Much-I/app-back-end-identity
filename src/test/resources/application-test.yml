@@ -35,6 +35,8 @@ app:
     phone-enabled: false
   firebase-withdrawal-cleanup:
     enabled: false
+  firebase-withdrawal-identity-release:
+    enabled: false
   guest-merge:
     enabled: false
   phone-identity:

@@ -19,15 +19,26 @@ public final class FirebaseGuestMergeTargetResolver {
 	private final FirebaseIdentityRepository firebaseIdentityRepository;
 	private final SocialIdentityRepository socialIdentityRepository;
 	private final UserRepository userRepository;
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	public FirebaseGuestMergeTargetResolver(
 			FirebaseIdentityRepository firebaseIdentityRepository,
 			SocialIdentityRepository socialIdentityRepository,
 			UserRepository userRepository
 	) {
+		this(firebaseIdentityRepository, socialIdentityRepository, userRepository, null);
+	}
+
+	public FirebaseGuestMergeTargetResolver(
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			UserRepository userRepository,
+			WithdrawalEnrollmentGate withdrawalEnrollmentGate
+	) {
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
 		this.socialIdentityRepository = Objects.requireNonNull(socialIdentityRepository);
 		this.userRepository = Objects.requireNonNull(userRepository);
+		this.withdrawalEnrollmentGate = withdrawalEnrollmentGate;
 	}
 
 	public User resolve(VerifiedFirebasePrincipal principal, String sourceUserId) {
@@ -44,6 +55,7 @@ public final class FirebaseGuestMergeTargetResolver {
 					social.providerSubject()
 			).map(SocialIdentity::getUserId).ifPresent(ownerIds::add);
 		}
+		ownerIds.forEach(this::checkOwner);
 		if (ownerIds.size() != 1 || ownerIds.contains(requiredSourceUserId)) {
 			throw conflict();
 		}
@@ -59,5 +71,11 @@ public final class FirebaseGuestMergeTargetResolver {
 
 	private AuthException conflict() {
 		return new AuthException(AuthErrorStatus.GUEST_MERGE_TARGET_CONFLICT);
+	}
+
+	private void checkOwner(String ownerUserId) {
+		if (withdrawalEnrollmentGate != null) {
+			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
+		}
 	}
 }

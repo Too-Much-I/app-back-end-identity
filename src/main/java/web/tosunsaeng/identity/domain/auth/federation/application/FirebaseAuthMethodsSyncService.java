@@ -36,6 +36,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 	private final FirebaseAuthenticationVerifier authenticationVerifier;
 	private final FirebaseAuthMethodsSyncTransactionService transactionService;
 	private final Clock clock;
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	public FirebaseAuthMethodsSyncService(
 			CurrentUserProvider currentUserProvider,
@@ -46,6 +47,21 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 			FirebaseAuthMethodsSyncTransactionService transactionService,
 			Clock clock
 	) {
+		this(currentUserProvider, userRepository, firebaseIdentityRepository,
+				socialIdentityRepository, authenticationVerifier, transactionService,
+				clock, null);
+	}
+
+	public FirebaseAuthMethodsSyncService(
+			CurrentUserProvider currentUserProvider,
+			UserRepository userRepository,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			FirebaseAuthenticationVerifier authenticationVerifier,
+			FirebaseAuthMethodsSyncTransactionService transactionService,
+			Clock clock,
+			WithdrawalEnrollmentGate withdrawalEnrollmentGate
+	) {
 		this.currentUserProvider = Objects.requireNonNull(currentUserProvider);
 		this.userRepository = Objects.requireNonNull(userRepository);
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
@@ -53,6 +69,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 		this.authenticationVerifier = Objects.requireNonNull(authenticationVerifier);
 		this.transactionService = Objects.requireNonNull(transactionService);
 		this.clock = Objects.requireNonNull(clock);
+		this.withdrawalEnrollmentGate = withdrawalEnrollmentGate;
 	}
 
 	@Override
@@ -90,6 +107,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 						now
 				));
 			} else if (!userId.equals(existing.orElseThrow().getUserId())) {
+				checkOwner(existing.orElseThrow().getUserId());
 				throw new AuthException(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
 			}
 		}
@@ -115,6 +133,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 							AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT
 					));
 			if (!userId.equals(existing.getUserId())) {
+				checkOwner(existing.getUserId());
 				throw new AuthException(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
 			}
 		}
@@ -126,5 +145,11 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 			providers.add(identity.getProvider());
 		}
 		return Set.copyOf(providers);
+	}
+
+	private void checkOwner(String ownerUserId) {
+		if (withdrawalEnrollmentGate != null) {
+			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
+		}
 	}
 }

@@ -34,6 +34,7 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseIdenti
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupTransactionService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
+import web.tosunsaeng.identity.domain.auth.federation.application.WithdrawalEnrollmentGate;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
@@ -156,15 +157,25 @@ public class FirebaseAuthenticationConfiguration {
 		}
 
 		@Bean
+		WithdrawalEnrollmentGate withdrawalEnrollmentGate(
+				UserRepository userRepository,
+				UserWithdrawalLifecycleRepository lifecycleRepository
+		) {
+			return new WithdrawalEnrollmentGate(userRepository, lifecycleRepository);
+		}
+
+		@Bean
 		FirebaseIdentityOwnershipService firebaseIdentityOwnershipService(
 				FirebaseIdentityRepository firebaseIdentityRepository,
 				SocialIdentityRepository socialIdentityRepository,
-				UserRepository userRepository
+				UserRepository userRepository,
+				WithdrawalEnrollmentGate withdrawalEnrollmentGate
 		) {
 			return new FirebaseIdentityOwnershipService(
 					firebaseIdentityRepository,
 					socialIdentityRepository,
-					userRepository
+					userRepository,
+					withdrawalEnrollmentGate
 			);
 		}
 
@@ -233,7 +244,8 @@ public class FirebaseAuthenticationConfiguration {
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseSignupTransactionService transactionService,
 				AccessTokenIssuer accessTokenIssuer,
-				Clock clock
+				Clock clock,
+				WithdrawalEnrollmentGate withdrawalEnrollmentGate
 		) {
 			return new FirebaseSignupService(
 					authenticationVerifier,
@@ -249,7 +261,8 @@ public class FirebaseAuthenticationConfiguration {
 					refreshSessionIssuer,
 					transactionService,
 					accessTokenIssuer,
-					clock
+					clock,
+					withdrawalEnrollmentGate
 			);
 		}
 
@@ -352,12 +365,14 @@ public class FirebaseAuthenticationConfiguration {
 		FirebaseGuestMergeTargetResolver firebaseGuestMergeTargetResolver(
 				FirebaseIdentityRepository firebaseIdentityRepository,
 				SocialIdentityRepository socialIdentityRepository,
-				UserRepository userRepository
+				UserRepository userRepository,
+				WithdrawalEnrollmentGate withdrawalEnrollmentGate
 		) {
 			return new FirebaseGuestMergeTargetResolver(
 					firebaseIdentityRepository,
 					socialIdentityRepository,
-					userRepository
+					userRepository,
+					withdrawalEnrollmentGate
 			);
 		}
 
@@ -424,7 +439,8 @@ public class FirebaseAuthenticationConfiguration {
 				SocialIdentityRepository socialIdentityRepository,
 				FirebaseAuthenticationVerifier authenticationVerifier,
 				FirebaseAuthMethodsSyncTransactionService transactionService,
-				Clock clock
+				Clock clock,
+				WithdrawalEnrollmentGate withdrawalEnrollmentGate
 		) {
 			return new FirebaseAuthMethodsSyncService(
 					currentUserProvider,
@@ -433,7 +449,8 @@ public class FirebaseAuthenticationConfiguration {
 					socialIdentityRepository,
 					authenticationVerifier,
 					transactionService,
-					clock
+					clock,
+					withdrawalEnrollmentGate
 			);
 		}
 	}

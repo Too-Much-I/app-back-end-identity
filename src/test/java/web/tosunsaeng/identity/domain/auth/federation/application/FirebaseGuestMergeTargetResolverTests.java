@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.domain.auth.federation.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -35,6 +36,9 @@ class FirebaseGuestMergeTargetResolverTests {
 			SocialIdentityRepository.class
 	);
 	private final UserRepository userRepository = mock(UserRepository.class);
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate = mock(
+			WithdrawalEnrollmentGate.class
+	);
 	private FirebaseGuestMergeTargetResolver resolver;
 
 	@BeforeEach
@@ -42,7 +46,8 @@ class FirebaseGuestMergeTargetResolverTests {
 		resolver = new FirebaseGuestMergeTargetResolver(
 				firebaseRepository,
 				socialRepository,
-				userRepository
+				userRepository,
+				withdrawalEnrollmentGate
 		);
 	}
 
@@ -90,6 +95,24 @@ class FirebaseGuestMergeTargetResolverTests {
 				NOW
 		)));
 		assertConflict(() -> resolver.resolve(principal(List.of(google)), SOURCE_ID));
+	}
+
+	@Test
+	void withdrawnTargetOwnerUsesCleanupPendingBeforeMergeResolution() {
+		User target = member("탈퇴처리중");
+		when(firebaseRepository.findByFirebaseProjectIdAndFirebaseUid("project", "uid"))
+				.thenReturn(Optional.of(FirebaseIdentity.create(
+						"project", "uid", target.getUserId(), NOW
+				)));
+		doThrow(new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING))
+				.when(withdrawalEnrollmentGate).checkExistingOwner(target.getUserId());
+
+		AuthException exception = catchThrowableOfType(
+				AuthException.class,
+				() -> resolver.resolve(principal(List.of()), SOURCE_ID)
+		);
+		assertThat(exception.getErrorCode())
+				.isEqualTo(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
 	}
 
 	private VerifiedFirebasePrincipal principal(List<VerifiedSocialPrincipal> social) {

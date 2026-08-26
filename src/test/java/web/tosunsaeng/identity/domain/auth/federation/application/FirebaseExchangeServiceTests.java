@@ -36,8 +36,11 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityR
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserWithdrawalCleanupStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
@@ -315,6 +318,49 @@ class FirebaseExchangeServiceTests {
 
 		assertThatThrownBy(() -> service.exchange(new FirebaseExchangeRequest("credential")))
 				.isInstanceOf(UserException.class);
+		verifyNoInteractions(accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService);
+	}
+
+	@Test
+	void withdrawnFirebaseOwnerPendingCleanupReturnsDedicatedGateError() {
+		UserWithdrawalLifecycleRepository lifecycleRepository = mock(
+				UserWithdrawalLifecycleRepository.class
+		);
+		service = new FirebaseExchangeService(
+				authenticationVerifier,
+				firebaseIdentityRepository,
+				socialIdentityRepository,
+				userRepository,
+				accessTokenIssuer,
+				refreshSessionIssuer,
+				enrollmentAttemptService,
+				Clock.fixed(NOW, ZoneOffset.UTC),
+				lifecycleRepository
+		);
+		when(authenticationVerifier.verify(any(), any())).thenReturn(principal(
+				FirebaseAuthenticationMethod.GOOGLE,
+				true,
+				false,
+				Set.of(FirebaseAuthenticationMethod.GOOGLE),
+				List.of()
+		));
+		when(firebaseIdentityRepository.findByFirebaseProjectIdAndFirebaseUid(
+				PROJECT_ID, FIREBASE_UID
+		)).thenReturn(Optional.of(FirebaseIdentity.create(
+				PROJECT_ID, FIREBASE_UID, USER_ID, NOW
+		)));
+		User withdrawn = member(UserStatus.WITHDRAWN);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(withdrawn));
+		UserWithdrawalLifecycle lifecycle = mock(UserWithdrawalLifecycle.class);
+		when(lifecycle.getStatus()).thenReturn(
+				UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING
+		);
+		when(lifecycleRepository.findByUserId(USER_ID)).thenReturn(Optional.of(lifecycle));
+
+		assertThatThrownBy(() -> service.exchange(new FirebaseExchangeRequest("credential")))
+				.isInstanceOf(AuthException.class)
+				.satisfies(exception -> assertThat(((AuthException) exception).getErrorCode())
+						.isEqualTo(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING));
 		verifyNoInteractions(accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService);
 	}
 
