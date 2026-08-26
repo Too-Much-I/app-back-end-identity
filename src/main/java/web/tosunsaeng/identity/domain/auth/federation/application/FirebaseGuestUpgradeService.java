@@ -15,6 +15,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestUpgradeRequest;
@@ -215,8 +216,12 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 	}
 
 	private void ensurePhoneOwner(String userId, PhoneFingerprintSet fingerprints) {
-		if (aliasRepository.findAllActiveByFingerprints(fingerprints.retained()).stream()
-				.anyMatch(alias -> !userId.equals(alias.getUserId()))) {
+		var otherOwners = aliasRepository.findAllActiveByFingerprints(fingerprints.retained())
+				.stream()
+				.filter(alias -> !userId.equals(alias.getUserId()))
+				.toList();
+		if (!otherOwners.isEmpty()) {
+			otherOwners.forEach(alias -> ownershipService.checkOwner(alias.getUserId()));
 			throw new AuthException(AuthErrorStatus.PHONE_ALREADY_LINKED);
 		}
 	}
@@ -256,8 +261,12 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 		if (ownership == FirebaseOwnershipOutcome.OWNED_BY_OTHER_ACTIVE_MEMBER) {
 			return new AuthException(AuthErrorStatus.MERGE_REQUIRED);
 		}
-		if (aliasRepository.findAllActiveByFingerprints(phoneFingerprints.retained()).stream()
-				.anyMatch(alias -> !userId.equals(alias.getUserId()))) {
+		List<PhoneFingerprintAlias> conflictingAliases = aliasRepository
+				.findAllActiveByFingerprints(phoneFingerprints.retained()).stream()
+				.filter(alias -> !userId.equals(alias.getUserId()))
+				.toList();
+		if (!conflictingAliases.isEmpty()) {
+			conflictingAliases.forEach(alias -> ownershipService.checkOwner(alias.getUserId()));
 			return new AuthException(AuthErrorStatus.PHONE_ALREADY_LINKED);
 		}
 		return enrollmentConflict();

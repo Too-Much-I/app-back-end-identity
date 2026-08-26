@@ -38,6 +38,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentit
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 
@@ -96,7 +97,11 @@ class FirebaseAuthenticationConfigurationTests {
 				)
 				.withBean(FirebaseIdentityRepository.class, () -> mock(FirebaseIdentityRepository.class))
 				.withBean(SocialIdentityRepository.class, () -> mock(SocialIdentityRepository.class))
-				.withBean(UserRepository.class, () -> mock(UserRepository.class))
+					.withBean(UserRepository.class, () -> mock(UserRepository.class))
+					.withBean(
+							UserWithdrawalLifecycleRepository.class,
+							() -> mock(UserWithdrawalLifecycleRepository.class)
+					)
 				.withBean(AccessTokenIssuer.class, () -> mock(AccessTokenIssuer.class))
 				.withBean(RefreshSessionIssuer.class, () -> mock(RefreshSessionIssuer.class))
 				.withBean(RefreshSessionRepository.class, () -> mock(RefreshSessionRepository.class))

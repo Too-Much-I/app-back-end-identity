@@ -52,6 +52,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 	private final FirebaseSignupTransactionService transactionService;
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final Clock clock;
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	public FirebaseSignupService(
 			FirebaseAuthenticationVerifier authenticationVerifier,
@@ -69,6 +70,30 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 			AccessTokenIssuer accessTokenIssuer,
 			Clock clock
 	) {
+		this(authenticationVerifier, enrollmentRepository, firebaseIdentityRepository,
+				socialIdentityRepository, aliasRepository, phoneNumberNormalizer,
+				phoneFingerprintHasher, eligibilityFingerprintHasher, consentPolicy,
+				userFactory, refreshSessionIssuer, transactionService, accessTokenIssuer,
+				clock, null);
+	}
+
+	public FirebaseSignupService(
+			FirebaseAuthenticationVerifier authenticationVerifier,
+			FirebaseEnrollmentAttemptRepository enrollmentRepository,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			PhoneFingerprintAliasRepository aliasRepository,
+			PhoneNumberNormalizer phoneNumberNormalizer,
+			PhoneFingerprintHasher phoneFingerprintHasher,
+			PhoneEligibilityFingerprintHasher eligibilityFingerprintHasher,
+			ConsentPolicy consentPolicy,
+			UserFactory userFactory,
+			RefreshSessionIssuer refreshSessionIssuer,
+			FirebaseSignupTransactionService transactionService,
+			AccessTokenIssuer accessTokenIssuer,
+			Clock clock,
+			WithdrawalEnrollmentGate withdrawalEnrollmentGate
+	) {
 		this.authenticationVerifier = Objects.requireNonNull(authenticationVerifier);
 		this.enrollmentRepository = Objects.requireNonNull(enrollmentRepository);
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
@@ -83,6 +108,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 		this.transactionService = Objects.requireNonNull(transactionService);
 		this.accessTokenIssuer = Objects.requireNonNull(accessTokenIssuer);
 		this.clock = Objects.requireNonNull(clock);
+		this.withdrawalEnrollmentGate = withdrawalEnrollmentGate;
 	}
 
 	@Override
@@ -189,21 +215,29 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 			VerifiedFirebasePrincipal principal,
 			PhoneFingerprintSet phoneFingerprints
 	) {
-		if (firebaseIdentityRepository.findByFirebaseProjectIdAndFirebaseUid(
+		Optional<FirebaseIdentity> firebaseOwner = firebaseIdentityRepository
+				.findByFirebaseProjectIdAndFirebaseUid(
 				principal.firebaseProjectId(),
 				principal.firebaseUid()
-		).isPresent()) {
+		);
+		if (firebaseOwner.isPresent()) {
+			checkOwner(firebaseOwner.orElseThrow().getUserId());
 			throw enrollmentConflict();
 		}
 		for (VerifiedSocialPrincipal social : principal.linkedSocialPrincipals()) {
-			if (socialIdentityRepository.findByProviderAndProviderSubject(
+			Optional<SocialIdentity> socialOwner = socialIdentityRepository
+					.findByProviderAndProviderSubject(
 					social.provider(),
 					social.providerSubject()
-			).isPresent()) {
+			);
+			if (socialOwner.isPresent()) {
+				checkOwner(socialOwner.orElseThrow().getUserId());
 				throw new AuthException(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
 			}
 		}
-		if (!aliasRepository.findAllActiveByFingerprints(phoneFingerprints.retained()).isEmpty()) {
+		var aliases = aliasRepository.findAllActiveByFingerprints(phoneFingerprints.retained());
+		if (!aliases.isEmpty()) {
+			aliases.forEach(alias -> checkOwner(alias.getUserId()));
 			throw new AuthException(AuthErrorStatus.PHONE_ALREADY_LINKED);
 		}
 	}
@@ -218,17 +252,23 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 						principal.firebaseUid()
 				);
 		if (firebaseOwner.isPresent()) {
+			checkOwner(firebaseOwner.orElseThrow().getUserId());
 			return enrollmentConflict();
 		}
 		for (VerifiedSocialPrincipal social : principal.linkedSocialPrincipals()) {
-			if (socialIdentityRepository.findByProviderAndProviderSubject(
+			Optional<SocialIdentity> socialOwner = socialIdentityRepository
+					.findByProviderAndProviderSubject(
 					social.provider(),
 					social.providerSubject()
-			).isPresent()) {
+			);
+			if (socialOwner.isPresent()) {
+				checkOwner(socialOwner.orElseThrow().getUserId());
 				return new AuthException(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
 			}
 		}
-		if (!aliasRepository.findAllActiveByFingerprints(phoneFingerprints.retained()).isEmpty()) {
+		var aliases = aliasRepository.findAllActiveByFingerprints(phoneFingerprints.retained());
+		if (!aliases.isEmpty()) {
+			aliases.forEach(alias -> checkOwner(alias.getUserId()));
 			return new AuthException(AuthErrorStatus.PHONE_ALREADY_LINKED);
 		}
 		return enrollmentConflict();
@@ -236,5 +276,11 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 
 	private AuthException enrollmentConflict() {
 		return new AuthException(AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
+	}
+
+	private void checkOwner(String ownerUserId) {
+		if (withdrawalEnrollmentGate != null) {
+			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
+		}
 	}
 }

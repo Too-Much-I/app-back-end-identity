@@ -79,6 +79,10 @@ app:
     max-batch-size: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_BATCH_SIZE:20}
     connect-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_CONNECT_TIMEOUT:PT3S}
     read-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_READ_TIMEOUT:PT5S}
+  firebase-withdrawal-identity-release:
+    enabled: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED:false}
+    fixed-delay: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_FIXED_DELAY:PT5S}
+    max-batch-size: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_MAX_BATCH_SIZE:20}
   guest-merge:
     enabled: ${GUEST_MERGE_ENABLED:false}
   phone-identity:

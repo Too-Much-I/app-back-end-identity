@@ -20,15 +20,26 @@ public final class FirebaseIdentityOwnershipService {
 	private final FirebaseIdentityRepository firebaseIdentityRepository;
 	private final SocialIdentityRepository socialIdentityRepository;
 	private final UserRepository userRepository;
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	public FirebaseIdentityOwnershipService(
 			FirebaseIdentityRepository firebaseIdentityRepository,
 			SocialIdentityRepository socialIdentityRepository,
 			UserRepository userRepository
 	) {
+		this(firebaseIdentityRepository, socialIdentityRepository, userRepository, null);
+	}
+
+	public FirebaseIdentityOwnershipService(
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			UserRepository userRepository,
+			WithdrawalEnrollmentGate withdrawalEnrollmentGate
+	) {
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
 		this.socialIdentityRepository = Objects.requireNonNull(socialIdentityRepository);
 		this.userRepository = Objects.requireNonNull(userRepository);
+		this.withdrawalEnrollmentGate = withdrawalEnrollmentGate;
 	}
 
 	public FirebaseOwnershipOutcome resolve(
@@ -55,6 +66,7 @@ public final class FirebaseIdentityOwnershipService {
 		if (ownerIds.isEmpty()) {
 			return FirebaseOwnershipOutcome.UNOWNED;
 		}
+		ownerIds.forEach(this::checkOwner);
 		Set<String> otherOwnerIds = new HashSet<>(ownerIds);
 		otherOwnerIds.remove(requiredCurrentUserId);
 		if (otherOwnerIds.isEmpty()) {
@@ -70,5 +82,11 @@ public final class FirebaseIdentityOwnershipService {
 			return FirebaseOwnershipOutcome.OWNED_BY_OTHER_ACTIVE_MEMBER;
 		}
 		throw new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
+	}
+
+	public void checkOwner(String ownerUserId) {
+		if (withdrawalEnrollmentGate != null) {
+			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
+		}
 	}
 }

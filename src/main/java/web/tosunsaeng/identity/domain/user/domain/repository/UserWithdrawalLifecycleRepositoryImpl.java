@@ -195,6 +195,56 @@ public class UserWithdrawalLifecycleRepositoryImpl
 		));
 	}
 
+	@Override
+	public boolean markIdentityReleaseCleaned(
+			String withdrawalId,
+			long expectedVersion,
+			Instant releasedAt
+	) {
+		Instant requiredReleasedAt = Objects.requireNonNull(
+				releasedAt,
+				"releasedAt must not be null"
+		);
+		Query query = identityReleaseQuery(withdrawalId, expectedVersion)
+				.addCriteria(Criteria.where("externalDeletedAt").exists(true).ne(null))
+				.addCriteria(Criteria.where("leaseOwner").is(null))
+				.addCriteria(Criteria.where("leaseUntil").is(null));
+		Update update = new Update()
+				.set("status", UserWithdrawalCleanupStatus.CLEANED)
+				.set("identitiesReleasedAt", requiredReleasedAt)
+				.set("cleanedAt", requiredReleasedAt)
+				.set("updatedAt", requiredReleasedAt)
+				.unset("lastErrorCode")
+				.unset("nextAttemptAt")
+				.set("maxAttemptsExceeded", false)
+				.inc("version", 1L);
+		return updateOne(query, update);
+	}
+
+	@Override
+	public boolean markIdentityReleaseReconciliationRequired(
+			String withdrawalId,
+			long expectedVersion,
+			WithdrawalCleanupFailureCode failureCode,
+			Instant updatedAt
+	) {
+		WithdrawalCleanupFailureCode requiredCode = Objects.requireNonNull(
+				failureCode,
+				"failureCode must not be null"
+		);
+		Update update = new Update()
+				.set("status", UserWithdrawalCleanupStatus.RECONCILIATION_REQUIRED)
+				.set("lastErrorCode", requiredCode.name())
+				.set("updatedAt", Objects.requireNonNull(
+						updatedAt,
+						"updatedAt must not be null"
+				))
+				.unset("nextAttemptAt")
+				.set("maxAttemptsExceeded", false)
+				.inc("version", 1L);
+		return updateOne(identityReleaseQuery(withdrawalId, expectedVersion), update);
+	}
+
 	private Query leasedQuery(String withdrawalId, String leaseToken, long expectedVersion) {
 		if (expectedVersion < 0) {
 			throw new IllegalArgumentException("expectedVersion must not be negative");
@@ -203,6 +253,16 @@ public class UserWithdrawalLifecycleRepositoryImpl
 				.is(requireText(withdrawalId, "withdrawalId"))
 				.and("status").is(UserWithdrawalCleanupStatus.EXTERNAL_CLEANUP_IN_PROGRESS)
 				.and("leaseOwner").is(requireText(leaseToken, "leaseToken"))
+				.and("version").is(expectedVersion));
+	}
+
+	private Query identityReleaseQuery(String withdrawalId, long expectedVersion) {
+		if (expectedVersion < 0) {
+			throw new IllegalArgumentException("expectedVersion must not be negative");
+		}
+		return Query.query(Criteria.where("_id")
+				.is(requireText(withdrawalId, "withdrawalId"))
+				.and("status").is(UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING)
 				.and("version").is(expectedVersion));
 	}
 

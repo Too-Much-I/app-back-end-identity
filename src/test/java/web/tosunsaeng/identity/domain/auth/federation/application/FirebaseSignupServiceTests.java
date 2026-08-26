@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
+import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintKeyStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
@@ -72,6 +74,7 @@ class FirebaseSignupServiceTests {
 	private FirebaseSignupTransactionService transactionService;
 	private AccessTokenIssuer accessTokenIssuer;
 	private FirebaseSignupService service;
+	private WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 	private FirebaseEnrollmentAttempt attempt;
 	private PreparedRefreshSession preparedSession;
 
@@ -85,6 +88,7 @@ class FirebaseSignupServiceTests {
 		refreshSessionIssuer = mock(RefreshSessionIssuer.class);
 		transactionService = mock(FirebaseSignupTransactionService.class);
 		accessTokenIssuer = mock(AccessTokenIssuer.class);
+		withdrawalEnrollmentGate = mock(WithdrawalEnrollmentGate.class);
 
 		ConsentPolicy consentPolicy = new ConsentPolicy(
 				"privacy-v1",
@@ -113,7 +117,8 @@ class FirebaseSignupServiceTests {
 				refreshSessionIssuer,
 				transactionService,
 				accessTokenIssuer,
-				Clock.fixed(NOW, ZoneOffset.UTC)
+				Clock.fixed(NOW, ZoneOffset.UTC),
+				withdrawalEnrollmentGate
 		);
 
 		attempt = directAttempt();
@@ -235,6 +240,30 @@ class FirebaseSignupServiceTests {
 
 		verify(refreshSessionIssuer, never()).prepare(any());
 		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void withdrawnSocialOwnerIsClassifiedAsCleanupPendingBeforeSignup() {
+		String withdrawnOwnerId = "00000000-0000-4000-8000-000000000009";
+		when(socialIdentityRepository.findByProviderAndProviderSubject(
+				SocialProvider.GOOGLE,
+				"google-subject-sensitive"
+		)).thenReturn(Optional.of(SocialIdentity.create(
+				withdrawnOwnerId,
+				SocialProvider.GOOGLE,
+				"google-subject-sensitive",
+				NOW
+		)));
+		doThrow(new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING))
+				.when(withdrawalEnrollmentGate).checkExistingOwner(withdrawnOwnerId);
+
+		assertAuthError(
+				() -> service.signup(request()),
+				AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING
+		);
+		verify(transactionService, never()).register(
+				any(), any(), any(), any(), any(), any(), any(), any(), any()
+		);
 	}
 
 	@Test

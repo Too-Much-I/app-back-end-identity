@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +46,7 @@ class FirebaseAuthMethodsSyncServiceTests {
 	private FirebaseAuthMethodsSyncService service;
 	private User member;
 	private VerifiedFirebasePrincipal principal;
+	private WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	@BeforeEach
 	void setUp() {
@@ -54,6 +56,7 @@ class FirebaseAuthMethodsSyncServiceTests {
 		socialRepository = mock(SocialIdentityRepository.class);
 		verifier = mock(FirebaseAuthenticationVerifier.class);
 		transactionService = mock(FirebaseAuthMethodsSyncTransactionService.class);
+		withdrawalEnrollmentGate = mock(WithdrawalEnrollmentGate.class);
 		member = User.createFederatedMember(
 				"회원",
 				UserConsents.consented("privacy-v1", "term-v1", NOW),
@@ -76,7 +79,8 @@ class FirebaseAuthMethodsSyncServiceTests {
 				socialRepository,
 				verifier,
 				transactionService,
-				Clock.fixed(NOW, ZoneOffset.UTC)
+				Clock.fixed(NOW, ZoneOffset.UTC),
+				withdrawalEnrollmentGate
 		);
 	}
 
@@ -178,6 +182,34 @@ class FirebaseAuthMethodsSyncServiceTests {
 				.isInstanceOf(AuthException.class)
 				.satisfies(exception -> assertThat(((AuthException) exception).getErrorCode())
 						.isEqualTo(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT));
+		verify(transactionService, never()).saveMissing(any());
+	}
+
+	@Test
+	void withdrawnSocialOwnerUsesCleanupPendingInsteadOfGenericConflict() {
+		User other = User.createFederatedMember(
+				"탈퇴처리중",
+				UserConsents.consented("privacy-v1", "term-v1", NOW),
+				NOW
+		);
+		when(socialRepository.findByProviderAndProviderSubject(
+				SocialProvider.GOOGLE,
+				"google-subject-sensitive"
+		)).thenReturn(Optional.of(SocialIdentity.create(
+				other.getUserId(),
+				SocialProvider.GOOGLE,
+				"google-subject-sensitive",
+				NOW
+		)));
+		doThrow(new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING))
+				.when(withdrawalEnrollmentGate).checkExistingOwner(other.getUserId());
+
+		assertThatThrownBy(() -> service.sync(
+				new FirebaseAuthMethodsSyncRequest("sync-credential")
+		))
+				.isInstanceOfSatisfying(AuthException.class, exception ->
+						assertThat(exception.getErrorCode())
+								.isEqualTo(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING));
 		verify(transactionService, never()).saveMissing(any());
 	}
 

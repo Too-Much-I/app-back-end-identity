@@ -48,4 +48,17 @@ public interface UserWithdrawalLifecycleRepositoryCustom {
 	);
 
 	Optional<UserWithdrawalLifecycle> handoffNextCompleted(Instant updatedAt);
+
+	boolean markIdentityReleaseCleaned(
+			String withdrawalId,
+			long expectedVersion,
+			Instant releasedAt
+	);
+
+	boolean markIdentityReleaseReconciliationRequired(
+			String withdrawalId,
+			long expectedVersion,
+			WithdrawalCleanupFailureCode failureCode,
+			Instant updatedAt
+	);
 }

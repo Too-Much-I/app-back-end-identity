@@ -147,6 +147,37 @@ class UserWithdrawalLifecycleRepositoryIntegrationTests {
 	}
 
 	@Test
+	void identityReleaseUsesVersionFencedCleanedTransition() {
+		repository.save(firebaseLifecycle(USER_A));
+		UserWithdrawalLifecycle claimed = repository.claimNext(
+				"lease-1", NOW, NOW.plusSeconds(30)
+		).orElseThrow();
+		assertThat(repository.markExternalCleanupCompleted(
+				claimed.getWithdrawalId(), "lease-1", claimed.getVersion(), NOW.plusSeconds(1)
+		)).isTrue();
+		UserWithdrawalLifecycle pending = repository.handoffNextCompleted(
+				NOW.plusSeconds(2)
+		).orElseThrow();
+
+		assertThat(repository.findFirstByStatusOrderByExternalDeletedAtAscWithdrawalIdAsc(
+				UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING
+		)).hasValueSatisfying(selected ->
+				assertThat(selected.getWithdrawalId()).isEqualTo(pending.getWithdrawalId()));
+		assertThat(repository.markIdentityReleaseCleaned(
+				pending.getWithdrawalId(), pending.getVersion(), NOW.plusSeconds(3)
+		)).isTrue();
+		assertThat(repository.markIdentityReleaseCleaned(
+				pending.getWithdrawalId(), pending.getVersion(), NOW.plusSeconds(4)
+		)).isFalse();
+		assertThat(repository.findById(pending.getWithdrawalId()))
+				.hasValueSatisfying(cleaned -> {
+					assertThat(cleaned.getStatus()).isEqualTo(UserWithdrawalCleanupStatus.CLEANED);
+					assertThat(cleaned.getIdentitiesReleasedAt()).isEqualTo(NOW.plusSeconds(3));
+					assertThat(cleaned.getCleanedAt()).isEqualTo(NOW.plusSeconds(3));
+				});
+	}
+
+	@Test
 	void claimsOldestDueLifecycleAndDeclaresExactWorkerIndex() {
 		repository.save(UserWithdrawalLifecycle.create(USER_A, null, null, NOW.minusSeconds(1)));
 		repository.save(firebaseLifecycle(USER_B));

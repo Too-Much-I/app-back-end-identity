@@ -42,6 +42,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 	private final FirebaseEnrollmentAttemptService enrollmentAttemptService;
 	private final Clock clock;
 	private final UserWithdrawalLifecycleRepository withdrawalLifecycleRepository;
+	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
 
 	public FirebaseExchangeService(
 			FirebaseAuthenticationVerifier authenticationVerifier,
@@ -99,6 +100,9 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		);
 		this.clock = Objects.requireNonNull(clock, "clock must not be null");
 		this.withdrawalLifecycleRepository = withdrawalLifecycleRepository;
+		this.withdrawalEnrollmentGate = withdrawalLifecycleRepository == null
+				? null
+				: new WithdrawalEnrollmentGate(userRepository, withdrawalLifecycleRepository);
 	}
 
 	@Override
@@ -140,6 +144,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			FirebaseIdentity firebaseIdentity,
 			VerifiedFirebasePrincipal principal
 	) {
+		checkOwner(firebaseIdentity.getUserId());
 		User user = userRepository.findById(firebaseIdentity.getUserId())
 				.orElseThrow(() -> new AuthException(
 						AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT
@@ -180,8 +185,15 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 							expectedUserId,
 							socialIdentity.orElseThrow().getUserId()
 					)) {
+				checkOwner(socialIdentity.orElseThrow().getUserId());
 				throw new AuthException(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
 			}
+		}
+	}
+
+	private void checkOwner(String ownerUserId) {
+		if (withdrawalEnrollmentGate != null) {
+			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
 		}
 	}
 

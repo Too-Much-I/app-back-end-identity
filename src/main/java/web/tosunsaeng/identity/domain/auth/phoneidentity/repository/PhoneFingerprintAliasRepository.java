@@ -15,4 +15,9 @@ public interface PhoneFingerprintAliasRepository extends
 			String phoneIdentityId,
 			PhoneFingerprintAliasStatus status
 	);
+
+	List<PhoneFingerprintAlias> findAllByUserIdAndStatus(
+			String userId,
+			PhoneFingerprintAliasStatus status
+	);
 }
