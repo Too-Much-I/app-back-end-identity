@@ -6104,3 +6104,91 @@
 - 결정사항: Identity client-credentials/workload token endpoint는 구현하지 않는다. 기존 사용자 Load Balancer는 유지하고 Billing outbound만 Lattice/SigV4를 사용한다.
 - 위험 요소: Identity와 Learning Core task role 분리, SigV4 signer, exact Lattice event route auth policy와 staging 401/403·retry 검증이 남아 있다.
 - 다음 작업: Billing event consumer wire 계약과 함께 Identity publisher signer 변경을 별도 Jira로 구현한다.
+
+## 2026-08-26 — Jira TMI-107 완료 전환
+
+<!-- codex-turn:01a03d36-08cd-7fa3-b002-3502573ab7e3 -->
+
+- 날짜: 2026-08-26
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-107`
+- Jira 작업: PR #32 병합을 확인한 뒤 사용자 요청에 따라 transition ID `41`만 적용했다. 후속 조회에서 status ID `10003`과 Resolution ID `10000`이 모두 `완료`임을 확인했다. 댓글·담당자·우선순위·라벨·설명과 다른 이슈는 변경하지 않았다.
+- 승인 여부: 사용자가 “지라 닫아줘”라고 명시적으로 요청했다. 적용 전 현재 `해야 할 일` 상태, Resolution 없음, PR #32 병합과 완료 transition ID `41`을 확인하고 변경 범위를 사용자에게 알렸다.
+- 작업 목표: 병합이 완료된 Stage 3 identity release와 `CLEANED` 재가입 gate 작업의 Jira lifecycle을 저장소·PR 상태와 일치시킨다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 로컬 `develop`과 `origin/develop`이 PR #32 merge commit `1fa1141`을 가리키고, 구현 commit `1832e27`이 병합 이력에 포함된 것을 확인했다. Jira에는 상태 전환 외 mutation을 수행하지 않았다.
+- 실행한 테스트와 결과: Jira 상태 전환과 문서 동기화 작업이라 Gradle 테스트는 실행하지 않았다. TMI-107 구현 시 통과한 전체 103개 suite·572개 테스트 결과를 유지하며, 문서 변경은 `git diff --check`와 marker 단일 존재로 검증한다.
+- 유지한 계약: PR 병합 확인 전 Jira 완료 전환 금지, Jira mutation 전 사용자 승인, Git commit·push 금지 규칙을 유지했다. Token·Firebase UID·provider subject·raw phone·fingerprint·Secret과 개인정보를 Jira나 작업 기록에 포함하지 않았다.
+- 결정사항: `TMI-107`은 상태·Resolution 모두 `완료`다. Jira 종료 댓글은 사용자가 요청하지 않아 등록하지 않았고 production worker flag는 staging 검증 전 false를 유지한다.
+- 위험 요소: 실제 Firebase·Mongo staging에서 Stage 2 handoff→Stage 3 Transaction rollback·동시 worker·동일 credential 새 UUID 재가입 E2E와 Apple authorization revoke material 경로 검증은 계속 필요하다. Stage 4·5 완료 전 withdrawal production 활성화 금지도 유지한다.
+- 다음 작업: 고정 순서 Stage 4 `ACCOUNT_WITHDRAWN` RefreshSession 전용 오류와 모바일 Firebase signOut·자체 Token 삭제·탈퇴 안내 UX 계약을 계획하고, Billing C3-D Lattice/SigV4 publisher 변경은 별도 Jira로 분리한다.
+
+## 2026-08-26 — TMI-107 후속 Stage 4 작업 설명
+
+<!-- codex-turn:01a03d38-4be1-72f2-bb7e-d916c0fb68ca -->
+
+- 날짜: 2026-08-26
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-107`은 완료 상태를 유지한다.
+- 작업 목표: 다음 고정 구현 순서인 탈퇴 Session 전용 오류와 모바일 logout·안내 UX 계약이 현재 동작에서 무엇을 바꾸는지 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 현재 `TokenReissueService`는 `ROTATED` Session만 `REFRESH_TOKEN_REUSE_DETECTED`로 구분하고, `ACCOUNT_WITHDRAWN`을 포함한 나머지 revoked Session은 모두 `INVALID_REFRESH_TOKEN` 401로 반환한다. Stage 4는 DB에서 실제 Session을 찾았고 revocation reason이 `ACCOUNT_WITHDRAWN`인 경우에만 탈퇴 전용 401 오류로 분류한다. 존재하지 않는 Token과 LOGOUT·LOGOUT_ALL·GUEST 전환 등 다른 폐기 사유는 기존 오류를 유지한다.
+- 구현 내용: User가 `WITHDRAWN`인데 요청이 탈퇴 Transaction과 교차해 Session의 이전 snapshot을 읽은 경계에서도 Token을 발급하지 않고 같은 탈퇴 오류로 수렴하는 race-safe fallback을 검토한다. 모바일은 탈퇴 API 성공 또는 전용 재발급 오류 수신 시 Firebase client signOut, Identity Access/Refresh Token과 로컬 계정 상태 전체 삭제, “탈퇴 처리된 계정입니다” 안내와 로그인 화면 이동을 수행한다.
+- 실행한 테스트와 결과: 코드 변경 없는 설명 작업이라 Gradle 테스트는 실행하지 않았다. 구현 순서 문서, `TokenReissueService`, `AuthErrorStatus`, `RevocationReason`과 withdrawal lifecycle 테스트의 현재 `INVALID_REFRESH_TOKEN` 기대값을 읽어 확인했다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: Refresh Token 원문을 저장·로그하지 않고, 실제 DB Session을 찾지 못한 요청에는 탈퇴 여부를 노출하지 않는다. 기존 RS256 Access Token·RefreshSession·BaseResponse 계약을 유지하며 모바일 signOut은 Firebase Admin delete나 서버 logout-all을 대신하지 않는다. Identity가 매 downstream 요청을 introspection하지 않는다.
+- 결정사항: Stage 4는 Refresh 재발급과 모바일 UX 계약이며 이미 발급된 Access Token을 Learning Core에서 즉시 막는 작업은 아니다. 해당 공백은 다음 Stage 5 `UserWithdrawn` event와 downstream deny marker에서 처리한다.
+- 위험 요소: 서버 전용 오류를 모바일 처리보다 먼저 배포하면 사용자는 새로운 code를 일반 오류로 볼 수 있다. 탈퇴 Transaction과 재발급 요청의 교차 시점, 여러 기기, 앱 재시작, Firebase signOut 실패와 로컬 Token 삭제 순서를 contract test·모바일 E2E로 검증해야 한다.
+- 다음 작업: Stage 4 저장소 구현 계획서에 외부 오류 code·HTTP status, 서버 분기와 race fallback, 모바일 처리 순서, rollout 호환성과 테스트 매트릭스를 확정한 뒤 Jira 생성안을 사용자 승인 후 등록한다.
+
+## 2026-08-26 — Stage 4 탈퇴 Session·모바일 UX 구현 계획서 작성
+
+<!-- codex-turn:01a03d3b-d6db-7903-a204-b69b53191e1c -->
+
+- 날짜: 2026-08-26
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-107`은 완료 상태를 유지한다.
+- 작업 목표: 다음 고정 순서인 탈퇴 Session 전용 오류와 모바일 logout·안내 UX의 서버·모바일 계약, 동시성·보안·배포·테스트 기준을 저장소 구현 계획서로 확정한다.
+- 변경 파일: `docs/contracts/withdrawal-session-mobile-ux-stage-4-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: 신규 외부 오류를 `401 ACCOUNT_WITHDRAWN`, message `탈퇴 처리된 계정입니다.`, 기존 `BaseResponse` shape로 고정했다. 실제 hash 일치 Session의 reason이 `ACCOUNT_WITHDRAWN`일 때만 전용 오류를 반환하고 unknown Token은 generic invalid를 유지한다. `ROTATED` reuse detection을 최우선으로 보존하며 그 밖의 revoked·expired·User 없음·SUSPENDED 상태 매트릭스를 명시했다.
+- 구현 내용: active Session과 WITHDRAWN User가 교차 관찰되는 race-safe fallback, 탈퇴 성공과 새 Session 발급의 동시 확정 금지, multi-device 재발급을 계획했다. 모바일은 탈퇴 API 2xx와 전용 오류를 같은 멱등 terminal handler로 처리하고 Firebase signOut 실패와 무관하게 Identity Access/Refresh Token·local user cache를 삭제하며 동시 401·앱 재시작에서 안내와 navigation을 한 번만 수행한다.
+- 구현 내용: 모바일 선배포, 구버전 미지원 code 처리 확인, 서버 배포, staging multi-device·signOut 실패 E2E, Stage 5 consumer 선배포 뒤 전체 withdrawal 활성화 순서를 정의했다. Stage 4에는 UserWithdrawn event, downstream deny marker, logout-all Firebase revoke와 rotation 원자성 개선을 포함하지 않았다.
+- 실행한 테스트와 결과: 문서 작업이라 Gradle 테스트는 실행하지 않았다. 현재 `TokenReissueService`, `AuthErrorStatus`, `RevocationReason`, `BaseResponse`, Controller OpenAPI와 reissue·withdrawal 테스트를 읽어 계획을 대조했다. 문서 변경은 `git diff --check`, 링크 존재와 지정 marker 단일 존재로 검증한다.
+- 유지한 계약: Refresh Token 원문은 저장·로그하지 않고 unknown Token으로 탈퇴 여부를 조회할 수 없게 한다. 사용자 JWT·JWKS, RefreshSession rotation, 기존 API Request·성공 응답과 Identity/Learning Core·모바일 책임 경계를 유지하며 Token·credential·개인정보와 Secret을 문서에 기록하지 않았다.
+- 결정사항: Stage 4는 Refresh 재발급 오류와 모바일 로컬 인증 상태 정리다. 이미 발급된 Access Token의 downstream 차단은 Stage 5로 유지하고, 모바일 구현체는 별도 저장소에서 작업하며 Identity에는 계약만 둔다.
+- 위험 요소: 서버 code가 모바일 지원보다 먼저 활성화되면 구버전 앱의 안내·정리 동작이 달라질 수 있다. 실제 replica set의 withdrawal/reissue 경쟁, 여러 기기, Firebase signOut 실패, 앱 종료·재시작과 Access Token 만료 전 공백은 staging에서 검증해야 한다.
+- 다음 작업: 계획서를 기준으로 Stage 4 Jira 생성안을 사용자에게 먼저 제시하고 승인 후 생성한다. 이후 Jira 브랜치에서 서버 오류 분기·OpenAPI·테스트를 구현하고 모바일 팀에 contract handoff를 전달한다.
+
+## 2026-08-26 — Jira TMI-108 Stage 4 생성
+
+<!-- codex-turn:01a03d47-9838-7ca2-a13f-22f33b3a231c -->
+
+- 날짜: 2026-08-26
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-108`
+- Jira 작업: 중복 검색 결과가 없음을 확인한 뒤 `[Identity] 탈퇴 Session 전용 오류 및 모바일 logout·안내 UX 계약`을 TMI 프로젝트 `작업`, High 우선순위로 생성했다. 재조회 결과 상태 `해야 할 일`, Resolution 없음, 담당자·라벨·댓글 없음을 확인했으며 별도 상태 전환과 다른 이슈 변경은 수행하지 않았다.
+- 승인 여부: 계획서 완료 뒤 사용자가 “좋아 지라 생성해줘”라고 명시적으로 승인했다. 생성 전 프로젝트·유형·우선순위·제목·포함·제외 범위를 다시 제시하고 해당 승인 범위로 생성했다.
+- 작업 목표: Stage 4 서버·모바일 계약과 완료 조건을 추적할 Jira를 생성하고 저장소 구현 계획서와 연결한다.
+- 변경 파일: `docs/contracts/withdrawal-session-mobile-ux-stage-4-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 직전 계획 작업의 `docs/contracts/firebase-auth-follow-up-implementation-order.md` 변경을 유지했으며 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: Jira 본문에 `401 ACCOUNT_WITHDRAWN`, 실제 hash 일치 탈퇴 Session 한정 노출, unknown Token generic invalid, ROTATED reuse detection 보존, active Session·WITHDRAWN User race fallback, OpenAPI·서버 테스트와 모바일 멱등 terminal handler를 포함했다. 모바일 선배포와 staging multi-device E2E, Stage 5 전 production 활성화 금지도 완료 조건으로 기록했다.
+- 실행한 테스트와 결과: Jira 생성·재조회와 문서 키 동기화 작업이라 Gradle 테스트는 실행하지 않았다. Jira key·제목·유형·High·상태·Resolution·담당자·라벨·댓글을 재조회했고 문서 변경은 `git diff --check`, 계획서 Jira 키와 지정 marker 단일 존재로 검증한다.
+- 유지한 계약: Jira에 Token·hash·sessionId·Firebase UID·사용자 식별 정보·개인정보와 Secret을 기록하지 않았다. 기존 RefreshSession·JWT·JWKS·BaseResponse 계약, Identity와 모바일·Learning Core 책임 경계, Git commit·push 금지와 PR 병합 전 Jira 완료 전환 금지를 유지했다.
+- 결정사항: `TMI-108`은 서버 재발급 오류·OpenAPI·테스트와 모바일 contract handoff를 하나의 Stage 4 작업으로 추적한다. 모바일 구현체와 Stage 5 downstream deny marker는 Identity 코드 범위에 포함하지 않는다.
+- 위험 요소: 모바일 저장소가 별도이므로 서버 구현만으로 Jira 완료 조건을 충족하지 않는다. 구버전 앱 호환성, 실제 Mongo withdrawal/reissue 경쟁, 여러 기기, Firebase signOut 실패와 앱 재시작 E2E가 필요하다.
+- 다음 작업: 사용자가 `TMI-108` 브랜치를 준비하면 Jira와 계획서를 읽고 서버 error 분기·OpenAPI·테스트를 구현한다. 모바일 handoff를 별도 산출물로 전달하고 양쪽 staging 검증 전 production withdrawal flag는 유지한다.
+
+## 2026-08-27 — Jira TMI-108 탈퇴 Session 전용 오류 구현
+
+<!-- codex-turn:01a04183-55e3-74e0-b1ba-fdb40d5554c8 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `feat/TMI-108-withdrawal-session-mobile-contract` (Codex commit·push 미수행)
+- Jira: `TMI-108`. 구현 전에 공식 Atlassian Rovo로 본문·완료 조건·상태 `해야 할 일`을 읽었으며 Jira 댓글·필드·상태는 변경하지 않았다.
+- 작업 목표: 회원 탈퇴로 폐기된 RefreshSession을 일반 Refresh Token 오류와 구분하고, 모바일이 탈퇴 terminal logout·안내 흐름을 시작할 수 있도록 안전한 서버 오류와 OpenAPI 계약을 구현한다.
+- 변경 파일: `src/main/java/web/tosunsaeng/identity/domain/auth/common/exception/AuthErrorStatus.java`, `src/main/java/web/tosunsaeng/identity/domain/auth/session/application/TokenReissueService.java`, `src/main/java/web/tosunsaeng/identity/domain/auth/common/api/AuthController.java`, 대응 `RefreshTokenUseCaseServicesTests.java`, `AuthControllerTests.java`, `UserWithdrawalLifecycleTests.java`, `SecurityIntegrationTests.java`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 이전 turn의 `docs/contracts/withdrawal-session-mobile-ux-stage-4-plan.md`와 고정 구현 순서 문서 변경은 보존했다.
+- 구현 내용: `AuthErrorStatus.ACCOUNT_WITHDRAWN`을 HTTP 401, code `ACCOUNT_WITHDRAWN`, message `탈퇴 처리된 계정입니다.`로 추가했다. 재발급은 `ROTATED` reuse detection을 먼저 수행한 뒤 실제 조회된 Session의 reason이 `ACCOUNT_WITHDRAWN`이면 전용 오류를 반환하며, 그 밖의 revoked Session은 기존 generic invalid를 유지한다. Session은 active snapshot이지만 User가 `WITHDRAWN`인 탈퇴 Transaction 교차 관찰도 같은 전용 오류로 fail-closed 처리한다.
+- 구현 내용: `/api/v1/auth/reissue` OpenAPI 401 설명에 invalid·expired·reuse·withdrawn code를 명시했다. application 테스트는 탈퇴 Session에서 User 조회·Session save·Token 발급 0건, WITHDRAWN User fallback, 모든 일반 revocation reason과 ROTATED 우선순위를 검증한다. controller 테스트는 기존 `BaseResponse` shape와 내부 식별자·Token·hash 비노출을 고정하고 withdrawal lifecycle 테스트는 탈퇴된 모든 기기 Refresh Token이 전용 오류로 수렴함을 검증한다. OpenAPI 통합 테스트도 신규 code 노출을 확인한다.
+- 실행한 테스트와 결과: focused application·controller·withdrawal lifecycle·OpenAPI 통합 테스트가 성공했다. 최종 `./gradlew clean test`는 103개 suite·578개 테스트가 failure·error·skip 0건으로 성공했다. `git diff --check`도 통과했다.
+- 유지한 계약: unknown Token은 계속 `INVALID_REFRESH_TOKEN`이어서 계정 탈퇴 여부를 탐색할 수 없다. `ROTATED` reuse detection과 활성 Session 전체 폐기 side effect, 일반 revoked·expired·User 없음·SUSPENDED 오류, 기존 Request·성공 응답·BaseResponse·RS256 JWT·JWKS 계약을 유지했다. Refresh Token 원문·hash·sessionId·userId와 credential·Secret을 응답·로그·문서에 기록하지 않았고 Identity에 모바일·Learning Core 코드를 추가하지 않았다.
+- 결정사항: 모바일 구현은 별도 저장소의 handoff 범위다. 모바일은 탈퇴 API 2xx와 `ACCOUNT_WITHDRAWN`을 같은 멱등 terminal handler로 처리하고 Firebase signOut 실패와 무관하게 Identity Access·Refresh Token과 local user cache를 삭제하며 안내·navigation을 한 번만 수행해야 한다. Stage 4는 이미 발급된 Access Token을 downstream에서 즉시 차단하지 않는다.
+- 위험 요소: 실제 Mongo replica set의 withdrawal/reissue 교차 write conflict, 여러 기기, 모바일 Firebase signOut 실패·앱 재시작·구버전 호환성은 staging E2E가 필요하다. Stage 5 `UserWithdrawn` event와 Learning Core deny marker 전에는 기존 Access Token이 만료까지 사용될 수 있으므로 production withdrawal flag를 활성화하지 않는다.
+- 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 병합한다. 모바일 terminal handler를 별도 저장소에 구현하고 staging multi-device E2E를 수행한다. 병합 확인과 별도 승인 뒤 Jira 댓글·완료 전환을 진행하며 다음 고정 서버 단계는 Stage 5 `UserWithdrawn` event와 downstream deny marker다.

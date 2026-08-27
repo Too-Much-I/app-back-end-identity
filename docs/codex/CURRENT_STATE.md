@@ -5,11 +5,16 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Jira `TMI-107` Stage 3 FirebaseIdentity·SocialIdentity·PhoneIdentity release와 `CLEANED` 재가입 gate를 `feat/TMI-107-withdrawal-identity-release` 브랜치에 로컬 구현했다. 전체 103개 suite·572개 테스트가 failure·error·skip 없이 통과했으며 Jira는 PR 병합 전이므로 `해야 할 일` 상태를 유지한다. 실제 Firebase·Mongo staging E2E와 Apple authorization revoke material 경로 검증 전에는 production flag를 활성화하지 않는다
-- 상태 기준일: 2026-08-26
+- 현재 단계: Jira `TMI-108` Stage 4 서버 구현을 `feat/TMI-108-withdrawal-session-mobile-contract` 브랜치에 완료했다. 실제 `ACCOUNT_WITHDRAWN` RefreshSession과 active Session·WITHDRAWN User 교차 관찰을 `401 ACCOUNT_WITHDRAWN`으로 분류하고, unknown·일반 revoked·expired·ROTATED·SUSPENDED 계약과 Token 비노출을 유지했다. OpenAPI와 application·controller·withdrawal lifecycle·OpenAPI 통합 테스트를 보강했으며 전체 103개 suite·578개 테스트가 성공했다. Jira는 여전히 `해야 할 일`이고 모바일 terminal handler와 실제 replica set multi-device E2E, Stage 5 downstream deny marker 전에는 production withdrawal flag를 활성화하지 않는다
+- 상태 기준일: 2026-08-27
 
 ## 완료
 
+- 2026-08-27 Jira `TMI-108` Stage 4의 Identity 서버 범위를 구현했다. `POST /api/v1/auth/reissue`는 실제 hash 일치 Session의 reason이 `ACCOUNT_WITHDRAWN`이면 기존 `BaseResponse` shape의 `401 ACCOUNT_WITHDRAWN`과 `탈퇴 처리된 계정입니다.`를 반환한다. active Session이지만 User가 이미 `WITHDRAWN`인 교차 관찰도 같은 오류로 fail-closed 처리한다. `ROTATED` reuse detection을 우선하고 unknown·일반 revoked·expired·User 없음·SUSPENDED 동작을 유지하며 오류 경로에서 User 조회·Session save·새 Token 발급이 일어나지 않음을 테스트했다. OpenAPI 401 code 목록과 탈퇴 lifecycle 기대값을 갱신했고 전체 103개 suite·578개 테스트 및 `git diff --check`가 성공했다. 모바일 코드는 추가하지 않았고 Jira 댓글·상태, Git commit·push도 변경하지 않았다.
+- 2026-08-26 사용자 승인에 따라 Jira `TMI-108` `[Identity] 탈퇴 Session 전용 오류 및 모바일 logout·안내 UX 계약`을 TMI 프로젝트의 `작업`·High로 생성했다. 계획서의 `401 ACCOUNT_WITHDRAWN`, 실제 탈퇴 Session 한정 노출, reuse detection 회귀, race fallback, 모바일 terminal handler·선배포, staging E2E와 Stage 5 제외 범위를 본문에 저장했다. 재조회 결과 상태 `해야 할 일`, Resolution 없음, 담당자·라벨·댓글 없음을 확인했으며 별도 상태 전환은 수행하지 않았다.
+- 2026-08-26 `docs/contracts/withdrawal-session-mobile-ux-stage-4-plan.md`를 작성하고 고정 구현 순서 4단계에서 연결했다. `401 ACCOUNT_WITHDRAWN` 오류를 실제 탈퇴 Session에만 반환하고 ROTATED reuse detection·일반 revoked·unknown·expired 계약을 유지한다. active Session과 WITHDRAWN User의 race fallback, 모바일의 멱등 terminal handler·Firebase signOut 실패와 무관한 Identity Token 삭제, multi-device·앱 재시작 테스트와 모바일 선배포 순서를 정의했다. Stage 5 전 Access Token downstream 즉시 차단은 보장하지 않으며 코드·Jira는 변경하지 않았다.
+- 2026-08-26 TMI-107 완료 뒤 다음 고정 순서인 Stage 4를 현재 코드와 대조해 설명했다. `TokenReissueService`는 `ROTATED`만 재사용 전용 오류로 구분하고 `ACCOUNT_WITHDRAWN`을 포함한 나머지 revoked Session은 모두 `INVALID_REFRESH_TOKEN`으로 반환한다. Stage 4는 실제로 조회된 Session의 revocation reason이 `ACCOUNT_WITHDRAWN`이거나 race-safe fallback에서 User가 `WITHDRAWN`이면 전용 401 오류로 분류하고, 모바일이 Firebase signOut·자체 Access/Refresh Token과 계정 상태 삭제·탈퇴 안내를 수행하도록 계약한다. 이미 발급된 Access Token의 downstream 차단은 Stage 5 범위로 유지하며 코드·Jira는 변경하지 않았다.
+- 2026-08-26 PR #32가 merge commit `1fa1141`로 Jira `TMI-107` 구현을 `develop`과 `origin/develop`에 반영한 것을 확인했다. 사용자 요청에 따라 완료 transition ID `41`만 적용했고 후속 조회에서 status ID `10003`과 Resolution ID `10000`이 모두 `완료`임을 확인했다. Jira 댓글과 다른 필드는 변경하지 않았다.
 - 2026-08-26 사용자가 Billing workload 인증 C3-D를 최종 승인했다. Identity는 기존 사용자 RS256/JWKS issuer를 workload로 확장하지 않고, 별도 Identity ECS task role의 임시 credential로 Billing Lattice endpoint 요청을 SigV4 서명한다. 기존 Load Balancer 사용자 API는 유지하고 phone eligibility publisher의 Bearer credential port는 SigV4 request signer 경계로 후속 변경해야 한다. 코드와 TMI-107 범위는 변경하지 않았다.
 - 2026-08-26 Billing workload 인증을 기존 서비스와 맞추기 위해 Identity·Learning Core 구현을 대조했다. 실제 공통 구현은 Identity RS256 사용자 JWT 발급과 Learning Core의 Identity JWKS 로컬 검증이며, Identity downstream publisher의 workload credential은 port만 있고 production provider가 없어 비활성이다. 동일 메커니즘을 적용하려면 사용자 token 재사용이 아니라 workload 전용 audience·service subject·scope·5분 TTL과 client-credentials를 새로 구현해야 한다. 코드와 TMI-107 범위는 변경하지 않았다.
 - 2026-08-26 사용자가 실제 배포 플랫폼이 AWS ECS라고 후속 확인해 Billing C3의 `배포 플랫폼 발급 JWT` 선택은 재검토 상태가 됐다. ECS task role은 OIDC JWT·JWKS를 자동 제공하지 않으므로 VPC Lattice/API Gateway SigV4·AWS_IAM 또는 별도 issuer가 필요하다. ADR-002 phone eligibility publisher의 `WorkloadIdentityCredentialProvider`도 동일 인프라 결정의 영향을 받으며 코드와 TMI-107 범위는 변경하지 않았다.
@@ -377,12 +382,11 @@
 
 ## 진행 중
 
-- 현재 브랜치는 `feat/TMI-107-withdrawal-identity-release`이며 Stage 3 구현과 테스트·문서 변경이 로컬 working tree에 있다. Codex는 commit·push를 수행하지 않는다
-- 현재 진행 중인 Jira 이슈는 `TMI-107`이다. 로컬 구현은 완료됐지만 PR 병합 전이므로 Jira 상태는 `해야 할 일`로 유지하고 종료 댓글도 등록하지 않았다
+- 현재 브랜치는 `develop`이며 HEAD와 `origin/develop`은 PR #32 merge commit `1fa1141`이다. Codex는 commit·push를 수행하지 않는다
+- 현재 진행 중인 Jira 이슈는 없다. `TMI-107`은 PR 병합 확인 뒤 상태와 Resolution을 `완료`로 검증했으며 종료 댓글은 등록하지 않았다
 
 ## 다음 작업
 
-- 사용자가 TMI-107 변경을 검토해 직접 commit·push하고 PR을 병합한다. 병합 확인 뒤에만 Jira 종료 댓글·완료 전환안을 별도 승인받아 적용한다
 - Transaction 지원 staging MongoDB에서 Stage 2 handoff→Stage 3 release, 실제 rollback·동시 worker write conflict, Firebase/Social/Phone unique 점유 해제와 같은 credential의 새 UUID 재가입을 E2E 검증한다. Stage 3 worker flag는 검증 전 false로 유지한다
 - 고정 순서 Stage 4 `ACCOUNT_WITHDRAWN` RefreshSession 전용 오류·모바일 Firebase signOut/로컬 Token 삭제/탈퇴 안내 계약의 저장소 계획서와 Jira를 준비한다
 - 별도 Learning Core Jira·저장소에서 `UserMerged` v1 수신 endpoint, eventId inbox, source ownership의 target 이전, source actor deny marker를 하나의 로컬 Transaction으로 구현한다. 중복 event는 멱등 성공하고 같은 eventId의 다른 payload는 충돌로 거절하며 source를 target authorization alias로 사용하지 않는다
