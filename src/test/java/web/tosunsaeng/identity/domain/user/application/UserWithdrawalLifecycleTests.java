@@ -215,7 +215,7 @@ class UserWithdrawalLifecycleTests {
 				BusinessException.class,
 				() -> reissueService.reissue(new ReissueRequest(firstAuth.refreshToken()))
 		);
-		assertThat(reissueFailure.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN);
+		assertThat(reissueFailure.getErrorCode()).isEqualTo(AuthErrorStatus.ACCOUNT_WITHDRAWN);
 
 		guestAuthService.authenticate(request);
 		BusinessException duplicate = catchThrowableOfType(
@@ -344,7 +344,7 @@ class UserWithdrawalLifecycleTests {
 					() -> reissueService.reissue(new ReissueRequest(refreshToken))
 			);
 			assertThat(exception.getErrorCode()).isEqualTo(
-					AuthErrorStatus.INVALID_REFRESH_TOKEN
+					AuthErrorStatus.ACCOUNT_WITHDRAWN
 			);
 		});
 	}

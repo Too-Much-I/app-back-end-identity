@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
@@ -313,6 +314,9 @@ class SecurityIntegrationTests {
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/reissue'].post.responses['401'].description"
+				).value(containsString("ACCOUNT_WITHDRAWN")))
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
 		mockMvc.perform(get("/swagger-ui.html"))
 				.andExpect(status().is3xxRedirection())

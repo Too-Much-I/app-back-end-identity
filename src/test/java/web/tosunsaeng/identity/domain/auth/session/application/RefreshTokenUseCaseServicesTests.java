@@ -213,11 +213,43 @@ class RefreshTokenUseCaseServicesTests {
 	}
 
 	@Test
-	void rejectsLoggedOutRefreshTokenWithoutTreatingItAsReuse() {
-		RefreshSession loggedOutSession = activeSession(CURRENT_REFRESH_VALUE);
-		loggedOutSession.logout(NOW.minusSeconds(1));
+	void rejectsWithdrawnRefreshTokenWithDedicatedErrorWithoutUserLookupOrMutation() {
+		RefreshSession withdrawnSession = activeSession(CURRENT_REFRESH_VALUE);
+		withdrawnSession.withdrawAccount(NOW.minusSeconds(1));
 		when(refreshSessionRepository.findByTokenHash(any()))
-				.thenReturn(Optional.of(loggedOutSession));
+				.thenReturn(Optional.of(withdrawnSession));
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE))
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		assertThat(exception.getMessage()).isEqualTo("탈퇴 처리된 계정입니다.");
+		assertThat(exception.getMessage()).doesNotContain(
+				CURRENT_REFRESH_VALUE,
+				withdrawnSession.getTokenHash(),
+				withdrawnSession.getSessionId(),
+				withdrawnSession.getUserId()
+		);
+		verify(userRepository, never()).findById(any());
+		verify(refreshSessionRepository, never())
+				.findAllByUserIdAndRevokedAtIsNull(any());
+		verifyNoNewTokensOrSessions();
+	}
+
+	@ParameterizedTest
+	@EnumSource(
+			value = RevocationReason.class,
+			names = {"LOGOUT", "LOGOUT_ALL", "REUSE_DETECTED", "GUEST_UPGRADED", "GUEST_MERGED"}
+	)
+	void rejectsOtherRevokedRefreshTokensWithoutTreatingThemAsWithdrawalOrReuse(
+			RevocationReason reason
+	) {
+		RefreshSession revokedSession = activeSession(CURRENT_REFRESH_VALUE);
+		revoke(revokedSession, reason);
+		when(refreshSessionRepository.findByTokenHash(any()))
+				.thenReturn(Optional.of(revokedSession));
 
 		BusinessException exception = catchThrowableOfType(
 				BusinessException.class,
@@ -225,6 +257,7 @@ class RefreshTokenUseCaseServicesTests {
 		);
 
 		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN);
+		verify(userRepository, never()).findById(any());
 		verify(refreshSessionRepository, never())
 				.findAllByUserIdAndRevokedAtIsNull(any());
 		verifyNoNewTokensOrSessions();
@@ -291,11 +324,10 @@ class RefreshTokenUseCaseServicesTests {
 		verifyNoNewTokensOrSessions();
 	}
 
-	@ParameterizedTest
-	@EnumSource(value = UserStatus.class, names = {"SUSPENDED", "WITHDRAWN"})
-	void rejectsNonActiveUserWithoutRotatingOrIssuingTokens(UserStatus status) {
+	@Test
+	void rejectsSuspendedUserWithoutRotatingOrIssuingTokens() {
 		RefreshSession session = activeSession(CURRENT_REFRESH_VALUE);
-		User inactiveUser = user(status);
+		User inactiveUser = user(UserStatus.SUSPENDED);
 		when(refreshSessionRepository.findByTokenHash(any()))
 				.thenReturn(Optional.of(session));
 		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(inactiveUser));
@@ -306,6 +338,24 @@ class RefreshTokenUseCaseServicesTests {
 		);
 
 		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
+		assertThat(session.isRevoked()).isFalse();
+		verifyNoNewTokensOrSessions();
+	}
+
+	@Test
+	void rejectsActiveSessionForWithdrawnUserWithDedicatedRaceFallback() {
+		RefreshSession session = activeSession(CURRENT_REFRESH_VALUE);
+		User withdrawnUser = user(UserStatus.WITHDRAWN);
+		when(refreshSessionRepository.findByTokenHash(any()))
+				.thenReturn(Optional.of(session));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(withdrawnUser));
+
+		BusinessException exception = catchThrowableOfType(
+				BusinessException.class,
+				() -> tokenReissueService.reissue(new ReissueRequest(CURRENT_REFRESH_VALUE))
+		);
+
+		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.ACCOUNT_WITHDRAWN);
 		assertThat(session.isRevoked()).isFalse();
 		verifyNoNewTokensOrSessions();
 	}
@@ -436,9 +486,21 @@ class RefreshTokenUseCaseServicesTests {
 		assertThat(List.of(
 				AuthErrorStatus.INVALID_REFRESH_TOKEN,
 				AuthErrorStatus.REFRESH_TOKEN_EXPIRED,
-				AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED
+				AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED,
+				AuthErrorStatus.ACCOUNT_WITHDRAWN
 		)).allSatisfy(error -> assertThat(error.getHttpStatus())
 				.isEqualTo(HttpStatus.UNAUTHORIZED));
+	}
+
+	private void revoke(RefreshSession session, RevocationReason reason) {
+		switch (reason) {
+			case LOGOUT -> session.logout(NOW.minusSeconds(1));
+			case LOGOUT_ALL -> session.logoutAll(NOW.minusSeconds(1));
+			case REUSE_DETECTED -> session.revokeForReuse(NOW.minusSeconds(1));
+			case GUEST_UPGRADED -> session.upgradeGuestAccount(NOW.minusSeconds(1));
+			case GUEST_MERGED -> session.mergeGuestAccount(NOW.minusSeconds(1));
+			default -> throw new IllegalArgumentException("Unsupported test revocation reason");
+		}
 	}
 
 	private RefreshSession activeSession(String tokenValue) {

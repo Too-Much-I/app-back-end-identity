@@ -599,6 +599,46 @@ class AuthControllerTests {
 	}
 
 	@Test
+	void reissueWithdrawnSessionReturnsDedicatedSafeUnauthorizedResponse() throws Exception {
+		String withdrawnRefreshValue = "controller-withdrawn-refresh-value";
+		Instant currentTime = Instant.parse("2026-07-27T04:05:06Z");
+		RefreshSession withdrawnSession = RefreshSession.create(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86",
+				refreshTokenHasher.hash(withdrawnRefreshValue),
+				currentTime.minusSeconds(60),
+				currentTime.plus(Duration.ofDays(14))
+		);
+		withdrawnSession.withdrawAccount(currentTime.minusSeconds(1));
+		when(clock.instant()).thenReturn(currentTime);
+		when(refreshSessionRepository.findByTokenHash(
+				refreshTokenHasher.hash(withdrawnRefreshValue)
+		)).thenReturn(Optional.of(withdrawnSession));
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(refreshRequestJson(withdrawnRefreshValue)))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.isSuccess").value(false))
+				.andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWN"))
+				.andExpect(jsonPath("$.message").value("탈퇴 처리된 계정입니다."))
+				.andExpect(jsonPath("$.result").value(nullValue()))
+				.andExpect(jsonPath("$.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.refreshToken").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString()).doesNotContain(
+				withdrawnRefreshValue,
+				withdrawnSession.getTokenHash(),
+				withdrawnSession.getSessionId(),
+				withdrawnSession.getUserId()
+		);
+		verify(userRepository, never()).findById(any());
+		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
+		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
+	}
+
+	@Test
 	void reissueValidationMasksBlankAndOversizedRefreshTokenValues() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/reissue")
 						.contentType(MediaType.APPLICATION_JSON)

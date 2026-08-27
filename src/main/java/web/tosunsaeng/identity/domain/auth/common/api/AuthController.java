@@ -273,7 +273,9 @@ public class AuthController {
 			),
 			@ApiResponse(
 					responseCode = "401",
-					description = "유효하지 않거나 만료·재사용된 Refresh Token",
+					description = "Refresh Token 거절: INVALID_REFRESH_TOKEN, "
+							+ "REFRESH_TOKEN_EXPIRED, REFRESH_TOKEN_REUSE_DETECTED, "
+							+ "ACCOUNT_WITHDRAWN",
 					content = @Content(schema = @Schema(implementation = BaseResponse.class))
 			),
 			@ApiResponse(

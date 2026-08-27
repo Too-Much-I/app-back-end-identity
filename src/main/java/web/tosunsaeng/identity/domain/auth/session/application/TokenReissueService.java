@@ -63,6 +63,9 @@ public class TokenReissueService {
 					.log("Refresh Token 재사용을 감지했습니다");
 			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
 		}
+		if (currentSession.getRevocationReason() == RevocationReason.ACCOUNT_WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		}
 		if (currentSession.isRevoked()) {
 			throw invalidRefreshToken();
 		}
@@ -72,6 +75,9 @@ public class TokenReissueService {
 
 		User user = userRepository.findById(currentSession.getUserId())
 				.orElseThrow(this::invalidRefreshToken);
+		if (user.getStatus() == UserStatus.WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		}
 		if (user.getStatus() != UserStatus.ACTIVE) {
 			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
 		}

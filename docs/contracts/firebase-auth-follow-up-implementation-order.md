@@ -9,7 +9,7 @@
 1. [ ] [Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle](firebase-withdrawal-lifecycle-stage-1-plan.md)
 2. [ ] [Firebase disable·refresh revoke·delete worker](firebase-withdrawal-external-cleanup-stage-2-plan.md)
 3. [ ] [FirebaseIdentity·SocialIdentity·PhoneIdentity release와 `CLEANED` 재가입 gate](firebase-withdrawal-identity-release-stage-3-plan.md)
-4. [ ] 탈퇴 Session 전용 오류와 모바일 logout·안내 UX 계약
+4. [ ] [탈퇴 Session 전용 오류와 모바일 logout·안내 UX 계약](withdrawal-session-mobile-ux-stage-4-plan.md)
 5. [ ] `UserWithdrawn` event와 downstream Access Token deny marker
 6. [ ] 가입 중단 Firebase User cleanup
 7. [ ] Billing 최소 Entitlement consumer 배포
