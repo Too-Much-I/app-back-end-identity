@@ -6192,3 +6192,251 @@
 - 결정사항: 모바일 구현은 별도 저장소의 handoff 범위다. 모바일은 탈퇴 API 2xx와 `ACCOUNT_WITHDRAWN`을 같은 멱등 terminal handler로 처리하고 Firebase signOut 실패와 무관하게 Identity Access·Refresh Token과 local user cache를 삭제하며 안내·navigation을 한 번만 수행해야 한다. Stage 4는 이미 발급된 Access Token을 downstream에서 즉시 차단하지 않는다.
 - 위험 요소: 실제 Mongo replica set의 withdrawal/reissue 교차 write conflict, 여러 기기, 모바일 Firebase signOut 실패·앱 재시작·구버전 호환성은 staging E2E가 필요하다. Stage 5 `UserWithdrawn` event와 Learning Core deny marker 전에는 기존 Access Token이 만료까지 사용될 수 있으므로 production withdrawal flag를 활성화하지 않는다.
 - 다음 작업: 사용자가 변경을 검토해 직접 commit·push하고 PR을 병합한다. 모바일 terminal handler를 별도 저장소에 구현하고 staging multi-device E2E를 수행한다. 병합 확인과 별도 승인 뒤 Jira 댓글·완료 전환을 진행하며 다음 고정 서버 단계는 Stage 5 `UserWithdrawn` event와 downstream deny marker다.
+
+## 2026-08-27 — Jira TMI-108 완료 전환
+
+<!-- codex-turn:01a0418b-0c0e-75f0-a619-eb9e673ee281 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-108`
+- Jira 작업: PR #33 병합을 확인한 뒤 사용자 요청에 따라 transition ID `41`만 적용했다. 후속 조회에서 status ID `10003`과 Resolution ID `10000`이 모두 `완료`임을 확인했다. 댓글·담당자·우선순위·라벨·설명과 다른 이슈는 변경하지 않았다.
+- 승인 여부: 사용자가 “머지했어 지라 닫아줘”라고 명시적으로 요청했다. 적용 전 현재 `해야 할 일` 상태, Resolution 없음, PR #33 병합과 완료 transition ID `41`을 확인하고 변경 범위를 사용자에게 알렸다.
+- 작업 목표: 병합이 완료된 탈퇴 RefreshSession 전용 오류와 모바일 logout·안내 서버 계약 작업의 Jira lifecycle을 저장소·PR 상태와 일치시킨다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 로컬 `develop`과 `origin/develop`이 PR #33 merge commit `7fc92c6`을 가리키고, TMI-108 구현 commit `019bcd5`가 병합된 것을 확인했다. Jira에는 완료 상태 전환 외 mutation을 수행하지 않았다.
+- 실행한 테스트와 결과: Jira 상태 전환과 문서 동기화 작업이라 Gradle 테스트는 실행하지 않았다. TMI-108 구현 시 통과한 전체 103개 suite·578개 테스트 결과를 유지하며 문서 변경은 `git diff --check`와 marker 단일 존재로 검증한다.
+- 유지한 계약: PR 병합 확인 전 Jira 완료 전환 금지, Jira mutation 전 사용자 승인, Git commit·push 금지 규칙을 유지했다. credential·Token·Secret과 사용자 개인정보를 Jira나 작업 기록에 포함하지 않았다.
+- 결정사항: `TMI-108`은 상태와 Resolution 모두 `완료`다. Jira 종료 댓글은 사용자가 요청하지 않아 등록하지 않았고 production withdrawal flag는 모바일 호환성과 Stage 5 선행 배포·staging 검증 전까지 비활성으로 유지한다.
+- 위험 요소: 서버 병합과 Jira 완료가 모바일 terminal handler, 실제 Mongo withdrawal/reissue 경쟁, 다중 기기, Firebase signOut 실패·앱 재시작 E2E 완료를 대신하지 않는다. Stage 5 전에는 탈퇴 전에 발급된 Access Token이 만료까지 downstream에서 유효할 수 있다.
+- 다음 작업: 모바일이 탈퇴 API 성공과 `ACCOUNT_WITHDRAWN`을 같은 멱등 terminal handler로 처리하도록 별도 저장소에서 구현하고 staging E2E를 수행한다. 다음 고정 서버 단계는 Stage 5 `UserWithdrawn` event와 Learning Core downstream deny marker다.
+
+## 2026-08-27 — Stage 5 UserWithdrawn event·downstream deny marker 설명
+
+<!-- codex-turn:01a04199-2aa6-78b0-a1c8-4ddbe5207446 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: 다음 고정 구현 순서인 Stage 5가 해결하는 Access Token 잔여 유효시간 문제와 Identity·Learning Core 책임, 이벤트·TTL·배포 순서를 현재 저장소 기준으로 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 문서는 변경하지 않았다.
+- 구현 내용: 회원 탈퇴는 RefreshSession을 모두 폐기하지만 이미 발급된 stateless Access Token은 최대 TTL까지 Learning Core의 로컬 JWT 검증을 통과할 수 있다. Stage 5에서 Identity는 withdrawal commit과 같은 Transaction에 `UserWithdrawn` outbox를 생성하고 최소 eventId·schemaVersion·userId·withdrawnAt을 at-least-once 전달한다. Learning Core는 eventId inbox로 중복과 payload 충돌을 분류하고 userId deny marker를 자기 저장소에 기록한다.
+- 구현 내용: Learning Core 보호 요청은 기존 issuer·audience·signature·expiration 검증을 통과한 뒤 JWT `sub`로 로컬 marker를 확인해 유효 차단 기간이면 application 진입 전에 거절한다. marker의 `blockedUntil/expireAt`은 withdrawnAt에 시스템 최대 Access Token 수명과 verifier clock skew 안전 여유를 더해 계산하고 TTL로 정리하되, TTL 삭제 지연에 의존하지 않고 요청 시 `blockedUntil`을 직접 비교한다. inbox는 outbox 자동 재전달·dead-letter·수동 replay 기간보다 길게 별도 TTL로 보존한다.
+- 실행한 테스트와 결과: 코드 변경 없는 설명 작업이라 Gradle 테스트는 실행하지 않았다. 고정 구현 순서, Stage 4 계획서, 기존 Identity outbox·publisher 구조와 Learning Core JWT 인증 경계를 읽어 대조했다. 문서 변경은 `git diff --check`와 marker 단일 존재로 검증한다.
+- 유지한 계약: 매 Learning Core 요청마다 Identity introspection을 호출하지 않고 기존 JWKS 로컬 검증을 유지한다. Token 원문·hash·Provider credential을 event·inbox·marker에 저장하지 않으며 Identity에 시험·결과 데이터를 추가하지 않는다. deny marker는 사용자별 임시 authorization 차단이지 token별 blacklist나 학습 데이터 삭제가 아니다.
+- 결정사항: 배포는 Learning Core consumer·inbox·deny gate를 먼저 완료하고, 그 뒤 Identity outbox·publisher를 활성화한다. 이벤트 전달은 at-least-once이므로 consumer 멱등성이 필수이며 Stage 5가 제공하는 즉시성은 동기 호출이 아니라 event delivery 지연 범위 안의 수렴이다.
+- 위험 요소: event schema·서버 간 인증·Learning Core 오류 code, 최대 Access Token TTL·clock skew·inbox replay 보존기간, 기존 WITHDRAWN User의 backfill/cutover watermark를 계획서에서 확정해야 한다. event 전달 지연·dead-letter 동안 짧은 접근 공백이 생길 수 있고 이 작업은 시험·결과 삭제 또는 익명화 정책을 대신하지 않는다.
+- 다음 작업: Stage 5 저장소 계획서에서 wire schema, Identity withdrawal Transaction/outbox·publisher, Learning Core inbox·marker·request gate, TTL/index, backfill, 장애·replay·배포·rollback과 양 서비스 테스트를 확정한 뒤 Jira를 서비스별 또는 통합 작업으로 생성한다.
+
+## 2026-08-27 — Stage 5 UserWithdrawn event·deny marker 구현 계획서 작성
+
+<!-- codex-turn:01a04206-6662-7452-8301-98b9fce8d027 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: 탈퇴 전에 발급된 Access Token의 잔여 유효시간을 Learning Core에서 차단하는 Stage 5의 Identity producer, Learning Core consumer·deny gate, TTL·backfill·보안·배포·테스트 계약을 저장소 계획서로 확정한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: v1 event를 `eventId`, `schemaVersion`, `userId`, `withdrawnAt`으로 제한하고 semantic SHA-256 payload digest, 동일 event duplicate 204, 다른 payload conflict 격리를 정의했다. Identity는 User·Session·lifecycle·eligibility와 `UserWithdrawnOutbox`를 같은 Mongo Transaction으로 commit하고 기존 UserMerged 패턴과 분리된 atomic lease·retry·dead-letter publisher로 at-least-once 전달한다.
+- 구현 내용: Learning Core는 workload 전용 internal endpoint에서 inbox와 userId deny marker를 한 local Mongo Transaction으로 저장한다. 기존 RS256 issuer·audience·signature·expiration 검증 뒤 `WithdrawnUserAccessGateFilter`가 marker를 조회해 유효 기간에는 `401 ACCOUNT_WITHDRAWN`, marker store 장애에는 fail-closed `503 WITHDRAWAL_DENY_GATE_UNAVAILABLE`을 반환한다. public AI callback과 workload endpoint는 사용자 deny gate 대상이 아니다.
+- 구현 내용: marker는 withdrawnAt에 시스템 최대 Access Token 수명과 verifier clock skew를 더한 blockedUntil까지만 유효하고 TTL 지연과 무관하게 시각을 직접 비교한다. inbox는 producer의 dead-letter·manual replay보다 길게 별도 보존한다. backfill은 모든 pod에 outbox capture가 배포된 시각을 고정 upper bound로 사용하고 그 직전 Access Token 유효 구간만 처리해 outbox TTL 삭제 뒤 과거 User가 반복 event로 재생성되는 문제를 막는다.
+- 실행한 테스트와 결과: 문서 작업이라 Gradle 테스트는 실행하지 않았다. Identity withdrawal Transaction·UserMerged outbox/publisher/configuration, JWT TTL과 Learning Core SecurityFilterChain·JwtCurrentUserProvider·Repository scan·오류 경계를 읽어 계획과 대조했다. 문서 변경은 `git diff --check`, 링크와 지정 marker 단일 존재로 검증한다.
+- 유지한 계약: Learning Core는 매 요청 Identity introspection 없이 기존 JWKS 로컬 검증을 유지한다. Token 원문·hash·Provider credential을 event·inbox·marker에 저장하지 않고 Identity 저장소에 시험·결과 코드를 추가하지 않는다. deny marker는 유한 사용자별 authorization 차단이며 학습 데이터 삭제·새 User 이전·token별 blacklist가 아니다.
+- 결정사항: 구현 Jira는 Learning Core consumer·inbox·deny gate와 Identity outbox·publisher·backfill의 최소 두 개로 분리하고 consumer 작업을 선행 관계로 둔다. producer보다 consumer를 먼저 배포하며 outbox capture는 publisher 비활성 상태로 먼저 배포한다. workload 인증은 사용자 JWT를 재사용하지 않고 실제 ECS ingress·SigV4 또는 workload OIDC profile이 승인되기 전 publisher를 활성화하지 않는다.
+- 위험 요소: workload 인증 방식과 internal endpoint, Learning Core의 명시적 JWT clock skew, inbox replay retention, production Transaction/index, 실제 filter order가 아직 구현·검증되지 않았다. event delivery 지연·dead-letter 동안 짧은 접근 공백이 남고 Stage 5는 시험·결과 데이터 삭제 또는 익명화를 대신하지 않는다.
+- 다음 작업: 계획서의 활성화 전 결정값을 승인한 뒤 Learning Core Jira를 먼저 생성하고 Identity Jira를 blocks 관계로 연결한다. consumer 구현·배포 후 Identity outbox capture, 최근 cutover backfill, publisher를 순서대로 구현·검증한다.
+
+## 2026-08-27 — Stage 5 internal endpoint 하이픈 제거
+
+<!-- codex-turn:01a04223-1d4a-7983-ae78-3f7bb748e22f -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: Stage 5 계획의 Learning Core internal event URL에서 하이픈을 제거하고 endpoint 표기를 하나로 고정한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: 제안 endpoint를 `POST /internal/v1/events/user-withdrawn`에서 `POST /internal/v1/events/userwithdrawn`으로 변경했다. 기존 하이픈 포함 endpoint 표기가 계획서에 남지 않도록 검색 검증한다.
+- 실행한 테스트와 결과: 문서 경로 변경만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 이전 endpoint 0건, 신규 endpoint 1건과 지정 marker 단일 존재를 검증한다.
+- 유지한 계약: HTTP method, internal v1 event 의미, workload 인증, wire payload, semantic digest, consumer 선배포와 민감정보 비노출 계약은 변경하지 않았다.
+- 결정사항: 공개·내부 API 경로에는 사용자 요청에 따라 `userwithdrawn`을 한 단어의 lowercase segment로 사용한다. digest domain separator와 Markdown 파일명은 URL endpoint가 아니므로 기존 값을 유지한다.
+- 위험 요소: 구현 시 Learning Core Controller와 Identity publisher configuration, contract test가 모두 동일한 하이픈 없는 경로를 사용해야 한다. 이전 경로는 아직 코드로 배포된 적이 없어 redirect·alias 호환 경로를 만들지 않는다.
+- 다음 작업: Stage 5 Jira Payload와 양 저장소 구현에서 exact endpoint `/internal/v1/events/userwithdrawn`을 사용한다.
+
+## 2026-08-27 — Stage 5 internal endpoint 단순화
+
+<!-- codex-turn:01a0422d-withdrawn-endpoint -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: Stage 5 Learning Core internal event endpoint를 문맥상 충분한 짧은 경로로 단순화한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: 계획서의 endpoint를 `POST /internal/v1/events/userwithdrawn`에서 `POST /internal/v1/events/withdrawn`으로 변경하고 현재 상태 문서를 동기화했다. 과거 WORKLOG 기록은 당시 변경 이력으로 보존했다.
+- 실행한 테스트와 결과: 문서 경로 변경만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`, 계획서 내 이전 endpoint 0건, 신규 endpoint 1건과 지정 marker 단일 존재를 검증한다.
+- 유지한 계약: HTTP method, internal v1 event 의미, workload 인증, wire payload, semantic digest, consumer 선배포와 민감정보 비노출 계약은 변경하지 않았다.
+- 결정사항: `withdrawn`은 HTTP 경로 segment로 사용할 수 있으며 `/events` 상위 문맥과 event payload가 의미를 보완한다. 아직 배포된 endpoint가 아니므로 이전 경로 alias나 redirect는 두지 않는다.
+- 위험 요소: 영어 자원명으로는 명사형 `withdrawals`도 가능하지만 이번 계약은 사용자 요청에 따라 `withdrawn`으로 고정한다. 구현 시 양 서비스 Controller·publisher 설정·contract test가 exact path를 공유해야 한다.
+- 다음 작업: Stage 5 Jira와 양 저장소 구현에서 exact endpoint `/internal/v1/events/withdrawn`을 사용한다.
+
+## 2026-08-27 — Stage 5 withdrawn endpoint 확정
+
+<!-- codex-turn:01a04224-b9d1-7ab2-8c24-4272b18b273c -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: Stage 5 internal event URL을 `/internal/v1/events/withdrawn`으로 확정하고 현재 문서 상태를 검증한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: endpoint segment로 `withdrawn`을 사용할 수 있음을 확인하고 계획서의 exact path를 `POST /internal/v1/events/withdrawn`으로 유지했다. 현재 상태 문서에도 동일한 경로와 검증 결과를 반영했다.
+- 실행한 테스트와 결과: 문서 변경만 있어 Gradle 테스트는 실행하지 않았다. `git diff --check`가 통과했고 계획서·현재 상태에서 이전 `/user-withdrawn`, `/userwithdrawn` 경로가 0건이며 신규 `/withdrawn` 경로가 존재함을 확인했다.
+- 유지한 계약: HTTP method, internal v1 event 의미, workload 인증, event payload, consumer 선배포, 민감정보 비노출과 Git commit·push 금지 계약은 변경하지 않았다.
+- 결정사항: Stage 5 consumer와 publisher는 exact endpoint `/internal/v1/events/withdrawn`을 사용한다. 아직 배포된 계약이 아니므로 이전 경로 호환 alias는 추가하지 않는다.
+- 위험 요소: 구현 시 Identity publisher와 Learning Core Controller·contract test의 경로가 다르면 전달이 실패하므로 양쪽에서 exact path를 고정해야 한다.
+- 다음 작업: Stage 5 Jira 생성 시 계획서의 endpoint와 양 서비스 구현 순서를 완료 조건에 반영한다.
+
+## 2026-08-27 — 하이픈 포함 HTTP 경로 점검
+
+<!-- codex-turn:01a04235-url-hyphen-audit -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: Identity 애플리케이션과 계약 문서에 하이픈을 사용하는 다른 HTTP URL 경로가 있는지 확인하고 성격별로 분류한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 경로는 변경하지 않았다.
+- 구현 내용: Controller mapping, Security allowlist, request logging route, Springdoc 설정, publisher endpoint 설정과 계약 문서를 검색했다. 실제 비즈니스 API의 `/check-email`, `/logout-all`, `/auth-methods/sync`, 표준·도구 경로의 `/.well-known/jwks.json`, `/swagger-ui...`, `/v3/api-docs`, 계획 단계의 `/internal/v1/phone-eligibility-bindings/events`를 확인했다. UserMerged publisher endpoint는 환경변수로 주입되며 production 코드에 exact path가 고정되어 있지 않다.
+- 실행한 테스트와 결과: 읽기 전용 점검과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. Controller annotation과 Security·logging·OpenAPI 설정, 관련 테스트 및 계약 문서의 검색 결과를 상호 대조했고 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 기존 공개 API, JWKS 표준 discovery, Springdoc 경로, publisher 설정과 클라이언트 호환성을 변경하지 않았다. 외부 URL·credential·Secret과 사용자 개인정보를 작업 기록에 추가하지 않았다.
+- 결정사항: `/.well-known`은 표준 경로이므로 변경 대상에서 제외하고 Springdoc 경로도 제품 API 명명 규칙과 분리한다. 실제 비즈니스 API 3개와 계획 단계 internal endpoint의 변경은 별도 호환성·consumer 선배포 결정을 거쳐야 한다.
+- 위험 요소: 기존 공개 API를 즉시 변경하면 모바일·웹 client와 Security allowlist·logging·OpenAPI·테스트가 깨질 수 있다. configurable publisher endpoint는 배포 환경값까지 확인해야 실제 하이픈 사용 여부가 확정된다.
+- 다음 작업: 사용자가 하이픈 없는 URL 정책을 기존 API까지 적용하기로 하면 exact 대체 경로, 호환 alias·deprecation 기간과 양쪽 consumer 변경 순서를 먼저 확정한다.
+
+## 2026-08-27 — 하이픈 URL 점검 결과 확정
+
+<!-- codex-turn:01a04226-5c47-7842-bf3f-25539380d83d -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 신규 이슈 생성·수정·댓글·상태 전환 없음. `TMI-108`은 완료 상태를 유지한다.
+- 작업 목표: 저장소에 남은 하이픈 포함 URL을 확인하고 실제 제품 API와 표준·도구·계획 경로를 구분해 사용자에게 전달한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 경로는 변경하지 않았다.
+- 구현 내용: 실제 비즈니스 API `/check-email`, `/logout-all`, `/auth-methods/sync` 3개를 확인했다. JWKS의 `/.well-known`, Springdoc의 `/swagger-ui...`와 `/v3/api-docs`는 표준·도구 경로로 분류했다. 구현 전 계약에는 `/internal/v1/phone-eligibility-bindings/events`가 있고 UserMerged publisher의 exact endpoint는 환경 설정으로 주입됨을 확인했다.
+- 실행한 테스트와 결과: 읽기 전용 점검과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. Controller·Security·logging·Springdoc·계약 문서 검색을 대조했고 `git diff --check`가 통과했다.
+- 유지한 계약: 기존 공개 API와 표준 JWKS discovery, Springdoc 경로, configurable publisher endpoint를 변경하지 않았다. Secret·Token·credential·사용자 개인정보를 기록하지 않았다.
+- 결정사항: 표준·도구 경로는 하이픈 없는 제품 API 명명 정책의 변경 대상에서 제외한다. 기존 비즈니스 API는 client 호환성 때문에 별도 전환 계획 없이 즉시 변경하지 않는다.
+- 위험 요소: 공개 API를 교체할 때 모바일·웹 client, Security allowlist, request logging, OpenAPI와 테스트를 함께 갱신하지 않으면 인증 또는 호출이 실패한다. 배포 환경의 UserMerged endpoint는 저장소만으로 실제 경로를 확정할 수 없다.
+- 다음 작업: 기존 비즈니스 API도 변경한다면 `/email/check`, `/logout/all`, `/methods/sync` 같은 exact 대체 경로와 alias·deprecation 기간을 승인받아 별도 작업으로 진행한다.
+
+## 2026-08-27 — Stage 5 Learning Core Jira 생성 초안 준비
+
+<!-- codex-turn:01a0422e-7f71-77b2-b2d5-92a4104587b1 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: 공식 Atlassian Rovo로 TMI 프로젝트의 URL·API·endpoint 관련 이슈를 검색하고 사용 가능한 이슈 유형을 조회했다. 동일한 `UserWithdrawn` consumer·deny gate 범위의 중복 후보는 없었고 `작업` 유형을 확인했다. 생성·수정·댓글·상태 전환은 아직 수행하지 않았다.
+- 승인 여부: 사용자가 Jira 생성을 요청했으나 저장소 규칙에 따라 mutation 전에 exact 제목·유형·우선순위·본문·완료 조건을 먼저 제시하고 최종 승인을 기다린다.
+- 작업 목표: Stage 5의 consumer 선배포 순서에 따라 Learning Core `UserWithdrawn` inbox·deny marker·JWT gate 구현 Jira 초안을 확정한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 제안 Jira는 `POST /internal/v1/events/withdrawn`, v1 wire schema, workload 전용 인증 경계, eventId semantic digest inbox, userId deny marker와 단일 Mongo Transaction, 유효 JWT 이후 request gate, `401 ACCOUNT_WITHDRAWN`, marker 저장소 장애의 fail-closed `503`, TTL·관측·보안·consumer 선배포를 포함한다. Identity outbox·publisher·backfill은 후속 별도 Jira로 제외한다.
+- 실행한 테스트와 결과: Jira 중복·프로젝트 유형 조회와 문서 초안 작업이라 Gradle 테스트는 실행하지 않았다. Stage 5 계획서의 Learning Core 범위·테스트·완료 조건과 Learning Core 저장소의 기존 JWT·workload 인증 결정 문서를 읽어 대조했다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 매 요청 Identity introspection 없이 기존 JWT 로컬 검증을 유지하고 사용자 JWT를 workload 인증에 재사용하지 않는다. workload 실제 issuer·JWKS·principal·rotation과 다른 운영값을 임의로 만들거나 Jira에 Secret·Token·개인정보를 기록하지 않는다. Jira mutation 전 승인 규칙과 Git commit·push 금지를 유지했다.
+- 결정사항: 이슈 유형은 `작업`, 우선순위는 High를 제안한다. workload 인증 실제 profile과 명시적 clock skew 등 미확정 값은 승인 전 production 비활성 gate로 남기며 구현 Jira를 닫기 전에 staging contract를 확정해야 한다.
+- 위험 요소: workload 인증 profile, Learning Core 명시적 JWT clock skew와 inbox retention의 최종 운영값이 미확정이다. consumer보다 Identity publisher를 먼저 활성화하거나 marker store 장애를 fail-open하면 탈퇴 Access Token 차단 계약이 깨진다.
+- 다음 작업: 사용자에게 Jira 제목·설명·완료 조건을 제시해 최종 승인을 받은 뒤 TMI `작업` High 이슈를 생성하고 생성된 키를 계획서·WORKLOG·CURRENT_STATE에 연결한다. 이후 Identity producer Jira를 별도로 만들고 blocks 관계를 설정한다.
+
+## 2026-08-27 — Jira TMI-109 Learning Core UserWithdrawn consumer 생성
+
+<!-- codex-turn:01a04231-b960-7163-8136-e1bc5e59dfdd -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-109`
+- Jira 작업: 공식 Atlassian Rovo로 `[Learning Core] UserWithdrawn inbox·deny marker·Access Token 차단 gate 구현` 이슈를 TMI 프로젝트 `작업`, High 우선순위로 생성했다. 재조회 결과 상태 `해야 할 일`, Resolution 없음, 담당자·라벨·댓글 없음과 `UserWithdrawn` 제목 이슈 1건만 존재함을 확인했다. 상태·설명·댓글·담당자·라벨의 후속 변경은 수행하지 않았다.
+- 승인 여부: 생성할 제목, 유형, 우선순위, 포함·제외 범위와 완료 조건을 먼저 제시했고 사용자가 “어 생성해줘”라고 최종 승인했다.
+- 작업 목표: Stage 5 consumer 선배포 순서를 추적할 Learning Core `UserWithdrawn` inbox·deny marker·JWT gate Jira를 생성하고 저장소 계획서에 연결한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 내용: Jira에는 exact endpoint `POST /internal/v1/events/withdrawn`, eventId·schemaVersion·userId·withdrawnAt v1 계약, semantic digest inbox, userId deny marker와 단일 Mongo Transaction, duplicate 204·payload conflict 격리, 유효 JWT 이후 `401 ACCOUNT_WITHDRAWN`, store 장애 `503 WITHDRAWAL_DENY_GATE_UNAVAILABLE`, TTL·workload SecurityFilterChain·보안·테스트·consumer 선배포를 기록했다. Identity outbox·publisher·backfill은 후속 별도 이슈로 제외했다.
+- 실행한 테스트와 결과: Jira 생성·재조회와 문서 키 연결 작업이라 Gradle 테스트는 실행하지 않았다. 최초 생성 요청은 Atlassian 504로 성공 여부가 불명확했으나 exact 제목 조회에서 0건을 확인한 뒤 간결한 동일 범위 본문으로 재시도해 `TMI-109` 한 건을 생성했다. 후속 Jira 재조회와 중복 검색, `git diff --check`, 지정 marker 단일 존재로 검증한다.
+- 유지한 계약: 매 요청 Identity introspection을 추가하지 않고 사용자 JWT를 workload 인증에 재사용하지 않는다. workload 실제 issuer·JWKS·principal·rotation 등 미확정 운영값을 임의로 만들지 않았고 production 활성화 전 승인 gate를 Jira에 포함했다. Jira와 문서에 Secret·Token·credential·사용자 개인정보를 기록하지 않았으며 Git commit·push 금지를 유지했다.
+- 결정사항: `TMI-109`는 Learning Core consumer 선행 이슈다. Identity producer·bounded backfill은 후속 Jira로 분리하고 `TMI-109`가 blocks 관계가 되도록 연결한다. workload 인증 profile, 명시적 clock skew·retention 승인 전 consumer·publisher production 활성화를 금지한다.
+- 위험 요소: workload 인증 실제 profile, Learning Core 명시적 JWT clock skew, inbox retention과 replica set staging E2E가 아직 미확정·미수행이다. Jira 생성은 구현·배포 완료를 의미하지 않으며 Identity publisher를 먼저 활성화하면 event 처리 공백이 생긴다.
+- 다음 작업: Learning Core 저장소에서 `TMI-109` 계획과 현재 JWT·Mongo 경계를 읽고 consumer 구현 계획서 또는 구현을 진행한다. 그 다음 Identity outbox·publisher·bounded backfill Jira를 생성해 blocks 관계를 설정한다.
+
+## 2026-08-27 — Jira TMI-109 Description 표시 진단
+
+<!-- codex-turn:01a04237-a35b-7010-b55a-b0d4384e81eb -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-109`
+- Jira 작업: 공식 Atlassian Rovo로 이슈의 summary, description, renderedFields, status, priority와 Resolution을 읽기 전용 재조회했다. Description 원문과 렌더링 HTML이 모두 저장돼 있음을 확인했으며 이슈 수정·댓글·상태 전환은 수행하지 않았다.
+- 승인 여부: 사용자는 작성 내용이 보이지 않는 현상을 알려 진단을 요청했다. Description 재저장이나 댓글 추가는 Jira mutation이므로 exact 변경 내용을 제시하고 별도 승인받기 전에는 수행하지 않는다.
+- 작업 목표: `TMI-109` Description이 실제 저장되지 않은 문제인지 Jira 화면 표시 문제인지 구분한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: API 응답의 Description에 목적, 구현 범위, 제외 범위, 완료 조건과 선행·후속 관계가 존재하고 renderedFields에도 HTML로 변환돼 있음을 확인했다. 로그인된 사용자 UI 확인을 위해 브라우저 화면도 열었으나 별도 브라우저 세션은 Atlassian 로그인 화면이어서 실제 issue layout은 검증하지 못했다.
+- 실행한 테스트와 결과: Jira 읽기 전용 조회와 문서 기록 작업이라 Gradle 테스트는 실행하지 않았다. Jira API 원문·renderedFields를 대조했으며 문서 변경은 `git diff --check`와 지정 marker 단일 존재로 검증한다.
+- 유지한 계약: Jira mutation 전 승인, Git commit·push 금지와 민감정보 비노출 규칙을 유지했다. Jira Description과 작업 기록에 Secret·Token·credential·사용자 개인정보를 추가하지 않았다.
+- 결정사항: 서버 측 Description 유실은 아니다. 사용자 화면에서 계속 보이지 않으면 같은 본문을 Description에 명시적으로 재저장하는 것을 우선하고, 중복 comment 추가는 필요할 때만 별도 승인받아 수행한다.
+- 위험 요소: Jira UI cache, issue layout의 Description field 숨김·접힘 또는 사용자 화면의 다른 issue 선택 여부는 API만으로 확인할 수 없다. 내용 재저장이 UI layout 문제를 반드시 해결하는 것은 아니다.
+- 다음 작업: 사용자에게 현재 저장된 Description 요약과 재저장 예정 내용을 보여주고 승인받으면 `TMI-109` Description을 동일 본문으로 다시 저장한 뒤 API와 화면에서 재검증한다.
+
+## 2026-08-27 — Jira TMI-109 Description 대화 재안내
+
+<!-- codex-turn:tmi109-description-shared -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-109`. 조회·생성·수정·댓글·상태 전환을 수행하지 않았다.
+- 작업 목표: 사용자가 Jira 화면에서 확인하기 어려웠던 `TMI-109` Description을 현재 대화에 그대로 제공한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: Jira에 이미 저장된 목적, 구현 범위, 제외 범위, 완료 조건과 선행·후속 관계를 대화용 Markdown으로 다시 전달한다.
+- 실행한 테스트와 결과: 설명 전달과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: Jira mutation 전 승인, Git commit·push 금지와 민감정보 비노출 규칙을 유지했다. Secret·Token·credential·사용자 개인정보를 기록하지 않았다.
+- 결정사항: Jira Description은 수정하지 않고 저장된 내용을 그대로 재안내한다.
+- 위험 요소: 대화에 제공한 사본은 Jira의 원본 필드를 변경하지 않는다.
+- 다음 작업: 사용자가 원하면 Jira Description을 동일 본문으로 명시적으로 재저장하거나 `TMI-109` 구현 계획을 진행한다.
+
+## 2026-08-27 — Jira TMI-109 Description 재안내 종료 기록
+
+<!-- codex-turn:01a04239-c4e3-7db1-9d2b-94bbddfe8b75 -->
+
+- 날짜: 2026-08-27
+- 브랜치: `develop` (Codex commit·push 미수행)
+- Jira: `TMI-109`. Jira 조회·생성·수정·댓글·상태 전환은 수행하지 않았다.
+- 작업 목표: Jira에 이미 저장된 Description 전체를 사용자가 현재 대화에서도 확인할 수 있도록 재안내한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 내용: 목적, 구현 범위, 제외 범위, 완료 조건과 선행·후속 관계를 Jira 원문 의미 그대로 대화에 제공했다.
+- 실행한 테스트와 결과: 설명 전달과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`와 지정 marker 단일 존재를 검증한다.
+- 유지한 계약: Jira mutation 전 승인, Git commit·push 금지와 민감정보 비노출 규칙을 유지했다. Secret·Token·credential·사용자 개인정보를 기록하지 않았다.
+- 결정사항: Jira Description은 변경하지 않고 대화에 사본만 제공했다.
+- 위험 요소: 대화 사본은 Jira 원본의 화면 레이아웃 또는 표시 문제를 해결하지 않는다.
+- 다음 작업: 사용자가 요청하면 Jira Description 재저장 또는 Learning Core `TMI-109` 구현 계획을 별도 진행한다.
+
+## 2026-08-27 — Phone eligibility Billing transport 계약 보정
+
+- 날짜: 2026-08-27
+- 브랜치: `develop`
+- Jira: `TMI-95` 기존 완료 계약의 transport 보정; Jira 변경 없음
+- 작업 목표: Billing에서 확정된 C3-D와 기존 Identity ADR-002의 Bearer transport 불일치를 문서상 정리하고 staging 전 구현 gate를 명시한다.
+- 변경 파일: `docs/adr/ADR-002-phone-eligibility-binding-server-contract.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`; Billing·Learning Core의 관련 계약·작업 기록 문서.
+- 구현 내용: eligibility endpoint를 `/internal/v1/eligibility/trial/events`, 인증을 VPC Lattice AWS_IAM·ECS application task role·SigV4로 보정했다. 429·503 `Retry-After`, eligibility 409 EVENT_ID_CONFLICT 전용과 delivery port의 status+Retry-After 목표를 추가했다.
+- 실행한 테스트와 결과: 문서만 변경해 Gradle 테스트는 실행하지 않았다. stale Bearer route 문자열, `git diff --check`와 trailing whitespace를 종료 전에 검증한다.
+- 유지한 계약: PhoneEligibilityBindingVerified/Revoked schema v1, eventId·bindingRevision, candidate HMAC의 Identity 소유, at-least-once delivery와 raw phone·credential 비기록을 유지했다.
+- 결정사항: 기존 workload Bearer JWT 계약은 Billing C3-D로 대체된다. 현재 JDK adapter는 legacy 구현이며 publisher 기본 disabled를 유지하고 SigV4 adapter 배포 전 staging 연동을 활성화하지 않는다.
+- 위험 요소: 실제 adapter는 아직 Bearer credential과 audience를 사용하고 Retry-After를 읽지 않는다. ADR 보정만으로 Billing 호출이 성공하지 않는다.
+- 다음 작업: Billing PLAN-001 consumer가 준비되면 Identity SigV4 delivery adapter·설정·contract test를 별도 구현하고 staging positive/negative E2E를 수행한다.
+
+## 2026-08-27 — TMI-109 Learning Core UserWithdrawn consumer 구현 연계
+
+<!-- codex-turn:01a0423b-8d3b-76e0-bb98-784f4d37b026 -->
+
+- 날짜: 2026-08-27
+- 브랜치: Identity `develop`; 실제 애플리케이션 구현 대상은 Learning Core `develop` working tree다.
+- Jira: `TMI-109`; Jira 조회·댓글·필드·상태 변경은 수행하지 않았다.
+- 작업 목표: Stage 5 순서에 따라 Identity producer보다 먼저 Learning Core의 `UserWithdrawn` inbox·deny marker·Access Token 차단 gate를 구현한다.
+- 변경 파일: Learning Core의 `src/main/java/web/tosunsaeng/domain/withdrawal/**`, 관련 Security·Auth·Error·설정 파일과 withdrawal 테스트, Learning Core 작업 기록; Identity에서는 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 연계 갱신했다.
+- 구현 내용: workload JWT 전용 `POST /internal/v1/events/withdrawn`, v1 event 검증·semantic digest, eventId inbox와 userId marker 단일 Mongo Transaction, duplicate 204·conflict 409, JWT 이후 `401 ACCOUNT_WITHDRAWN`, marker store 장애 fail-closed 503, marker·inbox TTL과 기본 비활성 설정을 Learning Core에 추가했다.
+- 실행한 테스트와 결과: Learning Core withdrawal·인증 집중 테스트와 `./gradlew clean test`가 성공했다. XML 기준 `389/0/0/0` tests/failures/errors/skipped다. Identity 애플리케이션 코드는 변경하지 않아 Identity Gradle 테스트는 실행하지 않았다.
+- 유지한 계약: Identity 사용자 JWT와 workload JWT를 분리했고 기존 Learning Core 공개 API·BaseResponse·retryCount·S3·Redis·AI Callback 및 `user_id=examId` 계약을 유지했다. Secret·Token·credential·개인정보를 기록하지 않았다.
+- 결정사항: consumer 선배포와 feature OFF를 유지한다. workload profile, 사용자 Access Token 최대 TTL, verifier clock skew와 inbox retention이 승인되기 전 production 활성화를 금지한다.
+- 위험 요소: 실제 replica set Transaction, multi-instance 동시성, workload JWKS rotation과 Identity publisher 연동은 staging E2E 전까지 검증되지 않았다.
+- 다음 작업: Learning Core consumer를 비활성 상태로 선배포·검증한 뒤 Identity `UserWithdrawn` outbox·publisher·bounded backfill을 후속 Jira로 구현한다.
