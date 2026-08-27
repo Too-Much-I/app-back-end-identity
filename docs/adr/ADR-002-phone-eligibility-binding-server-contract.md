@@ -2,6 +2,7 @@
 
 - Jira: `TMI-95`
 - 결정일: 2026-08-14
+- transport 보정일: 2026-08-27
 - 상태: 조건부 채택
 - production 상태: 비활성
 - 관련 문서: `docs/adr/ADR-001-firebase-authentication-broker.md`, `docs/contracts/phone-identity-key-rotation.md`, `docs/contracts/social-login-implementation-plan.md`
@@ -15,7 +16,7 @@ Identity는 Firebase 신규 MEMBER 가입 Transaction에서 검증된 phone으�
 ## 결정 요약
 
 - Identity는 `PhoneEligibilityBindingVerified`와 `PhoneEligibilityBindingRevoked` versioned event의 유일한 producer다.
-- 외부 전달은 HTTPS push와 at-least-once delivery를 사용한다.
+- 외부 전달은 VPC Lattice AWS_IAM·ECS task role·SigV4로 인증한 HTTPS push와 at-least-once delivery를 사용한다.
 - consumer는 `eventId` inbox, `(userId, consumerScopeId)` revision high-water mark와 current binding을 하나의 로컬 Transaction으로 갱신한다.
 - 같은 `eventId`의 같은 canonical payload는 성공 no-op, 다른 payload는 poison event다.
 - 이벤트 순서는 시간이나 수신 순서가 아니라 `bindingRevision`으로 판단한다.
@@ -209,27 +210,34 @@ key material은 저장소, event, DB, Jira, 로그, trace와 metric에 넣지 �
 
 ## transport와 service authentication
 
-v1 transport binding은 private HTTPS endpoint에 대한 push다.
+2026-08-26 Billing C3-D 승인에 따라 v1 wire schema와 at-least-once 의미는 유지하고 transport authentication은 `VPC Lattice + AWS_IAM + ECS application task role + SigV4`로 확정한다. 기존 workload Bearer JWT 계약은 대체된다.
 
 ```text
-POST /internal/v1/phone-eligibility-bindings/events
+POST /internal/v1/eligibility/trial/events
 Content-Type: application/json
-Authorization: Bearer <short-lived workload identity credential>
+Authorization: <AWS SigV4 signed request>
 ```
 
-- credential은 배포 플랫폼이 발급한 짧은 수명의 service identity JWT를 사용한다. Identity user Access Token, Firebase ID Token과 static shared API key를 사용하지 않는다.
-- consumer는 signature, issuer, scope별 고정 audience, expiry와 allowlist된 Identity workload subject를 검증한다. credential의 `exp - iat`는 5분 이하여야 한다.
-- TLS 종료 이후에도 application이 검증 가능한 producer principal이 있어야 한다. network 위치만으로 producer를 신뢰하지 않는다.
-- credential, Authorization header와 인증 오류 원문은 로그에 남기지 않는다.
+- Identity는 ECS application task role의 임시 credential과 AWS SDK v2 signer를 사용한다.
+- SigV4 signing service는 `vpc-lattice-svcs`, region은 `ap-northeast-2`다.
+- VPC Lattice Billing service의 `AWS_IAM` auth policy는 같은 환경 Identity task role에 위 POST route만 허용한다.
+- Identity user Access Token, Firebase ID Token, workload Bearer JWT, static shared API key와 caller-provided identity header를 사용하지 않는다.
+- production/staging task role과 Lattice service network·service·policy를 분리하며 반대 환경 호출을 허용하지 않는다.
+- Billing task 직접 접근은 security group으로 차단하고 network 위치만으로 producer를 신뢰하지 않는다.
+- AWS credential, SigV4 Authorization·session token과 인증 오류 원문은 로그에 남기지 않는다.
 - redirect는 따라가지 않는다. request body 상한은 16 KiB이며 BaseResponse wrapper를 사용하지 않는다.
+
+현재 `JdkPhoneEligibilityBindingDeliveryAdapter`는 audience 기반 workload Bearer credential을 사용하는 이전 구현이다. publisher는 기본 disabled 상태를 유지하며, staging 연동 전에 SigV4 adapter·설정·contract test로 교체하고 이전 audience/credential provider 경로를 제거해야 한다.
 
 | 결과 | publisher 처리 |
 | --- | --- |
 | consumer Transaction commit 뒤 2xx | `PUBLISHED` |
-| timeout, connection error, 408, 425, 429, 5xx | 같은 eventId/payload로 backoff retry |
+| timeout, connection error, 408, 425, 429, 5xx | 같은 eventId/payload로 backoff retry; 429·503의 유효한 `Retry-After`보다 이르게 재시도하지 않음 |
 | malformed payload 400, event conflict 409, unsupported contract 422 | `DEAD_LETTER`, 격리와 경보 |
 | 401, 403 | event를 `DEAD_LETTER`로 격리하고 scope delivery를 중지한다. 보안·설정 수정 후 수동 replay |
 | 3xx 또는 그 밖의 응답 | redirect하지 않고 설정 오류로 격리 |
+
+eligibility endpoint의 409는 `EVENT_ID_CONFLICT` 전용이다. `COMMAND_PROCESSING`은 Reservation command 계약이므로 Identity publisher가 error body를 읽어 두 409를 구분하지 않는다. delivery port는 HTTP status와 검증된 `Retry-After`를 publisher에 전달하되 response body는 저장하지 않는다.
 
 ## producer outbox와 retry
 
@@ -247,7 +255,7 @@ publishedAt
 
 - due `PENDING` 또는 lease가 만료된 `IN_FLIGHT` event 하나를 조건부 update로 claim한다.
 - lease 시간은 전체 network timeout보다 길어야 하며 기본 60초로 시작한다.
-- retry는 `min(5초 * 2^(attempt-1), 15분)`에 ±20% jitter를 적용한다.
+- retry는 `min(5초 * 2^(attempt-1), 15분)`에 ±20% jitter를 적용한다. 429·503에 유효한 `Retry-After`가 있으면 자체 계산 시각과 비교해 더 늦은 시각을 사용하며 비정상·과도한 값은 승인된 상한으로 제한한다.
 - 12회 실패하거나 non-retryable 응답을 받으면 `DEAD_LETTER`로 전환하고 경보한다.
 - 수동 replay는 기존 immutable eventId와 payload를 사용한다. 새 eventId로 실패를 숨기지 않는다.
 - `lastFailureCode`에는 정해진 저 cardinality 분류만 저장한다. response body, candidate, credential과 내부 exception message는 저장하지 않는다.
