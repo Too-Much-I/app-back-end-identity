@@ -3,9 +3,11 @@ package web.tosunsaeng.identity.domain.auth.federation.repository;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.List;
 
 import com.mongodb.client.result.UpdateResult;
 import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
@@ -96,6 +98,67 @@ public class FirebaseEnrollmentAttemptRepositoryImpl
 				FirebaseEnrollmentAttempt.class
 		);
 		return result.getModifiedCount() == 1;
+	}
+
+	@Override
+	public long scheduleCleanupForTarget(
+			String firebaseProjectId,
+			String firebaseUid,
+			Instant cleanupAt
+	) {
+		Instant requiredCleanupAt = Objects.requireNonNull(
+				cleanupAt,
+				"cleanupAt must not be null"
+		);
+		Query query = Query.query(Criteria.where("firebaseProjectId")
+				.is(Objects.requireNonNull(firebaseProjectId))
+				.and("firebaseUid").is(Objects.requireNonNull(firebaseUid)));
+		UpdateResult result = mongoOperations.updateMulti(
+				query,
+				new Update().set("cleanupAt", requiredCleanupAt),
+				FirebaseEnrollmentAttempt.class
+		);
+		return result.getModifiedCount();
+	}
+
+	@Override
+	public long clearCleanupAtForTarget(String firebaseProjectId, String firebaseUid) {
+		Query query = Query.query(Criteria.where("firebaseProjectId")
+				.is(Objects.requireNonNull(firebaseProjectId))
+				.and("firebaseUid").is(Objects.requireNonNull(firebaseUid))
+				.and("cleanupAt").exists(true));
+		UpdateResult result = mongoOperations.updateMulti(
+				query,
+				new Update().unset("cleanupAt"),
+				FirebaseEnrollmentAttempt.class
+		);
+		return result.getModifiedCount();
+	}
+
+	@Override
+	public List<FirebaseEnrollmentAttempt> findLegacyCaptureCandidates(
+			Instant lowerBound,
+			Instant upperBound,
+			Instant now,
+			int limit
+	) {
+		Instant requiredLower = Objects.requireNonNull(lowerBound);
+		Instant requiredUpper = Objects.requireNonNull(upperBound);
+		Instant requiredNow = Objects.requireNonNull(now);
+		if (!requiredUpper.isAfter(requiredLower)) {
+			throw new IllegalArgumentException("upperBound must be after lowerBound");
+		}
+		if (limit < 1 || limit > 100) {
+			throw new IllegalArgumentException("limit must be between 1 and 100");
+		}
+		Query query = Query.query(new Criteria().andOperator(
+				Criteria.where("createdAt").gte(requiredLower).lt(requiredUpper),
+				Criteria.where("expiresAt").lte(requiredNow),
+				Criteria.where("status").in(
+						FirebaseEnrollmentStatus.PENDING, FirebaseEnrollmentStatus.EXPIRED
+				)
+		)).with(Sort.by(Sort.Direction.DESC, "createdAt", "_id")).limit(limit);
+		return mongoOperations.find(query, FirebaseEnrollmentAttempt.class);
 	}
 
 	private static Criteria bindingCriteria(

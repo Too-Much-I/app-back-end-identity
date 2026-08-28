@@ -11,7 +11,7 @@
 3. [ ] [FirebaseIdentity·SocialIdentity·PhoneIdentity release와 `CLEANED` 재가입 gate](firebase-withdrawal-identity-release-stage-3-plan.md)
 4. [ ] [탈퇴 Session 전용 오류와 모바일 logout·안내 UX 계약](withdrawal-session-mobile-ux-stage-4-plan.md)
 5. [ ] [`UserWithdrawn` event와 downstream Access Token deny marker](user-withdrawn-downstream-deny-marker-stage-5-plan.md)
-6. [ ] 가입 중단 Firebase User cleanup
+6. [ ] [가입 중단 Firebase User cleanup](firebase-abandoned-enrollment-cleanup-stage-6-plan.md)
 7. [ ] Billing 최소 Entitlement consumer 배포
 8. [ ] logout-all Firebase refresh revoke
 9. [ ] Refresh Token 응답 유실 복구와 rotation 원자성 개선

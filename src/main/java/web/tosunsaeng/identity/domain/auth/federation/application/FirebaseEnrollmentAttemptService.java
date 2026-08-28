@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
@@ -20,6 +21,7 @@ public final class FirebaseEnrollmentAttemptService {
 	private final Clock clock;
 	private final Duration enrollmentTtl;
 	private final Duration cleanupRetention;
+	private final FirebaseEnrollmentCoordinationTransactionService coordinator;
 
 	public FirebaseEnrollmentAttemptService(
 			FirebaseEnrollmentAttemptRepository repository,
@@ -31,6 +33,17 @@ public final class FirebaseEnrollmentAttemptService {
 		this.clock = Objects.requireNonNull(clock, "clock must not be null");
 		this.enrollmentTtl = requirePositive(enrollmentTtl, "enrollmentTtl");
 		this.cleanupRetention = requirePositive(cleanupRetention, "cleanupRetention");
+		this.coordinator = null;
+	}
+
+	public FirebaseEnrollmentAttemptService(
+			FirebaseEnrollmentCoordinationTransactionService coordinator
+	) {
+		this.repository = null;
+		this.clock = null;
+		this.enrollmentTtl = null;
+		this.cleanupRetention = null;
+		this.coordinator = Objects.requireNonNull(coordinator, "coordinator must not be null");
 	}
 
 	public FirebaseEnrollmentAttempt startOrReuse(
@@ -40,6 +53,22 @@ public final class FirebaseEnrollmentAttemptService {
 			String boundUserId,
 			FirebaseAuthenticationMethod initialSignInMethod
 	) {
+		if (coordinator != null) {
+			for (int retry = 0; retry < MAX_CONCURRENCY_RETRIES; retry++) {
+				try {
+					return coordinator.startOrReuse(
+							firebaseProjectId,
+							firebaseUid,
+							bindingType,
+							boundUserId,
+							initialSignInMethod
+					);
+				} catch (DuplicateKeyException | OptimisticLockingFailureException exception) {
+					// target unique index 또는 version CAS 승자를 다시 조회한다.
+				}
+			}
+			throw new IllegalStateException("Active Firebase enrollment could not be resolved.");
+		}
 		Instant firstAttemptAt = clock.instant();
 		FirebaseEnrollmentAttempt candidate = FirebaseEnrollmentAttempt.create(
 				firebaseProjectId,
@@ -85,6 +114,11 @@ public final class FirebaseEnrollmentAttemptService {
 			FirebaseEnrollmentBindingType bindingType,
 			String boundUserId
 	) {
+		if (coordinator != null) {
+			throw new UnsupportedOperationException(
+					"Production enrollment consumption belongs to the aggregate transaction."
+			);
+		}
 		return repository.consumeIfPendingAndNotExpired(
 				Objects.requireNonNull(enrollmentId, "enrollmentId must not be null"),
 				Objects.requireNonNull(

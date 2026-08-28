@@ -76,6 +76,22 @@ app:
     read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
     enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  firebase-abandoned-cleanup:
+    capture-enabled: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_ENABLED:false}
+    capture-dry-run: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_DRY_RUN:true}
+    capture-lower-bound: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_LOWER_BOUND:}
+    capture-upper-bound: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_UPPER_BOUND:}
+    worker-enabled: ${FIREBASE_ABANDONED_CLEANUP_WORKER_ENABLED:false}
+    grace: ${FIREBASE_ABANDONED_CLEANUP_GRACE:PT24H}
+    terminal-lifecycle-retention: ${FIREBASE_ABANDONED_CLEANUP_TERMINAL_RETENTION:P7D}
+    terminal-enrollment-retention: ${FIREBASE_ENROLLMENT_TERMINAL_RETENTION:PT24H}
+    fixed-delay: ${FIREBASE_ABANDONED_CLEANUP_FIXED_DELAY:PT5S}
+    lease-duration: ${FIREBASE_ABANDONED_CLEANUP_LEASE_DURATION:PT1M}
+    max-attempts: ${FIREBASE_ABANDONED_CLEANUP_MAX_ATTEMPTS:12}
+    initial-backoff: ${FIREBASE_ABANDONED_CLEANUP_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${FIREBASE_ABANDONED_CLEANUP_MAX_BACKOFF:PT1H}
+    max-batch-size: ${FIREBASE_ABANDONED_CLEANUP_MAX_BATCH_SIZE:20}
+    capture-max-batch-size: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_MAX_BATCH_SIZE:100}
   firebase-withdrawal:
     enabled: ${FIREBASE_WITHDRAWAL_ENABLED:false}
   firebase-withdrawal-cleanup:

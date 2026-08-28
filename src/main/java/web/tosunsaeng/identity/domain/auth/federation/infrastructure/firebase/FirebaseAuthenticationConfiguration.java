@@ -19,6 +19,10 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMe
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthMethodsSyncUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentAttemptService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentCoordinationTransactionService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentLifecycleService;
+import web.tosunsaeng.identity.domain.auth.federation.application.AbandonedFirebaseEnrollmentTargetGuard;
+import web.tosunsaeng.identity.domain.auth.federation.application.AbandonedFirebaseUserCleanupPort;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestPrepareService;
@@ -36,6 +40,8 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignup
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.WithdrawalEnrollmentGate;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
+import web.tosunsaeng.identity.domain.auth.federation.repository.AbandonedFirebaseEnrollmentCleanupRepository;
+import web.tosunsaeng.identity.domain.auth.federation.infrastructure.FirebaseAbandonedCleanupProperties;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
@@ -57,7 +63,10 @@ import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(FirebaseAuthProperties.class)
+@EnableConfigurationProperties({
+		FirebaseAuthProperties.class,
+		FirebaseAbandonedCleanupProperties.class
+})
 public class FirebaseAuthenticationConfiguration {
 
 	@Configuration(proxyBeanMethods = false)
@@ -130,6 +139,34 @@ public class FirebaseAuthenticationConfiguration {
 		}
 
 		@Bean
+		AbandonedFirebaseUserCleanupPort abandonedFirebaseUserCleanupPort(
+				FirebaseAppHandle firebaseAppHandle,
+				FirebaseAuthProperties properties
+		) {
+			return new FirebaseSdkAbandonedEnrollmentCleanupAdapter(
+					firebaseAppHandle.firebaseApp(), properties
+			);
+		}
+
+		@Bean
+		AbandonedFirebaseEnrollmentTargetGuard abandonedFirebaseEnrollmentTargetGuard(
+				AbandonedFirebaseEnrollmentCleanupRepository cleanupRepository,
+				FirebaseEnrollmentAttemptRepository attemptRepository,
+				FirebaseIdentityRepository firebaseIdentityRepository,
+				SocialIdentityRepository socialIdentityRepository,
+				UserRepository userRepository,
+				PhoneFingerprintAliasRepository aliasRepository,
+				PhoneNumberNormalizer phoneNormalizer,
+				PhoneFingerprintHasher phoneHasher
+		) {
+			return new AbandonedFirebaseEnrollmentTargetGuard(
+					cleanupRepository, attemptRepository, firebaseIdentityRepository,
+					socialIdentityRepository, userRepository, aliasRepository,
+					phoneNormalizer, phoneHasher
+			);
+		}
+
+		@Bean
 		FirebaseAuthenticationVerifier firebaseAuthenticationVerifier(
 				FirebaseAdminClient firebaseAdminClient,
 				FirebaseAuthProperties properties,
@@ -143,15 +180,73 @@ public class FirebaseAuthenticationConfiguration {
 		}
 
 		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.firebase-abandoned-cleanup",
+				name = "capture-enabled",
+				havingValue = "true"
+		)
+		FirebaseEnrollmentCoordinationTransactionService firebaseEnrollmentCoordinator(
+				FirebaseEnrollmentAttemptRepository repository,
+				AbandonedFirebaseEnrollmentCleanupRepository cleanupRepository,
+				FirebaseAuthProperties properties,
+				FirebaseAbandonedCleanupProperties cleanupProperties,
+				Clock clock
+		) {
+			cleanupProperties.validate();
+			return new FirebaseEnrollmentCoordinationTransactionService(
+					repository,
+					cleanupRepository,
+					clock,
+					properties.enrollmentTtl(),
+					cleanupProperties.getGrace()
+			);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.firebase-abandoned-cleanup",
+				name = "capture-enabled",
+				havingValue = "true"
+		)
+		FirebaseEnrollmentLifecycleService firebaseEnrollmentLifecycleService(
+				AbandonedFirebaseEnrollmentCleanupRepository cleanupRepository,
+				FirebaseEnrollmentAttemptRepository attemptRepository,
+				FirebaseAbandonedCleanupProperties properties
+		) {
+			return new FirebaseEnrollmentLifecycleService(
+					cleanupRepository,
+					attemptRepository,
+					properties.getTerminalLifecycleRetention(),
+					properties.getTerminalEnrollmentRetention()
+			);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.firebase-abandoned-cleanup",
+				name = "capture-enabled",
+				havingValue = "true"
+		)
 		FirebaseEnrollmentAttemptService firebaseEnrollmentAttemptService(
+				FirebaseEnrollmentCoordinationTransactionService coordinator
+		) {
+			return new FirebaseEnrollmentAttemptService(coordinator);
+		}
+
+		@Bean
+		@ConditionalOnProperty(
+				prefix = "app.firebase-abandoned-cleanup",
+				name = "capture-enabled",
+				havingValue = "false",
+				matchIfMissing = true
+		)
+		FirebaseEnrollmentAttemptService legacyFirebaseEnrollmentAttemptService(
 				FirebaseEnrollmentAttemptRepository repository,
 				FirebaseAuthProperties properties,
 				Clock clock
 		) {
 			return new FirebaseEnrollmentAttemptService(
-					repository,
-					clock,
-					properties.enrollmentTtl(),
+					repository, clock, properties.enrollmentTtl(),
 					properties.enrollmentCleanupRetention()
 			);
 		}
@@ -214,7 +309,8 @@ public class FirebaseAuthenticationConfiguration {
 				PhoneEligibilityBindingRevisionRepository revisionRepository,
 				SocialIdentityRepository socialIdentityRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
-				FirebaseEnrollmentAttemptRepository enrollmentRepository
+				FirebaseEnrollmentAttemptRepository enrollmentRepository,
+				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService
 		) {
 			return new FirebaseSignupTransactionService(
 					userRepository,
@@ -225,7 +321,8 @@ public class FirebaseAuthenticationConfiguration {
 					revisionRepository,
 					socialIdentityRepository,
 					refreshSessionIssuer,
-					enrollmentRepository
+					enrollmentRepository,
+					enrollmentLifecycleService
 			);
 		}
 
@@ -293,7 +390,8 @@ public class FirebaseAuthenticationConfiguration {
 				PhoneIdentityTransactionService phoneIdentityTransactionService,
 				RefreshSessionRepository refreshSessionRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
-				FirebaseEnrollmentAttemptRepository enrollmentRepository
+				FirebaseEnrollmentAttemptRepository enrollmentRepository,
+				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService
 		) {
 			return new FirebaseGuestUpgradeTransactionService(
 					userRepository,
@@ -302,7 +400,8 @@ public class FirebaseAuthenticationConfiguration {
 					phoneIdentityTransactionService,
 					refreshSessionRepository,
 					refreshSessionIssuer,
-					enrollmentRepository
+					enrollmentRepository,
+					enrollmentLifecycleService
 			);
 		}
 

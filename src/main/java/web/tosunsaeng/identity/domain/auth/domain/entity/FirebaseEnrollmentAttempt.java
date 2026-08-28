@@ -90,7 +90,7 @@ public class FirebaseEnrollmentAttempt {
 		this.status = Objects.requireNonNull(status, "status must not be null");
 		this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
 		this.expiresAt = requireAfter(expiresAt, createdAt, "expiresAt");
-		this.cleanupAt = requireAfter(cleanupAt, expiresAt, "cleanupAt");
+		this.cleanupAt = cleanupAt == null ? null : requireAfter(cleanupAt, expiresAt, "cleanupAt");
 		this.consumedAt = consumedAt;
 	}
 
@@ -101,18 +101,13 @@ public class FirebaseEnrollmentAttempt {
 			String boundUserId,
 			FirebaseAuthenticationMethod initialSignInMethod,
 			Instant createdAt,
-			Duration enrollmentTtl,
-			Duration cleanupRetention
+			Duration enrollmentTtl
 	) {
 		Instant requiredCreatedAt = Objects.requireNonNull(
 				createdAt,
 				"createdAt must not be null"
 		);
 		Duration requiredTtl = requirePositive(enrollmentTtl, "enrollmentTtl");
-		Duration requiredRetention = requirePositive(
-				cleanupRetention,
-				"cleanupRetention"
-		);
 		try {
 			Instant expiresAt = requiredCreatedAt.plus(requiredTtl);
 			return new FirebaseEnrollmentAttempt(
@@ -124,13 +119,35 @@ public class FirebaseEnrollmentAttempt {
 					initialSignInMethod,
 					FirebaseEnrollmentStatus.PENDING,
 					expiresAt,
-					expiresAt.plus(requiredRetention),
+					null,
 					requiredCreatedAt,
 					null
 			);
 		} catch (DateTimeException | ArithmeticException exception) {
 			throw new IllegalArgumentException("Enrollment lifetime is out of range.");
 		}
+	}
+
+	public static FirebaseEnrollmentAttempt create(
+			String firebaseProjectId,
+			String firebaseUid,
+			FirebaseEnrollmentBindingType bindingType,
+			String boundUserId,
+			FirebaseAuthenticationMethod initialSignInMethod,
+			Instant createdAt,
+			Duration enrollmentTtl,
+			Duration ignoredLegacyCleanupRetention
+	) {
+		requirePositive(ignoredLegacyCleanupRetention, "cleanupRetention");
+		return create(
+				firebaseProjectId,
+				firebaseUid,
+				bindingType,
+				boundUserId,
+				initialSignInMethod,
+				createdAt,
+				enrollmentTtl
+		);
 	}
 
 	public boolean isActiveAt(Instant now) {

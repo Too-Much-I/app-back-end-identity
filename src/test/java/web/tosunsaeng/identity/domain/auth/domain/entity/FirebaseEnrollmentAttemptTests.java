@@ -22,7 +22,7 @@ class FirebaseEnrollmentAttemptTests {
 	private static final Instant CREATED_AT = Instant.parse("2026-08-13T01:02:03Z");
 
 	@Test
-	void directSignupHasNullBindingAndIndependentCleanupTime() {
+	void directSignupHasNullBindingAndNoCleanupTimeBeforeTerminalState() {
 		FirebaseEnrollmentAttempt attempt = attempt(
 				FirebaseEnrollmentBindingType.DIRECT_SIGNUP,
 				null
@@ -33,9 +33,7 @@ class FirebaseEnrollmentAttemptTests {
 		assertThat(attempt.getInitialSignInMethod())
 				.isEqualTo(FirebaseAuthenticationMethod.GOOGLE);
 		assertThat(attempt.getExpiresAt()).isEqualTo(CREATED_AT.plus(Duration.ofMinutes(10)));
-		assertThat(attempt.getCleanupAt()).isEqualTo(
-				CREATED_AT.plus(Duration.ofMinutes(10)).plus(Duration.ofHours(24))
-		);
+		assertThat(attempt.getCleanupAt()).isNull();
 		assertThat(attempt.isActiveAt(attempt.getExpiresAt().minusNanos(1))).isTrue();
 		assertThat(attempt.isActiveAt(attempt.getExpiresAt())).isFalse();
 		assertThat(attempt.isExpiredAt(attempt.getExpiresAt())).isTrue();
