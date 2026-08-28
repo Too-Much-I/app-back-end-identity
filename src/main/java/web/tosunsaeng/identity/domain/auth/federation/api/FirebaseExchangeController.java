@@ -95,7 +95,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "400", description = "요청 JSON 형식 오류", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "401", description = "Firebase 인증 실패 또는 recent-auth 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "비활성 계정 또는 허용되지 않은 Provider·phone 로그인", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "409", description = "Firebase 또는 Social identity 소유권 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "Firebase·Social identity 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
@@ -116,7 +116,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "400", description = "요청·profile·phone 형식 오류", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "401", description = "Firebase 인증 실패 또는 recent-auth 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "provider·phone·email proof 또는 동의 요건 미충족", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "409", description = "enrollment·Firebase·Social·phone 소유권 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "enrollment·Firebase·Social·phone 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
@@ -158,7 +158,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "400", description = "요청·동의·phone 형식 오류", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "Guest 승격 또는 Firebase 증명 요건 미충족", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "409", description = "MERGE_REQUIRED 또는 enrollment·identity·phone 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "MERGE_REQUIRED, enrollment·identity·phone 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})

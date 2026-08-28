@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
@@ -35,7 +36,9 @@ public class FirebaseGuestUpgradeTransactionService {
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final FirebaseEnrollmentAttemptRepository enrollmentRepository;
+	private final FirebaseEnrollmentLifecycleService enrollmentLifecycleService;
 
+	@Autowired
 	public FirebaseGuestUpgradeTransactionService(
 			UserRepository userRepository,
 			FirebaseIdentityRepository firebaseIdentityRepository,
@@ -44,6 +47,23 @@ public class FirebaseGuestUpgradeTransactionService {
 			RefreshSessionRepository refreshSessionRepository,
 			RefreshSessionIssuer refreshSessionIssuer,
 			FirebaseEnrollmentAttemptRepository enrollmentRepository
+	) {
+		this(
+				userRepository, firebaseIdentityRepository, socialIdentityRepository,
+				phoneIdentityTransactionService, refreshSessionRepository,
+				refreshSessionIssuer, enrollmentRepository, null
+		);
+	}
+
+	public FirebaseGuestUpgradeTransactionService(
+			UserRepository userRepository,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			PhoneIdentityTransactionService phoneIdentityTransactionService,
+			RefreshSessionRepository refreshSessionRepository,
+			RefreshSessionIssuer refreshSessionIssuer,
+			FirebaseEnrollmentAttemptRepository enrollmentRepository,
+			FirebaseEnrollmentLifecycleService enrollmentLifecycleService
 	) {
 		this.userRepository = Objects.requireNonNull(userRepository);
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
@@ -54,6 +74,7 @@ public class FirebaseGuestUpgradeTransactionService {
 		this.refreshSessionRepository = Objects.requireNonNull(refreshSessionRepository);
 		this.refreshSessionIssuer = Objects.requireNonNull(refreshSessionIssuer);
 		this.enrollmentRepository = Objects.requireNonNull(enrollmentRepository);
+		this.enrollmentLifecycleService = enrollmentLifecycleService;
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
@@ -69,6 +90,9 @@ public class FirebaseGuestUpgradeTransactionService {
 			FirebaseEnrollmentAttempt enrollmentAttempt,
 			Instant upgradedAt
 	) {
+		if (enrollmentLifecycleService != null) {
+			enrollmentLifecycleService.ensureFinalizable(enrollmentAttempt);
+		}
 		User requiredUser = Objects.requireNonNull(promotedUser);
 		String userId = requiredUser.getUserId();
 		if (!userId.equals(preparedRefreshSession.session().getUserId())
@@ -115,6 +139,9 @@ public class FirebaseGuestUpgradeTransactionService {
 		);
 		if (!consumed) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
+		}
+		if (enrollmentLifecycleService != null) {
+			enrollmentLifecycleService.finalizeEnrollment(enrollmentAttempt, upgradedAt);
 		}
 		return issuedRefreshSession;
 	}

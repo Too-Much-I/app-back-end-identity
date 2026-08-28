@@ -6660,3 +6660,312 @@
 - 위험 요소: 실제 replica set Transaction, multi-instance lease 회수, workload JWT golden Token 상호 사용 거절, HTTPS redirect 미허용, duplicate 204, real key overlap과 backfill exact bounds는 제공된 로컬 환경에서 E2E 검증하지 못했다. Learning Core의 `typ`·`kid`·`nbf=iat` 보완 배포 여부도 활성화 전에 재확인해야 한다.
 - Jira 댓글 초안: `TMI-111 Identity 구현 완료. withdrawal Transaction과 UserWithdrawnOutbox 원자 저장, workload JWT 기반 publisher·retry·dead-letter·manual replay, bounded dry-run backfill, 다중 Public Key JWKS와 관측 metric을 추가했습니다. 전체 591개 테스트와 git diff --check가 통과했습니다. 실제 replica set·workload auth·multi-instance·duplicate·key overlap staging E2E와 운영 backfill bounds 확정은 남아 있으며 기능은 기본 비활성입니다.` 댓글은 자동 등록하지 않았다.
 - 다음 작업: 사용자가 변경을 검토해 직접 commit·push·PR merge한 뒤 staging E2E와 운영값을 확인한다. merge 확인 후 별도 승인받아 Jira 댓글과 완료 전환을 수행한다.
+
+## 2026-08-28 — TMI-111 병합 확인과 Jira 완료 전환안 준비
+
+<!-- codex-turn:01a046f3-fe98-7a10-a336-8f8990a88f85 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-111`; Atlassian 공식 도구로 현재 상태 `해야 할 일`, Resolution 없음, 기존 댓글 1건과 완료 transition ID `41`을 읽기 전용 확인했다.
+- 작업 목표: 사용자가 알린 PR 병합을 Git 이력에서 검증하고 Jira 종료 댓글·완료 전환의 정확한 변경안을 준비한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 병합 확인: local `develop`과 `origin/develop`이 모두 merge commit `776e8fa195c2ec86c548e0733537900d38d8efd6`을 가리킨다. 해당 commit은 PR #35 `feat/TMI-111-user-withdrawn-outbox-publisher` 병합이며 feature commit `43bb369`을 포함한다. 확인 시 작업 트리는 깨끗했다.
+- Jira 현재 상태: 제목은 `[Identity] UserWithdrawn outbox·publisher·backfill 구현`, 상태는 `해야 할 일`, Resolution 없음이다. 선행 `TMI-109`는 완료 상태이며 blocks 관계가 유지돼 있다.
+- 제안할 댓글: PR #35와 merge commit, withdrawal Transaction·outbox·publisher·workload JWT·bounded backfill·rotation JWKS 구현 요약, 주요 변경 영역, 전체 109개 suite·591개 테스트와 `git diff --check` 성공, 실제 replica set·workload auth·multi-instance·duplicate·key overlap staging E2E와 운영 backfill bounds가 남았고 기능이 기본 비활성이라는 위험만 기록한다.
+- 제안할 상태 변경: 종료 댓글을 한 건 등록한 뒤 transition ID `41`만 적용해 `완료`로 전환한다. 담당자·우선순위·라벨·본문·링크와 기존 댓글은 변경하지 않는다.
+- 실행한 테스트와 결과: 새 애플리케이션 변경이 없어 테스트를 재실행하지 않았다. 병합된 구현의 직전 검증은 `./gradlew clean test` 109개 suite·591개 테스트, 실패·오류·건너뜀 0개와 `git diff --check` 성공이다. 이번 문서 변경에도 `git diff --check`를 실행한다.
+- 유지한 계약: Git commit·push 금지, Jira mutation 전 변경안 제시·승인, Secret·Token·Key·개인정보 비기록과 production 기능 기본 비활성 계약을 유지했다.
+- 결정사항: 병합은 확인됐으므로 Jira 완료 전환의 merge 선결 조건은 충족됐다. 다만 댓글 등록과 상태 전환은 사용자에게 정확한 내용을 제시한 뒤 별도 승인받아 수행한다.
+- 위험 요소: Jira를 완료해도 staging E2E와 운영 활성화 승인을 마친 것으로 해석하면 안 된다. publisher·backfill·production withdrawal flag는 계속 비활성 상태를 유지해야 한다.
+- 다음 작업: 사용자가 제시한 댓글과 transition ID `41` 적용을 승인하면 댓글 등록, 완료 전환, 상태·Resolution 재조회를 수행하고 그 결과를 다음 WORKLOG·CURRENT_STATE에 기록한다.
+
+## 2026-08-28 — TMI-111 Jira 완료 전환
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-111`
+- 작업 목표: 사용자가 승인한 종료 댓글을 등록하고 병합된 Identity producer 이슈를 완료로 전환한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- Jira 작업: PR #35 merge, withdrawal Transaction·outbox·publisher·workload JWT·bounded backfill·rotation JWKS 구현, 109개 suite·591개 테스트와 남은 staging 위험을 요약한 댓글 ID `10042`를 등록했다. 이어서 transition ID `41`만 적용했다.
+- 최종 상태: 재조회 결과 Jira status ID `10003` 이름 `완료`, Resolution ID `10000` 이름 `완료`다. 댓글 총 2건 중 새 종료 댓글이 저장된 것도 확인했다.
+- 승인 여부: 사용자가 제시한 댓글과 상태 전환안을 확인한 뒤 `어`라고 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira mutation과 문서 기록만 수행해 테스트를 재실행하지 않았다. 병합 구현의 직전 결과는 전체 109개 suite·591개 테스트 성공, 실패·오류·건너뜀 0개다. 문서 변경은 `git diff --check`로 검증한다.
+- 유지한 계약: 담당자·우선순위·라벨·본문·링크와 기존 댓글은 변경하지 않았고 Secret·Token·Key·개인정보를 Jira나 문서에 기록하지 않았다. Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 완료는 production publisher·backfill 활성화 승인이 아니다. 실제 replica set·workload auth·multi-instance·duplicate·key overlap staging E2E와 운영 backfill bounds는 여전히 남아 있다.
+- 다음 작업: 다음 withdrawal lifecycle 항목을 진행하되 production 기능 flag는 운영 검증 전까지 비활성으로 유지한다.
+
+## 2026-08-28 — TMI-111 Jira 종료 기록 최종화
+
+<!-- codex-turn:01a046f6-4ac5-7e62-9b03-e983b0f0e1a0 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-111`
+- 작업 목표: 현재 turn의 Jira 종료 결과가 WORKLOG marker와 CURRENT_STATE에 빠짐없이 기록되도록 최종화한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 확인 결과: PR #35 merge commit `776e8fa195c2ec86c548e0733537900d38d8efd6`이 `develop`과 `origin/develop`에 반영됐고, Jira 종료 댓글 ID `10042` 등록 뒤 transition ID `41`이 적용됐다. 재조회한 status와 Resolution은 모두 `완료`다.
+- 실행한 테스트와 결과: 문서 기록만 추가해 테스트를 재실행하지 않았다. 병합 구현의 최종 검증은 109개 suite·591개 테스트 성공, 실패·오류·건너뜀 0개이며 이번 문서는 `git diff --check`로 검증한다.
+- 유지한 계약: Jira 담당자·우선순위·라벨·본문·링크와 기존 댓글은 변경하지 않았으며 Secret·Token·Key·개인정보를 기록하지 않았다. Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 완료와 production 활성화는 별개다. replica set·workload auth·multi-instance·duplicate·key overlap staging E2E와 운영 backfill 범위 확정 전까지 관련 기능을 비활성으로 유지한다.
+- 다음 작업: 다음 withdrawal lifecycle 작업을 별도 Jira와 계획서 기준으로 진행한다.
+
+## 2026-08-28 — TMI-111 이후 Stage 6 작업 설명
+
+<!-- codex-turn:01a046fa-2e86-7f52-b062-d714de4f8ac9 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira 조회·생성·수정·댓글·상태 변경은 수행하지 않았다.
+- 작업 목표: 완료된 withdrawal Stage 1~5 다음의 실제 개발 항목과 가입 중단 cleanup의 사용자·데이터 흐름을 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 확인 결과: 고정 순서의 다음 작업은 Stage 6 가입 중단 Firebase User cleanup이다. 현재 `FirebaseEnrollmentAttempt`는 PENDING·CONSUMED·EXPIRED와 cleanupAt TTL을 가지며 signup·Guest upgrade가 CAS consume하지만, attempt 만료·TTL 삭제는 외부 Firebase User를 disable·revoke·delete하지 않는다.
+- 문제 정의: 사용자가 email·SNS 인증과 같은 UID phone link까지 마친 뒤 Mongo finalize 전에 이탈하면 내부 User·FirebaseIdentity·PhoneIdentity가 없더라도 외부 Firebase User와 phone credential 점유가 남을 수 있다. 이 때문에 다른 UID로 같은 번호를 연결하지 못하거나 오래된 미완료 계정이 계속 인증될 수 있다.
+- 제안 흐름: resume 유예 기간에는 기존 PENDING attempt를 재사용한다. 유예가 끝난 expired·unconsumed attempt만 별도 cleanup lifecycle/outbox로 atomic claim하고, exact project·UID의 최신 Firebase 상태와 내부 FirebaseIdentity·SocialIdentity·PhoneIdentity·User owner, 새 PENDING/CONSUMED attempt 부재를 다시 확인한 뒤 disable→refresh revoke→delete를 멱등 실행한다.
+- 안전 경계: DIRECT_SIGNUP과 GUEST_USER binding을 구분하고 cleanup claim과 enrollment consume을 CAS fencing한다. 기존 ACTIVE·SUSPENDED·WITHDRAWN·MERGED User, complete withdrawal lifecycle, 이미 새 owner에 연결된 UID·provider·phone은 삭제하지 않는다. owner mismatch·mixed state·외부 성공 여부 불명확은 retry 추측 대신 reconciliation으로 보낸다.
+- 사용자 흐름: 유예 중에는 가입을 이어서 완료할 수 있다. cleanup이 시작된 뒤에는 기존 enrollment를 재사용하지 않고 가입을 다시 시작하도록 전용 오류를 반환한다. Firebase User 삭제 뒤에는 fresh 인증과 phone verification으로 새 enrollment를 만들며 내부 기존 User를 복구·자동 merge하지 않는다.
+- 구현 범위 후보: Stage 6 계획서, cleanup lifecycle Entity·Repository·atomic lease, owner preflight guard, Firebase Admin inspect/disable/revoke/delete adapter 재사용 경계, retry·dead-letter·reconciliation, 기본 비활성 scheduler·metric·runbook, direct signup·Guest upgrade·race·응답 유실·외부 성공 후 내부 실패 테스트다.
+- 제외 범위: complete withdrawal Stage 1~5 재구현, Billing Entitlement consumer, logout-all revoke, Provider unlink·phone 변경, ACTIVE 회원 rebind와 Mongo User 삭제·복구는 포함하지 않는다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명·문서 작업이라 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: Firebase는 credential broker이고 Identity는 canonical User·Session·identity mapping을 소유한다. phone은 자동 merge·기존 User 선택 기준이 아니며 Secret·Token·Firebase UID·phone·provider subject를 로그·metric·작업 기록에 남기지 않는다.
+- 위험 요소: Stage 1~5 Jira 완료와 production 준비 완료는 다르다. 실제 Firebase/mobile·Mongo Transaction·workload auth·multi-instance staging E2E 전에는 기존 flag를 켜지 않는다. cleanup과 finalize race를 fencing하지 않으면 정상 가입 직전 Firebase User를 삭제할 수 있다.
+- 다음 작업: 사용자가 요청하면 Stage 6 계획서를 작성해 resume grace·상태 전이·오류·완료 조건을 확정한 뒤 Jira 초안을 준비한다.
+
+## 2026-08-28 — Stage 6 enrollment cleanup 유예기간 검토
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: 가입 중단 Firebase User cleanup의 유예기간이 현재 어떤 값인지와 별도 유예가 필요한 이유를 코드 기준으로 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 현재 값: `FIREBASE_ENROLLMENT_TTL` 기본 `PT10M`은 PENDING attempt를 signup·Guest upgrade Transaction에서 consume할 수 있는 시간이다. `FIREBASE_ENROLLMENT_CLEANUP_RETENTION` 기본 `PT24H`는 `cleanupAt=expiresAt+retention`으로 attempt 문서를 Mongo TTL 삭제 전까지 남기는 시간이며 외부 Firebase User cleanup worker나 삭제 유예는 아직 없다.
+- 권장 초안: 최근 enrollment attempt의 만료 시점 뒤 별도 `abandonedCleanupGrace=PT24H`를 기본 후보로 둔다. 10분 attempt가 만료돼도 grace 안에 돌아온 사용자는 exchange에서 새 10분 attempt를 만들고 가입을 재개할 수 있다. cleanup 완료·reconciliation 이력 retention은 grace와 같은 필드를 재사용하지 않고 더 길게 별도 정의한다.
+- 필요 이유: Firebase provider·phone link는 Mongo finalize 전에 외부에서 성공할 수 있어 앱 백그라운드·네트워크 단절·SMS 지연·응답 유실만으로도 정상 사용자가 일시적으로 미완료처럼 보인다. 만료 즉시 delete하면 진행 중 finalize 또는 곧 재개할 정상 Firebase User를 삭제할 수 있다.
+- 안전 판단: grace는 오판 가능성을 낮추는 시간 완충일 뿐 동시성 안전장치가 아니다. cleanup worker는 exact project·UID의 최신 PENDING/CONSUMED attempt와 FirebaseIdentity·SocialIdentity·PhoneIdentity·User owner를 재조회하고 CAS claim/fencing 뒤에만 외부 mutation을 수행해야 한다.
+- 결정 상태: `PT24H`는 합리적인 기본 후보이며 아직 승인된 운영 계약은 아니다. 더 짧게 운영하려면 SMS·OAuth·모바일 이탈 후 복귀 지표와 support 정책이 필요하고, 더 길게 두면 phone credential 점유가 오래 유지되는 tradeoff가 있다.
+- 실행한 테스트와 결과: 코드 변경이 없어 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: 유예기간 경과만으로 기존 내부 User를 삭제·복구·자동 merge하지 않는다. Secret·Token·Firebase UID·phone·provider subject는 기록하지 않는다.
+- 위험 요소: 현재 `cleanupRetention=PT24H`를 그대로 grace로 해석하면 TTL 삭제와 cleanup claim이 경쟁할 수 있다. Stage 6에서는 grace와 record retention을 반드시 분리해야 한다.
+- 다음 작업: Stage 6 계획서에서 `PT24H` 기본 후보를 승인 또는 조정하고 마지막 활동 기준, 상태 전이, retry·reconciliation과 모바일 restart 오류 계약을 확정한다.
+
+## 2026-08-28 — Stage 6 cleanup 유예기간 기록 최종화
+
+<!-- codex-turn:01a046fc-a185-75a2-82ef-2cacd9a8223a -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: 현재 turn에서 설명한 enrollment TTL·attempt retention·외부 Firebase User cleanup grace의 차이와 권장안을 지정 turn marker로 최종 기록한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 최종 정리: 현재 `PT10M`은 PENDING enrollment consume TTL이고 `PT24H`는 attempt 문서의 Mongo TTL 보존기간이다. 외부 Firebase User 삭제 유예는 아직 구현되지 않았다. Stage 6에서는 별도 `abandonedCleanupGrace=PT24H`를 기본 후보로 두고 terminal cleanup 이력 retention을 분리한다.
+- 필요 조건: 유예기간은 앱 중단·SMS 지연·네트워크·응답 유실로 정상 사용자를 고아 계정으로 오인할 가능성을 낮춘다. 삭제 안전성은 grace만으로 보장하지 않으며 최신 attempt·내부 owner preflight와 cleanup/finalize CAS fencing을 함께 적용한다.
+- 실행한 테스트와 결과: 문서 기록만 추가해 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: 기존 내부 User를 cleanup 시간만으로 삭제·복구·자동 merge하지 않으며 Secret·Token·Firebase UID·phone·provider subject를 기록하지 않았다.
+- 위험 요소: 현재 `cleanupRetention=PT24H`를 cleanup grace로 재사용하면 Mongo TTL 삭제와 worker claim이 경쟁할 수 있다.
+- 다음 작업: Stage 6 계획서에서 grace·record retention·마지막 활동 기준·상태 전이·오류와 운영 조정 기준을 확정한다.
+
+## 2026-08-28 — 회원탈퇴 Firebase User 삭제 시점 정정
+
+<!-- codex-turn:01a04702-2713-7cb0-8691-4e154e0597c8 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira 조회·생성·수정·댓글·상태 변경은 수행하지 않았다.
+- 작업 목표: 회원탈퇴 Firebase User cleanup에 유예기간이 있다는 잘못된 설명을 현재 구현 기준으로 정정한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 확인 결과: `UserWithdrawalLifecycle`은 생성 시 `EXTERNAL_CLEANUP_PENDING`, `nextAttemptAt=requestedAt`으로 저장되어 회원탈퇴 commit 직후 바로 처리 가능하다. worker가 활성화돼 있으면 기본 `PT5S` scheduler 주기에 claim하고 target guard→Firebase inspect→disable→refresh token revoke→provider deletion obligation→delete→presence 확인 순서로 처리한다.
+- 시간 계약: 회원탈퇴 Firebase User 삭제에는 별도 grace가 없다. 기본 `PT1M`은 worker lease이고, 최초 `PT5S`·최대 `PT1H` backoff와 최대 12회는 실패 재시도 정책이지 정상 삭제 유예가 아니다.
+- 정정 사항: 앞서 언급한 `PT24H` grace 후보는 회원가입을 끝내지 않은 사용자의 고아 Firebase User를 정리하는 Stage 6 가입 중단 cleanup에만 해당한다. 현재 `FIREBASE_ENROLLMENT_CLEANUP_RETENTION=PT24H`도 enrollment attempt 문서의 Mongo TTL 보존기간이며 회원탈퇴 lifecycle과 무관하다.
+- 실행한 테스트와 결과: 코드 변경이 없는 설명·문서 정정이라 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: 회원탈퇴 대상은 exact project·UID와 중앙 target guard를 확인한 뒤 Firebase에서 비동기 삭제하며, Firebase UID·Token·provider subject·개인정보와 Secret을 기록하지 않는다. Git commit·push도 수행하지 않았다.
+- 결정사항: 회원탈퇴는 복구 전제의 soft-delete 유예를 두지 않고 가능한 빨리 외부 Firebase User를 삭제한다. Stage 6의 가입 중단 grace와 명칭·설정·상태를 분리한다.
+- 위험 요소: cleanup worker 기본 설정은 비활성이다. production에서 flag가 꺼져 있거나 worker가 장애 상태면 lifecycle은 즉시 due여도 실제 삭제는 지연될 수 있다. 실패 retry와 reconciliation 대상은 정상 grace로 해석하지 않는다.
+- 다음 작업: Stage 6 계획서를 작성할 때 가입 중단 Firebase User에만 적용할 grace와 cleanup lifecycle을 별도로 확정한다.
+
+## 2026-08-28 — 완료된 회원탈퇴 cleanup과 다음 Stage 6 범위 구분
+
+<!-- codex-turn:01a04704-ee48-7a63-8b37-47f54630cc6a -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: 기존 회원탈퇴 User cleanup이 이미 구현됐는지 확인하고 다음 작업의 대상을 명확히 구분한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 확인 결과: 회원탈퇴 시 내부 User는 삭제하지 않고 개인정보가 제거된 `WITHDRAWN` tombstone으로 보존한다. 모든 RefreshSession을 `ACCOUNT_WITHDRAWN`으로 폐기하고, 외부 cleanup worker가 Firebase User를 실제 삭제한 뒤 identity release Transaction이 exact FirebaseIdentity와 해당 User의 SocialIdentity를 삭제하며 PhoneIdentity·fingerprint alias를 release하고 활성 혜택 binding을 revoke한다. lifecycle은 최종 `CLEANED`로 수렴한다.
+- 다음 범위: Stage 6은 이미 가입한 회원의 탈퇴 cleanup을 재구현하지 않는다. Firebase 인증·phone link 이후 Mongo signup/Guest upgrade finalize 전에 앱을 종료하거나 요청이 유실되어 내부 canonical User가 생성되지 않은 가입 중단 Firebase User만 별도 grace·owner preflight·CAS fencing을 거쳐 정리한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 확인·설명이라 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: 내부 User tombstone은 감사·재가입 gate를 위해 보존하며 회원탈퇴 Firebase User와 가입 중단 고아 Firebase User lifecycle을 혼용하지 않는다. Secret·Token·Firebase UID·phone·provider subject는 기록하지 않았고 Git commit·push도 수행하지 않았다.
+- 결정사항: 회원탈퇴 cleanup은 완료된 기반으로 취급하고, 다음 계획서는 가입이 완료되지 않아 User owner가 없는 외부 Firebase 계정 cleanup에 한정한다.
+- 위험 요소: 두 경로 모두 Firebase User를 실제 삭제할 수 있지만 삭제 전제와 기준점이 다르다. Stage 6에서 withdrawal lifecycle을 재사용하면 정상 가입 finalize와 경합하거나 내부 owner가 있는 계정을 잘못 삭제할 수 있다.
+- 다음 작업: Stage 6 계획서에서 고아 계정 판정, grace 기준, finalize 경합 차단, retry·reconciliation과 운영 활성화 조건을 확정한다.
+
+## 2026-08-28 — 회원탈퇴와 가입 중단 cleanup 범위 재확인
+
+<!-- codex-turn:01a04704-ee48-7663-a19f-13cf3256353b -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira 조회·수정·상태 변경은 수행하지 않았다.
+- 작업 목표: 사용자의 확인 질문에 맞춰 이미 구현된 회원탈퇴 User cleanup과 다음 Stage 6 가입 중단 Firebase User cleanup의 차이를 명확히 한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- 구현 확인: 가입 완료 회원의 탈퇴 경로는 내부 User를 개인정보가 제거된 `WITHDRAWN` tombstone으로 보존하고 RefreshSession을 폐기한다. 외부 Firebase User 실제 삭제가 확인되면 exact FirebaseIdentity와 User 소유 SocialIdentity를 삭제하고 PhoneIdentity·fingerprint alias·혜택 binding을 release/revoke한 뒤 lifecycle을 `CLEANED`로 전환한다.
+- 다음 작업: Stage 6은 회원탈퇴 정리를 다시 구현하는 작업이 아니다. Firebase 인증 또는 phone link 뒤 내부 User 생성 Transaction을 완료하지 못해 외부 Firebase에만 남은 가입 중단 계정을 별도 grace와 owner preflight·CAS fencing으로 정리한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 범위 확인과 문서 기록이므로 테스트는 실행하지 않았다. 문서는 `git diff --check`로 검증한다.
+- 유지한 계약: 내부 User tombstone 보존, Firebase credential broker 경계, phone 비자동병합, Secret·Token·Firebase UID·phone·provider subject 비기록과 Git commit·push 금지를 유지했다.
+- 결정사항: 기존 withdrawal cleanup은 완료된 기반으로 취급하며 후속 계획과 구현은 가입 미완료 고아 Firebase User cleanup으로 한정한다.
+- 위험 요소: withdrawal과 abandoned enrollment는 외부 Firebase User 삭제라는 결과가 같아도 내부 owner 존재 여부와 삭제 안전 조건이 다르므로 lifecycle과 설정을 공유하면 안 된다.
+- 다음 작업: Stage 6 계획서에서 가입 중단 판정 시점, grace, 재개 흐름, finalize race, retry·reconciliation과 운영 활성화 조건을 확정한다.
+
+## 2026-08-28 — Stage 6 가입 중단 Firebase User cleanup 계획서 작성
+
+<!-- codex-turn:01a04706-bbe6-7643-9366-03fe70abd9b6 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira 조회·생성·수정·댓글·상태 변경은 수행하지 않았다.
+- 작업 목표: 고정 구현 순서의 다음 항목인 Stage 6 가입 중단 Firebase User cleanup의 구현·동시성·운영 계획을 저장소 문서로 확정한다.
+- 변경 파일: `docs/contracts/firebase-abandoned-enrollment-cleanup-stage-6-plan.md`, `docs/contracts/firebase-auth-follow-up-implementation-order.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 구현 계획: exact Firebase project·UID 단위의 `AbandonedFirebaseEnrollmentCleanup` lifecycle을 withdrawal과 분리한다. RESUMABLE·CLEANUP_IN_PROGRESS·RETRY_WAIT·FINALIZED·CLEANED·RECONCILIATION_REQUIRED 상태, target unique index, generation·version·claim별 lease token으로 가입 재개·finalize·cleanup 경쟁의 단일 승자를 만든다.
+- 시간 계약: 기존 enrollment TTL `PT10M`, 신규 resume grace `PT24H`, lifecycle·attempt record retention `P30D`를 서로 다른 설정과 필드로 둔다. grace는 마지막 attempt 만료 시각부터 계산하고 fresh Firebase proof로 실제 재개할 때만 갱신한다.
+- 안전 경계: DIRECT_SIGNUP은 canonical owner 부재를 요구하고 GUEST_USER는 bound User가 여전히 ACTIVE GUEST인지 추가 확인한다. FirebaseIdentity, linked SocialIdentity, verified phone ACTIVE alias, CONSUMED attempt, FINALIZED 또는 새 generation이 하나라도 있으면 자동 삭제하지 않는다.
+- 외부 처리: exact account inspect 뒤 disable→refresh token revoke→provider deletion obligation→delete→absence confirm을 멱등 실행한다. Firebase SDK mutation primitive는 공통화할 수 있지만 withdrawal lifecycle·guard·failure 상태를 재사용하지 않는다.
+- 사용자 계약: cleanup claim 이후 이전 enrollment는 `409 FIREBASE_ENROLLMENT_RESTART_REQUIRED`로 종료하고 모바일은 enrollment 임시 상태와 Firebase client session을 정리한 뒤 fresh 인증부터 다시 시작한다. 기존 Guest Session은 유지한다.
+- 운영 계획: 신규 기능 기본 비활성, dry-run·고정 cutover·최대 100건 bounded legacy capture, lifecycle capture→모바일 계약→staging worker→실제 Firebase·Mongo replica set·multi-instance E2E→production 별도 승인 순서를 적용한다.
+- 실행한 테스트와 결과: 문서 작업이므로 Gradle 테스트는 실행하지 않았다. 링크·필수 계약과 `git diff --check`를 검증한다.
+- 유지한 계약: 내부 User hard delete·phone 자동 merge·Billing 소유 혜택 구현은 제외했다. 기존 entity FQCN, 공개 응답 shape, Firebase credential broker 경계, Secret·Token·Firebase UID·phone·provider subject 비기록과 Git commit·push 금지를 유지했다.
+- 결정사항: Stage 6은 별도 lifecycle을 사용하고 attempt TTL을 cleanup 동시성 수단으로 사용하지 않는다. 가입 완료 withdrawal cleanup은 재구현하지 않는다.
+- 위험 요소: 실제 Firebase inspect에서 linked provider·phone owner를 안전하게 확인할 ephemeral snapshot 경계, 기존 attempt TTL 이전 데이터 손실, 모바일 restart handling, Firebase provider obligation과 Mongo finalize 경합은 staging에서 반드시 검증해야 한다.
+- 다음 작업: 사용자 검토 후 계획서를 Jira 구현 이슈 본문과 완료 조건으로 축약해 생성 승인을 받는다.
+
+## 2026-08-28 — Stage 6 cleanup record retention 목적 검토
+
+<!-- codex-turn:01a04724-9d09-7823-b5f7-2b26c027ddfb -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: Stage 6 계획서의 `cleanupLifecycleRetention=P30D`와 `FirebaseEnrollmentAttempt.cleanupAt` 30일 보존이 필요한 이유와 안전한 TTL 적용 범위를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·계획서·설정·테스트 코드는 변경하지 않았다.
+- 확인 결과: lifecycle record는 cleanup 진행 중 generation·lease·retry·owner guard를 조정하는 필수 상태다. terminal 뒤 보존은 늦은 요청의 결과 분류, worker·Mongo 부분 실패 조사, bounded legacy capture 중복 방지와 운영 지표 확인을 위한 임시 이력이며 Firebase 삭제를 30일 미루는 grace가 아니다.
+- 판단: `P30D`는 기능상 필수값이 아니라 운영 기본 후보다. active 상태인 RESUMABLE·CLEANUP_IN_PROGRESS·RETRY_WAIT에 절대 TTL을 걸면 미완료 작업이 사라질 수 있으므로 `cleanupAt`을 두지 않아야 한다. FINALIZED·CLEANED에만 terminal 시각 기준 TTL을 설정하고 RECONCILIATION_REQUIRED는 운영 해결 전 자동 삭제하지 않는 것이 안전하다.
+- 추가 발견: lifecycle과 source attempt를 모두 동일한 30일에 삭제하면 Mongo TTL 지연 순서에 따라 lifecycle이 먼저 사라지고 attempt만 남아 bounded capture가 cleanup을 다시 만들 수 있다. source attempt는 lifecycle보다 먼저 삭제하거나 terminal lifecycle을 확인한 뒤 삭제해야 한다.
+- 실행한 테스트와 결과: 코드 변경이 없는 문서 검토라 Gradle 테스트를 실행하지 않았다. `git diff --check`로 기록 형식을 검증한다.
+- 유지한 계약: cleanup retention은 enrollment grace·인증 허용 시간·개인정보 보존 정책과 분리하고 Secret·Token·Firebase UID·phone·provider subject를 기록하지 않았다. Git commit·push도 수행하지 않았다.
+- 결정사항: 30일의 필요성은 운영 요구로 별도 승인해야 하며 현재 계획서의 동일 P30D 두 값은 확정 계약으로 취급하지 않는다.
+- 위험 요소: unresolved reconciliation을 TTL로 자동 삭제하거나 source attempt보다 lifecycle을 먼저 삭제하면 owner fencing·중복 방지 증거가 사라질 수 있다.
+- 다음 작업: 사용자 결정에 따라 plan을 `terminal lifecycle retention`, `source attempt retention`, `reconciliation no-TTL`로 구분하고 구체 기간을 조정한다.
+
+## 2026-08-28 — Stage 6 cleanup TTL 계약 수정
+
+<!-- codex-turn:01a04726-ff4e-76e1-8e8c-3bad26b6df10 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: 사용자 요청에 따라 Stage 6 계획서의 lifecycle·attempt 동일 30일 보존과 모호한 `cleanupAt` 계약을 상태별 안전한 TTL 정책으로 수정한다.
+- 변경 파일: `docs/contracts/firebase-abandoned-enrollment-cleanup-stage-6-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 변경 내용: `cleanupLifecycleRetention=P30D`, `enrollmentRecordRetention=P30D`와 “최소 30일” 표현을 제거했다. 신규 기본값은 `terminalLifecycleRetention=P7D`, `terminalEnrollmentAttemptRetention=PT24H`이며 Firebase 삭제 grace `PT24H`와 별개다.
+- 상태별 TTL: RESUMABLE·CLEANUP_IN_PROGRESS·RETRY_WAIT에는 cleanupAt을 설정하지 않는다. RECONCILIATION_REQUIRED도 운영 해결 전 자동 삭제하지 않는다. FINALIZED·CLEANED 전환 시에만 terminalAt 기준 lifecycle·attempt cleanupAt을 설정한다.
+- 삭제 순서: exact target의 source attempt는 terminal 뒤 24시간, lifecycle은 7일 보존해 attempt가 먼저 제거되도록 했다. lifecycle이 더 오래 남아 늦은 요청 분류와 bounded capture 중복 방지를 담당한다.
+- legacy 보완: 기존 nonterminal attempt를 capture할 때 lifecycle 생성과 같은 Transaction에서 과거 cleanupAt을 제거하고 terminal 전환 시 새 cleanupAt을 설정하도록 계획했다. 이미 TTL 삭제된 source는 자동 추정하지 않는다.
+- 실행한 테스트와 결과: 문서 변경이므로 Gradle 테스트를 실행하지 않았다. 이전 P30D·30일 표현 제거, 설정·상태·테스트·완료 조건 일치와 `git diff --check`를 검증한다.
+- 유지한 계약: enrollment TTL과 grace, terminal record retention을 분리하고 미해결 상태를 TTL로 삭제하지 않는다. Secret·Token·Firebase UID·phone·provider subject를 기록하지 않았고 Git commit·push도 수행하지 않았다.
+- 결정사항: 7일·24시간은 기능상 최소값이나 법적 보존기간이 아닌 조정 가능한 운영 기본값이다. lifecycle retention은 항상 source attempt retention보다 길어야 한다.
+- 위험 요소: Mongo TTL 삭제는 지연될 수 있으므로 요청·worker의 안전 판단은 cleanupAt이나 실제 삭제 여부가 아니라 lifecycle status·generation·owner guard를 기준으로 해야 한다.
+- 다음 작업: 수정된 계획서를 사용자 검토 후 Jira 구현 이슈의 본문과 완료 조건으로 축약한다.
+
+## 2026-08-28 — Stage 6 상태별 cleanupAt 의미 설명
+
+<!-- codex-turn:01a0477c-53a8-7ac3-a350-d376663b4b66 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 현재 진행 중인 Jira 없음. Jira mutation은 수행하지 않았다.
+- 작업 목표: Stage 6 계획서의 상태별 lifecycle·attempt `cleanupAt` 규칙과 terminalAt 기준을 사용자가 이해할 수 있도록 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·계획서·설정·테스트 코드는 변경하지 않았다.
+- 핵심 의미: `cleanupAt`은 Firebase User 삭제를 시작하는 due time이 아니라 Mongo TTL이 해당 coordination record를 물리적으로 제거할 수 있는 시각이다. Firebase cleanup due는 `graceUntil`·`nextAttemptAt`·lease 상태가 결정한다.
+- nonterminal 규칙: RESUMABLE은 가입 재개와 cleanup claim 경쟁, CLEANUP_IN_PROGRESS는 worker lease·generation fencing, RETRY_WAIT는 다음 retry를 위해 필요하므로 lifecycle과 관련 attempt에 cleanupAt을 두지 않는다.
+- terminal 규칙: FINALIZED는 가입 완료, CLEANED는 Firebase 부재 확인 완료 상태다. terminalAt에 source attempt cleanupAt을 24시간 뒤, lifecycle cleanupAt을 7일 뒤로 설정해 source proof를 먼저 제거하고 outcome·generation·bounded capture 중복 방지 record를 더 오래 보존한다.
+- reconciliation 규칙: RECONCILIATION_REQUIRED는 owner mismatch·partial state·결과 불명처럼 자동 판단이 끝나지 않은 상태이므로 자동 TTL을 금지한다. 운영 해결로 FINALIZED·CLEANED가 된 실제 해결 시각부터 각각의 retention을 계산한다.
+- 실행한 테스트와 결과: 코드·계획서 변경이 없는 설명 기록이므로 Gradle 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: TTL 삭제 지연은 허용하되 요청·worker의 안전 판단은 cleanupAt 또는 문서 물리 삭제 여부가 아니라 lifecycle status·generation·lease·owner guard를 기준으로 한다. Secret·Token·Firebase UID·phone·provider subject를 기록하지 않았고 Git commit·push도 수행하지 않았다.
+- 결정사항: P7D는 7일, PT24H는 24시간이며 두 값은 terminal record retention이다. 가입 재개 grace `PT24H`와 이름·기준 시각·역할이 다르다.
+- 위험 요소: cleanupAt을 Firebase 삭제 시각으로 오해하거나 nonterminal·reconciliation에 TTL을 설정하면 진행 중 작업과 안전 gate가 사라질 수 있다.
+- 다음 작업: 사용자가 계획을 승인하면 Stage 6 Jira 초안을 작성한다.
+
+## 2026-08-28 — Stage 6 Jira 생성 초안 및 승인 대기
+
+<!-- codex-turn:01a04790-7731-7730-b7ba-fa5e5321abbf -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 생성 후보는 `[Identity] 가입 중단 Firebase User cleanup lifecycle 구현`. 아직 이슈를 생성하지 않았다.
+- 작업 목표: Stage 6 계획서를 TMI Jira 구현 이슈로 축약하고, Jira mutation 전 사용자에게 정확한 생성 내용을 제시한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·계획서·설정·테스트 코드는 변경하지 않았다.
+- Jira 읽기 확인: Atlassian 공식 도구로 cloud 접근, TMI 프로젝트 이슈 유형, `TMI-111` 형식과 최근 이슈를 조회했다. 사용할 유형은 `작업` ID `10003`, 우선순위는 High ID `2`이며 최근 생성 키는 `TMI-113`이다. 신규 키는 Jira가 생성 시 결정한다.
+- 중복 확인: TMI에서 가입 중단, Firebase User cleanup, abandoned cleanup 관련 summary·text를 검색했고 동일 범위 이슈는 0건이었다.
+- 제안 본문: 목적, 선행 `TMI-111`과 계획서 경로, PT10M enrollment TTL·PT24H grace·terminal lifecycle P7D·attempt PT24H retention, 별도 lifecycle 상태, startOrReuse·finalize·cleanup 단일 승자 fencing, DIRECT_SIGNUP·GUEST_USER owner preflight, Firebase inspect·disable·revoke·provider obligation·delete·presence 확인, retry·reconciliation, restart-required 모바일 계약, bounded legacy capture, 기본 비활성과 staging E2E를 포함한다.
+- 제외 범위: withdrawal 재구현, 내부 User hard delete·자동 merge, Billing consumer, logout-all revoke, provider unlink·전화번호 변경, Guest 응답 유실과 ACTIVE rebind를 포함하지 않는다.
+- 제안 mutation: TMI 프로젝트에 담당자·라벨·컴포넌트 없이 `작업`, High 우선순위로 이슈 한 건만 생성한다. 댓글·상태 변경·이슈 링크는 이번 생성에 포함하지 않는다.
+- 승인 여부: 사용자가 Jira 생성을 요청했지만 저장소 규칙에 따라 구체적인 제목·본문·완료 조건을 먼저 제시하고 최종 승인을 기다린다. 아직 mutation 승인은 완료되지 않았다.
+- 실행한 테스트와 결과: Jira 읽기·문서 기록만 수행해 Gradle 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: Jira에 Secret·Token·Firebase UID·phone·provider subject·개인정보를 포함하지 않고 Git commit·push를 수행하지 않았다.
+- 위험 요소: 코드 병합만으로 production cleanup을 활성화하면 안 된다. 실제 Firebase/mobile·Mongo replica set·multi-instance lease·finalize race와 provider obligation staging E2E가 완료 조건이다.
+- 다음 작업: 사용자가 제시한 Jira 생성안을 승인하면 이슈 한 건을 생성하고 key·상태·priority·description 저장 여부를 재조회한 뒤 WORKLOG·CURRENT_STATE에 기록한다.
+
+## 2026-08-28 — TMI-114 Stage 6 Jira 생성
+
+<!-- codex-turn:01a04790-7731-7730-b7ba-fa5e5321abbf -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-114`
+- 작업 목표: 사용자가 최종 승인한 Stage 6 가입 중단 Firebase User cleanup 구현 이슈를 TMI Jira에 생성하고 저장 결과를 검증한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·계획서·설정·테스트 코드는 변경하지 않았다.
+- Jira 작업: Atlassian 공식 도구로 `[Identity] 가입 중단 Firebase User cleanup lifecycle 구현` 이슈 한 건을 TMI 프로젝트에 생성했다. 유형은 `작업`, 우선순위는 High이며 새 key는 `TMI-114`, issue ID는 `10145`다.
+- 본문 저장: 목적, 선행 `TMI-111`, 계획서 경로, PT10M enrollment TTL·PT24H grace·P7D terminal lifecycle·PT24H source attempt retention, 상태·fencing·owner preflight·Firebase cleanup·restart-required·bounded capture·완료 조건과 rollout이 승인안대로 저장됐다.
+- 재조회 결과: 상태 `해야 할 일`, Resolution 없음, 담당자 없음, 라벨·컴포넌트 빈 목록, 댓글 0건이다. 제목·유형·High 우선순위와 본문을 확인했다.
+- 승인 여부: 구체적인 Jira 제목·본문·완료 조건·변경하지 않을 필드를 먼저 제시했고 사용자가 `어`라고 최종 승인한 뒤 생성했다.
+- 추가 mutation: 댓글, 상태 전환, 이슈 링크, 담당자·라벨·컴포넌트 변경은 수행하지 않았다.
+- 실행한 테스트와 결과: Jira 생성·조회와 문서 기록만 수행해 Gradle 테스트를 실행하지 않았다. `git diff --check`로 문서 형식을 검증한다.
+- 유지한 계약: Jira에 Secret·Token·Firebase UID·phone·provider subject·개인정보를 기록하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 생성은 production cleanup 활성화 승인이 아니다. 실제 Firebase/mobile·Mongo replica set·multi-instance lease·finalize race·provider obligation staging E2E와 runbook 준비 전에는 worker를 비활성으로 유지한다.
+- 다음 작업: `TMI-114` 브랜치에서 Jira와 Stage 6 계획서를 기준으로 lifecycle Entity·index·atomic Repository부터 구현한다.
+
+## 2026-08-28 — TMI-114 Jira 생성 기록 최종화
+
+<!-- codex-turn:01a04792-0a0b-7703-9fde-5ceda2350331 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-114`
+- 작업 목표: 현재 승인·생성 turn의 Jira 결과가 지정 marker와 CURRENT_STATE에 빠짐없이 기록되도록 최종화한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계획서·설정·테스트 코드는 변경하지 않았다.
+- Jira 결과: 사용자 승인 뒤 `[Identity] 가입 중단 Firebase User cleanup lifecycle 구현`을 TMI `작업`, High 우선순위로 생성했다. 재조회 결과 상태 `해야 할 일`, Resolution 없음, 담당자 없음, 라벨·컴포넌트 빈 목록, 댓글 0건이다.
+- 저장 확인: 계획서 경로, 시간·상태·fencing·owner preflight·Firebase cleanup·restart-required·bounded capture·완료 조건과 rollout이 승인안대로 저장됐다.
+- 승인 여부: 구체적인 생성 내용을 먼저 제시했고 사용자가 `어`라고 승인한 뒤 mutation했다.
+- 추가 mutation: 댓글·상태 전환·이슈 링크와 담당자·라벨·컴포넌트 변경은 수행하지 않았다.
+- 실행한 테스트와 결과: Jira 생성·재조회와 문서 기록만 수행해 Gradle 테스트를 실행하지 않았다. `git diff --check`로 검증한다.
+- 유지한 계약: Jira와 문서에 Secret·Token·Firebase UID·phone·provider subject·개인정보를 기록하지 않았고 Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 생성은 production worker 활성화 승인이 아니며 실제 Firebase/mobile·Mongo replica set·multi-instance staging E2E 전에는 비활성을 유지한다.
+- 다음 작업: `TMI-114` 구현 브랜치에서 Jira와 Stage 6 계획서를 읽고 lifecycle Entity·index·atomic Repository부터 구현한다.
+
+## 2026-08-28 — TMI-114 가입 중단 Firebase User cleanup lifecycle 구현
+
+<!-- codex-turn:01a0482d-4817-7ed3-92d5-f355ee83e0db -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `feat/TMI-114-abandoned-enrollment-cleanup`
+- Jira: `TMI-114`
+- 작업 목표: Firebase 인증·phone/provider link 뒤 signup 또는 Guest upgrade finalize 전에 중단된 외부 Firebase User를 가입 재개 grace와 owner preflight·CAS fencing을 거쳐 안전하게 정리한다.
+- 변경 파일: `AbandonedFirebaseEnrollmentCleanup` Entity·상태·failure enum, cleanup·attempt Repository custom 구현, enrollment coordinator·lifecycle·capture·owner guard·worker·retry·terminal Transaction service, Firebase SDK cleanup adapter, capture/worker configuration·properties·scheduler, `FirebaseEnrollmentAttempt`, signup·Guest upgrade Transaction, Firebase authentication configuration, 공개 오류·OpenAPI 설명, `application.yml`, 관련 domain·application·configuration 테스트와 Stage 6 계약·상태 문서.
+- 구현 내용: exact Firebase project·UID target unique lifecycle과 RESUMABLE→CLEANUP_IN_PROGRESS/FINALIZED, RETRY_WAIT, CLEANED, RECONCILIATION_REQUIRED 상태를 구현했다. enrollment 재개 시 generation과 grace를 갱신하고 cleanup claim·lease·version과 finalize CAS가 단일 승자를 갖는다. cleanup이 claim됐거나 terminal/reconciliation 상태면 이전 proof를 `409 FIREBASE_ENROLLMENT_RESTART_REQUIRED`로 종료한다.
+- cleanup 처리: 최신 source attempt가 만료·미소비인지, 새 active/consumed attempt가 없는지, exact FirebaseIdentity·linked SocialIdentity·verified phone ACTIVE alias owner가 없는지 확인한다. GUEST_USER는 bound User가 계속 `ACTIVE GUEST`인지 추가 확인한다. 통과한 target만 Firebase inspect→disable→refresh token revoke→provider deletion obligation→delete→absence confirmation 순서로 처리하며 외부 계정 부재가 확인된 경우에만 CLEANED로 전환한다.
+- TTL·capture: nonterminal·reconciliation lifecycle과 attempt에는 cleanupAt을 두지 않는다. FINALIZED·CLEANED 시 lifecycle은 terminalAt+P7D, target attempt는 terminalAt+PT24H로 설정한다. 기존 attempt는 고정 lower/upper cutover, 한 번에 최대 100건, dry-run 기본으로 capture하며 lifecycle 생성과 과거 cleanupAt 제거를 같은 Mongo Transaction에 묶었다.
+- 설정: `app.firebase-abandoned-cleanup` capture·worker는 모두 기본 false다. grace PT24H, lease PT1M, 최대 12회, backoff PT5S~PT1H, worker batch 20, capture batch 최대 100을 환경변수로 조정할 수 있다. capture 활성화에는 고정 lower/upper bound가 필수다.
+- 실행한 테스트와 결과: 집중 domain·coordinator·properties·worker 테스트를 추가했고 `./gradlew clean test`가 성공했다. 전체 113개 suite·600개 테스트, 실패·오류·건너뜀 0개다. `git diff --check`도 통과했다.
+- 유지한 계약: 내부 User hard delete·phone 기반 자동 merge·withdrawal lifecycle 재사용·Billing 구현은 추가하지 않았다. 기존 공개 응답 shape, Firebase credential broker, Guest Session 유지, Refresh Token hash 저장, Secret·Token·Firebase UID·phone·provider subject 비기록을 유지했다. Git commit·push는 수행하지 않았다.
+- 결정사항: withdrawal cleanup과 abandoned enrollment cleanup은 Entity·상태·failure code를 분리하고 Firebase SDK의 안전한 primitive만 같은 패턴으로 구현한다. owner 또는 mixed state가 발견되면 성공으로 숨기거나 자동 삭제하지 않고 RECONCILIATION_REQUIRED에 남긴다.
+- 위험 요소: Apple provider deletion obligation은 자동 완료 구현이 없어 해당 account를 reconciliation으로 보낸다. 실제 Firebase/mobile, Mongo replica set Transaction, multi-instance claim/finalize 경쟁, legacy capture 결과와 provider obligation runbook을 staging에서 검증하기 전에는 production flag를 활성화하면 안 된다.
+- Jira 작업: 구현 전 Jira `TMI-114`를 읽어 범위 기준으로 사용했다. 이번 turn에는 Jira 댓글·상태·본문을 변경하지 않았고 승인도 요청하지 않았다. 완료 댓글 초안만 handoff에 제공한다.
+- 다음 작업: 사용자가 commit·push·PR merge를 완료하면 병합을 확인하고, 별도 승인 뒤 Jira 완료 댓글 등록과 상태 전환을 수행한다.

@@ -22,6 +22,7 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestM
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseGuestUpgradeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseSignupUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollmentAttemptRepository;
+import web.tosunsaeng.identity.domain.auth.federation.repository.AbandonedFirebaseEnrollmentCleanupRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
@@ -94,6 +95,10 @@ class FirebaseAuthenticationConfigurationTests {
 				.withBean(
 						FirebaseEnrollmentAttemptRepository.class,
 						() -> mock(FirebaseEnrollmentAttemptRepository.class)
+				)
+				.withBean(
+						AbandonedFirebaseEnrollmentCleanupRepository.class,
+						() -> mock(AbandonedFirebaseEnrollmentCleanupRepository.class)
 				)
 				.withBean(FirebaseIdentityRepository.class, () -> mock(FirebaseIdentityRepository.class))
 				.withBean(SocialIdentityRepository.class, () -> mock(SocialIdentityRepository.class))
