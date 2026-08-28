@@ -51,6 +51,15 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  jwt-rotation:
+    previous-key-ids: ${JWT_PREVIOUS_KEY_IDS:}
+    previous-public-key-locations: ${JWT_PREVIOUS_PUBLIC_KEY_LOCATIONS:}
+  workload-jwt:
+    enabled: ${WORKLOAD_JWT_ENABLED:false}
+    issuer: ${WORKLOAD_JWT_ISSUER:}
+    audience: ${WORKLOAD_JWT_AUDIENCE:learning-core-user-withdrawn}
+    subject: ${WORKLOAD_JWT_SUBJECT:identity-service}
+    ttl: ${WORKLOAD_JWT_TTL:PT2M}
   firebase-auth:
     enabled: ${FIREBASE_AUTH_ENABLED:false}
     project-id: ${FIREBASE_PROJECT_ID:}
@@ -117,6 +126,24 @@ app:
     connect-timeout: ${USER_MERGED_PUBLISHER_CONNECT_TIMEOUT:PT3S}
     read-timeout: ${USER_MERGED_PUBLISHER_READ_TIMEOUT:PT5S}
     max-batch-size: ${USER_MERGED_PUBLISHER_MAX_BATCH_SIZE:20}
+  user-withdrawn-publisher:
+    enabled: ${USER_WITHDRAWN_PUBLISHER_ENABLED:false}
+    endpoint: ${USER_WITHDRAWN_PUBLISHER_ENDPOINT:}
+    audience: ${USER_WITHDRAWN_PUBLISHER_AUDIENCE:learning-core-user-withdrawn}
+    lease-duration: ${USER_WITHDRAWN_PUBLISHER_LEASE_DURATION:PT60S}
+    fixed-delay: ${USER_WITHDRAWN_PUBLISHER_FIXED_DELAY:PT5S}
+    max-attempts: ${USER_WITHDRAWN_PUBLISHER_MAX_ATTEMPTS:12}
+    published-retention: ${USER_WITHDRAWN_PUBLISHER_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${USER_WITHDRAWN_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${USER_WITHDRAWN_PUBLISHER_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${USER_WITHDRAWN_PUBLISHER_READ_TIMEOUT:PT5S}
+    max-batch-size: ${USER_WITHDRAWN_PUBLISHER_MAX_BATCH_SIZE:20}
+  user-withdrawn-backfill:
+    enabled: ${USER_WITHDRAWN_BACKFILL_ENABLED:false}
+    dry-run: ${USER_WITHDRAWN_BACKFILL_DRY_RUN:true}
+    lower-bound: ${USER_WITHDRAWN_BACKFILL_LOWER_BOUND:}
+    upper-bound: ${USER_WITHDRAWN_BACKFILL_UPPER_BOUND:}
+    batch-limit: ${USER_WITHDRAWN_BACKFILL_BATCH_LIMIT:20}
 
 springdoc:
   swagger-ui:

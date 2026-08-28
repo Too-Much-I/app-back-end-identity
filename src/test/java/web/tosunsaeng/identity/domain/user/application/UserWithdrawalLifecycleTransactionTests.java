@@ -25,6 +25,7 @@ import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle
 import web.tosunsaeng.identity.domain.user.domain.enums.UserWithdrawalCleanupStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 
 class UserWithdrawalLifecycleTransactionTests {
 
@@ -54,6 +55,9 @@ class UserWithdrawalLifecycleTransactionTests {
 				UserWithdrawalLifecycleRepository.class
 		);
 		FirebaseIdentityRepository identityRepository = mock(FirebaseIdentityRepository.class);
+		UserWithdrawnOutboxRepository withdrawnOutboxRepository = mock(
+				UserWithdrawnOutboxRepository.class
+		);
 		when(sessionRepository.findByTokenHash(credentialHash)).thenReturn(Optional.of(session));
 		when(userRepository.withdrawIfUnchanged(any(), any(), any())).thenReturn(true);
 		when(identityRepository.findByFirebaseProjectIdAndFirebaseUid(
@@ -68,7 +72,7 @@ class UserWithdrawalLifecycleTransactionTests {
 				.thenReturn(List.of(session));
 		UserWithdrawalTransactionService service = new UserWithdrawalTransactionService(
 				userRepository, sessionRepository, revisionRepository, outboxRepository,
-				lifecycleRepository, identityRepository
+				lifecycleRepository, identityRepository, withdrawnOutboxRepository
 		);
 
 		WithdrawalTransactionResult result = service.withdraw(
