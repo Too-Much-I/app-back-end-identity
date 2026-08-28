@@ -5,6 +5,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -36,7 +38,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, JwksRotationProperties.class})
 public class JwtConfiguration {
 
 	@Bean
@@ -90,6 +92,28 @@ public class JwtConfiguration {
 	public JWKSource<SecurityContext> jwkSource(RSAKey rsaKey) {
 		JWKSet jwkSet = new JWKSet(rsaKey);
 		return (selector, context) -> selector.select(jwkSet);
+	}
+
+	@Bean
+	public JwksPublicKeySet jwksPublicKeySet(
+			RSAKey activeKey,
+			RsaKeyLoader keyLoader,
+			JwtProperties jwtProperties,
+			JwksRotationProperties rotationProperties
+	) {
+		rotationProperties.validate(jwtProperties.keyId());
+		List<com.nimbusds.jose.jwk.JWK> publicKeys = new ArrayList<>();
+		publicKeys.add(activeKey.toPublicJWK());
+		List<String> keyIds = rotationProperties.keyIds();
+		List<String> locations = rotationProperties.publicKeyLocations();
+		for (int index = 0; index < keyIds.size(); index++) {
+			publicKeys.add(new RSAKey.Builder(keyLoader.loadPublicKey(locations.get(index)))
+					.keyID(keyIds.get(index))
+					.algorithm(JWSAlgorithm.RS256)
+					.keyUse(KeyUse.SIGNATURE)
+					.build());
+		}
+		return new JwksPublicKeySet(new JWKSet(publicKeys));
 	}
 
 	@Bean

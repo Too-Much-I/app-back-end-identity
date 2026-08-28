@@ -57,6 +57,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
@@ -108,6 +109,9 @@ class SentryCaptureIntegrationTests {
 
 	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@BeforeEach
 	void clearCapturedEvents() {

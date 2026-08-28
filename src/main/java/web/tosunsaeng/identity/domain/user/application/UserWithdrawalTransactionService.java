@@ -21,7 +21,9 @@ import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawnOutbox;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
@@ -36,6 +38,7 @@ public class UserWithdrawalTransactionService {
 	private final PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
 	private final UserWithdrawalLifecycleRepository lifecycleRepository;
 	private final FirebaseIdentityRepository firebaseIdentityRepository;
+	private final UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@Autowired
 	public UserWithdrawalTransactionService(
@@ -44,7 +47,8 @@ public class UserWithdrawalTransactionService {
 			@Nullable PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
 			@Nullable PhoneEligibilityBindingOutboxRepository bindingOutboxRepository,
 			@Nullable UserWithdrawalLifecycleRepository lifecycleRepository,
-			@Nullable FirebaseIdentityRepository firebaseIdentityRepository
+			@Nullable FirebaseIdentityRepository firebaseIdentityRepository,
+			UserWithdrawnOutboxRepository userWithdrawnOutboxRepository
 	) {
 		this.userRepository = userRepository;
 		this.refreshSessionRepository = refreshSessionRepository;
@@ -52,16 +56,18 @@ public class UserWithdrawalTransactionService {
 		this.bindingOutboxRepository = bindingOutboxRepository;
 		this.lifecycleRepository = lifecycleRepository;
 		this.firebaseIdentityRepository = firebaseIdentityRepository;
+		this.userWithdrawnOutboxRepository = userWithdrawnOutboxRepository;
 	}
 
 	public UserWithdrawalTransactionService(
 			UserRepository userRepository,
 			RefreshSessionRepository refreshSessionRepository,
 			@Nullable PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
-			@Nullable PhoneEligibilityBindingOutboxRepository bindingOutboxRepository
+			@Nullable PhoneEligibilityBindingOutboxRepository bindingOutboxRepository,
+			UserWithdrawnOutboxRepository userWithdrawnOutboxRepository
 	) {
 		this(userRepository, refreshSessionRepository, bindingRevisionRepository,
-				bindingOutboxRepository, null, null);
+				bindingOutboxRepository, null, null, userWithdrawnOutboxRepository);
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
@@ -107,6 +113,11 @@ public class UserWithdrawalTransactionService {
 				throw new UserException(UserErrorStatus.WITHDRAWAL_CONFLICT);
 			}
 		}
+
+		userWithdrawnOutboxRepository.save(UserWithdrawnOutbox.create(
+				currentUser.getUserId(),
+				withdrawnAt
+		));
 
 		return new WithdrawalTransactionResult(
 				WithdrawResponse.from(tombstone),

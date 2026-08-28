@@ -50,6 +50,7 @@ import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.global.exception.BusinessException;
@@ -142,7 +143,8 @@ class UserWithdrawalLifecycleTests {
 						userRepository,
 						sessionRepository,
 						mock(PhoneEligibilityBindingRevisionRepository.class),
-						mock(PhoneEligibilityBindingOutboxRepository.class)
+						mock(PhoneEligibilityBindingOutboxRepository.class),
+						mock(UserWithdrawnOutboxRepository.class)
 				);
 		withdrawalService = new UserWithdrawalService(
 				currentUserProvider,

@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 
 @SpringBootTest(properties = {
@@ -40,6 +41,9 @@ class DisabledSwaggerIntegrationTests {
 
 	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@ParameterizedTest
 	@ValueSource(strings = {"/v3/api-docs", "/swagger-ui/index.html"})

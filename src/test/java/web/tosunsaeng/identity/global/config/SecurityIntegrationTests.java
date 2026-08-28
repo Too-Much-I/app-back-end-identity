@@ -65,6 +65,7 @@ import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepo
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
@@ -101,6 +102,9 @@ class SecurityIntegrationTests {
 
 	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@MockitoBean
 	private UserWithdrawalService userWithdrawalService;

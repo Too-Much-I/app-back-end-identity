@@ -27,6 +27,15 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  jwt-rotation:
+    previous-key-ids: ""
+    previous-public-key-locations: ""
+  workload-jwt:
+    enabled: false
+    issuer: ""
+    audience: learning-core-user-withdrawn
+    subject: identity-service
+    ttl: PT2M
   firebase-auth:
     enabled: false
     google-enabled: false
@@ -55,6 +64,13 @@ app:
     enabled: false
     endpoint: ""
     audience: ""
+  user-withdrawn-publisher:
+    enabled: false
+    endpoint: ""
+    audience: learning-core-user-withdrawn
+  user-withdrawn-backfill:
+    enabled: false
+    dry-run: true
 
 springdoc:
   swagger-ui:

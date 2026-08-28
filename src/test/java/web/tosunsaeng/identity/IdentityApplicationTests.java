@@ -38,6 +38,7 @@ import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -56,6 +57,9 @@ class IdentityApplicationTests {
 
 	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
+
+	@MockitoBean
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@Test
 	void contextLoads() {

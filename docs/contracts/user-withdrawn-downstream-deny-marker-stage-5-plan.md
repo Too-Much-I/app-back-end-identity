@@ -4,10 +4,11 @@
 - 발행자: Identity Service
 - 소비자: Learning Core
 - 계약 버전: `UserWithdrawn` schema version `1`
-- 상태: 구현 계획
+- 상태: Identity producer 로컬 구현 완료, 병합·staging rollout 전
 - 선행 작업: Stage 4, Jira `TMI-108`
 - Learning Core 구현 Jira: `TMI-109`
-- Identity producer Jira: 후속 생성 예정
+- Identity producer Jira: `TMI-111`
+- workload JWT 계약: 2026-08-28 승인
 
 ## 1. 목적
 
@@ -79,20 +80,22 @@ Learning Core 데이터 삭제·보존 정책은 별도 개인정보 lifecycle �
 
 ### 4.1 Identity 현재 상태
 
-- `UserWithdrawalTransactionService`는 User CAS, lifecycle, phone eligibility revocation outbox와 모든 활성 RefreshSession 폐기를 `mongoTransactionManager` Transaction에서 처리한다.
+- `UserWithdrawalTransactionService`는 User CAS, lifecycle, phone eligibility revocation outbox, 모든 활성 RefreshSession 폐기와 `UserWithdrawnOutbox` 생성을 `mongoTransactionManager` Transaction에서 처리한다.
 - `UserMergedOutbox`와 publisher는 eventId, schema version, atomic lease, retry, dead-letter, published retention, TTL cleanup 패턴을 이미 제공한다.
-- `UserMerged` HTTP adapter는 workload Bearer credential port를 사용하지만 production credential provider와 최종 Learning Core workload 인증 profile은 아직 완료되지 않았다.
+- 승인된 workload JWT profile을 발급하는 production `WorkloadIdentityCredentialProvider`와 구키 Public Key를 함께 노출하는 rotation JWKS 구성이 구현돼 있다.
+- `UserWithdrawn` publisher는 atomic lease, retry·dead-letter·manual replay, outcome·backlog·oldest age·delivery lag metric과 HTTPS exact endpoint 검증을 제공하며 기본 비활성이다.
+- bounded backfill은 고정 lower·upper bound, 최대 100건 batch와 dry-run 우선 실행을 지원하며 기본 비활성이다.
 - `UserWithdrawalService`의 이미 `WITHDRAWN`인 멱등 응답 경로는 새 Transaction을 실행하지 않으므로 과거 탈퇴 User는 별도 backfill이 필요하다.
 
 ### 4.2 Learning Core 현재 상태
 
-- `NimbusJwtDecoder`가 RS256, issuer, audience, subject, timestamp를 로컬 검증한다.
-- JWT 검증 후 userId는 `JwtCurrentUserProvider`가 `sub`에서 읽는다.
-- 현재 deny marker Repository·보안 filter·전용 오류가 없다.
-- Mongo Repository scan은 현재 exams repository package에 한정되어 있어 internal event repository package를 명시적으로 추가해야 한다.
-- event inbox와 marker를 함께 commit할 Mongo Transaction manager도 현재 없다.
+- `TMI-109` 구현·병합으로 workload JWT 전용 internal endpoint와 사용자 JWT SecurityFilterChain이 분리돼 있다.
+- workload `NimbusJwtDecoder`는 RS256, issuer, audience, 설정 가능한 principal claim/value, timestamp와 최대 Token lifetime을 로컬 검증한다.
+- event inbox와 deny marker를 같은 Mongo Transaction으로 저장하며 duplicate 204·payload conflict·유한 TTL을 처리한다.
+- 사용자 JWT 인증 뒤 userId deny marker를 검사하는 gate와 `ACCOUNT_WITHDRAWN`, marker store 장애 fail-closed 응답이 구현돼 있다.
+- 기능은 production workload profile·rotation·staging E2E가 완료될 때까지 기본 비활성이다.
 
-따라서 기존 JWT decoder를 교체하지 않고, 정상 JWT 인증이 확정된 다음 userId marker를 검사하는 별도 gate를 추가한다.
+따라서 남은 Learning Core 범위는 기존 구조 교체가 아니라 승인된 Header·`nbf=iat` verifier 보완과 양 서비스 contract E2E다.
 
 ## 5. 핵심 결정
 
@@ -341,7 +344,9 @@ publisher v1은 기존 `UserMergedPublisher`의 검증된 정책을 같은 의�
 - HTTPS만 허용
 - 성공: 모든 2xx
 - 재시도: 408, 425, 429, 5xx, timeout, connection failure
-- 영구 격리: 그 밖의 3xx·4xx, invalid payload, 최대 시도 초과
+- payload 영구 실패: 400, 409, 413, 422, invalid payload
+- 인증·endpoint 배포 설정 오류: 401, 403, 404, 405와 예상하지 못한 4xx를 격리하고 경보
+- 영구 격리: 그 밖의 3xx, 최대 시도 초과
 - published retention 기본 후보: 30일
 - dead-letter review 기본 후보: 90일
 - scheduler·publisher 기본 비활성
@@ -410,19 +415,65 @@ audience = internal UserWithdrawn consumer
 
 Learning Core에는 internal endpoint 전용 우선순위 SecurityFilterChain을 두고 사용자 JWT chain과 분리한다. exact path, method, audience, Identity principal만 허용한다.
 
-현재 저장소의 `WorkloadIdentityCredentialProvider`는 port이고 production 구현이 없다. 따라서 아래 항목이 `TBD`인 동안 staging·production publisher를 활성화하지 않는다.
+v1은 Identity가 자체 RS256 workload JWT를 발급하고 Learning Core가 Identity JWKS로 검증하는 방식을 사용한다. 사용자 Access Token을 전달하거나 공개 client-credentials endpoint를 만들지 않는다.
 
-| 항목 | 활성화 전 확정값 |
+승인된 workload JWT profile:
+
+| 항목 | v1 계약 |
 | --- | --- |
-| ECS ingress | VPC Lattice/API Gateway/내부 ingress 중 실제 경로 |
-| credential type | SigV4 또는 workload OIDC 등 승인 방식 |
-| Identity task principal | 허용할 exact service principal |
-| audience/resource | internal endpoint 전용 값 |
-| clock skew·credential TTL | 검증기와 issuer가 공유하는 값 |
-| key/role rotation | overlap·rollback 절차 |
-| local/staging provider | 실제 credential을 저장소에 넣지 않는 공급 방식 |
+| algorithm | `RS256` |
+| signing/JWKS | 기존 Identity RSA signing infrastructure와 `/.well-known/jwks.json` 재사용 |
+| issuer | 환경별 사용자 issuer와 구분되는 HTTPS workload issuer, 권장 형태 `https://<identity-host>/workload` |
+| audience | `learning-core-user-withdrawn` exact match |
+| subject | `identity-service` |
+| principal 검증 | `principal-claim=sub`, `principal-value=identity-service` |
+| 발급 TTL·최대 허용 수명 | `PT2M` |
+| verifier clock skew | `PT30S` |
+| 발급 방식 | Identity 내부 provider가 전달마다 로컬 서명, Token cache 없음 |
 
-AWS ECS 환경에서 VPC Lattice SigV4를 사용한다면 기존 Bearer adapter를 그대로 복사하지 않고 request signer port와 IAM auth policy를 구현한다. OIDC workload credential을 선택하면 issuer·JWKS·audience·principal을 allowlist로 고정한다.
+workload JWT Header 발급 계약:
+
+```text
+alg = RS256
+typ = JWT
+kid = 현재 Identity signing key ID
+```
+
+workload JWT claim 계약:
+
+```json
+{
+  "iss": "https://<identity-host>/workload",
+  "aud": ["learning-core-user-withdrawn"],
+  "sub": "identity-service",
+  "iat": "<issued instant>",
+  "nbf": "<same instant as iat>",
+  "exp": "<iat + PT2M>",
+  "jti": "<lowercase canonical UUID>"
+}
+```
+
+- `service` 같은 중복 principal claim은 넣지 않는다. Learning Core는 표준 `sub` 하나를 exact allowlist로 검증한다.
+- `nbf=iat`를 사용해 `iat`가 허용 clock skew보다 먼 미래인 Token을 기존 timestamp validator가 거절하게 한다.
+- `exp - iat`는 최대 `PT2M`이고 timestamp 검증의 `PT30S` skew 때문에 만료 수용 경계는 최대 약 2분 30초다.
+- Identity issuer는 lowercase canonical UUID `jti`를 매 Token에 발급한다. `jti`는 Token 고유성만 나타내며 Learning Core의 인가·event 멱등성 필수 입력이 아니다. event 재전송 멱등성은 payload의 `eventId`와 Learning Core inbox가 담당하고 별도 `jti` 저장소나 replay blacklist를 만들지 않는다.
+- audience를 입력으로 받는 provider는 `learning-core-user-withdrawn` exact allowlist만 허용하고 임의 audience Token을 발급하지 않는다.
+- userId, email, phone, Firebase UID, Provider subject, 사용자 scope와 credential을 workload JWT에 넣지 않는다.
+
+Learning Core는 이미 RS256, issuer, audience, `sub`, `iat`·`exp`, 최대 lifetime과 timestamp를 검증한다. production 활성화 전 Header와 시간 claim 경계를 다음과 같이 보완한다.
+
+- JOSE `typ=JWT` exact 검증
+- non-blank `kid` 존재와 해당 key의 JWKS 검증; 현재 key ID 하나를 하드코딩하지 않아 rotation overlap 허용
+- `nbf` 존재와 `nbf=iat` 검증
+- 누락·불일치 Token의 workload endpoint 거절 contract test
+
+`jti` 형식·고유성은 Identity issuer 단위 테스트와 양 서비스 golden Token fixture에서 확인하되 Learning Core의 별도 필수 claim validator는 추가하지 않는다. 서명·issuer·audience·subject·시간 검증을 통과한 Token을 `jti` 누락만으로 authorization 거절하지 않으며 `jti`를 로그·metric tag·DB key로 사용하지 않는다.
+
+Identity의 `WorkloadIdentityCredentialProvider` production 구현은 기존 `JwtEncoder`로 전달마다 새 Token을 발급한다. signing/JWKS를 재사용하더라도 workload issuer·audience·subject가 사용자 Token과 다르므로 두 SecurityFilterChain에서 상호 사용을 거절한다.
+
+staging과 production은 issuer·RSA key·`kid`를 분리한다. 현재 Identity JWKS는 공개 키 한 개만 노출하므로 production 활성화 전에 다중 key JWKS와 overlap rotation을 지원한다. 같은 signing infrastructure를 사용하는 사용자 Access Token을 고려해 구키는 최소 `PT31M` 동안 유지하고, 새 key 서명 시작→양 key JWKS 노출→최대 Token 수명 경과→구키 제거 순서를 지킨다.
+
+실제 endpoint host와 내부 ingress/network policy는 환경별 배포 설정으로 주입한다. staging·production은 HTTPS exact endpoint만 허용하고 redirect를 따르지 않는다. workload issuer·JWKS·audience·principal·TTL·skew 중 하나라도 누락되거나 승인값과 다르면 publisher 또는 consumer 활성화 시 startup을 fail-fast한다.
 
 ## 13. Learning Core 구성 변경
 
@@ -506,9 +557,13 @@ learning_core.user_withdrawn.delivery_lag
 - expired lease 회수
 - 2xx published
 - 408·425·429·5xx·timeout·connection retry
-- 3xx·그 밖의 4xx·invalid payload dead-letter
+- 400·409·413·422·invalid payload 영구 실패
+- 401·403·404·405·예상하지 못한 4xx 배포 설정 오류 격리·경보
+- 그 밖의 3xx와 최대 시도 초과 dead-letter
 - 최대 시도·backoff·manual replay
 - 성공 응답 유실 뒤 duplicate delivery
+- workload JWT의 exact issuer·audience·`sub`, `nbf=iat`, TTL, `typ`, `kid`와 발급 Token의 canonical UUID `jti`
+- 임의 audience 발급 거절과 사용자 Token 비재사용
 - 기본 비활성 configuration과 enabled fail-fast
 
 ### 16.3 backfill
@@ -523,6 +578,8 @@ learning_core.user_withdrawn.delivery_lag
 ### 16.4 Learning Core consumer
 
 - workload 인증 성공·실패와 user JWT 오용 거절
+- workload JWT의 `typ`, `kid`, `nbf=iat` 누락·불일치 거절
+- 사용자 JWT와 workload JWT의 endpoint 상호 사용 거절
 - payload field·UUID·schemaVersion·future skew validation
 - 신규 event marker+inbox 단일 commit과 204
 - 동일 event duplicate 204·mutation 0건
@@ -556,6 +613,9 @@ learning_core.user_withdrawn.delivery_lag
 - marker·inbox TTL 실제 생성과 지연 삭제
 - consumer→capture→backfill→publisher 활성화 순서
 - Stage 4 모바일 Refresh 오류와 Stage 5 Access deny 결합 흐름
+- 승인된 golden workload Token의 양 서비스 성공과 claim별 negative vector
+- 사용자 JWT의 workload endpoint 사용 및 workload JWT의 사용자 endpoint 사용 거절
+- 신규·구 signing key overlap 중 양 Token 검증과 overlap 종료 후 구키 거절
 
 ## 17. 배포 순서
 
@@ -631,19 +691,28 @@ Identity 저장소에 Learning Core 코드를 복사하지 않는다.
 - consumer 선배포와 publisher 후활성화가 확인됨
 - Stage 1~5와 모바일 호환성 완료 전 production withdrawal flag가 비활성으로 유지됨
 
-## 21. Jira 분리와 다음 작업
+## 21. Jira 분리와 승인 상태
 
-구현 Jira는 소비자 선배포 순서를 드러내도록 최소 두 개로 분리한다.
+- Learning Core `TMI-109`: `UserWithdrawn` inbox·deny marker·JWT gate 구현·병합·Jira 완료
+- Identity `TMI-111`: withdrawal outbox·publisher·bounded backfill 로컬 구현·전체 테스트 완료, 미병합·Jira `해야 할 일`
+- 선행 관계: `TMI-109 blocks TMI-111`
+- 공통 wire contract와 staging E2E는 두 이슈의 공통 완료 조건으로 유지한다.
 
-1. Learning Core: `UserWithdrawn` inbox·deny marker·JWT gate
-2. Identity: withdrawal outbox·publisher·backfill
+승인 완료:
 
-Learning Core 이슈가 Identity 이슈를 선행 또는 blocks 관계로 연결한다. 공통 wire contract와 staging E2E는 두 이슈의 공통 완료 조건으로 둔다.
+- 자체 RS256 workload JWT와 internal endpoint 방식
+- workload 전용 issuer, audience `learning-core-user-withdrawn`, principal `sub=identity-service`
+- Token TTL·최대 허용 수명 `PT2M`, workload verifier clock skew `PT30S`
+- Learning Core 응답별 성공·재시도·payload 영구 실패·배포 설정 오류 분류
 
-Jira 생성 전 다음 값을 최종 승인한다.
+production 활성화 전 운영 검증 필요:
 
-- workload 인증 방식과 internal endpoint
-- Learning Core `allowedVerifierClockSkew`
+- 다중 key JWKS의 실제 key 교체와 최소 `PT31M` overlap 운영
+- HTTPS exact endpoint·redirect 미허용과 양 서비스 golden Token E2E
+- 실제 replica set Transaction·multi-instance lease 회수·duplicate 204 staging E2E
+
+아직 운영값 확정 필요:
+
+- 사용자 Access JWT deny marker의 `allowedVerifierClockSkew`
 - inbox retention과 manual replay 최장 기간
-- 기존 WITHDRAWN User backfill 범위
-- Learning Core 전용 오류 code와 gate store 장애 응답
+- 기존 WITHDRAWN User backfill의 exact lower·upper bound와 batch limit

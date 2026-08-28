@@ -6440,3 +6440,223 @@
 - 결정사항: consumer 선배포와 feature OFF를 유지한다. workload profile, 사용자 Access Token 최대 TTL, verifier clock skew와 inbox retention이 승인되기 전 production 활성화를 금지한다.
 - 위험 요소: 실제 replica set Transaction, multi-instance 동시성, workload JWKS rotation과 Identity publisher 연동은 staging E2E 전까지 검증되지 않았다.
 - 다음 작업: Learning Core consumer를 비활성 상태로 선배포·검증한 뒤 Identity `UserWithdrawn` outbox·publisher·bounded backfill을 후속 Jira로 구현한다.
+
+## 2026-08-27 — Jira TMI-109 완료 전환 보류
+
+<!-- codex-turn:01a04259-c844-72e2-a82d-0e466ecd0a75 -->
+
+- 날짜: 2026-08-27
+- 브랜치: Identity `develop`; 구현 대상 Learning Core도 `develop`이다.
+- Jira: `TMI-109`를 읽기 전용 조회했다. 상태는 `해야 할 일`, Resolution은 없음이며 댓글·필드·상태 전환은 수행하지 않았다.
+- 승인 여부: 사용자가 Jira 종료를 요청했지만 저장소 규칙상 PR 병합 확인이 완료 전환의 선행 조건이다.
+- 작업 목표: `TMI-109` 구현 병합 여부를 확인하고 조건이 충족되면 Jira를 완료로 전환한다.
+- 변경 파일: Identity `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 확인 결과: Learning Core의 withdrawal production·test 파일과 관련 설정은 아직 working tree의 미커밋·미추적 변경이다. local `develop`과 `origin/develop`은 모두 `514fb49`이며 해당 구현 커밋이 원격 브랜치나 병합 이력에 없다.
+- 실행한 테스트와 결과: 이번 turn은 Jira·Git 상태 확인만 수행해 Gradle 테스트를 재실행하지 않았다. 직전 Learning Core 전체 테스트 결과는 `389/0/0/0`이다.
+- 유지한 계약: PR 병합 확인 전 Jira 완료 금지, Jira mutation 전 승인, Git commit·push 금지와 민감정보 비노출 규칙을 유지했다.
+- 결정사항: 구현이 병합되지 않았으므로 `TMI-109`를 닫지 않는다.
+- 위험 요소: 현재 상태에서 완료 처리하면 Jira와 실제 배포 가능한 소스 이력이 불일치한다. 작업 트리에 관련 없는 기존 변경도 함께 있어 선택적 stage가 필요하다.
+- 다음 작업: 사용자가 TMI-109 관련 파일만 commit·push하고 PR을 merge한 뒤 병합 사실을 알려주면 Jira 상태와 사용 가능한 완료 transition을 재조회해 상태만 완료로 변경한다.
+
+## 2026-08-27 — TMI-109 Learning Core 수정 범위 재확인
+
+<!-- codex-turn:01a0425b-7bee-7ee3-94e2-aede3de9d4aa -->
+
+- 날짜: 2026-08-27
+- 브랜치: Identity `develop`; 실제 구현 대상은 Learning Core `develop` working tree다.
+- Jira: `TMI-109`; Jira 조회·댓글·필드·상태 전환은 수행하지 않았다.
+- 작업 목표: `TMI-109`에 Learning Core 수정이 포함되는지 저장소 책임 경계를 명확히 설명한다.
+- 변경 파일: Identity `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 확인 내용: `TMI-109`는 Learning Core의 workload event endpoint, event inbox, userId deny marker, 사용자 JWT 이후 Access Token 차단 gate, TTL·Mongo Transaction과 테스트를 구현하는 consumer 이슈다.
+- 유지한 계약: Identity의 `UserWithdrawn` outbox·publisher·bounded backfill은 후속 Jira로 분리한다. 기존 공개 API·JWT·AI 계약과 Git commit·push 금지, 민감정보 비노출 규칙을 유지했다.
+- 테스트: 범위 설명과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. 문서 변경은 `git diff --check`로 검증한다.
+- 결정사항: 이번 애플리케이션 구현이 Learning Core 저장소에 위치하는 것은 계획과 Jira 범위에 부합한다. Identity에는 교차 저장소 계획·현재 상태만 기록한다.
+- 위험 요소: Learning Core 구현은 아직 commit·push·PR merge 전이므로 Jira 완료 전환 조건은 충족되지 않았다.
+- 다음 작업: Learning Core 변경을 선택적으로 commit·push하고 PR을 merge한 뒤 `TMI-109`를 완료로 전환한다. 이후 Identity producer 작업을 별도 Jira로 진행한다.
+
+## 2026-08-28 — Learning Core 병합 및 Jira 번호·완료 상태 재검증
+
+<!-- codex-turn:01a04615-597b-77b2-b30f-094fd66e6a6f -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`; 확인 대상 Learning Core도 `develop`이다.
+- Jira: Learning Core `TMI-109`, Identity 후속 `TMI-111`을 읽기 전용 조회했다. 댓글·본문·필드·링크·상태 전환은 수행하지 않았다.
+- 승인 여부: 사용자가 Learning Core 구현 확인 후 해당 Jira 종료를 명시적으로 요청했다.
+- 작업 목표: Learning Core 구현의 원격 병합 여부와 정확한 Jira 번호를 확인하고 필요한 경우 완료 상태로 전환한다.
+- 변경 파일: Identity `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- Git 검증: Learning Core local `develop`과 `origin/develop`은 모두 PR #23 merge commit `4baa4f20b7b179290dd743325ef7b251a408da47`을 가리키며 구현 commit은 `96e5c2021ef4ffa6a3e1069c69c08d31e974bb31`이다. withdrawal 구현·테스트가 merge 이력에 존재한다.
+- Jira 검증: Learning Core 이슈 번호는 계속 `TMI-109`이며 status `완료`, Resolution `완료`로 이미 닫혀 있다. `TMI-111`은 `[Identity] UserWithdrawn outbox·publisher·backfill 구현`이라는 별도 후속 이슈이고 status `해야 할 일`, Resolution 없음이다.
+- Identity 코드 검증: `UserWithdrawnOutbox`, publisher와 backfill production 구현은 현재 Identity `develop`에 없어 `TMI-111` 완료 조건을 충족하지 않는다.
+- 실행한 테스트와 결과: 이번 turn은 Git·Jira·코드 존재 여부를 읽기 전용 확인해 테스트를 재실행하지 않았다. Learning Core 구현 작업 기록에는 병합 전 전체 회귀 테스트 성공이 기록돼 있다.
+- 유지한 계약: PR 병합 확인 전 Jira 완료 금지, 잘못된 이슈 종료 방지, Jira mutation 전 승인과 민감정보 비노출 규칙을 유지했다.
+- 결정사항: 종료 대상인 `TMI-109`가 이미 완료라 추가 transition을 실행하지 않는다. 번호가 다른 `TMI-111`은 Identity producer 구현 전이므로 열어 둔다.
+- 위험 요소: `TMI-109` 완료만으로 Identity가 withdrawal event를 발행하지 않는다. producer·backfill과 실제 workload 인증·replica set staging E2E가 끝나기 전에는 end-to-end 즉시 차단이 완성되지 않는다.
+- 다음 작업: 다음 고정 순서인 Identity `TMI-111` 구현 계획을 확인하고 별도 브랜치에서 outbox·publisher·bounded backfill을 구현한다.
+
+## 2026-08-28 — 다음 작업 TMI-111 Identity UserWithdrawn producer 설명
+
+<!-- codex-turn:01a04644-f172-7403-8afb-a38204f9cce2 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: `TMI-111`; 기존 Jira Description을 기준으로 설명했으며 댓글·본문·필드·링크·상태를 변경하지 않았다.
+- 작업 목표: 완료된 Learning Core `TMI-109` 다음 단계인 Identity `UserWithdrawn` outbox·publisher·bounded backfill 작업의 목적과 구현 흐름을 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 현재 공백: `UserWithdrawalTransactionService`는 User tombstone, lifecycle·eligibility와 활성 RefreshSession 폐기를 Mongo Transaction으로 처리하지만 `UserWithdrawnOutbox`는 만들지 않는다. 이미 WITHDRAWN인 멱등 응답은 새 Transaction을 실행하지 않으므로 과거 탈퇴 User도 자동으로 event가 생기지 않는다.
+- 설명 내용: 신규 탈퇴와 outbox insert를 같은 Transaction으로 commit하고, 별도 publisher가 atomic lease·재시도·dead-letter로 `POST /internal/v1/events/withdrawn`에 at-least-once 전달한다. capture 배포 전후의 최근 WITHDRAWN User만 고정 lower/upper bound와 dry-run을 사용하는 bounded backfill로 보완한다.
+- 결정사항: 외부 Learning Core HTTP 호출은 탈퇴 Transaction 안에서 실행하지 않는다. outbox 저장 실패 시 탈퇴 전체를 rollback하고, commit 뒤 publisher가 네트워크 전달을 담당한다. publisher·scheduler·backfill은 기본 비활성으로 둔다.
+- 유지한 계약: 공개 탈퇴 API와 `ACCOUNT_WITHDRAWN` Session 계약, v1 payload `eventId/schemaVersion/userId/withdrawnAt`, Learning Core의 duplicate 204·payload conflict, User tombstone과 개인정보 경계를 유지한다. Token·phone·Firebase UID·provider subject는 event에 넣지 않는다.
+- 실행한 테스트와 결과: 설명과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. 현재 production code에는 `UserWithdrawnOutbox`, publisher와 backfill 구현이 없음을 확인했다.
+- 위험 요소: Learning Core는 workload JWT verifier를 구현했지만 Identity의 production workload credential provider와 issuer·audience·principal·rotation 값은 아직 확정·구현되지 않았다. 실제 Mongo replica set Transaction, multi-instance lease와 staging E2E도 남아 있다.
+- 다음 작업: 별도 `TMI-111` 브랜치에서 운영 인증 계약을 먼저 대조하고 outbox domain/index, withdrawal Transaction 연결, publisher, bounded backfill, 관측·runbook과 테스트 순서로 구현한다.
+
+## 2026-08-28 — TMI-109 consumer와 TMI-111 producer 차이 설명
+
+<!-- codex-turn:01a04681-6204-7661-aa92-9b1e55b00ecd -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 완료된 Learning Core `TMI-109`, 후속 Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: 이전 작업과 다음 작업이 동일한 `UserWithdrawn` 흐름을 다루면서도 왜 별도 구현인지 책임 경계를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 차이: `TMI-109`는 Learning Core inbound consumer로 workload 인증, event validation, inbox·deny marker Transaction과 사용자 Access Token gate를 소유한다. `TMI-111`은 Identity outbound producer로 withdrawal Transaction outbox, publisher lease·retry·dead-letter와 과거 WITHDRAWN User bounded backfill을 소유한다.
+- 현재 상태: Learning Core receiver는 구현·병합·Jira 완료됐지만 Identity sender가 없어 실제 탈퇴 시 event가 자동 전달되지 않는다. 따라서 end-to-end 즉시 차단은 아직 완성되지 않았다.
+- 분리 이유: consumer를 먼저 배포해 event가 안전하게 도착할 곳을 만든 뒤 producer를 활성화해야 유실과 rollout 경합을 피할 수 있다. 양 서비스는 각자 Mongo Transaction을 갖고 네트워크 전달은 두 Transaction 사이의 at-least-once 경계다.
+- 유지한 계약: 두 작업은 동일한 endpoint와 v1 payload·workload 인증 계약만 공유한다. Identity는 Learning Core marker·gate를 직접 저장하지 않고 Learning Core는 withdrawal outbox를 만들지 않는다.
+- 실행한 테스트와 결과: 책임 경계 설명과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다.
+- 위험 요소: `TMI-111` 전에는 receiver가 비어 있고, workload credential 발급과 staging E2E 전 publisher를 켜면 전달 실패가 누적될 수 있다.
+- 다음 작업: `TMI-111`에서 Identity sender를 구현해 완료된 `TMI-109` receiver와 end-to-end로 연결한다.
+
+## 2026-08-28 — Stage 5 계획서와 TMI-111 관계 설명
+
+<!-- codex-turn:01a04694-7e41-70a2-87b2-40332e352ece -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 완료된 Learning Core `TMI-109`, 후속 Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`가 다음 작업 `TMI-111`과 별개의 작업인지 관계를 설명한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 계획서 본문과 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 확인 결과: Stage 5 계획서는 발행자 Identity와 소비자 Learning Core의 전체 end-to-end 설계다. 목적부터 Identity event 생성과 Learning Core deny gate 두 결과를 함께 정의하고, 포함 범위를 Identity·Learning Core·공통으로 분리한다.
+- Jira 매핑: 계획서의 Learning Core endpoint·inbox·marker·gate·consumer 테스트 절은 `TMI-109`로 구현·완료됐다. Identity outbox 모델, withdrawal Transaction 연결, publisher, bounded backfill과 Identity 테스트 절은 `TMI-111` 구현 범위다. 공통 wire·workload 인증·rollout·staging E2E는 두 Jira의 연결 계약이다.
+- 결정사항: 계획서는 세 번째 작업이 아니라 두 Jira의 상위 설계 기준이다. `TMI-111`은 계획서 전체를 다시 구현하는 것이 아니라 아직 남은 Identity 절을 구현한다.
+- 문서 상태: 계획서 10행의 `Identity producer Jira: 후속 생성 예정`은 Jira 생성 전 작성된 문구이므로 현재는 `TMI-111`로 갱신할 필요가 있다. 사용자 요청이 설명이므로 이번 turn에서는 해당 과거 계획 문서를 수정하지 않았다.
+- 실행한 테스트와 결과: 문서 관계 설명과 작업 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`로 기록 문서를 검증한다.
+- 유지한 계약: v1 payload, consumer 선배포·producer 후배포, Identity와 Learning Core의 독립 Mongo Transaction, at-least-once 전달과 민감정보 비노출 계약을 유지했다.
+- 위험 요소: 상위 계획서와 Jira 번호 메타데이터가 어긋나면 다음 구현자가 새로운 별도 작업으로 오해할 수 있다.
+- 다음 작업: 사용자가 원하면 계획서의 Identity producer Jira 메타데이터를 `TMI-111`로 보정한 뒤, 그 문서의 Identity 절을 기준으로 구현 계획 또는 구현을 진행한다.
+
+## 2026-08-28 — 과거 구현 완료 보고의 TMI-109 범위 명확화
+
+<!-- codex-turn:01a04695-eb89-7452-aa4c-67d2383c44b8 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: 완료된 Learning Core `TMI-109`, 미구현 Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: 과거 `구현 완료` 보고가 Stage 5 전체 완료인지, Learning Core 구현만 완료한 것인지 명확히 구분한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 문서는 변경하지 않았다.
+- 확인 결과: 과거 보고에 나열된 internal endpoint, inbox·deny marker Transaction, duplicate/conflict, `ACCOUNT_WITHDRAWN` gate, fail-closed 503, TTL과 security chain은 모두 Learning Core `TMI-109` 범위다. 해당 이슈는 구현·병합·Jira 완료됐다.
+- 남은 범위: Identity에는 `UserWithdrawnOutbox` Entity·Repository·index, withdrawal Transaction 원자 저장, publisher lease·retry·dead-letter·replay, bounded backfill과 production workload credential provider가 없다. 따라서 `TMI-111`이 필요하다.
+- 현재 동작: Learning Core receiver만 존재하며 Identity sender가 없으므로 실제 회원탈퇴로 deny marker가 자동 생성되지 않는다. 유효한 workload credential로 endpoint를 직접 호출한 경우에만 Learning Core가 event를 처리할 수 있다.
+- 결정사항: Stage 5 전체 완료 표기는 `TMI-111`과 양 서비스 staging E2E가 끝난 뒤에만 사용한다. 과거 `구현 완료`는 `TMI-109 Learning Core 구현 완료`로 해석한다.
+- 실행한 테스트와 결과: 상태 설명과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`로 기록 문서를 검증한다.
+- 유지한 계약: consumer 선배포·producer 후배포, 두 서비스의 독립 Mongo Transaction, at-least-once 전달과 민감정보 비노출 규칙을 유지했다.
+- 위험 요소: receiver만 배포된 현재 상태를 end-to-end 탈퇴 차단 완료로 오인하면 기존 Access Token이 event 없이 만료 시점까지 허용될 수 있다.
+- 다음 작업: Identity `TMI-111`을 구현하고 workload 인증·replica set·중복 전달·backfill staging E2E까지 검증한다.
+
+## 2026-08-28 — Learning Core 범위 오해 정정
+
+<!-- codex-turn:01a04697-1770-73e0-bfa7-60e7d0fb9ab8 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: Learning Core `TMI-109`, Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: 과거 구현 요청의 대상이 Learning Core였다는 잘못된 해석을 사용자 정정에 맞춰 바로잡는다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 문서는 변경하지 않았다.
+- 정정 내용: 당시 요청은 Identity 작업 맥락이었으며 Learning Core 개발을 요청한 것이 아니었다. 과거 `구현 완료` 보고는 Codex가 `TMI-109`를 따라 별도 Learning Core 저장소를 수정한 결과일 뿐, 사용자가 의도한 Identity 작업 완료로 간주하지 않는다.
+- 현재 상태: Learning Core `TMI-109` 구현과 merge 이력은 존재하지만 Identity `UserWithdrawnOutbox`, withdrawal Transaction 원자 저장, publisher, retry·dead-letter·replay와 bounded backfill은 구현되지 않았다.
+- 결정사항: 다음 구현 범위는 Learning Core 추가 수정이 아니라 Identity `TMI-111`이다. Stage 5 전체 또는 사용자 요청 완료 표시는 Identity producer 구현 전에는 사용하지 않는다.
+- 실행한 테스트와 결과: 범위 정정과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`로 기록 문서를 검증한다.
+- 유지한 계약: 기존 병합 이력을 임의로 되돌리지 않고, Git commit·push 금지와 Jira mutation 전 승인, 민감정보 비노출 규칙을 유지했다.
+- 위험 요소: Learning Core 작업 존재 여부와 사용자가 요청한 작업 완료 여부를 혼동하면 Identity sender가 없는 상태로 end-to-end 차단이 완성됐다고 오판할 수 있다.
+- 다음 작업: 사용자가 구현을 요청하면 Identity 저장소와 `TMI-111` Description을 기준으로 범위를 다시 고정한 뒤 구현한다.
+
+## 2026-08-28 — TMI-111 남은 구현 범위와 순서 정리
+
+<!-- codex-turn:01a04699-2db0-7e00-9ae8-34b71a1b2c19 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: Stage 5 계획서에서 Learning Core `TMI-109` 완료 후 실제로 남은 Identity 구현 항목과 시작 순서를 구체화한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·계약 문서는 변경하지 않았다.
+- 구현 범위: `UserWithdrawnOutbox` Entity·상태·실패 코드·Repository·index, `UserWithdrawalTransactionService`의 필수 Repository 주입과 원자 저장, wire mapper·delivery port·HTTP adapter, atomic lease·retry·backoff·dead-letter·manual replay publisher, 기본 비활성 scheduler·configuration을 구현한다.
+- backfill 범위: capture 완전 배포 시각을 기준으로 고정 lower/upper bound를 입력받고, 해당 범위의 WITHDRAWN User 중 outbox가 없는 대상만 dry-run 우선 bounded batch로 보완하며 재실행에 멱등해야 한다.
+- 인증 선결 조건: Learning Core가 검증하는 workload issuer·JWKS·audience·Identity principal, Token lifetime·clock skew와 rotation을 확정하고 Identity의 production `WorkloadIdentityCredentialProvider`를 구현해야 한다. 사용자 Access Token은 재사용하지 않는다.
+- 구현 순서: workload 계약 대조, Outbox domain/index, withdrawal Transaction 연결, publisher, bounded backfill, metric·startup validation·runbook, 전체 테스트, publisher 비활성 배포, staging E2E와 순차 활성화 순이다.
+- 결정사항: 첫 코드 작업은 Identity Outbox capture다. 외부 Learning Core HTTP 호출을 탈퇴 Transaction 안에서 실행하지 않고 commit 이후 publisher가 담당한다. Learning Core는 이번 후속 구현의 수정 대상이 아니다.
+- 실행한 테스트와 결과: 구현 순서 설명과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`로 기록 문서를 검증한다.
+- 유지한 계약: 공개 탈퇴 API, Session `ACCOUNT_WITHDRAWN`, v1 payload, consumer 선배포·producer 후배포, at-least-once 전달과 민감정보 비노출 규칙을 유지했다.
+- 위험 요소: workload credential과 실제 replica set Transaction·multi-instance lease가 staging에서 검증되지 않은 상태로 publisher를 활성화하면 event 전달 실패 또는 backlog가 발생한다.
+- 다음 작업: `TMI-111` 브랜치에서 workload 계약을 다시 확인한 뒤 `UserWithdrawnOutbox`와 withdrawal Transaction 연결부터 구현한다.
+
+## 2026-08-28 — TMI-111 workload JWT 계약 권장안 제안
+
+<!-- codex-turn:01a0469d-9e16-7f41-8a09-b49f8c807ac1 -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: Identity publisher가 Learning Core `POST /internal/v1/events/withdrawn`을 호출할 workload JWT 계약에서 확정해야 할 값과 권장안을 제안한다.
+- 변경 파일: `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트·Stage 5 계획서는 변경하지 않았다.
+- 현재 검증 경계: Learning Core는 RS256, timestamp, exact issuer, audience, 설정 가능한 principal claim/value와 최대 Token lifetime을 검증하며 staging/prod에서 원격 HTTPS issuer·JWKS를 요구한다. Identity는 사용자 JWT용 RS256 encoder·JWKS와 workload credential provider port를 보유하지만 production workload 발급 구현은 없다.
+- 권장안: 기존 Identity RSA signing infrastructure와 JWKS를 재사용하되 workload 전용 issuer, audience `learning-core-user-withdrawn`, `sub=identity-service`, `service=identity`, principal allowlist `service=identity`, 발급 TTL·최대 허용 수명 `PT2M`, clock skew `PT30S`를 사용한다.
+- 발급·전송 정책: 공개 workload Token 발급 API와 Token cache를 만들지 않고 Identity 내부 provider가 전달 시마다 새 JWT를 발급한다. audience는 exact allowlist로 제한하며 `iat`, `exp`, canonical UUID `jti`, `kid`를 포함하고 사용자 ID·email·phone·Firebase UID·사용자 scope를 넣지 않는다. HTTPS exact endpoint와 Bearer Header를 사용하고 redirect는 따르지 않는다.
+- 실패 정책: 2xx는 성공, 408·425·429·5xx·timeout·connection은 재시도, payload 400·409·422와 인증 401·403은 격리·dead-letter·경보 대상으로 제안했다. 필수 인증 설정 누락은 publisher 활성화 시 startup fail-fast한다.
+- 환경·rotation: staging/prod issuer·key·kid를 분리하고 이전·신규 Public Key overlap을 사용자 Access Token 최대 수명 30분과 clock skew 1분 이상 유지하는 정책을 제안했다. 현재 JWKS가 단일 key만 노출하므로 실제 안전한 rotation에는 다중 Public Key 지원 보완이 필요하다.
+- 승인 상태: 위 값은 Codex 권장안이며 사용자 최종 승인을 아직 받지 않았다. 승인 전 구현·환경값 고정·publisher 활성화를 수행하지 않는다.
+- 실행한 테스트와 결과: 계약 대조와 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. `git diff --check`로 기록 문서를 검증한다.
+- 유지한 계약: 사용자 JWT와 workload JWT의 issuer·audience·principal 분리, 사용자 Token 재사용 금지, 민감정보·credential 비기록과 consumer 선배포·producer 후배포 원칙을 유지했다.
+- 위험 요소: 같은 signing infrastructure를 재사용하므로 claim allowlist 설정 오류를 contract test로 차단해야 하며, workload 전용 별도 키를 선택하면 설정·JWKS·rotation 구현 범위가 커진다.
+- 다음 작업: 사용자가 issuer/key 재사용, exact audience·principal과 TTL·skew 값을 승인하거나 수정하면 Stage 5 계획서와 `TMI-111` 구현 계약에 반영한다.
+
+## 2026-08-28 — TMI-111 workload JWT 계약 승인 반영
+
+<!-- codex-turn:01a046a8-3ec1-7652-a25d-7ce469dd894e -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `develop`
+- Jira: Identity `TMI-111`; Jira 조회·댓글·본문·필드·링크·상태 변경은 수행하지 않았다.
+- 작업 목표: 사용자가 제안한 workload JWT 검토안을 현재 Identity·Learning Core 경계에 대조하고 타당한 내용을 Stage 5 계획서의 확정 계약으로 반영한다.
+- 변경 파일: `docs/contracts/user-withdrawn-downstream-deny-marker-stage-5-plan.md`, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`. 애플리케이션·설정·테스트 코드는 변경하지 않았다.
+- 계약 반영: 기존 Identity RS256 signing infrastructure와 JWKS를 재사용하되 workload 전용 HTTPS issuer, exact audience `learning-core-user-withdrawn`, principal `sub=identity-service`, TTL·최대 lifetime `PT2M`, workload verifier skew `PT30S`, `nbf=iat`를 사용한다. 중복 `service` claim은 제거한다.
+- 검증 경계: Learning Core는 `typ=JWT`, non-blank `kid`, `nbf` 존재와 `nbf=iat`를 production 활성화 전에 검증하도록 계획했다. Identity issuer는 canonical UUID `jti`를 발급하지만 `jti`는 인가·event 멱등성 필수 입력이 아니며 별도 validator·저장소·replay blacklist·로그·metric·DB key를 만들지 않는다. event 멱등성은 payload `eventId` inbox가 담당한다.
+- 전달 오류 정책: 2xx는 성공, 408·425·429·5xx·timeout·connection failure는 재시도, 400·409·413·422는 payload 영구 실패, 401·403·404·405와 예상하지 못한 4xx는 인증·endpoint 배포 설정 오류로 격리·경보한다.
+- rotation·E2E: 현재 단일-key JWKS를 production 활성화 전에 다중 key로 확장하고 구키를 최소 `PT31M` overlap 유지한다. HTTPS exact endpoint·redirect 미허용, 사용자 JWT와 workload JWT의 상호 사용 거절, 양 서비스 golden Token staging E2E를 완료 조건으로 반영했다.
+- 실행한 테스트와 결과: 문서만 변경했으므로 Gradle 테스트는 실행하지 않았다. `git diff --check`와 turn marker 단일 존재 여부를 검증한다.
+- 유지한 계약: 사용자 Access Token의 workload 인증 재사용 금지, 공개 workload Token API·Token cache 금지, consumer 선배포·producer 후활성화, 민감정보·credential 비노출과 payload `eventId` 기반 멱등성을 유지했다.
+- 결정사항: 사용자 검토안은 타당해 계약으로 승인했다. workload JWT profile과 Learning Core 오류 계약은 확정됐으며, 사용자 Access JWT deny marker skew·inbox retention·backfill exact 범위는 별도 운영값으로 남긴다.
+- 위험 요소: production `WorkloadIdentityCredentialProvider`, 다중 key JWKS와 Learning Core verifier 보완이 아직 구현되지 않았으므로 현재 상태에서 publisher를 활성화하면 안 된다.
+- 다음 작업: `TMI-111` 구현 전에 Jira 본문과 승인된 계획서를 대조하고 Identity outbox capture부터 구현한다. Jira를 변경하려면 사용자에게 변경안을 먼저 제시하고 별도 승인을 받는다.
+
+## 2026-08-28 — TMI-111 UserWithdrawn producer 구현
+
+<!-- codex-turn:01a046b2-ac07-7451-a764-52d0f556102c -->
+
+- 날짜: 2026-08-28
+- 브랜치: Identity `feat/TMI-111-user-withdrawn-outbox-publisher`
+- Jira: `TMI-111`; Atlassian 공식 도구로 제목·Description·상태 `해야 할 일`·Resolution 없음과 완료된 선행 `TMI-109` blocks 관계를 읽었다. Jira 댓글·본문·필드·링크·상태는 변경하지 않았다.
+- 작업 목표: withdrawal commit과 `UserWithdrawn` event capture를 원자화하고 승인된 workload JWT로 Learning Core에 at-least-once 전달하며, 기존 WITHDRAWN User의 bounded backfill과 rotation 가능한 JWKS 기반을 구현한다.
+- 변경 파일: `UserWithdrawalTransactionService`, 신규 `UserWithdrawnOutbox`·상태·실패 코드·Repository fragment, `domain/user/withdrawalevent`의 wire mapper·publisher·retry·replay·HTTP adapter·scheduler·backfill·configuration, workload JWT provider·properties·configuration, JWKS rotation properties·public key set·controller, `application.yml`, `application-test.yml`, `.env.example`, 관련 테스트와 Stage 5·Codex 상태 문서.
+- Transaction 구현: User CAS tombstone, Firebase lifecycle, phone eligibility revocation, 활성 RefreshSession `ACCOUNT_WITHDRAWN` 폐기와 `UserWithdrawnOutbox` 저장을 같은 `mongoTransactionManager` Transaction에 포함했다. production constructor의 outbox Repository는 필수이며 저장 실패 시 withdrawal 전체가 rollback된다.
+- outbox·publisher 구현: eventId와 userId canonical UUID, schemaVersion 1, unique userId, due·expired lease·dead-letter review·TTL index를 적용했다. atomic `findAndModify` lease, expired lease 회수, bounded exponential backoff와 jitter, 최대 시도, 2xx publish, 408·425·429·5xx·timeout·connection retry, 400·409·413·422 payload 실패와 401·403·404·405·예상 밖 4xx 배포 설정 오류 dead-letter, manual replay와 published cleanup을 구현했다.
+- wire·보안 구현: `POST /internal/v1/events/withdrawn`에 eventId·schemaVersion·userId·withdrawnAt만 전송하며 4 KiB를 제한한다. HTTPS exact endpoint만 허용하고 redirect를 따르지 않는다. Token·credential·userId·eventId·raw payload를 로그·metric tag·오류에 넣지 않는다.
+- workload JWT 구현: 기존 Identity `JwtEncoder`와 active signing key를 재사용해 전달마다 RS256 Token을 발급한다. workload HTTPS issuer, audience `learning-core-user-withdrawn`, `sub=identity-service`, `iat`, `nbf=iat`, `exp=iat+PT2M`, UUID `jti`, `typ=JWT`, current `kid`를 사용하며 임의 audience와 비승인 issuer·subject·TTL을 거절한다. 공개 credential endpoint와 Token cache는 만들지 않았다.
+- JWKS rotation 구현: current Public Key와 comma-separated previous key ID·public key resource를 함께 표준 JWKS로 노출한다. 중복·active key 재등록·ID/location 개수 불일치를 startup에서 거절하고 Private Key parameter는 응답에 포함하지 않는다. 실제 구키는 최소 `PT31M` overlap 운영이 필요하다.
+- backfill·관측 구현: 고정 lower inclusive·upper exclusive 범위, 최대 100건 batch, 기본 dry-run과 결정적 backfill eventId를 구현했다. 이미 outbox가 있는 User는 건너뛰고 unique conflict에 수렴한다. publisher outcome·failure, backlog, dead-letter, oldest pending age, delivery lag와 backfill outcome metric을 추가했다.
+- 설정: workload JWT, publisher, backfill은 모두 기본 비활성이다. enabled 상태에서는 workload HTTPS issuer·exact audience·subject·TTL, endpoint exact path, positive duration·attempt·batch와 고정 backfill bounds를 fail-fast 검증한다. Secret, 실제 Token·Key·endpoint·전체 Mongo URI는 추가하지 않았다.
+- 테스트: 집중 테스트 19개와 Spring context 회귀를 먼저 실행했다. 첫 전체 테스트는 Mongo auto-configuration이 제외된 integration test context에 신규 Repository mock이 없어 48개 context 실패가 발생했고 해당 네 test context에 mock을 명시해 수정했다. 이후 `./gradlew clean test` 성공, 109개 suite·591개 테스트, 실패 0·오류 0·건너뜀 0이다. `git diff --check`도 통과했다.
+- 유지한 계약: 공개 API·BaseResponse·사용자 Access/Refresh Token·JWT `sub=userId`·audience `tosunsaeng-learning-core`, Firebase/Social/Phone lifecycle, Learning Core 독립 저장소, AI `user_id=examId`, S3·Redis 계약을 변경하지 않았다. Git commit·push와 Jira mutation은 수행하지 않았다.
+- 결정사항: Learning Core `TMI-109` 코드는 이번 작업에서 수정하지 않았다. Identity producer capture는 항상 수행하지만 외부 전달·backfill은 운영 준비 전까지 꺼 둔다. `jti`는 발급 고유성만 담당하고 event 멱등성은 payload `eventId`와 Learning Core inbox가 담당한다.
+- 위험 요소: 실제 replica set Transaction, multi-instance lease 회수, workload JWT golden Token 상호 사용 거절, HTTPS redirect 미허용, duplicate 204, real key overlap과 backfill exact bounds는 제공된 로컬 환경에서 E2E 검증하지 못했다. Learning Core의 `typ`·`kid`·`nbf=iat` 보완 배포 여부도 활성화 전에 재확인해야 한다.
+- Jira 댓글 초안: `TMI-111 Identity 구현 완료. withdrawal Transaction과 UserWithdrawnOutbox 원자 저장, workload JWT 기반 publisher·retry·dead-letter·manual replay, bounded dry-run backfill, 다중 Public Key JWKS와 관측 metric을 추가했습니다. 전체 591개 테스트와 git diff --check가 통과했습니다. 실제 replica set·workload auth·multi-instance·duplicate·key overlap staging E2E와 운영 backfill bounds 확정은 남아 있으며 기능은 기본 비활성입니다.` 댓글은 자동 등록하지 않았다.
+- 다음 작업: 사용자가 변경을 검토해 직접 commit·push·PR merge한 뒤 staging E2E와 운영값을 확인한다. merge 확인 후 별도 승인받아 Jira 댓글과 완료 전환을 수행한다.
