@@ -5,10 +5,14 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: `feat/TMI-114-abandoned-enrollment-cleanup`에서 Stage 6 가입 중단 Firebase User cleanup lifecycle 구현과 전체 113개 suite·600개 테스트 검증을 완료했다. Jira `TMI-114`는 아직 `해야 할 일`이며 댓글·상태 mutation은 수행하지 않았다. 실제 Firebase/mobile·Mongo replica set·multi-instance staging E2E와 provider deletion obligation runbook 확인 전에는 capture·worker flag를 활성화하지 않는다
-- 상태 기준일: 2026-08-28
+- 현재 단계: Stage 6 `TMI-114` 구현이 PR #36 merge commit `2947fb7`로 local·origin `develop`에 반영됐고, 승인된 완료 댓글 ID `10043` 등록과 transition ID `41` 적용을 마쳤다. Jira 상태와 Resolution은 모두 `완료`다. 실제 Firebase/mobile·Mongo replica set·multi-instance staging E2E와 provider deletion obligation runbook 확인 전에는 capture·worker flag를 활성화하지 않는다
+- 상태 기준일: 2026-08-31
 
 ## 완료
+
+- 2026-08-31 사용자 승인 뒤 `TMI-114`에 PR #36 병합, 구현 범위, 113개 suite·600개 테스트와 남은 staging 위험을 담은 완료 댓글 ID `10043`을 등록하고 transition ID `41`을 적용했다. 재조회 결과 상태 ID `10003`과 Resolution 모두 `완료`다. 담당자·우선순위·본문·라벨·컴포넌트·이슈 링크는 변경하지 않았다.
+
+- 2026-08-31 `TMI-114` PR #36 병합을 확인했다. local·origin `develop` HEAD는 merge commit `2947fb7`이고 작업 트리는 깨끗하다. Jira는 `해야 할 일`, Resolution 없음, 댓글 0건이며 완료 transition ID `41`이 사용 가능하다. 구현 요약·113개 suite·600개 테스트·남은 staging 위험을 담은 댓글과 완료 전환안을 사용자에게 먼저 제시하며 승인 전 Jira mutation은 수행하지 않았다.
 
 - 2026-08-28 `TMI-114` Stage 6를 구현했다. exact Firebase project·UID별 `AbandonedFirebaseEnrollmentCleanup`과 RESUMABLE·CLEANUP_IN_PROGRESS·RETRY_WAIT·FINALIZED·CLEANED·RECONCILIATION_REQUIRED 상태, generation·version·lease CAS, terminal lifecycle P7D·attempt PT24H TTL을 추가했다. enrollment start/reuse와 signup·Guest upgrade finalize를 Mongo Transaction lifecycle에 연결하고 cleanup claim 이후 `FIREBASE_ENROLLMENT_RESTART_REQUIRED` 409를 반환한다. worker는 최신 attempt·ACTIVE GUEST·FirebaseIdentity·linked SocialIdentity·verified phone alias를 preflight한 뒤 inspect→disable→refresh revoke→provider obligation→delete→absence confirm 순서로 처리하며 retry·reconciliation에 수렴한다. 고정 cutover·최대 100건·dry-run 우선 legacy capture와 기본 비활성 설정도 추가했다. `./gradlew clean test` 전체 113개 suite·600개 테스트와 `git diff --check`가 통과했다. Git commit·push와 Jira 댓글·상태 변경은 수행하지 않았다.
 

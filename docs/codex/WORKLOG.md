@@ -6969,3 +6969,40 @@
 - 위험 요소: Apple provider deletion obligation은 자동 완료 구현이 없어 해당 account를 reconciliation으로 보낸다. 실제 Firebase/mobile, Mongo replica set Transaction, multi-instance claim/finalize 경쟁, legacy capture 결과와 provider obligation runbook을 staging에서 검증하기 전에는 production flag를 활성화하면 안 된다.
 - Jira 작업: 구현 전 Jira `TMI-114`를 읽어 범위 기준으로 사용했다. 이번 turn에는 Jira 댓글·상태·본문을 변경하지 않았고 승인도 요청하지 않았다. 완료 댓글 초안만 handoff에 제공한다.
 - 다음 작업: 사용자가 commit·push·PR merge를 완료하면 병합을 확인하고, 별도 승인 뒤 Jira 완료 댓글 등록과 상태 전환을 수행한다.
+
+## 2026-08-31 — TMI-114 PR 병합 확인 및 Jira 완료 승인 대기
+
+<!-- codex-turn:01a05560-b134-71e0-b601-145b3d2afa92 -->
+
+- 날짜: 2026-08-31
+- 브랜치: Identity `develop`
+- Jira: `TMI-114`
+- 작업 목표: Stage 6 구현의 PR 병합과 Jira 현재 상태를 확인하고 완료 댓글·상태 전환 내용을 사용자에게 먼저 제시한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- Git 확인: local·origin `develop` HEAD가 PR #36 merge commit `2947fb7` `Merge pull request #36 from Too-Much-I/feat/TMI-114-abandoned-enrollment-cleanup`을 가리키며 작업 트리는 깨끗하다. 구현 commit은 `1c7659e`다.
+- Jira 확인: Atlassian 공식 도구로 `TMI-114`를 재조회했다. 현재 상태는 `해야 할 일`, Resolution 없음, 댓글 0건이며 `완료` transition ID `41`이 사용 가능하다.
+- 제안 Jira 댓글: PR #36 병합, abandoned enrollment lifecycle·generation/lease/version fencing·owner preflight·Firebase cleanup worker·bounded capture·restart-required 구현, 전체 113개 suite·600개 테스트 성공, 실제 Firebase/mobile·Mongo replica set·multi-instance staging E2E와 Apple provider deletion obligation runbook 미검증 및 production flag 비활성을 기록한다.
+- 제안 상태 변경: 댓글 등록 성공 후 transition ID `41`로 `완료` 전환한다. 담당자·우선순위·본문·라벨·컴포넌트·이슈 링크는 변경하지 않는다.
+- 승인 여부: 사용자가 Jira 종료를 요청했지만 저장소 규칙에 따라 실제 댓글 본문과 상태 변경안을 먼저 제시하고 최종 승인을 기다린다. 이번 turn에는 Jira 댓글·상태 mutation을 수행하지 않았다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없어 Gradle 테스트를 다시 실행하지 않았다. Git 병합 상태와 Jira 상태·transition을 읽기 전용으로 확인하고 `git diff --check`를 실행한다.
+- 유지한 계약: Jira와 문서에 Secret·Token·Firebase UID·phone·provider subject·개인정보를 기록하지 않았다. Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 완료는 production cleanup flag 활성화 승인이 아니다. 실제 Firebase/mobile, Mongo replica set Transaction, multi-instance claim/finalize 경쟁과 Apple provider obligation runbook은 staging에서 별도 검증해야 한다.
+- 다음 작업: 사용자가 제시한 댓글과 완료 전환을 승인하면 댓글을 등록하고 transition ID `41`을 적용한 뒤 Jira 상태·Resolution을 재조회하고 작업 기록을 최종 갱신한다.
+
+## 2026-08-31 — TMI-114 Jira 완료 전환
+
+<!-- codex-turn:01a05566-a2f6-7b71-8d39-9b4b4df6908a -->
+
+- 날짜: 2026-08-31
+- 브랜치: Identity `develop`
+- Jira: `TMI-114`
+- 작업 목표: 사용자가 승인한 완료 댓글을 등록하고 PR 병합이 확인된 Stage 6 Jira 이슈를 완료 상태로 전환한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·설정·테스트·계약 코드는 변경하지 않았다.
+- Jira 작업: 승인된 댓글에 PR #36 병합, 가입 중단 lifecycle·fencing·owner preflight·cleanup worker·bounded capture·restart-required 구현, 전체 113개 suite·600개 테스트와 남은 staging 위험을 기록했다. 등록된 댓글 ID는 `10043`이다.
+- 상태 변경: 댓글 등록 성공 후 transition ID `41`을 적용했다. 재조회 결과 Jira 상태 ID `10003`과 Resolution은 모두 `완료`다.
+- 승인 여부: 이전 turn에서 정확한 댓글 본문과 완료 전환안을 제시했고 사용자가 `어`라고 승인한 뒤 mutation을 수행했다.
+- 변경하지 않은 항목: 담당자·우선순위·본문·라벨·컴포넌트·이슈 링크는 변경하지 않았다.
+- 실행한 테스트와 결과: 애플리케이션 코드 변경이 없어 Gradle 테스트를 다시 실행하지 않았다. 기존 병합 검증 수치는 113개 suite·600개 테스트, 실패·오류·건너뜀 0개다. Jira 상태·Resolution·댓글을 재조회하고 `git diff --check`를 실행한다.
+- 유지한 계약: Jira와 문서에 Secret·Token·Firebase UID·phone·provider subject·개인정보를 기록하지 않았다. Git commit·push도 수행하지 않았다.
+- 위험 요소: Jira 완료는 production cleanup 활성화 승인이 아니다. 실제 Firebase/mobile, Mongo replica set Transaction, multi-instance claim/finalize 경쟁과 Apple provider deletion obligation runbook 검증 전에는 capture·worker flag를 비활성으로 유지한다.
+- 다음 작업: 고정 순서의 다음 단계인 Billing 최소 Entitlement consumer 배포 범위를 설명하고 계획서를 작성한다.
