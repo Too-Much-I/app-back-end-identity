@@ -5,10 +5,58 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: `feat/TMI-114-abandoned-enrollment-cleanup`에서 Stage 6 가입 중단 Firebase User cleanup lifecycle 구현과 전체 113개 suite·600개 테스트 검증을 완료했다. Jira `TMI-114`는 아직 `해야 할 일`이며 댓글·상태 mutation은 수행하지 않았다. 실제 Firebase/mobile·Mongo replica set·multi-instance staging E2E와 provider deletion obligation runbook 확인 전에는 capture·worker flag를 활성화하지 않는다
-- 상태 기준일: 2026-08-28
+- 현재 단계: Stage 7 Identity 7-A·7-C Jira `TMI-123`의 애플리케이션 구현과 로컬 검증을 완료했다. phone eligibility Billing 전송은 SigV4로 전환됐고, owner event core·consumer delivery·sequence/cursor·circuit, exact phone rejoin lineage와 Billing-only `TrialOwnerRebindApproved`, 신규 `UserMerged` 양 consumer fan-out을 구현했다. Jira 상태는 아직 `해야 할 일`이며 Stage 7 전체에는 Learning Core `UserMerged` consumer readiness와 staging IAM·Mongo Transaction·E2E/canary가 남는다. 운영 검증 전 관련 capture·publisher flag는 모두 `false`를 유지한다
+- 상태 기준일: 2026-09-03
 
 ## 완료
+
+- 2026-09-03 `feat/TMI-123-owner-event-fanout-sigv4`에서 TMI-123 Identity 구현을 완료했다. phone eligibility Bearer transport를 VPC Lattice SigV4와 bounded Retry-After로 교체하고, `UserMerged` Billing·Learning Core 및 phone rejoin Billing-only durable delivery를 consumer FIFO로 분리했다. 탈퇴 release에서 AVAILABLE lineage를 만들고 direct Firebase signup·Guest upgrade에서 동일 scope의 exact predecessor 한 건만 CONSUMED 처리하며, 다중 후보는 가입을 허용하고 reconciliation으로 격리한다. 모든 신규 capture/publisher flag는 기본 OFF다. `./gradlew clean test` 전체 621개와 `git diff --check`를 통과했으며 Jira mutation은 수행하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 `TMI-123` Jira 생성 결과를 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. 이슈는 `작업`, High, `해야 할 일`이며 추가 Jira mutation은 없다.
+
+- 2026-09-03 사용자 승인에 따라 `TMI-123` `[Identity] Billing SigV4 및 owner event durable fan-out 구현`을 TMI 프로젝트 `작업`, High, 기본 상태 `해야 할 일`로 생성했다. 재조회에서 승인된 본문과 담당자 없음·라벨 없음을 확인했으며 댓글·상태 전환·링크·스프린트·에픽은 변경하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 Stage 7 Identity Jira 초안과 승인 대기 상태를 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. Jira는 아직 생성하지 않았다.
+
+- 2026-09-03 Atlassian 공식 연동으로 Stage 7 Identity 구현 Jira 생성 전 검토를 수행했다. TMI의 작업 유형과 관련 제목 중복 부재를 확인하고 7-A·7-C1~C3을 한 작업으로 묶은 High 우선순위 초안을 준비했다. 사용자에게 정확한 본문을 제시하고 승인받기 전이라 Jira mutation은 수행하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 반복 재가입·복수 benefit scope 계획 보강 결과를 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. 애플리케이션·Jira 변경은 없다.
+
+- 2026-09-03 Stage 7 계획서에 반복 탈퇴·재가입과 복수 benefit 확장 규칙을 반영했다. A→B→C에서 이전 lineage는 successor 가입 때 CONSUMED되고 successor 탈퇴가 새 AVAILABLE을 만들며, 같은 fingerprint의 과거 CONSUMED lineage가 여러 건 남아도 정상으로 본다. 모순은 동일 `consumerScopeId`의 AVAILABLE predecessor 2건 이상으로 한정했고, 서로 다른 benefit scope는 독립 처리한다. pending·dead-letter·COMPLETED NOOP 순서와 필수 테스트도 추가했으며 애플리케이션·Jira는 변경하지 않았다.
+
+- 2026-09-03 반복 탈퇴·재가입 lineage chain을 검토했다. A 탈퇴의 AVAILABLE lineage는 B 가입에서 CONSUMED되고 B 탈퇴가 새 AVAILABLE lineage를 만들므로 C 가입 시 과거 계정·alias가 여러 건이어도 동일 scope의 자동 이전 후보는 직전 B 한 건이다. A→B delivery 미완료 중 B→C가 생기면 consumer sequence가 순서를 보장하고, A→B가 COMPLETED NOOP면 B→C도 source link 없음 NOOP로 수렴한다. 현재 계획에는 이 A→B→C 반복과 capture OFF·dead-letter 경계 테스트를 추가할 필요가 있으며 코드·계획 본문·Jira는 변경하지 않았다.
+
+- 2026-09-03 복수 무료시험 권리와 phone lineage cardinality를 구분했다. 현재 0/1/2+ 판정은 전체 응시권 개수가 아니라 동일 `consumerScopeId`에서 가능한 predecessor account lineage 수에 적용된다. 향후 서로 다른 프로그램은 stable scope별 lineage/event로 독립 확장할 수 있으며, 같은 scope에서 여러 benefit subject를 옮겨야 하면 v1을 확장하지 않고 별도 versioned 계약이 필요하다. 코드·계획 본문·Jira는 변경하지 않았다.
+
+- 2026-09-03 수정된 Stage 7 계획 기준으로 Identity 예정 구현을 설명했다. 7-A는 Billing eligibility 전송만 SigV4로 바꾸고, 7-C는 exact phone lineage에서 Billing-only rebind event를 원자 생성해 durable delivery한다. Billing이 상태를 판정하고 Learning Core는 read-only continuation으로 target 새 Session을 만들며 source 학습 기록은 이전하지 않는다. 코드·계획 본문·Jira는 변경하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 Stage 7 계획서 phone continuation 동기화 완료 상태를 재확인했다. 지정된 turn 식별자를 WORKLOG 끝에 append했으며, 애플리케이션·Billing·Learning Core 코드는 변경하지 않았다.
+
+- 2026-09-03 Stage 7 계획서를 현재 cross-service 구현에 맞게 갱신했다. Billing `develop`의 `TMI-120`은 없음·OPEN·RETAKE_AVAILABLE이면 owner CAS, GRADING이면 retryable pending, COMPLETED이면 NOOP를 적용하고 read-only continuation discovery와 exact reserve echo를 제공한다. Learning Core `TMI-122`는 target에 기존 Session이 없을 때만 이를 발견해 같은 AttemptGroup·mockExamId의 새 target Session을 만들며 source 기록은 이전하지 않고 전체 457개 테스트가 통과했지만 `develop` 병합은 남았다. Identity 계획에는 해당 상태표·discovery/echo·status-first 복구, Billing-only event와 Learning Core event 부재를 반영했다. 애플리케이션 코드는 변경하지 않았다.
+
+- 2026-09-03 Stage 7 구현 계획서를 작성하고 고정 구현 순서 7단계에 연결했다. Stage 7을 7-A Identity→Billing SigV4 transport, 7-B Billing `TMI-120` readiness·선배포, 7-C Identity owner event core/delivery/phone lineage, 7-D Learning Core `UserMerged` consumer, 7-E staging E2E·canary로 분해했다. `UserMerged`는 Billing·Learning Core 두 delivery, `TrialOwnerRebindApproved`는 Billing-only로 확정하고, consumer-wide sequence FIFO, exact phone rejoin lineage, P30D published retention·P90D dead-letter review/no auto-delete, 독립 capture/publisher flag, legacy·pre-cutover backfill 금지와 전체 테스트·활성화 gate를 명세했다. 애플리케이션 코드는 변경하지 않았고 `git diff --check`가 통과했다.
+
+- 2026-09-02 turn 종료 기준으로 Stage 7 owner 이전 정책 확정 기록을 동기화했다. 제품 정책은 `UserMerged`의 Billing·Learning Core fan-out, `TrialOwnerRebindApproved`의 Billing-only delivery, phone proof만으로 Learning Core 과거 데이터 이전 금지와 strong-proof continuity 후속 분리다. 구현 전 local predecessor lineage·consumer별 순서 fencing·독립 flag/circuit·보존 계약을 계획서에 고정하고 Billing ADR-003의 phone rejoin Learning Core delivery 요구를 보정해야 한다.
+
+- 2026-09-02 Stage 7 owner 이전의 제품 정책을 확정했다. `UserMerged`는 Guest가 기존 Member로 합쳐지는 canonical merge이므로 Billing과 Learning Core에 각각 durable delivery를 만든다. 동일 phone proof 기반 `TrialOwnerRebindApproved` v1은 Billing에만 전달해 retained 무료시험 owner link만 이전하고 Claim·Grant·consumption은 초기화하거나 복원하지 않는다. Learning Core의 과거 시험·결과는 phone proof만으로 자동 이전하지 않으며, old-account-derived strong proof를 정의한 별도 continuity event·후속 Jira에서만 다룬다. 따라서 현 Billing ADR-003의 phone rejoin Learning Core delivery·route 요구는 구현 전에 이 정책에 맞게 보정해야 한다. Stage 7 계획서에는 local predecessor lineage의 모호성 fail-closed, consumer별 predecessor ordering, published P30D·dead-letter P90D review/no auto-delete, consumer별 publisher flag·circuit pause와 legacy Billing backfill 금지를 기술 기본값으로 확정해야 한다.
+
+- 2026-09-02 `TrialOwnerRebindApproved` 발행 정책의 선택지를 Billing 권리와 Learning Core 개인 학습 데이터로 분리해 분석했다. 선택지는 동일 phone proof만으로 양쪽 전체 자동 이전, Billing만 제한 자동 rebind하고 Learning Core 이력은 이전하지 않는 방식, old-account-derived strong proof가 있을 때만 전체 이전, 운영자 수동 이전, 자동 이전 전면 금지다. 권장안은 phone-scoped Billing Claim은 source CLEANED·REVOKED, target VERIFIED와 동일 retained candidate를 조건으로 owner link만 자동 rebind하되 Claim·사용량을 복원하지 않고, Learning Core 시험·결과는 phone proof만으로 이전하지 않으며 old-account proof가 있을 때만 별도 승인하는 혼합 정책이다. 이 권장안을 채택하면 현재 ADR-003의 모든 `TrialOwnerRebindApproved`가 Billing·Learning Core 두 delivery를 가진다는 계약을 조정하거나 Billing-only event/approval scope를 별도로 정의해야 한다.
+
+- 2026-09-02 첨부된 Identity durable fan-out 전달문과 Billing ADR-003을 현재 Identity 코드에 대조해 Stage 7의 실제 작업 범위를 정리했다. Stage 7 Identity 범위는 공통 SigV4 transport/result, immutable owner event core와 consumer별 delivery, 기존 `UserMerged` writer의 reader-first 전환, 신규 `TrialOwnerRebindApproved` 생성 gate, Billing/Learning Core별 publisher·circuit·flag, legacy preflight와 atomicity/lease/retry/privacy contract test다. 현재 `UserMerged` event 생성은 이미 존재하지만 event payload와 단일 delivery 상태가 `UserMergedOutbox` 한 문서에 결합돼 있어 분리가 필요하고, `TrialOwnerRebindApproved`는 아직 코드에 없다. Billing `TMI-120`과 Learning Core consumer는 producer 활성화 전에 비활성 선배포해야 한다. 동일 phone proof만으로 과거 시험 owner를 자동 이전하면 번호 재할당 시 개인정보가 노출될 수 있으므로, Identity가 source→target 이전을 승인할 충분한 proof를 무엇으로 볼지는 Stage 7 계획서의 명시적 product/security gate로 남긴다.
+
+- 2026-09-02 `UserMerged`·`TrialOwnerRebindApproved` consumer별 durable fan-out의 순서를 분류했다. 이 작업은 기존 12단계의 Stage 12 ACTIVE 회원 Firebase credential rebind가 아니라 Billing의 retained trial owner 이전을 완성하는 Stage 7 후속 범위다. 세부 순서는 7-A phone eligibility SigV4 기반 연동, 7-B Billing owner-rebind consumer `TMI-120` 비활성 선배포, 7-C Identity event core+`BILLING`/`LEARNING_CORE` 독립 delivery fan-out, 7-D Learning Core owner migration/source deny consumer, 7-E cross-service staging E2E·순차 활성화다. 따라서 질문의 Identity durable fan-out은 Stage 7-C이며 전체 번호를 새로 매기면 현재 Stage 7과 Stage 8 사이에 들어간다.
+
+- 2026-09-02 Stage 6 이후의 즉시 다음 작업을 확정했다. Stage 7 전체 목표는 Billing eligibility 운영 연동이지만 Billing `TMI-110` consumer 구현은 이미 완료됐다. 따라서 지금 먼저 할 일은 Identity의 phone eligibility Bearer JWT adapter를 AWS SigV4로 교체하고 status+bounded Retry-After, Lattice base URL·고정 path·region 검증, 최소 AWS SDK v2 dependency와 contract test 범위를 정하는 저장소 계획서 작성이다. 그 뒤 Jira 생성·Identity 코드 구현을 진행하고, 별도 Billing/AWS 인프라 선배포와 staging E2E를 거쳐 publisher를 활성화한다.
+
+- 2026-08-31 phone eligibility transport를 JWT에서 AWS SigV4로 바꾸는 이유를 명확히 했다. JWT 자체의 보안 문제 때문이 아니라 Billing 운영 ingress가 VPC Lattice `AWS_IAM`을 policy enforcement point로 채택했기 때문이다. SigV4를 사용하면 Lattice가 Billing 애플리케이션 도달 전에 ECS task role·환경·HTTP method·exact path를 검증하고 SDK가 자동 회전 task credential을 사용한다. JWT를 유지하려면 Billing에 별도 workload JWT decoder/filter, issuer·audience·JWKS rotation, principal-route authorization과 장애 운영을 추가하고 Lattice AWS_IAM 선택을 변경해야 한다. 따라서 현재 승인 아키텍처에서는 SigV4가 일관된 선택이며, JWT 유지도 불가능한 것은 아니지만 별도 ADR 변경 범위다.
+
+- 2026-08-31 현재 turn 기준으로 C-02의 실제 수정 대상을 쉬운 흐름으로 확정했다. phone eligibility event 생성·outbox·Billing consumer·무료시험 정책은 그대로 유지하고, Identity가 Billing에 POST하는 마지막 전송 구간만 Bearer workload JWT에서 ECS task role 기반 AWS SigV4로 교체한다. 함께 delivery 응답을 status+bounded Retry-After로 확장하고 Lattice base URL·고정 route·region 설정과 route별 IAM을 맞춘다. UserMerged·UserWithdrawn workload JWT 전송은 변경 대상이 아니다.
+
+- 2026-08-31 C-02 수정 범위를 사용자 관점으로 다시 설명했다. 이벤트 JSON, outbox, Billing eligibility 처리와 무료시험 정책은 그대로 두고 Identity의 Billing 호출 직전 전송 계층만 바꾼다. 현재 `Authorization: Bearer ...`를 만드는 `JdkPhoneEligibilityBindingDeliveryAdapter` 대신 동일 payload를 ECS task role로 SigV4 서명하는 adapter를 연결하고, delivery port 반환값을 status 단일 값에서 status+bounded Retry-After로 확장해 429·503 재시도 시각에 반영한다. phone eligibility 설정의 audience는 제거하고 환경별 Lattice base URL·고정 endpoint path·region을 검증한다. UserMerged·UserWithdrawn의 workload JWT 전송과 outbox/event schema는 변경하지 않는다.
+
+- 2026-08-31 C-02 Identity→Billing workload transport 불일치를 세 저장소에 대조해 유효한 High/production gate 진단으로 확정했다. Identity phone eligibility adapter는 현재 audience 기반 Bearer workload JWT를 보내고 delivery port가 HTTP status `int`만 반환해 `Retry-After`를 전달하지 못한다. Billing 목표 ingress는 VPC Lattice `AWS_IAM`이며 Identity task role의 exact eligibility POST만 허용하고, Learning Core는 이미 AWS SDK v2 `AwsV4HttpSigner`·`vpc-lattice-svcs`·`ap-northeast-2` 경로를 구현했다. 수정 범위는 phone eligibility 전용 adapter를 SigV4로 교체하고 delivery result를 status+bounded Retry-After로 확장하며, full endpoint/audience 설정을 environment-specific Lattice base URL·고정 path·region validation으로 보정하는 것이다. phone eligibility의 이전 JWT runtime transport는 제거하되 UserMerged·UserWithdrawn에 쓰이는 공용 workload JWT 발급 기반은 유지한다. local/test는 이전 JWT가 아니라 fake/WireMock port를 사용한다. 애플리케이션·계약·Jira mutation은 수행하지 않았다.
+
+- 2026-08-31 다음 고정 작업 Stage 7의 실제 잔여 범위를 확인했다. Billing `TMI-110`의 `/internal/v1/eligibility/trial/events` consumer와 inbox·`TrialEligibility` projection Transaction은 이미 구현돼 있으므로 consumer 애플리케이션을 다시 만들지 않는다. Billing의 transaction 가능한 Mongo·index·Lattice AWS_IAM ingress를 Identity producer보다 먼저 staging에 배포하고, Identity의 현재 Bearer workload credential 기반 JDK adapter를 ECS task role SigV4(`vpc-lattice-svcs`, `ap-northeast-2`) transport로 교체하며, 제한된 `Retry-After`·409 conflict 분류·same-event retry를 보완한 뒤 positive/negative E2E를 수행한다. eligibility event는 무료권 발급이 아니라 projection 갱신이며 실제 Claim·1-unit Grant는 최초 reserve Transaction에서 lazy 생성한다. Jira `TMI-114`는 PR #36 병합 댓글 ID `10043`이 등록됐고 상태·Resolution 모두 `완료`임을 읽기 전용으로 재확인했다. 애플리케이션·Jira mutation은 수행하지 않았다.
 
 - 2026-08-28 `TMI-114` Stage 6를 구현했다. exact Firebase project·UID별 `AbandonedFirebaseEnrollmentCleanup`과 RESUMABLE·CLEANUP_IN_PROGRESS·RETRY_WAIT·FINALIZED·CLEANED·RECONCILIATION_REQUIRED 상태, generation·version·lease CAS, terminal lifecycle P7D·attempt PT24H TTL을 추가했다. enrollment start/reuse와 signup·Guest upgrade finalize를 Mongo Transaction lifecycle에 연결하고 cleanup claim 이후 `FIREBASE_ENROLLMENT_RESTART_REQUIRED` 409를 반환한다. worker는 최신 attempt·ACTIVE GUEST·FirebaseIdentity·linked SocialIdentity·verified phone alias를 preflight한 뒤 inspect→disable→refresh revoke→provider obligation→delete→absence confirm 순서로 처리하며 retry·reconciliation에 수렴한다. 고정 cutover·최대 100건·dry-run 우선 legacy capture와 기본 비활성 설정도 추가했다. `./gradlew clean test` 전체 113개 suite·600개 테스트와 `git diff --check`가 통과했다. Git commit·push와 Jira 댓글·상태 변경은 수행하지 않았다.
 
@@ -665,3 +713,29 @@
 - Codex CLI에서 `/hooks`를 열어 `.codex/hooks.json`의 명령을 검토하고 신뢰해야 한다.
 - Hook 명령이 변경되면 정의의 hash가 달라지므로 `/hooks`에서 다시 검토하고 신뢰한다.
 - 모든 작업 종료 전에 WORKLOG를 append하고 이 문서를 최신 상태로 갱신한다.
+
+## Stage 7 Billing 전달사항 정리 (2026-09-03)
+
+- `UserMerged`는 Billing과 Learning Core 양쪽으로 전달하지만 `TrialOwnerRebindApproved`는 Billing에만 전달한다. Learning Core가 받는 phone owner event route는 없고 Identity→Learning Core `UserMerged`는 기존 workload JWT 경계를 유지한다.
+- Billing `develop` PR #8 구현은 phone AttemptGroup 없음·`OPEN`·`RETAKE_AVAILABLE`이면 owner CAS, `GRADING`이면 retryable pending, `COMPLETED`이면 owner/fence 불변 NOOP를 적용한다.
+- Billing은 current owner epoch에 `PHONE_REJOIN` transition id를 저장하고 read-only discovery로 exact continuationId·attemptGroupId·mockExamId를 반환하며, Learning Core의 reserve echo를 같은 Transaction에서 재검증한다.
+- Learning Core `TMI-122`는 새 user에게 기존 Session이 하나도 없을 때만 discovery를 수행하고 continuation을 `ExamCreationOperation`에 snapshot한 뒤 target 소유의 새 Session을 같은 group으로 생성한다. source Session·답안·결과·Summary owner는 바꾸지 않는다.
+- Learning Core 전체 457개 테스트는 통과했지만 확인 시점에는 feature 브랜치이므로 `develop` 병합이 남았다. 이 phone 구현은 별도 `UserMerged` source deny·owner migration consumer를 대체하지 않는다.
+- Identity Stage 7 계획서는 위 상태표, discovery 204/200, exact reserve echo, status-first 응답 유실 복구와 완료 history migration 금지를 반영했다.
+- Identity에 남은 핵심은 7-A phone eligibility SigV4·bounded Retry-After와 7-C exact `PhoneRejoinLineage`, immutable owner event core, `TrialOwnerRebindApproved` Billing-only delivery, `UserMerged` 양 consumer durable fan-out이다.
+- 새 무료권 생성, Claim·Grant·ledger·consumption 초기화/복원, historical backfill과 phone proof 기반 source history migration은 금지한다. consumer flag OFF 선배포와 staging IAM·Mongo Transaction·E2E 전 production 활성화도 금지한다.
+- pre-cutover lineage 부재, consumer-wide FIFO head-of-line blocking, AVAILABLE lineage 장기 보존과 가명정보 접근 통제는 여전히 남는 위험이다.
+
+## 2026-08-31 앱 서버 통합 구조 조사 반영
+
+- 신규 Jira 없이 Learning Core·Identity·Billing 전체 구조 조사에 Identity `feat/TMI-116-billing-reservation-exam-saga@8c4f3ca` snapshot을 반영했다. 통합 draw.io와 본 문서는 Learning Core `docs/architecture`에 있다.
+- Identity의 책임은 User·LOCAL/Guest/Firebase/Social/Phone 인증, JWT/JWKS, RefreshSession, profile/consent/withdrawal과 durable lifecycle outbox로 정리했다. 시험·채점·혜택/원장은 다른 서비스 경계다.
+- 강점은 asymmetric JWT, port/adapter, Transaction·outbox, retry/dead-letter와 민감정보 redaction이다. 주요 간극은 auth capability 탐색 비용, Identity→Billing phone eligibility transport의 Bearer workload JWT→VPC Lattice SigV4 전환, UserMerged downstream consumer 미완성이다.
+- 애플리케이션·계약·Jira·외부 인프라는 변경하지 않았고 코드 변경이 없어 Gradle 테스트는 실행하지 않았다.
+
+## 2026-08-31 문서 계층·완료 보고 규칙
+
+- 별도 Jira 없이 `AGENTS.md`에 계획·조사 문서의 6단계 읽기 계층과 구현 완료 보고 필수 항목을 추가했다.
+- 결론별 파일 근거와 구현 사실·계획·추론 구분을 요구하며, 상세 목록과 표는 부록으로 보존한다.
+- 구현 완료 후 변경·계약·테스트·위험·배포 전 확인·예상 밖 diff·다음 확인을 보고한다.
+- Identity 애플리케이션과 외부 계약은 변경하지 않았고 Gradle 테스트를 실행하지 않았다.

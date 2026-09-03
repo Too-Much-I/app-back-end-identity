@@ -28,11 +28,10 @@ class PhoneEligibilityPublisherConfigurationTests {
 	}
 
 	@Test
-	void enabledPropertiesFailClosedForNonHttpsOrMissingAudience() {
+	void enabledPropertiesFailClosedForNonHttpsBaseUrl() {
 		PhoneEligibilityPublisherProperties properties = new PhoneEligibilityPublisherProperties();
 		properties.setEnabled(true);
-		properties.setEndpoint(URI.create("http://consumer.test/events"));
-		properties.setAudience("");
+		properties.setBaseUrl(URI.create("http://consumer.test"));
 		PhoneEligibilityBindingProperties binding = new PhoneEligibilityBindingProperties(
 				true, "opaque-scope-v1", "not-inspected-by-publisher-validation");
 

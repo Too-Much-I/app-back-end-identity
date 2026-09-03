@@ -6,10 +6,13 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneEligibilityBindingDeliveryPort;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.application.PhoneEligibilityBindingEventMapper;
@@ -31,14 +34,18 @@ public class PhoneEligibilityPublisherConfiguration {
 		PhoneEligibilityBindingDeliveryPort phoneEligibilityBindingDeliveryPort(
 				PhoneEligibilityPublisherProperties publisherProperties,
 				PhoneEligibilityBindingProperties bindingProperties,
-				WorkloadIdentityCredentialProvider credentialProvider,
-				Clock clock
+				@Qualifier("phoneEligibilityAwsCredentialsProvider") AwsCredentialsProvider credentialProvider
 		) {
 			publisherProperties.validate(bindingProperties);
 			return new JdkPhoneEligibilityBindingDeliveryAdapter(
-					publisherProperties.getEndpoint(), publisherProperties.getAudience(),
+					publisherProperties.getBaseUrl(), publisherProperties.getRegion(),
 					publisherProperties.getConnectTimeout(), publisherProperties.getReadTimeout(),
-					credentialProvider, clock);
+					credentialProvider);
+		}
+
+		@Bean("phoneEligibilityAwsCredentialsProvider")
+		AwsCredentialsProvider phoneEligibilityAwsCredentialsProvider() {
+			return DefaultCredentialsProvider.create();
 		}
 
 		@Bean

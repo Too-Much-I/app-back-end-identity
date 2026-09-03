@@ -9,23 +9,26 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class PhoneEligibilityPublisherProperties {
 
 	private boolean enabled;
-	private URI endpoint;
-	private String audience = "";
+	private URI baseUrl;
+	private String region = "ap-northeast-2";
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
 	private int maxAttempts = 12;
 	private Duration publishedRetention = Duration.ofDays(30);
 	private Duration deadLetterReview = Duration.ofDays(90);
-	private Duration connectTimeout = Duration.ofSeconds(3);
-	private Duration readTimeout = Duration.ofSeconds(5);
+	private Duration connectTimeout = Duration.ofSeconds(1);
+	private Duration readTimeout = Duration.ofSeconds(3);
 	private int maxBatchSize = 20;
 
 	public void validate(PhoneEligibilityBindingProperties bindingProperties) {
 		if (!enabled) return;
 		if (!bindingProperties.enabled()) throw invalid();
-		if (endpoint == null || !"https".equalsIgnoreCase(endpoint.getScheme())
-				|| endpoint.getHost() == null || endpoint.getUserInfo() != null
-				|| endpoint.getFragment() != null || audience == null || audience.isBlank()
+		if (baseUrl == null || !"https".equalsIgnoreCase(baseUrl.getScheme())
+				|| baseUrl.getHost() == null || baseUrl.getUserInfo() != null
+				|| baseUrl.getQuery() != null || baseUrl.getFragment() != null
+				|| (baseUrl.getPath() != null && !baseUrl.getPath().isEmpty()
+						&& !"/".equals(baseUrl.getPath()))
+				|| region == null || region.isBlank()
 				|| !positive(leaseDuration) || !positive(fixedDelay)
 				|| !positive(publishedRetention) || !positive(deadLetterReview)
 				|| !positive(connectTimeout) || !positive(readTimeout)
@@ -44,10 +47,10 @@ public class PhoneEligibilityPublisherProperties {
 
 	public boolean isEnabled() { return enabled; }
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
-	public URI getEndpoint() { return endpoint; }
-	public void setEndpoint(URI endpoint) { this.endpoint = endpoint; }
-	public String getAudience() { return audience; }
-	public void setAudience(String audience) { this.audience = audience == null ? "" : audience.trim(); }
+	public URI getBaseUrl() { return baseUrl; }
+	public void setBaseUrl(URI baseUrl) { this.baseUrl = baseUrl; }
+	public String getRegion() { return region; }
+	public void setRegion(String region) { this.region = region == null ? "" : region.trim(); }
 	public Duration getLeaseDuration() { return leaseDuration; }
 	public void setLeaseDuration(Duration leaseDuration) { this.leaseDuration = leaseDuration; }
 	public Duration getFixedDelay() { return fixedDelay; }
@@ -68,6 +71,6 @@ public class PhoneEligibilityPublisherProperties {
 	@Override
 	public String toString() {
 		return "PhoneEligibilityPublisherProperties[enabled=" + enabled
-				+ ", endpoint=[REDACTED], audience=[REDACTED]]";
+				+ ", baseUrl=[REDACTED], region=" + region + "]";
 	}
 }

@@ -13,6 +13,8 @@ public interface PhoneEligibilityBindingRevisionRepository
 
 	List<PhoneEligibilityBindingRevision> findAllByUserIdAndActiveTrue(String userId);
 
+	List<PhoneEligibilityBindingRevision> findAllByUserId(String userId);
+
 	Optional<PhoneEligibilityBindingRevision> findByUserIdAndConsumerScopeId(
 			String userId,
 			String consumerScopeId

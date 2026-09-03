@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
@@ -15,6 +16,8 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibi
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
+import web.tosunsaeng.identity.domain.auth.ownerevent.repository.PhoneRejoinLineageRepository;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalIdentityReleaseTransactionService;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalIdentityReleaseWorker;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -43,6 +46,8 @@ public class UserWithdrawalIdentityReleaseConfiguration {
 				PhoneFingerprintAliasRepository aliasRepository,
 				PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
 				PhoneEligibilityBindingOutboxRepository bindingOutboxRepository,
+				@Nullable PhoneRejoinLineageRepository lineageRepository,
+				@Nullable OwnerEventProperties ownerEventProperties,
 				UserWithdrawalIdentityReleaseProperties properties
 		) {
 			properties.validate();
@@ -54,7 +59,9 @@ public class UserWithdrawalIdentityReleaseConfiguration {
 					phoneIdentityRepository,
 					aliasRepository,
 					bindingRevisionRepository,
-					bindingOutboxRepository
+					bindingOutboxRepository,
+					lineageRepository,
+					ownerEventProperties
 			);
 		}
 

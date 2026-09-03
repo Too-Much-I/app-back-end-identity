@@ -12,7 +12,7 @@
 4. [ ] [탈퇴 Session 전용 오류와 모바일 logout·안내 UX 계약](withdrawal-session-mobile-ux-stage-4-plan.md)
 5. [ ] [`UserWithdrawn` event와 downstream Access Token deny marker](user-withdrawn-downstream-deny-marker-stage-5-plan.md)
 6. [ ] [가입 중단 Firebase User cleanup](firebase-abandoned-enrollment-cleanup-stage-6-plan.md)
-7. [ ] Billing 최소 Entitlement consumer 배포
+7. [ ] [Billing SigV4 eligibility와 owner event durable fan-out](billing-entitlement-owner-fanout-stage-7-plan.md)
 8. [ ] logout-all Firebase refresh revoke
 9. [ ] Refresh Token 응답 유실 복구와 rotation 원자성 개선
 10. [ ] Provider unlink와 전화번호 변경
@@ -28,7 +28,11 @@
 - event inbox는 source outbox의 최대 자동 재전달·dead-letter·운영 수동 replay 기간보다 길게 보존한 뒤 deny marker와 별도의 TTL로 정리한다. Token 원문이나 Provider credential을 event·marker·inbox에 저장하지 않는다.
 - 1~5단계와 양 서비스·모바일 staging E2E가 완료되기 전에는 Firebase/SNS withdrawal production flag를 활성화하지 않는다.
 - 6단계가 완료되기 전에는 phone을 연결하고 가입을 중단한 Firebase User의 자동 cleanup을 활성화하지 않는다.
-- 7단계는 Billing 저장소에서 consumer를 먼저 배포한 뒤 Identity eligibility publisher를 활성화하는 순서를 포함한다.
+- 7단계는 7-A Identity→Billing SigV4 기반, 7-B Billing owner rebind·phone continuation, 7-C Identity owner event durable fan-out, 7-D1 Learning Core phone continuation, 7-D2 Learning Core `UserMerged` consumer, 7-E staging E2E·canary 순서로 진행한다. Billing 7-B는 `develop` 병합됐고 Learning Core 7-D1은 구현·검증 후 `develop` 병합 대기 상태다.
+- `UserMerged`는 Billing과 Learning Core에 각각 전달하고, 동일 phone proof 기반 `TrialOwnerRebindApproved`는 Billing에만 전달한다. phone proof만으로 Learning Core 시험·결과를 이전하지 않는다.
+- phone 재가입의 없음·`OPEN`·`RETAKE_AVAILABLE`은 Billing owner rebind 대상이며, Learning Core는 Billing의 exact continuation을 조회해 source 기록을 이전하지 않고 target 명의의 새 Session을 만든다. `GRADING`은 terminal까지 retry하고 `COMPLETED`는 새 무료권 없이 NOOP다.
+- 반복 탈퇴·재가입에서는 직전 AVAILABLE lineage를 successor 가입이 CONSUMED하고 successor 탈퇴가 새 AVAILABLE lineage를 만든다. 과거 CONSUMED lineage가 여러 건인 것은 정상이며 동일 benefit scope의 AVAILABLE predecessor가 여러 건일 때만 자동 이전을 중단한다. 서로 다른 benefit scope는 독립 처리한다.
+- Billing owner event는 consumer별 단조 sequence로 직렬화하고, exact predecessor가 PUBLISHED되기 전 후속 owner event를 전송하지 않는다. phone 재가입 source lineage가 없거나 모호하면 가입은 허용하되 자동 권리 이전은 하지 않는다.
 - 8~9단계는 정상 로그아웃·네트워크 재시도가 세션 재생성 또는 전체 세션 유실로 이어지지 않게 한 뒤 완료한다.
 - 10~12단계는 자동 merge 없이 fresh proof와 명시적 사용자 행위로만 인증수단을 변경·복구하도록 구현한다.
 - 각 단계에는 정상 흐름뿐 아니라 동시 요청, 외부 성공 후 내부 실패, 내부 성공 후 응답 유실, retry와 reconciliation 테스트를 포함한다.

@@ -120,15 +120,15 @@ app:
     key-ring: ${PHONE_ELIGIBILITY_BINDING_KEY_RING:}
   phone-eligibility-publisher:
     enabled: ${PHONE_ELIGIBILITY_PUBLISHER_ENABLED:false}
-    endpoint: ${PHONE_ELIGIBILITY_PUBLISHER_ENDPOINT:}
-    audience: ${PHONE_ELIGIBILITY_PUBLISHER_AUDIENCE:}
+    base-url: ${PHONE_ELIGIBILITY_PUBLISHER_BASE_URL:}
+    region: ${PHONE_ELIGIBILITY_PUBLISHER_REGION:ap-northeast-2}
     lease-duration: ${PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION:PT60S}
     fixed-delay: ${PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY:PT5S}
     max-attempts: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS:12}
     published-retention: ${PHONE_ELIGIBILITY_PUBLISHER_PUBLISHED_RETENTION:P30D}
     dead-letter-review: ${PHONE_ELIGIBILITY_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
-    connect-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_CONNECT_TIMEOUT:PT3S}
-    read-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_READ_TIMEOUT:PT5S}
+    connect-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_CONNECT_TIMEOUT:PT1S}
+    read-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_READ_TIMEOUT:PT3S}
     max-batch-size: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_BATCH_SIZE:20}
   user-merged-publisher:
     enabled: ${USER_MERGED_PUBLISHER_ENABLED:false}
@@ -142,6 +142,26 @@ app:
     connect-timeout: ${USER_MERGED_PUBLISHER_CONNECT_TIMEOUT:PT3S}
     read-timeout: ${USER_MERGED_PUBLISHER_READ_TIMEOUT:PT5S}
     max-batch-size: ${USER_MERGED_PUBLISHER_MAX_BATCH_SIZE:20}
+  owner-event:
+    user-merged-capture-enabled: ${OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED:false}
+    trial-rebind-capture-enabled: ${OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED:false}
+    billing-user-merged-publisher-enabled: ${OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED:false}
+    learning-core-user-merged-publisher-enabled: ${OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED:false}
+    billing-trial-rebind-publisher-enabled: ${OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED:false}
+    billing-base-url: ${OWNER_EVENT_BILLING_BASE_URL:}
+    billing-region: ${OWNER_EVENT_BILLING_REGION:ap-northeast-2}
+    learning-core-endpoint: ${OWNER_EVENT_LEARNING_CORE_ENDPOINT:}
+    learning-core-audience: ${OWNER_EVENT_LEARNING_CORE_AUDIENCE:}
+    lease-duration: ${OWNER_EVENT_LEASE_DURATION:PT60S}
+    fixed-delay: ${OWNER_EVENT_FIXED_DELAY:PT5S}
+    initial-backoff: ${OWNER_EVENT_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${OWNER_EVENT_MAX_BACKOFF:PT15M}
+    max-attempts: ${OWNER_EVENT_MAX_ATTEMPTS:12}
+    published-retention: ${OWNER_EVENT_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${OWNER_EVENT_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${OWNER_EVENT_CONNECT_TIMEOUT:PT1S}
+    read-timeout: ${OWNER_EVENT_READ_TIMEOUT:PT3S}
+    max-batch-size: ${OWNER_EVENT_MAX_BATCH_SIZE:20}
   user-withdrawn-publisher:
     enabled: ${USER_WITHDRAWN_PUBLISHER_ENABLED:false}
     endpoint: ${USER_WITHDRAWN_PUBLISHER_ENDPOINT:}

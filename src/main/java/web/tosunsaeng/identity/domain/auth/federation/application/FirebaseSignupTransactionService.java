@@ -26,6 +26,7 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibi
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.application.PhoneRejoinLineageResolver;
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
@@ -44,6 +45,7 @@ public class FirebaseSignupTransactionService {
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final FirebaseEnrollmentAttemptRepository enrollmentRepository;
 	private final FirebaseEnrollmentLifecycleService enrollmentLifecycleService;
+	private final PhoneRejoinLineageResolver phoneRejoinLineageResolver;
 
 	@Autowired
 	public FirebaseSignupTransactionService(
@@ -60,7 +62,7 @@ public class FirebaseSignupTransactionService {
 		this(
 				userRepository, firebaseIdentityRepository, phoneIdentityRepository,
 				aliasRepository, outboxRepository, revisionRepository,
-				socialIdentityRepository, refreshSessionIssuer, enrollmentRepository, null
+				socialIdentityRepository, refreshSessionIssuer, enrollmentRepository, null, null
 		);
 	}
 
@@ -76,6 +78,25 @@ public class FirebaseSignupTransactionService {
 			FirebaseEnrollmentAttemptRepository enrollmentRepository,
 			FirebaseEnrollmentLifecycleService enrollmentLifecycleService
 	) {
+		this(userRepository, firebaseIdentityRepository, phoneIdentityRepository,
+				aliasRepository, outboxRepository, revisionRepository,
+				socialIdentityRepository, refreshSessionIssuer, enrollmentRepository,
+				enrollmentLifecycleService, null);
+	}
+
+	public FirebaseSignupTransactionService(
+			UserRepository userRepository,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			PhoneIdentityRepository phoneIdentityRepository,
+			PhoneFingerprintAliasRepository aliasRepository,
+			PhoneEligibilityBindingOutboxRepository outboxRepository,
+			PhoneEligibilityBindingRevisionRepository revisionRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			RefreshSessionIssuer refreshSessionIssuer,
+			FirebaseEnrollmentAttemptRepository enrollmentRepository,
+			FirebaseEnrollmentLifecycleService enrollmentLifecycleService,
+			PhoneRejoinLineageResolver phoneRejoinLineageResolver
+	) {
 		this.userRepository = Objects.requireNonNull(userRepository);
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
 		this.phoneIdentityRepository = Objects.requireNonNull(phoneIdentityRepository);
@@ -86,6 +107,7 @@ public class FirebaseSignupTransactionService {
 		this.refreshSessionIssuer = Objects.requireNonNull(refreshSessionIssuer);
 		this.enrollmentRepository = Objects.requireNonNull(enrollmentRepository);
 		this.enrollmentLifecycleService = enrollmentLifecycleService;
+		this.phoneRejoinLineageResolver = phoneRejoinLineageResolver;
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
@@ -143,6 +165,10 @@ public class FirebaseSignupTransactionService {
 				consumedAt
 		);
 		outboxRepository.save(outbox);
+		if (phoneRejoinLineageResolver != null) {
+			phoneRejoinLineageResolver.resolve(
+					phoneFingerprints, consumerScopeId, userId, consumedAt);
+		}
 		if (!socialIdentities.isEmpty()) {
 			socialIdentityRepository.saveAll(socialIdentities);
 		}

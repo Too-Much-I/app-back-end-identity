@@ -14,6 +14,7 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBinding
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneEligibilityBindingFailureCode;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingDeliveryScopeStateRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.global.workload.WorkloadDeliveryResult;
 
 public final class PhoneEligibilityBindingPublisher {
 
@@ -66,10 +67,10 @@ public final class PhoneEligibilityBindingPublisher {
 		PhoneEligibilityBindingOutbox event = claimed.get();
 		try {
 			byte[] payload = mapper.serialize(event);
-			int status = deliveryPort.deliver(payload);
-			return handleStatus(event, status, now);
+			WorkloadDeliveryResult result = deliveryPort.deliver(payload);
+			return handleStatus(event, result, now);
 		} catch (IllegalArgumentException exception) {
-			return deadLetter(event, PhoneEligibilityBindingFailureCode.INVALID_PAYLOAD, now, false);
+			return deadLetter(event, PhoneEligibilityBindingFailureCode.INVALID_PAYLOAD, now);
 		} catch (PhoneEligibilityBindingDeliveryException exception) {
 			PhoneEligibilityBindingFailureCode code = switch (exception.kind()) {
 				case CREDENTIAL_UNAVAILABLE -> PhoneEligibilityBindingFailureCode.CREDENTIAL_UNAVAILABLE;
@@ -82,39 +83,60 @@ public final class PhoneEligibilityBindingPublisher {
 		}
 	}
 
-	private Outcome handleStatus(PhoneEligibilityBindingOutbox event, int status, Instant now) {
+	private Outcome handleStatus(
+			PhoneEligibilityBindingOutbox event,
+			WorkloadDeliveryResult result,
+			Instant now
+	) {
+		int status = result.statusCode();
 		if (status >= 200 && status < 300) {
 			boolean updated = outboxRepository.markPublished(
 					event.getEventId(), leaseOwner, now, now.plus(publishedRetention));
 			return record(event, updated ? Outcome.PUBLISHED : Outcome.LEASE_LOST, null);
 		}
 		PhoneEligibilityBindingFailureCode code = statusCode(status);
-		if (status == 401 || status == 403) return deadLetter(event, code, now, true);
 		if (status == 408 || status == 425 || status == 429 || status >= 500) {
-			return retryOrDeadLetter(event, code, now);
+			return retryOrDeadLetter(event, code, now, result.retryAfterSeconds());
 		}
-		return deadLetter(event, code, now, false);
+		if (status == 400 || status == 409 || status == 413 || status == 422) {
+			return deadLetter(event, code, now);
+		}
+		return pauseScope(event, code, now);
 	}
 
 	private Outcome retryOrDeadLetter(PhoneEligibilityBindingOutbox event,
 			PhoneEligibilityBindingFailureCode code, Instant now) {
-		if (event.getAttemptCount() >= maxAttempts) return deadLetter(event, code, now, false);
+		return retryOrDeadLetter(event, code, now, null);
+	}
+
+	private Outcome retryOrDeadLetter(PhoneEligibilityBindingOutbox event,
+			PhoneEligibilityBindingFailureCode code, Instant now, Integer retryAfterSeconds) {
+		if (event.getAttemptCount() >= maxAttempts) return deadLetter(event, code, now);
+		Duration localDelay = retryPolicy.delay(event.getAttemptCount());
+		Duration retryAfter = retryAfterSeconds == null
+				? Duration.ZERO : Duration.ofSeconds(retryAfterSeconds);
+		Duration delay = localDelay.compareTo(retryAfter) >= 0 ? localDelay : retryAfter;
 		boolean updated = outboxRepository.scheduleRetry(event.getEventId(), leaseOwner, code,
-				now.plus(retryPolicy.delay(event.getAttemptCount())));
+				now.plus(delay));
 		return record(event, updated ? Outcome.RETRY_SCHEDULED : Outcome.LEASE_LOST, code);
 	}
 
 	private Outcome deadLetter(PhoneEligibilityBindingOutbox event,
-			PhoneEligibilityBindingFailureCode code, Instant now, boolean pauseScope) {
+			PhoneEligibilityBindingFailureCode code, Instant now) {
 		boolean updated = outboxRepository.markDeadLetter(event.getEventId(), leaseOwner, code,
 				now, now.plus(deadLetterReview));
 		if (!updated) return record(event, Outcome.LEASE_LOST, code);
-		if (pauseScope) {
-			scopeStateRepository.save(PhoneEligibilityBindingDeliveryScopeState.paused(
-					consumerScopeId, code, now));
-			return record(event, Outcome.SCOPE_PAUSED, code);
-		}
 		return record(event, Outcome.DEAD_LETTERED, code);
+	}
+
+	private Outcome pauseScope(PhoneEligibilityBindingOutbox event,
+			PhoneEligibilityBindingFailureCode code, Instant now) {
+		boolean updated = outboxRepository.scheduleRetry(
+				event.getEventId(), leaseOwner, code, now);
+		if (!updated) return record(event, Outcome.LEASE_LOST, code);
+		scopeStateRepository.save(PhoneEligibilityBindingDeliveryScopeState.paused(
+				consumerScopeId, code, now));
+		return record(event, Outcome.SCOPE_PAUSED, code);
 	}
 
 	private Outcome record(PhoneEligibilityBindingOutbox event, Outcome outcome,
@@ -132,8 +154,11 @@ public final class PhoneEligibilityBindingPublisher {
 			case 400 -> PhoneEligibilityBindingFailureCode.HTTP_400;
 			case 401 -> PhoneEligibilityBindingFailureCode.HTTP_401;
 			case 403 -> PhoneEligibilityBindingFailureCode.HTTP_403;
+			case 404 -> PhoneEligibilityBindingFailureCode.HTTP_404;
+			case 405 -> PhoneEligibilityBindingFailureCode.HTTP_405;
 			case 408 -> PhoneEligibilityBindingFailureCode.HTTP_408;
 			case 409 -> PhoneEligibilityBindingFailureCode.HTTP_409;
+			case 413 -> PhoneEligibilityBindingFailureCode.HTTP_413;
 			case 422 -> PhoneEligibilityBindingFailureCode.HTTP_422;
 			case 425 -> PhoneEligibilityBindingFailureCode.HTTP_425;
 			case 429 -> PhoneEligibilityBindingFailureCode.HTTP_429;

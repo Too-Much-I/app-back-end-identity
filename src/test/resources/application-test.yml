@@ -58,8 +58,14 @@ app:
     key-ring: ""
   phone-eligibility-publisher:
     enabled: false
-    endpoint: ""
-    audience: ""
+    base-url: ""
+    region: ap-northeast-2
+  owner-event:
+    user-merged-capture-enabled: false
+    trial-rebind-capture-enabled: false
+    billing-user-merged-publisher-enabled: false
+    learning-core-user-merged-publisher-enabled: false
+    billing-trial-rebind-publisher-enabled: false
   user-merged-publisher:
     enabled: false
     endpoint: ""
