@@ -25,6 +25,8 @@ import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSe
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.auth.usermerge.repository.UserMergedOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventCaptureService;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -114,6 +116,31 @@ class FirebaseGuestMergeTransactionServiceTests {
 		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.GUEST_MERGE_CONFLICT);
 		verify(sessionRepository, never()).findAllByUserIdAndRevokedAtIsNull(any());
 		verify(sessionIssuer, never()).savePrepared(any());
+		verify(outboxRepository, never()).save(any());
+	}
+
+	@Test
+	void newCaptureWritesDurableFanoutInsteadOfLegacyOutbox() {
+		OwnerEventCaptureService captureService = mock(OwnerEventCaptureService.class);
+		OwnerEventProperties properties = new OwnerEventProperties();
+		properties.setUserMergedCaptureEnabled(true);
+		service = new FirebaseGuestMergeTransactionService(
+				userRepository, sessionRepository, sessionIssuer, outboxRepository,
+				captureService, properties);
+		Aggregate aggregate = aggregate();
+		IssuedRefreshSession issued = new IssuedRefreshSession(
+				"target-refresh", MERGED_AT, MERGED_AT.plusSeconds(3600));
+		when(userRepository.findById(aggregate.target().getUserId()))
+				.thenReturn(Optional.of(aggregate.target()));
+		when(userRepository.mergeGuestIfUnchanged(any(), any())).thenReturn(true);
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(any())).thenReturn(List.of());
+		when(sessionIssuer.savePrepared(aggregate.prepared())).thenReturn(issued);
+
+		service.merge(aggregate.mergedSource(), aggregate.source().getUpdatedAt(),
+				aggregate.prepared(), aggregate.outbox(), MERGED_AT);
+
+		verify(captureService).captureUserMerged(
+				aggregate.source().getUserId(), aggregate.target().getUserId(), MERGED_AT);
 		verify(outboxRepository, never()).save(any());
 	}
 

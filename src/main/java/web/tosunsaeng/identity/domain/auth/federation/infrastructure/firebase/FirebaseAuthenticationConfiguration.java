@@ -55,6 +55,9 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibi
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventCaptureService;
+import web.tosunsaeng.identity.domain.auth.ownerevent.application.PhoneRejoinLineageResolver;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -310,7 +313,8 @@ public class FirebaseAuthenticationConfiguration {
 				SocialIdentityRepository socialIdentityRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseEnrollmentAttemptRepository enrollmentRepository,
-				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService
+				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService,
+				@Nullable PhoneRejoinLineageResolver phoneRejoinLineageResolver
 		) {
 			return new FirebaseSignupTransactionService(
 					userRepository,
@@ -322,7 +326,8 @@ public class FirebaseAuthenticationConfiguration {
 					socialIdentityRepository,
 					refreshSessionIssuer,
 					enrollmentRepository,
-					enrollmentLifecycleService
+					enrollmentLifecycleService,
+					phoneRejoinLineageResolver
 			);
 		}
 
@@ -391,7 +396,8 @@ public class FirebaseAuthenticationConfiguration {
 				RefreshSessionRepository refreshSessionRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseEnrollmentAttemptRepository enrollmentRepository,
-				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService
+				@Nullable FirebaseEnrollmentLifecycleService enrollmentLifecycleService,
+				@Nullable PhoneRejoinLineageResolver phoneRejoinLineageResolver
 		) {
 			return new FirebaseGuestUpgradeTransactionService(
 					userRepository,
@@ -401,7 +407,8 @@ public class FirebaseAuthenticationConfiguration {
 					refreshSessionRepository,
 					refreshSessionIssuer,
 					enrollmentRepository,
-					enrollmentLifecycleService
+					enrollmentLifecycleService,
+					phoneRejoinLineageResolver
 			);
 		}
 
@@ -485,13 +492,17 @@ public class FirebaseAuthenticationConfiguration {
 				UserRepository userRepository,
 				RefreshSessionRepository refreshSessionRepository,
 				RefreshSessionIssuer refreshSessionIssuer,
-				UserMergedOutboxRepository outboxRepository
+				UserMergedOutboxRepository outboxRepository,
+				@Nullable OwnerEventCaptureService ownerEventCaptureService,
+				@Nullable OwnerEventProperties ownerEventProperties
 		) {
 			return new FirebaseGuestMergeTransactionService(
 					userRepository,
 					refreshSessionRepository,
 					refreshSessionIssuer,
-					outboxRepository
+					outboxRepository,
+					ownerEventCaptureService,
+					ownerEventProperties
 			);
 		}
 

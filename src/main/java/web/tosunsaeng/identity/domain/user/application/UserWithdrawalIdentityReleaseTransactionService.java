@@ -13,6 +13,7 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBinding
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneRejoinLineage;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
@@ -22,6 +23,8 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibi
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
+import web.tosunsaeng.identity.domain.auth.ownerevent.repository.PhoneRejoinLineageRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
@@ -40,6 +43,8 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 	private final PhoneFingerprintAliasRepository aliasRepository;
 	private final PhoneEligibilityBindingRevisionRepository bindingRevisionRepository;
 	private final PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
+	private final PhoneRejoinLineageRepository lineageRepository;
+	private final OwnerEventProperties ownerEventProperties;
 
 	public UserWithdrawalIdentityReleaseTransactionService(
 			UserWithdrawalLifecycleRepository lifecycleRepository,
@@ -51,6 +56,23 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 			PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
 			PhoneEligibilityBindingOutboxRepository bindingOutboxRepository
 	) {
+		this(lifecycleRepository, userRepository, firebaseIdentityRepository,
+				socialIdentityRepository, phoneIdentityRepository, aliasRepository,
+				bindingRevisionRepository, bindingOutboxRepository, null, null);
+	}
+
+	public UserWithdrawalIdentityReleaseTransactionService(
+			UserWithdrawalLifecycleRepository lifecycleRepository,
+			UserRepository userRepository,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			PhoneIdentityRepository phoneIdentityRepository,
+			PhoneFingerprintAliasRepository aliasRepository,
+			PhoneEligibilityBindingRevisionRepository bindingRevisionRepository,
+			PhoneEligibilityBindingOutboxRepository bindingOutboxRepository,
+			PhoneRejoinLineageRepository lineageRepository,
+			OwnerEventProperties ownerEventProperties
+	) {
 		this.lifecycleRepository = Objects.requireNonNull(lifecycleRepository);
 		this.userRepository = Objects.requireNonNull(userRepository);
 		this.firebaseIdentityRepository = Objects.requireNonNull(firebaseIdentityRepository);
@@ -59,6 +81,8 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 		this.aliasRepository = Objects.requireNonNull(aliasRepository);
 		this.bindingRevisionRepository = Objects.requireNonNull(bindingRevisionRepository);
 		this.bindingOutboxRepository = Objects.requireNonNull(bindingOutboxRepository);
+		this.lineageRepository = lineageRepository;
+		this.ownerEventProperties = ownerEventProperties;
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
@@ -141,6 +165,9 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 		List<PhoneEligibilityBindingRevision> activeBindings = List.copyOf(
 				bindingRevisionRepository.findAllByUserIdAndActiveTrue(lifecycle.getUserId())
 		);
+		List<PhoneEligibilityBindingRevision> bindingHistory = List.copyOf(
+				bindingRevisionRepository.findAllByUserId(lifecycle.getUserId())
+		);
 		boolean allIdentitiesAlreadyReleased = firebaseResolution.identity() == null
 				&& socialIdentities.isEmpty()
 				&& phoneIdentity.isEmpty()
@@ -164,7 +191,24 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 			);
 		}
 
-		revokeActiveBindings(activeBindings, requiredReleasedAt);
+		List<PhoneEligibilityBindingRevision> revokedBindings = revokeActiveBindings(
+				activeBindings, requiredReleasedAt);
+		if (revokedBindings.isEmpty() && phoneIdentity.isPresent()) {
+			revokedBindings = bindingHistory.stream()
+					.filter(binding -> !binding.isActive())
+					.toList();
+		}
+		if (phoneIdentity.isPresent() && lineageRepository != null && ownerEventProperties != null
+				&& ownerEventProperties.isTrialRebindCaptureEnabled()) {
+			PhoneIdentity sourcePhone = phoneIdentity.orElseThrow();
+			List<PhoneRejoinLineage> lineages = revokedBindings.stream()
+					.map(revoked -> PhoneRejoinLineage.available(
+							lifecycle.getWithdrawalId(), lifecycle.getUserId(),
+							sourcePhone.getPhoneIdentityId(), revoked.getConsumerScopeId(),
+							revoked.getRevision(), requiredReleasedAt))
+					.toList();
+			if (!lineages.isEmpty()) lineageRepository.saveAll(lineages);
+		}
 		if (firebaseResolution.identity() != null) {
 			firebaseIdentityRepository.deleteById(
 					firebaseResolution.identity().getFirebaseIdentityId()
@@ -276,10 +320,11 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 				&& identity.getPhoneIdentityId().equals(alias.getPhoneIdentityId()));
 	}
 
-	private void revokeActiveBindings(
+	private List<PhoneEligibilityBindingRevision> revokeActiveBindings(
 			List<PhoneEligibilityBindingRevision> activeBindings,
 			Instant revokedAt
 	) {
+		java.util.ArrayList<PhoneEligibilityBindingRevision> revokedBindings = new java.util.ArrayList<>();
 		for (PhoneEligibilityBindingRevision active : activeBindings) {
 			PhoneEligibilityBindingRevision revoked = bindingRevisionRepository.advanceRevoked(
 					active.getUserId(),
@@ -296,7 +341,9 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 					revokedAt,
 					revokedAt
 			));
+			revokedBindings.add(revoked);
 		}
+		return List.copyOf(revokedBindings);
 	}
 
 	private IdentityReleaseOutcome reconcile(

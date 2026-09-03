@@ -15,6 +15,8 @@ import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSe
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.auth.usermerge.repository.UserMergedOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventCaptureService;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -25,6 +27,8 @@ public class FirebaseGuestMergeTransactionService {
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final UserMergedOutboxRepository outboxRepository;
+	private final OwnerEventCaptureService ownerEventCaptureService;
+	private final OwnerEventProperties ownerEventProperties;
 
 	public FirebaseGuestMergeTransactionService(
 			UserRepository userRepository,
@@ -32,10 +36,24 @@ public class FirebaseGuestMergeTransactionService {
 			RefreshSessionIssuer refreshSessionIssuer,
 			UserMergedOutboxRepository outboxRepository
 	) {
+		this(userRepository, refreshSessionRepository, refreshSessionIssuer,
+				outboxRepository, null, null);
+	}
+
+	public FirebaseGuestMergeTransactionService(
+			UserRepository userRepository,
+			RefreshSessionRepository refreshSessionRepository,
+			RefreshSessionIssuer refreshSessionIssuer,
+			UserMergedOutboxRepository outboxRepository,
+			OwnerEventCaptureService ownerEventCaptureService,
+			OwnerEventProperties ownerEventProperties
+	) {
 		this.userRepository = Objects.requireNonNull(userRepository);
 		this.refreshSessionRepository = Objects.requireNonNull(refreshSessionRepository);
 		this.refreshSessionIssuer = Objects.requireNonNull(refreshSessionIssuer);
 		this.outboxRepository = Objects.requireNonNull(outboxRepository);
+		this.ownerEventCaptureService = ownerEventCaptureService;
+		this.ownerEventProperties = ownerEventProperties;
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
@@ -87,7 +105,15 @@ public class FirebaseGuestMergeTransactionService {
 		IssuedRefreshSession issuedRefreshSession = refreshSessionIssuer.savePrepared(
 				requiredTargetSession
 		);
-		outboxRepository.save(requiredOutbox);
+		if (ownerEventProperties != null && ownerEventProperties.isUserMergedCaptureEnabled()) {
+			if (ownerEventCaptureService == null) {
+				throw new IllegalStateException("Owner event capture service is unavailable.");
+			}
+			ownerEventCaptureService.captureUserMerged(
+					sourceUserId, targetUserId, requiredMergedAt);
+		} else {
+			outboxRepository.save(requiredOutbox);
+		}
 		return issuedRefreshSession;
 	}
 

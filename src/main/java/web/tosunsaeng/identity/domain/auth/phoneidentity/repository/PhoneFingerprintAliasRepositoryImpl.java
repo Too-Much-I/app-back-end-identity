@@ -31,6 +31,14 @@ public class PhoneFingerprintAliasRepositoryImpl
 	public List<PhoneFingerprintAlias> findAllActiveByFingerprints(
 			Collection<PhoneFingerprint> fingerprints
 	) {
+		return findAllByFingerprintsAndStatus(fingerprints, PhoneFingerprintAliasStatus.ACTIVE);
+	}
+
+	@Override
+	public List<PhoneFingerprintAlias> findAllByFingerprintsAndStatus(
+			Collection<PhoneFingerprint> fingerprints,
+			PhoneFingerprintAliasStatus status
+	) {
 		List<PhoneFingerprint> required = List.copyOf(
 				Objects.requireNonNull(fingerprints, "fingerprints must not be null")
 		);
@@ -44,7 +52,7 @@ public class PhoneFingerprintAliasRepositoryImpl
 						.is(fingerprint.value()))
 				.toArray(Criteria[]::new);
 		Query query = Query.query(Criteria.where("status")
-				.is(PhoneFingerprintAliasStatus.ACTIVE)
+				.is(Objects.requireNonNull(status, "status must not be null"))
 				.andOperator(new Criteria().orOperator(candidates)));
 		return mongoOperations.find(query, PhoneFingerprintAlias.class);
 	}

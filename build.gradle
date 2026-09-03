@@ -33,6 +33,11 @@ sentry {
 }
 
 dependencies {
+	// VPC Lattice workload 호출의 SigV4 서명과 ECS task role credential 해석
+	implementation platform('software.amazon.awssdk:bom:2.29.52')
+	implementation 'software.amazon.awssdk:auth'
+	implementation 'software.amazon.awssdk:http-auth-aws'
+
 	// REST API
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 

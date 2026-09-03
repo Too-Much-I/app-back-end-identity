@@ -79,13 +79,22 @@ Identity Service는 다음 기능을 소유한다.
 | `PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID` | eligibility binding 활성화 시 필수 | Identity가 의미를 해석하지 않는 allowlist된 opaque consumer scope |
 | `PHONE_ELIGIBILITY_BINDING_KEY_RING` | eligibility binding 활성화 시 필수 | PhoneIdentity key와 분리해 Secret으로 주입하는 retained key ring |
 | `PHONE_ELIGIBILITY_PUBLISHER_ENABLED` | 선택 | eligibility event HTTPS publisher 활성화 여부, 기본값 `false` |
-| `PHONE_ELIGIBILITY_PUBLISHER_ENDPOINT` | publisher 활성화 시 필수 | allowlist된 consumer의 HTTPS endpoint |
-| `PHONE_ELIGIBILITY_PUBLISHER_AUDIENCE` | publisher 활성화 시 필수 | workload identity credential의 대상 audience |
+| `PHONE_ELIGIBILITY_PUBLISHER_BASE_URL` | publisher 활성화 시 필수 | VPC Lattice Billing HTTPS origin; route는 코드에 고정 |
+| `PHONE_ELIGIBILITY_PUBLISHER_REGION` | 선택 | SigV4 region, 기본값 `ap-northeast-2` |
 | `PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION` | 선택 | atomic claim lease, 기본값 `PT60S` |
 | `PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY` | 선택 | publisher polling 간격, 기본값 `PT5S` |
 | `PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS` | 선택 | transient delivery 최대 시도 횟수, 기본값 `12` |
 | `PHONE_ELIGIBILITY_PUBLISHER_PUBLISHED_RETENTION` | 선택 | 발행 완료 event 보존 기간, 기본값 `P30D` |
 | `PHONE_ELIGIBILITY_PUBLISHER_DEAD_LETTER_REVIEW` | 선택 | dead-letter 검토 기준 기간, 기본값 `P90D`이며 자동 삭제하지 않음 |
+| `OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED` | 선택 | 신규 UserMerged core와 consumer별 delivery capture, 기본값 `false` |
+| `OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED` | 선택 | phone rejoin lineage와 Billing owner event capture, 기본값 `false` |
+| `OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED` | 선택 | Billing UserMerged publisher, 기본값 `false` |
+| `OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED` | 선택 | Learning Core UserMerged publisher, 기본값 `false` |
+| `OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED` | 선택 | Billing TrialOwnerRebindApproved publisher, 기본값 `false` |
+| `OWNER_EVENT_BILLING_BASE_URL` | Billing publisher 활성화 시 필수 | VPC Lattice Billing HTTPS origin |
+| `OWNER_EVENT_BILLING_REGION` | 선택 | owner event SigV4 region, 기본값 `ap-northeast-2` |
+| `OWNER_EVENT_LEARNING_CORE_ENDPOINT` | Learning Core publisher 활성화 시 필수 | workload JWT로 호출할 exact UserMerged HTTPS endpoint |
+| `OWNER_EVENT_LEARNING_CORE_AUDIENCE` | Learning Core publisher 활성화 시 필수 | UserMerged workload JWT audience |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -23,6 +24,7 @@ import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBinding
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias;
 import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneRejoinLineage;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneFingerprintAliasStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneIdentityStatus;
@@ -34,6 +36,8 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibi
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerprintAliasRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneIdentityRepository;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
+import web.tosunsaeng.identity.domain.auth.ownerevent.repository.PhoneRejoinLineageRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
@@ -399,6 +403,72 @@ class UserWithdrawalIdentityReleaseTransactionServiceTests {
 
 		assertThat(annotation).isNotNull();
 		assertThat(annotation.transactionManager()).isEqualTo("mongoTransactionManager");
+	}
+
+	@Test
+	void releasedPhoneAndRevokedBindingCreateAvailableLineageInSameTransaction() {
+		String withdrawalId = "00000000-0000-4000-8000-000000000099";
+		UserWithdrawalLifecycle selected = mock(UserWithdrawalLifecycle.class);
+		when(selected.getWithdrawalId()).thenReturn(withdrawalId);
+		when(selected.getUserId()).thenReturn(USER_ID);
+		when(selected.getStatus()).thenReturn(UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING);
+		when(selected.getRequestedAt()).thenReturn(REQUESTED_AT);
+		when(selected.getExternalDeletedAt()).thenReturn(EXTERNAL_DELETED_AT);
+		when(selected.getVersion()).thenReturn(7L);
+		when(lifecycleRepository.findById(withdrawalId)).thenReturn(Optional.of(selected));
+		when(firebaseIdentityRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+		when(socialIdentityRepository.findAllByUserId(USER_ID)).thenReturn(List.of());
+		PhoneIdentity phone = PhoneIdentity.create(
+				USER_ID, new PhoneFingerprint("v1", "A".repeat(43)), REQUESTED_AT);
+		PhoneFingerprintAlias alias = PhoneFingerprintAlias.create(
+				phone.getPhoneIdentityId(), USER_ID,
+				new PhoneFingerprint("v1", "A".repeat(43)), REQUESTED_AT);
+		when(phoneIdentityRepository.findByUserIdAndStatus(USER_ID, PhoneIdentityStatus.ACTIVE))
+				.thenReturn(Optional.of(phone));
+		when(aliasRepository.findAllByUserIdAndStatus(USER_ID, PhoneFingerprintAliasStatus.ACTIVE))
+				.thenReturn(List.of(alias));
+		when(aliasRepository.findAllByPhoneIdentityIdAndStatus(
+				phone.getPhoneIdentityId(), PhoneFingerprintAliasStatus.ACTIVE))
+				.thenReturn(List.of(alias));
+		when(aliasRepository.releaseAllActiveByPhoneIdentityId(phone.getPhoneIdentityId(), RELEASED_AT))
+				.thenReturn(1L);
+		PhoneEligibilityBindingRevision active = mock(PhoneEligibilityBindingRevision.class);
+		when(active.getUserId()).thenReturn(USER_ID);
+		when(active.getConsumerScopeId()).thenReturn("FREE_EXAM_ONCE");
+		when(active.getRevision()).thenReturn(1L);
+		when(active.isActive()).thenReturn(true);
+		PhoneEligibilityBindingRevision revoked = mock(PhoneEligibilityBindingRevision.class);
+		when(revoked.getUserId()).thenReturn(USER_ID);
+		when(revoked.getConsumerScopeId()).thenReturn("FREE_EXAM_ONCE");
+		when(revoked.getRevision()).thenReturn(2L);
+		when(revoked.isActive()).thenReturn(false);
+		when(bindingRevisionRepository.findAllByUserIdAndActiveTrue(USER_ID))
+				.thenReturn(List.of(active));
+		when(bindingRevisionRepository.findAllByUserId(USER_ID)).thenReturn(List.of(active));
+		when(bindingRevisionRepository.advanceRevoked(
+				USER_ID, "FREE_EXAM_ONCE", 1L, RELEASED_AT)).thenReturn(Optional.of(revoked));
+		when(lifecycleRepository.markIdentityReleaseCleaned(withdrawalId, 7L, RELEASED_AT))
+				.thenReturn(true);
+		PhoneRejoinLineageRepository lineageRepository = mock(PhoneRejoinLineageRepository.class);
+		OwnerEventProperties properties = new OwnerEventProperties();
+		properties.setTrialRebindCaptureEnabled(true);
+		UserWithdrawalIdentityReleaseTransactionService captureService =
+				new UserWithdrawalIdentityReleaseTransactionService(
+						lifecycleRepository, userRepository, firebaseIdentityRepository,
+						socialIdentityRepository, phoneIdentityRepository, aliasRepository,
+						bindingRevisionRepository, bindingOutboxRepository,
+						lineageRepository, properties);
+
+		assertThat(captureService.release(selected, RELEASED_AT))
+				.isEqualTo(IdentityReleaseOutcome.CLEANED);
+		ArgumentCaptor<List<PhoneRejoinLineage>> lineages = ArgumentCaptor.forClass(List.class);
+		verify(lineageRepository).saveAll(lineages.capture());
+		assertThat(lineages.getValue()).singleElement().satisfies(lineage -> {
+			assertThat(lineage.getSourceWithdrawalId()).isEqualTo(withdrawalId);
+			assertThat(lineage.getSourcePhoneIdentityId()).isEqualTo(phone.getPhoneIdentityId());
+			assertThat(lineage.getSourceBindingRevision()).isEqualTo(2L);
+			assertThat(lineage.getCleanupAt()).isNull();
+		});
 	}
 
 	private void emptyUserMappings() {

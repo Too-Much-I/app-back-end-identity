@@ -27,6 +27,7 @@ import web.tosunsaeng.identity.domain.auth.domain.enums.PhoneEligibilityBindingF
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneEligibilityFingerprintCandidate;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingDeliveryScopeStateRepository;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.global.workload.WorkloadDeliveryResult;
 
 class PhoneEligibilityBindingPublisherTests {
 
@@ -76,7 +77,7 @@ class PhoneEligibilityBindingPublisherTests {
 
 	@Test
 	void publishesOnlyAfterTwoXxAndUsesThirtyDayCleanup() {
-		Fixture fixture = fixture(payload -> 204);
+		Fixture fixture = fixture(payload -> new WorkloadDeliveryResult(204, null));
 		PhoneEligibilityBindingOutbox event = claimed(verified(), 1);
 		when(fixture.outboxRepository.claimNext(eq(SCOPE), any(), eq(NOW), eq(NOW.plusSeconds(60))))
 				.thenReturn(Optional.of(event));
@@ -115,18 +116,33 @@ class PhoneEligibilityBindingPublisherTests {
 	}
 
 	@Test
-	void authenticationFailureDeadLettersAndPausesScope() {
-		Fixture fixture = fixture(payload -> 403);
+	void authenticationFailureReleasesDeliveryAndPausesScope() {
+		Fixture fixture = fixture(payload -> new WorkloadDeliveryResult(403, null));
 		PhoneEligibilityBindingOutbox event = claimed(verified(), 1);
 		when(fixture.outboxRepository.claimNext(any(), any(), any(), any()))
 				.thenReturn(Optional.of(event));
-		when(fixture.outboxRepository.markDeadLetter(eq(event.getEventId()), any(),
-				eq(PhoneEligibilityBindingFailureCode.HTTP_403), eq(NOW), any()))
+		when(fixture.outboxRepository.scheduleRetry(eq(event.getEventId()), any(),
+				eq(PhoneEligibilityBindingFailureCode.HTTP_403), eq(NOW)))
 				.thenReturn(true);
 
 		assertThat(fixture.publisher.publishNext())
 				.isEqualTo(PhoneEligibilityBindingPublisher.Outcome.SCOPE_PAUSED);
 		verify(fixture.scopeStateRepository).save(any());
+		verify(fixture.outboxRepository, never()).markDeadLetter(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void retryAfterUsesGreaterOfServerHintAndLocalBackoff() {
+		Fixture fixture = fixture(payload -> new WorkloadDeliveryResult(429, 300));
+		PhoneEligibilityBindingOutbox event = claimed(verified(), 1);
+		when(fixture.outboxRepository.claimNext(any(), any(), any(), any()))
+				.thenReturn(Optional.of(event));
+		when(fixture.outboxRepository.scheduleRetry(eq(event.getEventId()), any(),
+				eq(PhoneEligibilityBindingFailureCode.HTTP_429), eq(NOW.plusSeconds(300))))
+				.thenReturn(true);
+
+		assertThat(fixture.publisher.publishNext())
+				.isEqualTo(PhoneEligibilityBindingPublisher.Outcome.RETRY_SCHEDULED);
 	}
 
 	private Fixture fixture(PhoneEligibilityBindingDeliveryPort deliveryPort) {
