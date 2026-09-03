@@ -89,9 +89,11 @@ v1 불변식:
 Learning Core가 실제 내부 경로를 정한 뒤 Identity 배포 환경에 다음 값을 공유한다.
 
 ```text
-USER_MERGED_PUBLISHER_ENDPOINT=https://<learning-core-host>/<internal-user-merged-path>
-USER_MERGED_PUBLISHER_AUDIENCE=<learning-core-workload-audience>
+USER_MERGED_PUBLISHER_ENDPOINT=https://<learning-core-host>/internal/v1/events/user-merged
 ```
+
+Identity는 외부 Token 발급 API 없이 내부 typed purpose `USER_MERGED`를
+고정 audience `learning-core-user-merged`로 매핑한다.
 
 실제 host, credential, token은 저장소나 이 문서에 기록하지 않는다.
 
@@ -152,7 +154,7 @@ POST UserMerged
 → 204
 ```
 
-`202 Accepted`로 inbox만 저장하고 나중에 worker가 처리하는 모델은 v1에서 사용하지 않는다. Identity publisher의 기본 read timeout은 5초이므로 ownership inventory와 staging 부하 검증에서 transaction의 P99가 설정 timeout 안에 충분한 여유로 끝나는지 증명해야 한다. 충족하지 못하면 timeout만 임의로 늘려 활성화하지 않고 durable inbox + worker 계약으로 문서를 다시 승인한다.
+`202 Accepted`로 inbox만 저장하고 나중에 worker가 처리하는 모델은 v1에서 사용하지 않는다. 신규 owner-event publisher의 기본 read timeout은 3초이므로 ownership inventory와 staging 부하 검증에서 transaction의 P99가 설정 timeout 안에 충분한 여유로 끝나는지 증명해야 한다. 충족하지 못하면 timeout만 임의로 늘려 활성화하지 않고 durable inbox + worker 계약으로 문서를 다시 승인한다.
 
 응답 규칙:
 
@@ -165,7 +167,9 @@ POST UserMerged
 | 잘못된 JSON·필수 필드·UUID | `400` 또는 `422` | 영구 실패 격리 |
 | 알 수 없는 `schemaVersion` | `422` | 영구 실패 격리 |
 | 동일 `eventId` + 다른 payload | `409` 또는 `422`와 보안 경보 | 영구 실패 격리 |
-| workload 인증 실패 | `401` 또는 `403` | 영구 실패 격리 |
+| payload 크기 초과 | `413` | 영구 실패 격리 |
+| 지원하지 않는 media type | `415` | 영구 실패 격리 |
+| workload 인증 실패 | `401` 또는 `403` | consumer circuit pause·운영 격리 |
 
 **동일 event 재수신에 `409`를 반환하면 안 된다.** 동일 payload의 duplicate는 이미 성공한 요청이므로 `2xx`를 반환한다.
 

@@ -7641,3 +7641,181 @@
 - 배포 전 확인: Billing·Learning Core consumer를 flag OFF로 선배포하고 신규 index·replica set Transaction을 확인한다. exact task role의 승인 POST route와 반대 환경·direct endpoint 거절을 검증한 뒤 consumer ON → capture ON → channel별 publisher canary 순서로 활성화한다. backlog·sequence gap·dead-letter·circuit·privacy 지표와 운영 runbook replay를 확인한다.
 - 예상 밖 변경: 이번 구현 범위 밖의 `AGENTS.md`, 기존 `docs/contracts/firebase-auth-follow-up-implementation-order.md`, 기존 WORKLOG/CURRENT_STATE 내용과 사용자가 작성한 Stage 7 계획서 변경은 보존했다. Billing과 Learning Core 저장소 파일, 기존 공개 API, commit·push는 변경하지 않았다.
 - 다음 작업: 사용자가 PR 병합을 확인한 뒤 별도 승인으로 Jira 댓글·상태를 갱신한다. 그 전에는 Learning Core `UserMerged` consumer readiness와 Stage 7 staging IAM·Mongo Transaction·E2E/canary를 진행한다.
+
+## 2026-09-03 — TMI-123 병합 및 Jira 완료 전 검증
+
+<!-- codex-turn:01a065d9-a7ab-7bc1-894a-a74ab7f77018 -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: `TMI-123`을 Atlassian 공식 연동으로 읽기 전용 조회했다. 현재 상태는 `해야 할 일`, Resolution은 미설정이며 `완료` transition ID `41`을 사용할 수 있음을 확인했다. 댓글 등록과 상태 변경은 아직 수행하지 않았다.
+- 작업 목표: TMI-123을 닫기 전에 구현 PR 병합 여부, Jira 현재 상태와 정확한 완료 transition을 검증하고 사용자에게 적용할 완료 댓글과 상태 변경 내용을 제시한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·계획 문서는 변경하지 않았다.
+- 확인 결과: `develop`과 `origin/develop`이 commit `391b55f`로 일치하며, 해당 commit은 PR #37 `feat/TMI-123-owner-event-fanout-sigv4` 병합 commit이다. 구현 commit `ab433a3`이 `develop`에 포함된 것도 확인했다.
+- 실행한 테스트와 결과: 이번 작업은 병합·Jira 상태 확인과 문서 기록만 수행해 Gradle 테스트를 다시 실행하지 않았다. 구현 turn에서 최종 `./gradlew clean test` 621개 성공이 기록되어 있으며 이번 문서 변경에는 `git diff --check`를 실행한다.
+- 유지한 계약: PR 병합 확인 전 Jira 완료 금지, Jira mutation 전 변경 내용 제시와 별도 사용자 승인, Secret·Token·개인정보 비기록 규칙을 유지했다.
+- 결정사항: 완료 댓글에는 Billing SigV4, bounded Retry-After, owner event durable fan-out, phone rejoin lineage, 621개 테스트 결과와 staging 운영 gate를 기록하고, 승인 후 transition ID `41`만 적용한다.
+- 위험 요소: staging VPC Lattice IAM, 실제 Mongo replica set Transaction, Billing·Learning Core consumer E2E는 아직 미검증이다. Jira 완료는 코드 병합 완료를 뜻하며 운영 feature 활성화 완료를 뜻하지 않는다.
+- 다음 작업: 사용자가 제시된 댓글과 `해야 할 일` → `완료` 변경을 승인하면 Jira 댓글을 등록하고 transition ID `41`을 적용한 뒤 상태와 Resolution을 재조회한다.
+
+## 2026-09-03 — TMI-123 Learning Core UserMerged 후속 계약 검토
+
+<!-- codex-turn:01a065df-c911-7a32-beda-eece1ecefaff -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: Identity `TMI-123`, 후속 Learning Core `TMI-125`. 이번 작업에서는 Jira 조회·댓글·상태·필드 변경을 수행하지 않았다.
+- 작업 목표: Learning Core가 전달한 UserMerged endpoint, 전용 workload audience/JWT, consumer별 fan-out, wire, HTTP 분류, 인증 방식, feature flag와 완료 증빙 요구를 현재 Identity `develop` 구현에 대조한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·계획 문서는 변경하지 않았다.
+- 5줄 결론: 요청 방향은 타당하다. 현재 Learning Core adapter의 exact path는 `/internal/v1/owners/merge/events`여서 확정 경로 `/internal/v1/events/user-merged`와 다르다. workload JWT 발급기는 `learning-core-user-withdrawn` 한 audience만 허용해 `learning-core-user-merged`를 발급할 수 없다. HTTP `415`는 현재 payload 격리가 아니라 예상하지 못한 4xx circuit pause로 처리된다. 이 세 항목과 누락된 transport·cross-consumer 증빙 테스트를 보완하기 전 TMI-123을 완료 처리하지 않는다.
+- 확인된 구현: UserMerged core는 Billing·Learning Core를 required consumer로 갖고 각각 sequence/delivery를 만들며, TrialOwnerRebindApproved는 Billing-only다. UserMerged wire v1의 다섯 필드와 source/target 상이 조건, legacy/new capture 상호 배타, HTTPS·query/fragment/user-info 금지, redirect 금지, JSON Bearer 전송, 2xx 완료, 408·425·429·5xx/timeout/connection retry, 401·403 circuit pause, bounded Retry-After, 기본 false feature flag가 구현돼 있다.
+- JWT 확인: 기존 provider는 RS256, workload issuer, `aud`, `sub=identity-service`, `iat`, `nbf=iat`, `exp=iat+PT2M`, 매 발급 UUID `jti`, `typ=JWT`, active `kid`를 생성하고 임의 audience를 거절한다. 다중 공개키 JWKS도 구현돼 있다. 다만 allowlist가 탈퇴 audience 하나뿐이며 owner-event 설정의 임의 문자열 audience와 구조적으로 충돌한다.
+- 권고 설계: raw audience 문자열 대신 목적 enum/profile을 provider 입력으로 사용하고 `USER_WITHDRAWN`과 `USER_MERGED`를 각각 고정 audience에 매핑한다. Learning Core owner-event 설정은 `learning-core-user-merged` exact 값만 허용하거나 설정 자체를 typed profile로 대체한다. 기존 user-withdrawn 발급 계약은 유지한다.
+- 테스트 공백: Learning Core adapter exact endpoint·Authorization·Content-Type·redirect·Retry-After contract test, UserMerged audience 정상 발급과 타 audience 거절, 호출마다 새 jti, 사용자 식별정보 claim 부재, HTTP 415 dead-letter, 동일 eventId/payload 재전송, Billing 성공·Learning Core 실패의 독립 재시도 증빙이 없다. fan-out cardinality와 기존 workload JWT claim·JWKS rotation 테스트는 존재한다.
+- 책임 보정: 잘못된 `iss`·`aud`·`sub`·`exp`·`kid` Token을 거절하는 검증은 consumer인 Learning Core TMI-125의 필수 테스트다. Identity는 정확한 UserMerged Token 발급, 고정 목적 외 audience 거절, active/previous JWKS 노출과 golden-token 호환 증빙을 담당한다. staging/prod issuer·key·kid 분리는 배포 설정/IaC 검증 항목이다.
+- 실행한 테스트와 결과: owner event capture/publisher, workload JWT provider, JWKS rotation 집중 테스트 10개를 실행해 실패·오류·건너뜀 없이 통과했다. 전체 Gradle 테스트는 애플리케이션을 변경하지 않은 계약 검토이므로 다시 실행하지 않았다. `git diff --check`를 실행한다.
+- 유지한 계약: Billing owner event는 SigV4, Learning Core UserMerged는 Bearer workload JWT를 유지한다. TrialOwnerRebindApproved는 Learning Core로 보내지 않고, wire v1·동일 event 재시도·feature flag 기본 false·Secret 및 사용자 개인정보 비기록을 유지한다.
+- 위험 요소: 기존 legacy UserMerged outbox를 계속 drain할 경우 구 `JdkUserMergedDeliveryAdapter`도 새 exact endpoint를 사용하도록 배포 설정과 validation을 맞춰야 한다. 이를 놓치면 신규 fan-out은 정상이어도 legacy backlog가 구 route 또는 느슨한 URI로 전달될 수 있다.
+- 다음 작업: 새 TMI-123 후속 브랜치에서 endpoint/path 문서, typed workload purpose, 415 분류와 증빙 테스트를 보완하고 전체 `./gradlew clean test` 및 `git diff --check`를 통과한 뒤 PR을 병합한다. 이후에만 완료 댓글과 Jira `완료` 전환을 다시 승인받는다.
+
+## 2026-09-03 — TMI-123 UserMerged 후속 보완 방향 결정
+
+<!-- codex-turn:01a065e6-7fed-7461-a88b-e99f1826a6e1 -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: Identity `TMI-123`, 후속 Learning Core `TMI-125`. Jira mutation은 수행하지 않았다.
+- 작업 목표: endpoint와 HTTP 415 보완 필요성을 확정하고, UserMerged 전용 workload audience를 어떤 발급 구조로 추가할지 선택지를 정리한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·테스트 코드는 변경하지 않았다.
+- 결정사항: 1번 Learning Core exact endpoint를 `/internal/v1/events/user-merged`로 변경하고, 3번 HTTP `415`를 payload/contract 오류 dead-letter로 분류하는 방향을 채택한다.
+- 2번 권고: 외부 HTTP Token 발급 route나 독립적인 두 번째 발급 시스템을 추가하지 않는다. 기존 내부 `JwtEncoder`와 signing key·workload issuer·TTL을 재사용하되, raw audience 문자열 대신 `USER_WITHDRAWN`과 `USER_MERGED` 같은 typed purpose를 입력받아 각각 고정 audience로 매핑하는 단일 provider 구조를 권장한다.
+- 선택지 비교: raw 문자열 allowlist는 변경량이 작지만 호출부 오타와 목적 혼동을 컴파일 시점에 막지 못한다. 목적별 provider Bean 두 개는 격리가 강하지만 설정·qualifier·테스트가 중복된다. 단일 typed-purpose provider는 발급 코드를 공유하면서 임의 audience를 구조적으로 차단해 현재 두 workload 목적에 가장 적합하다.
+- 유지한 계약: 공개 credential endpoint는 만들지 않고 전달 직전에 내부에서 새 JWT를 발급한다. UserWithdrawn과 UserMerged는 서로 다른 audience를 사용하되 RS256, workload issuer, `sub=identity-service`, `iat=nbf`, TTL `PT2M`, UUID `jti`, `typ=JWT`, active `kid`와 JWKS를 공유한다.
+- 실행한 테스트와 결과: 설계 판단과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았다. 애플리케이션 변경은 없으며 `git diff --check`를 실행한다.
+- 위험 요소: 목적 enum을 추가하면서 기존 UserWithdrawn, legacy UserMerged와 신규 owner-event adapter 중 하나라도 raw audience 경로에 남으면 설정과 실제 발급이 다시 어긋날 수 있다. 모든 workload 호출부와 설정·테스트를 함께 전환해야 한다.
+- 다음 작업: 사용자가 단일 typed-purpose provider 방향을 승인하면 1·2·3을 한 후속 구현으로 적용하고 transport/JWT/415/회귀 테스트와 전체 테스트를 실행한다.
+
+## 2026-09-03 — TMI-123 Learning Core 연동 후속 Jira 업데이트 초안
+
+<!-- codex-turn:jira-tmi-123-followup-update-proposal-20260903 -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: `TMI-123`, 관련 `TMI-125`.
+- 작업 목표: 확정한 UserMerged endpoint·typed workload purpose·HTTP 415 보완 범위와 테스트 완료 조건을 TMI-123 본문에 추가하기 전에 현재 이슈와 정확한 변경 초안을 확인한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·테스트 코드는 변경하지 않았다.
+- Jira 확인: TMI-123 제목은 `[Identity] Billing SigV4 및 owner event durable fan-out 구현`, 상태는 `해야 할 일`, Resolution은 미설정이며 기존 본문은 최초 Stage 7 범위를 유지하고 있다.
+- 제안 변경: 기존 설명을 보존하고 끝에 `TMI-125 연동 전 후속 보완` 섹션을 추가한다. exact Learning Core route `/internal/v1/events/user-merged`, 외부 발급 API 없는 단일 typed-purpose provider와 두 고정 audience, UserMerged HTTP 415 dead-letter, legacy backlog의 동일 endpoint/audience, 기본 false flag와 신규 증빙 테스트를 기록한다.
+- 제안 제외: Jira 상태·Resolution·우선순위·담당자·라벨은 변경하지 않고, 댓글과 별도 이슈 링크도 추가하지 않는다.
+- 승인 여부: Jira mutation 전 사용자에게 추가할 본문을 제시하고 승인을 기다린다. 현재 Jira 수정은 수행하지 않았다.
+- 실행한 테스트와 결과: Jira 읽기 전용 확인과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았으며 `git diff --check`를 실행한다.
+- 유지한 계약: Secret·Token·개인정보를 Jira에 기록하지 않고, Billing SigV4·Learning Core Bearer workload JWT·TrialOwnerRebindApproved Billing-only·feature flag 기본 false를 유지한다.
+- 위험 요소: 본문을 부분 patch하는 API가 아니므로 승인 후에는 최신 설명 전체를 보존한 상태로 후속 섹션을 append하고 즉시 재조회해 기존 내용 유실 여부를 확인해야 한다.
+- 다음 작업: 사용자가 제안 본문을 승인하면 TMI-123 설명만 갱신하고 재조회한 뒤 Jira 작업 내역을 WORKLOG/CURRENT_STATE에 기록한다.
+
+## 2026-09-03 — TMI-123 후속 Jira 업데이트 초안 turn 종료 동기화
+
+<!-- codex-turn:01a065e7-9da1-74a1-bd35-37aad05224aa -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: `TMI-123`, 관련 `TMI-125`.
+- 작업 목표: 종료 훅이 지정한 turn 식별자로 TMI-123 후속 Jira 설명 업데이트 초안과 승인 대기 상태를 기록한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·테스트 코드는 변경하지 않았다.
+- 제시한 변경: 기존 Jira 설명을 보존하고 exact Learning Core endpoint `/internal/v1/events/user-merged`, 단일 typed-purpose workload provider와 두 고정 audience, HTTP 415 dead-letter, legacy UserMerged drain, 추가 증빙 테스트와 TMI-125 책임 경계를 후속 섹션으로 append하는 안을 사용자에게 제시했다.
+- Jira 작업: 사용자 승인 전이므로 설명·댓글·상태·Resolution·우선순위·담당자·라벨을 변경하지 않았다.
+- 실행한 테스트와 결과: Jira 읽기 전용 확인과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았고 `git diff --check`를 통과했다.
+- 유지한 계약: Jira mutation 전 정확한 변경 내용 제시와 승인, Secret·Token·개인정보 비기록, Billing SigV4·Learning Core Bearer JWT·TrialOwnerRebindApproved Billing-only·feature flag 기본 false를 유지한다.
+- 위험 요소: 승인 후 최신 Jira 설명 전체를 보존한 채 append해야 하며, 수정 직전 최신 updated 시각과 본문을 다시 조회해 동시 변경을 덮어쓰지 않아야 한다.
+- 다음 작업: 사용자가 초안을 승인하면 최신 TMI-123을 재조회한 뒤 설명만 갱신하고 저장 결과를 재검증한다.
+
+## 2026-09-03 — TMI-123 Learning Core 연동 후속 Jira 설명 업데이트
+
+<!-- codex-turn:jira-tmi-123-followup-updated-20260903 -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: `TMI-123`, 관련 `TMI-125`.
+- 작업 목표: 사용자에게 사전 제시하고 승인받은 Learning Core UserMerged 후속 보완 범위를 TMI-123 설명에 추가한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·테스트 코드는 변경하지 않았다.
+- Jira 작업: 최신 TMI-123 설명을 재조회한 뒤 기존 본문을 그대로 보존하고 `TMI-125 연동 전 후속 보완` 섹션을 끝에 추가했다.
+- 추가 내용: exact endpoint `/internal/v1/events/user-merged`, 외부 발급 API 없는 단일 typed-purpose provider, `USER_WITHDRAWN`·`USER_MERGED`의 고정 audience, HTTP 415 dead-letter, legacy UserMerged drain, transport/JWT/독립 retry/feature flag 완료 조건과 Learning Core Mongo 책임 경계를 기록했다.
+- 재조회 결과: 후속 섹션, 신규 endpoint, typed purpose와 HTTP 415 내용이 모두 저장됐다. 상태는 `해야 할 일`, Resolution은 미설정이며 우선순위·담당자·라벨·댓글은 변경하지 않았다.
+- 승인 여부: 사용자가 제시된 전체 추가 본문을 확인한 뒤 “어 해줘”로 설명 변경을 명시적으로 승인했다.
+- 실행한 테스트와 결과: Jira 설명 변경과 문서 기록만 수행해 Gradle 테스트는 실행하지 않았으며 `git diff --check`를 실행한다.
+- 유지한 계약: Secret·Token·개인정보 비기록, Billing SigV4, Learning Core Bearer workload JWT, TrialOwnerRebindApproved Billing-only, feature flag 기본 false와 Jira 상태 유지 계약을 지켰다.
+- 위험 요소: Jira 본문 갱신만 완료됐고 endpoint·typed purpose·HTTP 415 및 추가 증빙 테스트는 아직 애플리케이션에 구현되지 않았다.
+- 다음 작업: TMI-123 후속 브랜치에서 승인된 범위를 구현하고 전체 테스트·PR 병합을 확인한 뒤에만 Jira 완료 댓글과 상태 전환을 진행한다.
+
+## 2026-09-03 — TMI-123 Jira 설명 업데이트 turn 종료 동기화
+
+<!-- codex-turn:01a065e8-e604-7851-a660-7c74ad6e67bc -->
+
+- 날짜: 2026-09-03
+- 브랜치: Identity `develop`.
+- Jira: `TMI-123`, 관련 `TMI-125`.
+- 작업 목표: 종료 훅이 지정한 turn 식별자로 승인된 TMI-123 후속 설명 업데이트 결과를 최종 기록한다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. 애플리케이션·계약·테스트 코드는 변경하지 않았다.
+- Jira 작업: 기존 설명을 보존한 채 TMI-125 연동 전 후속 보완 섹션을 추가했고, exact endpoint, typed-purpose 고정 audience, HTTP 415 dead-letter, legacy drain과 추가 완료 조건을 기록했다.
+- 재조회 결과: 추가 본문이 정상 저장됐고 상태 `해야 할 일`, Resolution 미설정이 유지됐다. 댓글·우선순위·담당자·라벨은 변경하지 않았다.
+- 승인 여부: 사용자의 “어 해줘” 승인 후 설명 변경을 수행했다.
+- 실행한 테스트와 결과: Jira·문서 작업이므로 Gradle 테스트는 실행하지 않았고 `git diff --check`를 통과했다.
+- 유지한 계약: Secret·Token·개인정보 비기록, Jira 사전 승인, Billing SigV4·Learning Core Bearer JWT·TrialOwnerRebindApproved Billing-only·feature flag 기본 false를 유지한다.
+- 위험 요소: Jira 설명만 업데이트됐으며 후속 애플리케이션 구현과 전체 테스트·PR 병합은 남아 있다.
+- 다음 작업: TMI-123 후속 구현을 완료하고 병합한 뒤 Jira 완료 여부를 다시 검토한다.
+
+## 2026-09-03 — TMI-123 Learning Core UserMerged 후속 계약 구현
+
+<!-- codex-turn:tmi-123-learning-core-user-merged-followup-implementation-20260903 -->
+
+- 날짜: 2026-09-03
+- 브랜치: 로컬 `feat/TMI-123-owner-event-fanout-sigv4`. 원격 브랜치는 PR #37 병합 후 삭제된 상태다. 최신 `develop`에서 `codex/TMI-123-learning-core-user-merged-contract`를 만들려 했으나 작업 환경의 `.git/index.lock` 쓰기 제한으로 Git ref는 변경하지 않았으며, 현재 HEAD의 TMI-123 구현 commit 위에 후속 변경을 적용했다.
+- Jira: `TMI-123`, 후속 Learning Core `TMI-125`. 구현 전에 공식 Atlassian 연동으로 업데이트된 TMI-123 설명과 상태 `해야 할 일`을 읽었다. 이번 구현에서는 Jira 댓글·상태·필드를 변경하지 않았다.
+- 작업 목표: Learning Core UserMerged endpoint를 `/internal/v1/events/user-merged`로 통일하고, raw audience 문자열 없는 typed workload purpose를 도입하며, HTTP 415를 payload 계약 오류로 격리하고 요청된 증빙 테스트를 추가한다.
+- 변경 파일: `.env.example`, `README.md`, `src/main/resources/application.yml`, `src/test/resources/application-test.yml`, workload credential provider·JWT properties/provider, 신규 `global/workload/WorkloadIdentityPurpose.java`, Learning Core owner-event adapter/config/properties, legacy UserMerged adapter/config/properties/publisher/failure code, UserWithdrawn adapter/config/properties, owner-event publisher/failure code, 관련 테스트, Stage 5·Stage 7·Learning Core handoff·owner-event runbook 계약 문서, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`.
+- endpoint 구현: 신규 `LearningCoreOwnerEventDeliveryAdapter`와 legacy `JdkUserMergedDeliveryAdapter`가 HTTPS exact path `/internal/v1/events/user-merged`만 허용한다. host가 필요하고 user-info·query·fragment를 거절하며 redirect를 따르지 않고 JSON POST와 Bearer workload credential을 사용한다. owner-event properties도 같은 exact path로 fail-fast한다. Billing UserMerged route `/internal/v1/owners/merge/events`는 변경하지 않았다.
+- typed workload 구현: `WorkloadIdentityPurpose`는 `USER_WITHDRAWN`을 `learning-core-user-withdrawn`, `USER_MERGED`를 `learning-core-user-merged`에 고정 매핑한다. provider API는 raw String 대신 이 enum만 받아 기존 단일 `JwtEncoder`, active signing key, workload issuer·subject·TTL로 요청마다 새 JWT를 발급한다. UserWithdrawn, legacy UserMerged와 신규 Learning Core owner-event 호출부를 모두 typed purpose로 전환했다.
+- 설정 변경: 더 이상 사용되지 않는 `WORKLOAD_JWT_AUDIENCE`, `USER_MERGED_PUBLISHER_AUDIENCE`, `USER_WITHDRAWN_PUBLISHER_AUDIENCE`, `OWNER_EVENT_LEARNING_CORE_AUDIENCE` 설정을 애플리케이션·테스트·예시·README에서 제거했다. audience는 배포 입력이 아니라 코드의 승인 목적에 고정된다.
+- JWT 유지 계약: RS256, 환경별 HTTPS workload issuer, `sub=identity-service`, `iat`, `nbf=iat`, `exp=iat+PT2M`, 요청별 canonical UUID `jti`, `typ=JWT`, active non-blank `kid`, 기존 active/previous JWKS를 유지한다. userId·email·phone·Firebase UID·provider subject·credential claim을 넣지 않는다.
+- 오류 분류: 신규 owner-event publisher에 `HTTP_415`를 추가하고 400·409·413·415·422를 DEAD_LETTER 처리한다. legacy UserMerged publisher도 415를 명시적인 `HTTP_415` 영구 실패로 기록한다. 기존 2xx 완료, 408·425·429·5xx/timeout/connection retry, 401·403와 route 오류의 신규 consumer circuit pause, bounded Retry-After는 유지한다.
+- 테스트 추가·보강: exact endpoint·구 path/query/fragment/user-info/http 거절, redirect NEVER, JSON POST·Bearer header, bounded Retry-After, 신규·legacy UserMerged의 `USER_MERGED` purpose와 UserWithdrawn의 `USER_WITHDRAWN` purpose, 두 audience claim, 요청별 새 jti, 개인정보 claim 부재, null/비승인 purpose 경계, 415 dead-letter, 동일 core 재직렬화 payload 안정성, Billing 성공·Learning Core 실패의 독립 retry를 검증했다.
+- 실행한 테스트와 결과: `./gradlew compileJava compileTestJava` 성공, 관련 집중 테스트 24개 성공, 최종 `./gradlew clean test` 성공. 총 630개 테스트, 실패 0, 오류 0, 건너뜀 0. 첫 clean test는 sandbox의 사용자 Gradle cache lock 접근 제한으로 시작 전에 실패해 승인된 외부 실행으로 동일 명령을 다시 수행했고 성공했다. `git diff --check`를 실행한다.
+- 유지한 외부 계약: Billing owner event는 VPC Lattice AWS_IAM·SigV4와 기존 Billing route를 유지한다. Learning Core UserMerged만 Bearer workload JWT의 전용 audience를 사용한다. `TrialOwnerRebindApproved`는 Billing-only, UserMerged wire v1과 eventId/payload retry, legacy/new capture 상호 배타, 공개 API·BaseResponse·사용자 JWT·Refresh Session·Python AI `user_id=examId` 계약은 변경하지 않았다. 모든 관련 feature flag 기본값은 false다.
+- 결정사항: 별도 외부 Token 발급 endpoint나 목적별 중복 provider Bean을 만들지 않고 단일 typed-purpose provider를 사용한다. audience 환경변수를 제거해 호출부와 배포 설정에서 임의 문자열을 주입할 수 없게 했다.
+- 위험 요소: 실제 Learning Core TMI-125 consumer, workload verifier의 잘못된 iss·aud·sub·exp·kid 거절, staging/prod issuer·key·kid 분리, golden-token E2E는 Learning Core·배포 환경에서 아직 검증되지 않았다. legacy outbox가 있으면 legacy publisher에도 새 endpoint가 배포 설정으로 주입돼야 한다.
+- 배포 전 확인: Learning Core consumer OFF 배포 후 workload JWT 인증과 신규 route를 확인하고, Learning Core Mongo migration·Transaction 검증 뒤 consumer ON → Identity capture ON → Learning Core publisher ON 순서를 지킨다. 제거한 audience 환경변수에 의존하는 배포 manifest를 정리하고 feature flag는 검증 전 false로 유지한다.
+- 예상 밖 변경: 작업 시작 전 존재하던 WORKLOG/CURRENT_STATE의 이전 turn 기록은 보존했다. Billing·Learning Core 저장소, Jira, commit·push는 변경하지 않았다. Git branch 생성 실패 외에 예상 밖 애플리케이션 파일 변경은 없다.
+- 다음 작업: 사용자가 새 브랜치 또는 현재 로컬 브랜치를 정리해 commit·push하고 PR을 병합한다. 병합 후 TMI-123 완료 댓글과 상태 전환을 별도 승인받고, Learning Core TMI-125에서 consumer·verifier·Mongo staging 증빙을 완료한다.
+
+## 2026-09-03 — TMI-123 UserMerged 후속 구현 turn 종료 동기화
+
+<!-- codex-turn:01a065eb-9cfd-7f92-9e1a-041ae302d121 -->
+
+- 날짜: 2026-09-03
+- 브랜치: 로컬 `feat/TMI-123-owner-event-fanout-sigv4`; 연결된 원격 브랜치는 PR #37 병합 뒤 삭제된 상태다.
+- Jira: `TMI-123`, 관련 `TMI-125`. Jira mutation은 수행하지 않았다.
+- 작업 목표: 종료 훅이 지정한 turn 식별자로 Learning Core UserMerged 후속 구현과 최종 검증 결과를 기록한다.
+- 변경 파일: typed workload purpose·JWT provider와 세 workload 호출 adapter, UserMerged endpoint/config, owner-event 및 legacy failure 분류, 환경 설정·README, 관련 단위·계약 테스트, Stage 5·7 계약과 runbook, `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`.
+- 구현 결과: Learning Core 신규·legacy UserMerged 전송을 exact `/internal/v1/events/user-merged`로 고정했다. `USER_WITHDRAWN`과 `USER_MERGED` 목적을 두 고정 audience에 매핑해 raw audience 입력과 관련 환경변수를 제거했다. HTTP 415는 신규·legacy UserMerged에서 명시적인 계약 오류 dead-letter로 처리한다.
+- 보안·전송: HTTPS host와 exact path를 요구하고 user-info·query·fragment를 거절하며 redirect를 따르지 않는다. UserMerged는 Bearer workload JWT, Billing은 기존 SigV4를 유지한다. 요청별 새 jti와 민감 claim 부재, 단일·bounded Retry-After만 수용하는 경계를 테스트했다.
+- 증빙 테스트: UserMerged 두 consumer와 TrialOwnerRebindApproved Billing-only 기존 테스트에 더해 exact endpoint, typed purpose, 두 audience, legacy/withdrawal 회귀, 동일 payload 재직렬화, Billing 성공·Learning Core 실패 독립 retry, 415 dead-letter를 검증했다.
+- 실행한 테스트와 결과: 최종 `./gradlew clean test` 성공, 총 630개 테스트, 실패 0, 오류 0, 건너뜀 0. 최종 `git diff --check` 성공. Gradle cache lock에 대한 최초 sandbox 실패는 테스트 실행 전 발생했고 승인된 재실행 두 번은 모두 성공했다.
+- 유지한 계약: 공개 API, BaseResponse, 사용자 JWT, Refresh Session, Firebase, phone eligibility Billing SigV4, UserMerged v1, TrialOwnerRebindApproved Billing-only, Python AI `user_id=examId`, feature flag 기본 false를 유지한다.
+- 결정사항: 별도 Token 발급 API나 중복 provider Bean 없이 단일 typed-purpose provider를 사용한다. Learning Core용 구 path 참조는 제거했고 남은 `/internal/v1/owners/merge/events`는 Billing route와 Learning Core의 구 path 거절 테스트뿐이다.
+- 위험 요소: 실제 Learning Core TMI-125 consumer와 workload verifier, staging/prod key 분리, golden-token·staging E2E는 미검증이다. 현재 로컬 브랜치의 원격이 삭제돼 사용자가 후속 PR용 브랜치를 정리해야 한다.
+- 다음 작업: 사용자 환경에서 후속 브랜치를 만들거나 현재 브랜치를 새 원격으로 push해 PR을 병합한 뒤, TMI-123 완료 댓글·상태 전환을 별도 승인 후 수행한다.
+
+## 2026-09-03 — TMI-123 UserMerged 후속 구현 독립 검토
+
+- 날짜: 2026-09-03
+- 브랜치: 로컬 `feat/TMI-123-owner-event-fanout-sigv4`; `develop`은 PR #37 merge commit `391b55f`, 현재 후속 변경은 미커밋·미추적 상태
+- Jira: `TMI-123`, 관련 Learning Core `TMI-125`; Jira를 조회만 했고 수정·댓글·상태 변경은 수행하지 않았다.
+- 작업 목표: Learning Core에서 요청한 endpoint, typed workload audience, fan-out 독립성, 오류 분류와 회귀 테스트가 Identity 후속 구현에 반영됐는지 검토한다.
+- 확인 결과: 신규·legacy UserMerged adapter가 exact `/internal/v1/events/user-merged`와 `USER_MERGED` purpose를 사용하고, UserWithdrawn은 `USER_WITHDRAWN`을 유지한다. provider는 두 enum purpose를 고정 audience로 매핑해 임의 audience 입력을 제거했고 RS256·subject·TTL·요청별 jti 계약을 유지한다.
+- fan-out·오류: 기존 core는 UserMerged BILLING·LEARNING_CORE 두 delivery와 TrialOwnerRebindApproved BILLING-only를 유지한다. 새 publisher는 Billing 성공과 Learning Core 실패를 독립 처리하고 415를 contract dead-letter, 401/403·route 오류를 circuit pause, retryable status를 기존 retry로 분류한다.
+- 테스트: `./gradlew clean test` 전체 630개 성공, 실패 0·오류 0·건너뜀 0. `git diff --check`도 성공했다.
+- 발견사항: `OwnerEventCoreTests.retrySerializationKeepsTheSameEventIdAndPayload`는 같은 event 객체를 즉시 두 번 serialize해 equality만 비교한다. 실제 publisher가 첫 전송 실패 후 delivery를 재claim했을 때 동일 eventId와 byte payload를 다시 전송하는 완료 조건은 직접 검증하지 않으므로 후속 PR 전에 capture port 기반 retry test로 보강하는 것을 권장한다.
+- 상태 판단: 요청한 구현은 로컬에서 기능상 반영됐고 현재 검토에서 차단급 코드 결함은 발견하지 못했다. 다만 후속 변경은 아직 commit·push·PR merge 전이며 TMI-123 Jira도 `해야 할 일`이다.
+- 유지 계약: 사용자 Access JWT, UserMerged v1 wire, Billing SigV4, TrialOwnerRebindApproved Billing-only, feature flag 기본 false와 민감정보 비로그를 유지한다.
+- 변경 범위: 이번 검토에서는 Identity 애플리케이션·설정·테스트 코드를 수정하지 않고 `docs/codex/CURRENT_STATE.md`, `docs/codex/WORKLOG.md`만 갱신했다. Secret·Token을 기록하지 않았다.
+- 다음 작업: 실제 publisher retry payload test를 보강한 뒤 사용자 주도로 후속 commit·push·PR merge를 수행하고, staging workload golden-token과 Learning Core TMI-125 E2E 후 Jira 완료를 검토한다.

@@ -5,10 +5,30 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Stage 7 Identity 7-A·7-C Jira `TMI-123`의 애플리케이션 구현과 로컬 검증을 완료했다. phone eligibility Billing 전송은 SigV4로 전환됐고, owner event core·consumer delivery·sequence/cursor·circuit, exact phone rejoin lineage와 Billing-only `TrialOwnerRebindApproved`, 신규 `UserMerged` 양 consumer fan-out을 구현했다. Jira 상태는 아직 `해야 할 일`이며 Stage 7 전체에는 Learning Core `UserMerged` consumer readiness와 staging IAM·Mongo Transaction·E2E/canary가 남는다. 운영 검증 전 관련 capture·publisher flag는 모두 `false`를 유지한다
+- 현재 단계: Stage 7 Identity `TMI-123`의 Learning Core `TMI-125` 연동 후속 구현을 완료했다. 신규·legacy UserMerged endpoint는 `/internal/v1/events/user-merged`로 통일했고, 단일 typed-purpose workload provider가 UserWithdrawn·UserMerged의 고정 audience를 발급하며 HTTP 415를 계약 오류로 격리한다. 전체 630개 테스트와 `git diff --check`가 통과했다. 로컬 브랜치의 원격은 PR #37 병합 뒤 삭제된 상태이며 commit·push·후속 PR 병합 전이라 Jira는 `해야 할 일`, feature flag는 모두 `false`를 유지한다.
 - 상태 기준일: 2026-09-03
 
 ## 완료
+
+- 2026-09-03 Learning Core 측에서 TMI-123 후속 구현을 독립 검토했다. exact `/internal/v1/events/user-merged`, typed `USER_MERGED` audience, legacy/new publisher와 UserWithdrawn 회귀, 415 분류 및 consumer 독립 재시도는 계약과 일치하고 전체 630개 테스트와 `git diff --check`가 성공했다. 다만 `retrySerializationKeepsTheSameEventIdAndPayload`는 같은 객체를 두 번 직렬화하는 비교만 수행해 실제 publisher retry에서 동일 eventId·payload가 유지되는 완료 조건을 직접 검증하지 않으므로 후속 PR 전 테스트 보강을 권장한다. 원 TMI-123은 PR #37로 `develop`에 병합됐지만 현재 후속 변경은 삭제된 원격을 가리키는 로컬 feature branch의 미커밋·미추적 상태라 아직 develop에 반영되지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 TMI-123 Learning Core UserMerged 후속 구현과 최종 630개 테스트 성공을 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. Jira·commit·push는 변경하지 않았고 원격이 삭제된 현재 로컬 브랜치의 후속 PR 정리가 남아 있다.
+
+- 2026-09-03 TMI-123 후속 구현으로 Learning Core UserMerged exact endpoint `/internal/v1/events/user-merged`, `USER_WITHDRAWN`·`USER_MERGED` typed workload purpose와 고정 audience, 신규·legacy HTTP 415 dead-letter를 적용했다. raw audience 환경변수를 제거하고 요청별 새 JWT·개인정보 claim 부재·legacy/withdrawal 회귀·Billing 성공과 Learning Core 실패의 독립 재시도 테스트를 추가했다. `./gradlew clean test` 전체 630개가 실패·오류·건너뜀 없이 통과했으며 Jira mutation과 commit·push는 수행하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 승인된 TMI-123 후속 Jira 설명 업데이트 결과를 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. 추가 Jira mutation과 애플리케이션 변경은 없다.
+
+- 2026-09-03 사용자 승인에 따라 TMI-123 기존 설명 끝에 `TMI-125 연동 전 후속 보완` 섹션을 추가했다. exact Learning Core endpoint, typed-purpose workload JWT, HTTP 415 dead-letter, legacy backlog와 추가 완료 조건을 저장했으며 재조회로 반영을 확인했다. 상태는 `해야 할 일`, Resolution은 미설정이고 다른 Jira 필드·댓글은 변경하지 않았다.
+
+- 2026-09-03 종료 훅 기준으로 TMI-123 후속 Jira 설명 업데이트 초안과 승인 대기 상태를 지정된 turn 식별자로 WORKLOG 끝에 동기화했다. Jira와 애플리케이션은 변경하지 않았다.
+
+- 2026-09-03 TMI-123 현재 본문과 상태를 공식 Atlassian 연동으로 재확인하고, 기존 설명 끝에 TMI-125 연동 후속 보완 섹션만 추가하는 Jira 업데이트 초안을 준비했다. exact endpoint, typed-purpose 고정 audience, HTTP 415 dead-letter, legacy backlog와 테스트 조건을 포함하며 상태·Resolution·우선순위·담당자·댓글은 변경하지 않는 안이다. 사용자 승인 전이라 Jira mutation은 수행하지 않았다.
+
+- 2026-09-03 TMI-123 후속 보완 중 Learning Core UserMerged endpoint 변경과 HTTP 415 dead-letter 분류를 채택했다. workload JWT는 발급 API나 별도 발급 시스템을 늘리지 않고 기존 내부 JwtEncoder를 공유하면서 typed purpose별 고정 audience를 발급하는 단일 provider 구조를 권장했다. 애플리케이션·테스트·Jira는 변경하지 않았다.
+
+- 2026-09-03 Learning Core `TMI-125`가 전달한 TMI-123 후속 계약을 Identity `develop`과 대조했다. UserMerged의 Billing·Learning Core 독립 fan-out, TrialOwnerRebindApproved Billing-only, wire v1, Bearer workload JWT 경계와 기본 false flag는 구현돼 있다. 반면 Learning Core adapter는 구 path `/internal/v1/owners/merge/events`를 요구하고 workload provider는 탈퇴 audience 하나만 허용하며 HTTP 415가 circuit pause로 분류돼 후속 수정이 필요하다. 관련 집중 테스트 10개는 모두 통과했고 Jira mutation은 수행하지 않았다.
+
+- 2026-09-03 `TMI-123` 구현 PR #37이 `develop`과 `origin/develop`의 commit `391b55f`에 병합됐고 구현 commit `ab433a3`이 포함된 것을 확인했다. Jira는 `해야 할 일`, Resolution 미설정이고 `완료` transition ID `41`을 사용할 수 있다. 완료 댓글과 상태 변경은 사용자 승인 전이라 수행하지 않았다.
 
 - 2026-09-03 `feat/TMI-123-owner-event-fanout-sigv4`에서 TMI-123 Identity 구현을 완료했다. phone eligibility Bearer transport를 VPC Lattice SigV4와 bounded Retry-After로 교체하고, `UserMerged` Billing·Learning Core 및 phone rejoin Billing-only durable delivery를 consumer FIFO로 분리했다. 탈퇴 release에서 AVAILABLE lineage를 만들고 direct Firebase signup·Guest upgrade에서 동일 scope의 exact predecessor 한 건만 CONSUMED 처리하며, 다중 후보는 가입을 허용하고 reconciliation으로 격리한다. 모든 신규 capture/publisher flag는 기본 OFF다. `./gradlew clean test` 전체 621개와 `git diff --check`를 통과했으며 Jira mutation은 수행하지 않았다.
 

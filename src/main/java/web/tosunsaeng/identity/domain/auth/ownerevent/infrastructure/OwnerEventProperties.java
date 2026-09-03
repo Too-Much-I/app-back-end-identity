@@ -15,7 +15,6 @@ public class OwnerEventProperties {
 	private URI billingBaseUrl;
 	private String billingRegion = "ap-northeast-2";
 	private URI learningCoreEndpoint;
-	private String learningCoreAudience = "";
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
 	private Duration initialBackoff = Duration.ofSeconds(5);
@@ -43,7 +42,8 @@ public class OwnerEventProperties {
 		if (learningCoreEndpoint == null || !"https".equalsIgnoreCase(learningCoreEndpoint.getScheme())
 				|| learningCoreEndpoint.getHost() == null || learningCoreEndpoint.getUserInfo() != null
 				|| learningCoreEndpoint.getQuery() != null || learningCoreEndpoint.getFragment() != null
-				|| learningCoreAudience == null || learningCoreAudience.isBlank()) invalid();
+				|| !LearningCoreOwnerEventDeliveryAdapter.REQUIRED_PATH.equals(
+						learningCoreEndpoint.getPath())) invalid();
 		validateCommon();
 	}
 
@@ -85,8 +85,6 @@ public class OwnerEventProperties {
 	public void setBillingRegion(String value) { this.billingRegion = value == null ? "" : value.trim(); }
 	public URI getLearningCoreEndpoint() { return learningCoreEndpoint; }
 	public void setLearningCoreEndpoint(URI value) { this.learningCoreEndpoint = value; }
-	public String getLearningCoreAudience() { return learningCoreAudience; }
-	public void setLearningCoreAudience(String value) { this.learningCoreAudience = value == null ? "" : value.trim(); }
 	public Duration getLeaseDuration() { return leaseDuration; }
 	public void setLeaseDuration(Duration value) { this.leaseDuration = value; }
 	public Duration getFixedDelay() { return fixedDelay; }

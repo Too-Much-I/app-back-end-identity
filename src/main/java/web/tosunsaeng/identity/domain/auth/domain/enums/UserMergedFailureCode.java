@@ -13,6 +13,7 @@ public enum UserMergedFailureCode {
 	HTTP_403,
 	HTTP_408,
 	HTTP_409,
+	HTTP_415,
 	HTTP_422,
 	HTTP_425,
 	HTTP_429,

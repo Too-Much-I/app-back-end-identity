@@ -24,7 +24,7 @@ phone eligibility SigV4 publisher도 Billing consumer와 IAM 검증 뒤 별도�
 
 - 장애 시 publisher 플래그를 먼저 끈다. capture가 만든 delivery는 TTL 없이 보존된다.
 - `408`, `425`, `429`, `5xx`, timeout과 connection failure는 자동 재시도된다.
-- `400`, `409`, `413`, `422`는 payload 계약 실패이므로 DEAD_LETTER 원인을 먼저 해결한다.
+- `400`, `409`, `413`, `415`, `422`는 payload 계약 실패이므로 DEAD_LETTER 원인을 먼저 해결한다.
 - `3xx`, 인증·권한·route 관련 `4xx`는 circuit을 PAUSED로 만들므로 DNS, route, IAM, audience 설정을 먼저 고친다.
 - 원인 해결 뒤 exact head DEAD_LETTER를 같은 event로 replay하고, PAUSED circuit을 resume한다.
 - downstream commit 여부가 불명확해도 새 event를 만들지 않는다. consumer inbox 멱등성에 기대어 같은 event를 재전송한다.

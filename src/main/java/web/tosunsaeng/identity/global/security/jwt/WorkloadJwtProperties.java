@@ -8,13 +8,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.workload-jwt")
 public class WorkloadJwtProperties {
 
-	public static final String REQUIRED_AUDIENCE = "learning-core-user-withdrawn";
 	public static final String REQUIRED_SUBJECT = "identity-service";
 	public static final Duration REQUIRED_TTL = Duration.ofMinutes(2);
 
 	private boolean enabled;
 	private String issuer = "";
-	private String audience = REQUIRED_AUDIENCE;
 	private String subject = REQUIRED_SUBJECT;
 	private Duration ttl = REQUIRED_TTL;
 
@@ -23,7 +21,6 @@ public class WorkloadJwtProperties {
 			return;
 		}
 		if (!validHttpsIssuer(issuer)
-				|| !REQUIRED_AUDIENCE.equals(audience)
 				|| !REQUIRED_SUBJECT.equals(subject)
 				|| !REQUIRED_TTL.equals(ttl)) {
 			throw new IllegalArgumentException("Workload JWT configuration is invalid.");
@@ -47,8 +44,6 @@ public class WorkloadJwtProperties {
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
 	public String getIssuer() { return issuer; }
 	public void setIssuer(String issuer) { this.issuer = issuer == null ? "" : issuer.trim(); }
-	public String getAudience() { return audience; }
-	public void setAudience(String audience) { this.audience = audience == null ? "" : audience.trim(); }
 	public String getSubject() { return subject; }
 	public void setSubject(String subject) { this.subject = subject == null ? "" : subject.trim(); }
 	public Duration getTtl() { return ttl; }
@@ -57,7 +52,7 @@ public class WorkloadJwtProperties {
 	@Override
 	public String toString() {
 		return "WorkloadJwtProperties[enabled=" + enabled
-				+ ", issuer=[REDACTED], audience=[REDACTED], subject=" + subject
+				+ ", issuer=[REDACTED], subject=" + subject
 				+ ", ttl=" + ttl + "]";
 	}
 }

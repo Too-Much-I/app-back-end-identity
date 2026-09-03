@@ -148,7 +148,7 @@ public class OwnerEventConfiguration {
 		) {
 			properties.validateLearningCore();
 			return new LearningCoreOwnerEventDeliveryAdapter(
-					properties.getLearningCoreEndpoint(), properties.getLearningCoreAudience(),
+					properties.getLearningCoreEndpoint(),
 					properties.getConnectTimeout(), properties.getReadTimeout(),
 					credentialProvider, clock);
 		}

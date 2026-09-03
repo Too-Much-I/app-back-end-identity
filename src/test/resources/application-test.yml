@@ -33,7 +33,6 @@ app:
   workload-jwt:
     enabled: false
     issuer: ""
-    audience: learning-core-user-withdrawn
     subject: identity-service
     ttl: PT2M
   firebase-auth:
@@ -69,11 +68,9 @@ app:
   user-merged-publisher:
     enabled: false
     endpoint: ""
-    audience: ""
   user-withdrawn-publisher:
     enabled: false
     endpoint: ""
-    audience: learning-core-user-withdrawn
   user-withdrawn-backfill:
     enabled: false
     dry-run: true

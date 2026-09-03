@@ -7,10 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.user-merged-publisher")
 public class UserMergedPublisherProperties {
+	private static final String REQUIRED_PATH = "/internal/v1/events/user-merged";
 
 	private boolean enabled;
 	private URI endpoint;
-	private String audience = "";
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
 	private int maxAttempts = 12;
@@ -28,9 +28,9 @@ public class UserMergedPublisherProperties {
 				|| !"https".equalsIgnoreCase(endpoint.getScheme())
 				|| endpoint.getHost() == null
 				|| endpoint.getUserInfo() != null
+				|| endpoint.getQuery() != null
 				|| endpoint.getFragment() != null
-				|| audience == null
-				|| audience.isBlank()
+				|| !REQUIRED_PATH.equals(endpoint.getPath())
 				|| !positive(leaseDuration)
 				|| !positive(fixedDelay)
 				|| !positive(publishedRetention)
@@ -52,10 +52,6 @@ public class UserMergedPublisherProperties {
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
 	public URI getEndpoint() { return endpoint; }
 	public void setEndpoint(URI endpoint) { this.endpoint = endpoint; }
-	public String getAudience() { return audience; }
-	public void setAudience(String audience) {
-		this.audience = audience == null ? "" : audience.trim();
-	}
 	public Duration getLeaseDuration() { return leaseDuration; }
 	public void setLeaseDuration(Duration leaseDuration) { this.leaseDuration = leaseDuration; }
 	public Duration getFixedDelay() { return fixedDelay; }
@@ -76,6 +72,6 @@ public class UserMergedPublisherProperties {
 	@Override
 	public String toString() {
 		return "UserMergedPublisherProperties[enabled=" + enabled
-				+ ", endpoint=[REDACTED], audience=[REDACTED]]";
+				+ ", endpoint=[REDACTED]]";
 	}
 }

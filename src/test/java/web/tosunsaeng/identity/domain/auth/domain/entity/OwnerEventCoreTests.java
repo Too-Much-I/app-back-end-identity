@@ -52,4 +52,13 @@ class OwnerEventCoreTests {
 		assertThatThrownBy(() -> OwnerEventCore.userMerged(SOURCE, SOURCE, NOW))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
+
+	@Test
+	void retrySerializationKeepsTheSameEventIdAndPayload() {
+		OwnerEventCore event = OwnerEventCore.userMerged(SOURCE, TARGET, NOW);
+		OwnerEventWireMapper mapper = new OwnerEventWireMapper(
+				new ObjectMapper().findAndRegisterModules());
+
+		assertThat(mapper.serialize(event)).isEqualTo(mapper.serialize(event));
+	}
 }

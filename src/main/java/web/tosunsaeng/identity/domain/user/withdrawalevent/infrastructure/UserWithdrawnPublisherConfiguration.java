@@ -43,7 +43,6 @@ public class UserWithdrawnPublisherConfiguration {
 			properties.validate();
 			return new JdkUserWithdrawnDeliveryAdapter(
 					properties.getEndpoint(),
-					properties.getAudience(),
 					properties.getConnectTimeout(),
 					properties.getReadTimeout(),
 					credentialProvider,

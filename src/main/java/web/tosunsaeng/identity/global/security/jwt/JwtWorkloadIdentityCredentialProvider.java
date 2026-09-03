@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 
 import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.WorkloadIdentityCredential;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.WorkloadIdentityCredentialProvider;
+import web.tosunsaeng.identity.global.workload.WorkloadIdentityPurpose;
 
 public final class JwtWorkloadIdentityCredentialProvider
 		implements WorkloadIdentityCredentialProvider {
@@ -39,10 +40,11 @@ public final class JwtWorkloadIdentityCredentialProvider
 	}
 
 	@Override
-	public WorkloadIdentityCredential issue(String audience) {
-		if (!properties.getAudience().equals(audience)) {
-			throw new IllegalArgumentException("Workload JWT audience is not allowed.");
-		}
+	public WorkloadIdentityCredential issue(WorkloadIdentityPurpose purpose) {
+		String audience = Objects.requireNonNull(
+				purpose,
+				"purpose must not be null"
+		).audience();
 		Instant issuedAt = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		Instant expiresAt = issuedAt.plus(properties.getTtl());
 		JwsHeader headers = JwsHeader.with(SignatureAlgorithm.RS256)
@@ -51,7 +53,7 @@ public final class JwtWorkloadIdentityCredentialProvider
 				.build();
 		JwtClaimsSet claims = JwtClaimsSet.builder()
 				.issuer(properties.getIssuer())
-				.audience(List.of(properties.getAudience()))
+				.audience(List.of(audience))
 				.subject(properties.getSubject())
 				.issuedAt(issuedAt)
 				.notBefore(issuedAt)

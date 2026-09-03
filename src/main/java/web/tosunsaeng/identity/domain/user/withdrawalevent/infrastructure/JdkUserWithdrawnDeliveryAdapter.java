@@ -15,11 +15,11 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.Workload
 import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.WorkloadIdentityCredentialProvider;
 import web.tosunsaeng.identity.domain.user.withdrawalevent.application.UserWithdrawnDeliveryException;
 import web.tosunsaeng.identity.domain.user.withdrawalevent.application.UserWithdrawnDeliveryPort;
+import web.tosunsaeng.identity.global.workload.WorkloadIdentityPurpose;
 
 public final class JdkUserWithdrawnDeliveryAdapter implements UserWithdrawnDeliveryPort {
 
 	private final URI endpoint;
-	private final String audience;
 	private final Duration readTimeout;
 	private final WorkloadIdentityCredentialProvider credentialProvider;
 	private final HttpClient httpClient;
@@ -27,24 +27,33 @@ public final class JdkUserWithdrawnDeliveryAdapter implements UserWithdrawnDeliv
 
 	public JdkUserWithdrawnDeliveryAdapter(
 			URI endpoint,
-			String audience,
 			Duration connectTimeout,
 			Duration readTimeout,
 			WorkloadIdentityCredentialProvider credentialProvider,
 			Clock clock
 	) {
+		this(endpoint, readTimeout, credentialProvider, clock,
+				HttpClient.newBuilder()
+						.connectTimeout(Objects.requireNonNull(connectTimeout))
+						.followRedirects(HttpClient.Redirect.NEVER)
+						.build());
+	}
+
+	JdkUserWithdrawnDeliveryAdapter(
+			URI endpoint,
+			Duration readTimeout,
+			WorkloadIdentityCredentialProvider credentialProvider,
+			Clock clock,
+			HttpClient httpClient
+	) {
 		if (endpoint == null || !"https".equalsIgnoreCase(endpoint.getScheme())) {
 			throw new IllegalArgumentException("delivery endpoint must use HTTPS");
 		}
 		this.endpoint = endpoint;
-		this.audience = Objects.requireNonNull(audience);
 		this.readTimeout = Objects.requireNonNull(readTimeout);
 		this.credentialProvider = Objects.requireNonNull(credentialProvider);
 		this.clock = Objects.requireNonNull(clock);
-		this.httpClient = HttpClient.newBuilder()
-				.connectTimeout(Objects.requireNonNull(connectTimeout))
-				.followRedirects(HttpClient.Redirect.NEVER)
-				.build();
+		this.httpClient = Objects.requireNonNull(httpClient);
 	}
 
 	@Override
@@ -52,7 +61,9 @@ public final class JdkUserWithdrawnDeliveryAdapter implements UserWithdrawnDeliv
 		Objects.requireNonNull(payload);
 		WorkloadIdentityCredential credential;
 		try {
-			credential = Objects.requireNonNull(credentialProvider.issue(audience));
+			credential = Objects.requireNonNull(
+					credentialProvider.issue(WorkloadIdentityPurpose.USER_WITHDRAWN)
+			);
 			if (!credential.expiresAt().isAfter(clock.instant())) {
 				throw new IllegalStateException();
 			}
