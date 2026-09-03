@@ -40,7 +40,6 @@ public class UserMergedPublisherConfiguration {
 			properties.validate();
 			return new JdkUserMergedDeliveryAdapter(
 					properties.getEndpoint(),
-					properties.getAudience(),
 					properties.getConnectTimeout(),
 					properties.getReadTimeout(),
 					credentialProvider,

@@ -57,7 +57,6 @@ app:
   workload-jwt:
     enabled: ${WORKLOAD_JWT_ENABLED:false}
     issuer: ${WORKLOAD_JWT_ISSUER:}
-    audience: ${WORKLOAD_JWT_AUDIENCE:learning-core-user-withdrawn}
     subject: ${WORKLOAD_JWT_SUBJECT:identity-service}
     ttl: ${WORKLOAD_JWT_TTL:PT2M}
   firebase-auth:
@@ -133,7 +132,6 @@ app:
   user-merged-publisher:
     enabled: ${USER_MERGED_PUBLISHER_ENABLED:false}
     endpoint: ${USER_MERGED_PUBLISHER_ENDPOINT:}
-    audience: ${USER_MERGED_PUBLISHER_AUDIENCE:}
     lease-duration: ${USER_MERGED_PUBLISHER_LEASE_DURATION:PT60S}
     fixed-delay: ${USER_MERGED_PUBLISHER_FIXED_DELAY:PT5S}
     max-attempts: ${USER_MERGED_PUBLISHER_MAX_ATTEMPTS:12}
@@ -151,7 +149,6 @@ app:
     billing-base-url: ${OWNER_EVENT_BILLING_BASE_URL:}
     billing-region: ${OWNER_EVENT_BILLING_REGION:ap-northeast-2}
     learning-core-endpoint: ${OWNER_EVENT_LEARNING_CORE_ENDPOINT:}
-    learning-core-audience: ${OWNER_EVENT_LEARNING_CORE_AUDIENCE:}
     lease-duration: ${OWNER_EVENT_LEASE_DURATION:PT60S}
     fixed-delay: ${OWNER_EVENT_FIXED_DELAY:PT5S}
     initial-backoff: ${OWNER_EVENT_INITIAL_BACKOFF:PT5S}
@@ -165,7 +162,6 @@ app:
   user-withdrawn-publisher:
     enabled: ${USER_WITHDRAWN_PUBLISHER_ENABLED:false}
     endpoint: ${USER_WITHDRAWN_PUBLISHER_ENDPOINT:}
-    audience: ${USER_WITHDRAWN_PUBLISHER_AUDIENCE:learning-core-user-withdrawn}
     lease-duration: ${USER_WITHDRAWN_PUBLISHER_LEASE_DURATION:PT60S}
     fixed-delay: ${USER_WITHDRAWN_PUBLISHER_FIXED_DELAY:PT5S}
     max-attempts: ${USER_WITHDRAWN_PUBLISHER_MAX_ATTEMPTS:12}

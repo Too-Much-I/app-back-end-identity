@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 
 import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.WorkloadIdentityCredential;
+import web.tosunsaeng.identity.global.workload.WorkloadIdentityPurpose;
 
 class JwtWorkloadIdentityCredentialProviderTests {
 
@@ -47,7 +48,7 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		);
 
 		WorkloadIdentityCredential credential = provider.issue(
-				WorkloadJwtProperties.REQUIRED_AUDIENCE
+				WorkloadIdentityPurpose.USER_WITHDRAWN
 		);
 		NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey((RSAPublicKey) keyPair.getPublic())
 				.signatureAlgorithm(SignatureAlgorithm.RS256)
@@ -65,7 +66,16 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		assertThat(jwt.getNotBefore()).isEqualTo(NOW);
 		assertThat(jwt.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(2)));
 		assertThat(UUID.fromString(jwt.getId()).toString()).isEqualTo(jwt.getId());
-		assertThat(jwt.getClaims()).doesNotContainKeys("service", "scope", "userId");
+		assertThat(jwt.getClaims()).doesNotContainKeys(
+				"service", "scope", "userId", "email", "phone", "firebaseUid",
+				"providerSubject", "credential");
+
+		Jwt userMerged = decoder.decode(provider.issue(
+				WorkloadIdentityPurpose.USER_MERGED).tokenValue());
+		Jwt nextUserMerged = decoder.decode(provider.issue(
+				WorkloadIdentityPurpose.USER_MERGED).tokenValue());
+		assertThat(userMerged.getAudience()).containsExactly("learning-core-user-merged");
+		assertThat(userMerged.getId()).isNotEqualTo(nextUserMerged.getId());
 		assertThatThrownBy(() -> configuration.jwtDecoder(
 				(RSAPublicKey) keyPair.getPublic(),
 				jwtProperties,
@@ -74,18 +84,23 @@ class JwtWorkloadIdentityCredentialProviderTests {
 	}
 
 	@Test
-	void rejectsUnapprovedAudienceAndNonHttpsIssuer() {
+	void exposesOnlyApprovedPurposesAndRejectsInvalidConfiguration() {
 		WorkloadJwtProperties invalid = enabledProperties();
 		invalid.setIssuer("http://identity.test/workload");
 		assertThatThrownBy(invalid::validate).isInstanceOf(IllegalArgumentException.class);
 
 		WorkloadJwtProperties properties = enabledProperties();
-		assertThatThrownBy(() -> new JwtWorkloadIdentityCredentialProvider(
+		JwtWorkloadIdentityCredentialProvider provider = new JwtWorkloadIdentityCredentialProvider(
 				parameters -> { throw new AssertionError("must not encode"); },
 				jwtProperties(),
 				properties,
 				Clock.fixed(NOW, ZoneOffset.UTC)
-		).issue("another-audience")).isInstanceOf(IllegalArgumentException.class);
+		);
+		assertThat(WorkloadIdentityPurpose.values()).containsExactly(
+				WorkloadIdentityPurpose.USER_WITHDRAWN,
+				WorkloadIdentityPurpose.USER_MERGED);
+		assertThatThrownBy(() -> provider.issue(null))
+				.isInstanceOf(NullPointerException.class);
 	}
 
 	private WorkloadJwtProperties enabledProperties() {

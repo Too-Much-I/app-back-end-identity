@@ -149,6 +149,7 @@ public final class UserMergedPublisher {
 			case 403 -> UserMergedFailureCode.HTTP_403;
 			case 408 -> UserMergedFailureCode.HTTP_408;
 			case 409 -> UserMergedFailureCode.HTTP_409;
+			case 415 -> UserMergedFailureCode.HTTP_415;
 			case 422 -> UserMergedFailureCode.HTTP_422;
 			case 425 -> UserMergedFailureCode.HTTP_425;
 			case 429 -> UserMergedFailureCode.HTTP_429;

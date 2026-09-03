@@ -5,8 +5,6 @@ import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import web.tosunsaeng.identity.global.security.jwt.WorkloadJwtProperties;
-
 @ConfigurationProperties(prefix = "app.user-withdrawn-publisher")
 public class UserWithdrawnPublisherProperties {
 
@@ -14,7 +12,6 @@ public class UserWithdrawnPublisherProperties {
 
 	private boolean enabled;
 	private URI endpoint;
-	private String audience = WorkloadJwtProperties.REQUIRED_AUDIENCE;
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
 	private int maxAttempts = 12;
@@ -35,7 +32,6 @@ public class UserWithdrawnPublisherProperties {
 				|| endpoint.getFragment() != null
 				|| endpoint.getQuery() != null
 				|| !REQUIRED_PATH.equals(endpoint.getPath())
-				|| !WorkloadJwtProperties.REQUIRED_AUDIENCE.equals(audience)
 				|| !positive(leaseDuration)
 				|| !positive(fixedDelay)
 				|| !positive(publishedRetention)
@@ -57,8 +53,6 @@ public class UserWithdrawnPublisherProperties {
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
 	public URI getEndpoint() { return endpoint; }
 	public void setEndpoint(URI endpoint) { this.endpoint = endpoint; }
-	public String getAudience() { return audience; }
-	public void setAudience(String audience) { this.audience = audience == null ? "" : audience.trim(); }
 	public Duration getLeaseDuration() { return leaseDuration; }
 	public void setLeaseDuration(Duration leaseDuration) { this.leaseDuration = leaseDuration; }
 	public Duration getFixedDelay() { return fixedDelay; }
@@ -79,6 +73,6 @@ public class UserWithdrawnPublisherProperties {
 	@Override
 	public String toString() {
 		return "UserWithdrawnPublisherProperties[enabled=" + enabled
-				+ ", endpoint=[REDACTED], audience=[REDACTED]]";
+				+ ", endpoint=[REDACTED]]";
 	}
 }

@@ -457,7 +457,8 @@ workload JWT claim 계약:
 - `nbf=iat`를 사용해 `iat`가 허용 clock skew보다 먼 미래인 Token을 기존 timestamp validator가 거절하게 한다.
 - `exp - iat`는 최대 `PT2M`이고 timestamp 검증의 `PT30S` skew 때문에 만료 수용 경계는 최대 약 2분 30초다.
 - Identity issuer는 lowercase canonical UUID `jti`를 매 Token에 발급한다. `jti`는 Token 고유성만 나타내며 Learning Core의 인가·event 멱등성 필수 입력이 아니다. event 재전송 멱등성은 payload의 `eventId`와 Learning Core inbox가 담당하고 별도 `jti` 저장소나 replay blacklist를 만들지 않는다.
-- audience를 입력으로 받는 provider는 `learning-core-user-withdrawn` exact allowlist만 허용하고 임의 audience Token을 발급하지 않는다.
+- provider는 raw audience 문자열을 받지 않는다. typed purpose `USER_WITHDRAWN`을
+  `learning-core-user-withdrawn`에 고정 매핑하며 임의 audience Token을 발급하지 않는다.
 - userId, email, phone, Firebase UID, Provider subject, 사용자 scope와 credential을 workload JWT에 넣지 않는다.
 
 Learning Core는 이미 RS256, issuer, audience, `sub`, `iat`·`exp`, 최대 lifetime과 timestamp를 검증한다. production 활성화 전 Header와 시간 claim 경계를 다음과 같이 보완한다.
@@ -563,7 +564,7 @@ learning_core.user_withdrawn.delivery_lag
 - 최대 시도·backoff·manual replay
 - 성공 응답 유실 뒤 duplicate delivery
 - workload JWT의 exact issuer·audience·`sub`, `nbf=iat`, TTL, `typ`, `kid`와 발급 Token의 canonical UUID `jti`
-- 임의 audience 발급 거절과 사용자 Token 비재사용
+- typed purpose 외 audience 발급 불가와 사용자 Token 비재사용
 - 기본 비활성 configuration과 enabled fail-fast
 
 ### 16.3 backfill

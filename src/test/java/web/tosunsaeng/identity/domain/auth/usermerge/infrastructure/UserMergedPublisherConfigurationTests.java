@@ -28,16 +28,21 @@ class UserMergedPublisherConfigurationTests {
 	}
 
 	@Test
-	void enabledPublisherRequiresSafeHttpsEndpointAndAudience() throws Exception {
+	void enabledPublisherRequiresExactSafeHttpsEndpoint() throws Exception {
 		UserMergedPublisherProperties properties = new UserMergedPublisherProperties();
 		properties.setEnabled(true);
 		properties.setEndpoint(new URI("http://learning-core.test/internal/user-merged"));
-		properties.setAudience("learning-core");
 
 		assertThatThrownBy(properties::validate)
 				.isInstanceOf(IllegalArgumentException.class);
 
-		properties.setEndpoint(new URI("https://learning-core.test/internal/user-merged"));
+		properties.setEndpoint(new URI(
+				"https://learning-core.test/internal/v1/events/user-merged"));
 		properties.validate();
+
+		properties.setEndpoint(new URI(
+				"https://learning-core.test/internal/v1/events/user-merged?unexpected=true"));
+		assertThatThrownBy(properties::validate)
+				.isInstanceOf(IllegalArgumentException.class);
 	}
 }

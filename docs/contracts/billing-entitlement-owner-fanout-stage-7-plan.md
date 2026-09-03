@@ -154,7 +154,8 @@ BILLING sequence 11: B → C
 - Identity→Billing: VPC Lattice `AWS_IAM`, ECS application task role, SigV4
 - SigV4 signing service: `vpc-lattice-svcs`
 - 기본 region: `ap-northeast-2`
-- Identity→Learning Core `UserMerged`: 별도 변경 승인 전 기존 workload JWT 경계 유지
+- Identity→Learning Core `UserMerged`: Bearer workload JWT 경계를 유지하고 typed purpose
+  `USER_MERGED`를 전용 audience `learning-core-user-merged`에 고정 매핑
 - 사용자 Access Token이나 Firebase ID Token을 workload 호출에 사용하지 않음
 
 Learning Core ingress까지 SigV4로 통일하는 작업은 별도 ADR과 Jira 없이 Stage 7에 끼워 넣지 않는다.
@@ -654,7 +655,7 @@ payload는 기존 `UserMerged` v1 그대로다.
 #### Learning Core Guest merge
 
 ```http
-POST /internal/v1/owners/merge/events
+POST /internal/v1/events/user-merged
 ```
 
 payload는 기존 `UserMerged` v1 그대로다. Learning Core가 받는 phone rejoin **event route**는 Stage 7 계약에 없다. 위 continuation discovery는 Learning Core가 Billing을 조회하는 별도 read-only 계약이다.
@@ -666,7 +667,7 @@ payload는 기존 `UserMerged` v1 그대로다. Learning Core가 받는 phone re
 | consumer Transaction commit 뒤 `2xx` | 해당 delivery만 PUBLISHED, cursor 전진 |
 | timeout·connection·`408`·`425`·`429`·`5xx` | 같은 eventId/payload로 retry |
 | Billing `503 OWNER_REBIND_PENDING` | bounded Retry-After 이후 retry |
-| `400`·`409`·`413`·`422` | DEAD_LETTER, cursor 정지 |
+| `400`·`409`·`413`·`415`·`422` | DEAD_LETTER, cursor 정지 |
 | `401`·`403`·`404`·`405`·그 밖의 예상하지 못한 `4xx` | delivery를 PENDING으로 되돌리고 consumer circuit PAUSED |
 | `3xx` | redirect 금지, consumer circuit PAUSED |
 | local payload serialization 실패 | DEAD_LETTER |

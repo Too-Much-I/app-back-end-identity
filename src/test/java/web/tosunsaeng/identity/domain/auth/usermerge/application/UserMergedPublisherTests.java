@@ -94,6 +94,21 @@ class UserMergedPublisherTests {
 				.isEqualTo(UserMergedPublisher.Outcome.DEAD_LETTERED);
 	}
 
+	@Test
+	void legacyUnsupportedMediaTypeIsDeadLettered() {
+		UserMergedOutboxRepository repository = mock(UserMergedOutboxRepository.class);
+		UserMergedDeliveryPort port = mock(UserMergedDeliveryPort.class);
+		UserMergedOutbox event = claimedEvent();
+		when(repository.claimNext(any(), any(), any())).thenReturn(Optional.of(event));
+		when(port.deliver(any())).thenReturn(415);
+		when(repository.markDeadLetter(
+				eq(event.getEventId()), any(), eq(UserMergedFailureCode.HTTP_415),
+				eq(NOW), eq(NOW.plus(Duration.ofDays(90))))).thenReturn(true);
+
+		assertThat(publisher(repository, port).publishNext())
+				.isEqualTo(UserMergedPublisher.Outcome.DEAD_LETTERED);
+	}
+
 	private UserMergedPublisher publisher(
 			UserMergedOutboxRepository repository,
 			UserMergedDeliveryPort port

@@ -94,7 +94,6 @@ Identity Service는 다음 기능을 소유한다.
 | `OWNER_EVENT_BILLING_BASE_URL` | Billing publisher 활성화 시 필수 | VPC Lattice Billing HTTPS origin |
 | `OWNER_EVENT_BILLING_REGION` | 선택 | owner event SigV4 region, 기본값 `ap-northeast-2` |
 | `OWNER_EVENT_LEARNING_CORE_ENDPOINT` | Learning Core publisher 활성화 시 필수 | workload JWT로 호출할 exact UserMerged HTTPS endpoint |
-| `OWNER_EVENT_LEARNING_CORE_AUDIENCE` | Learning Core publisher 활성화 시 필수 | UserMerged workload JWT audience |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
 

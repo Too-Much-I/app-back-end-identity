@@ -114,7 +114,8 @@ public final class OwnerEventPublisher {
 		if (status == 408 || status == 425 || status == 429 || status >= 500) {
 			return retryOrDeadLetter(core, delivery, code, now, result.retryAfterSeconds());
 		}
-		if (status == 400 || status == 409 || status == 413 || status == 422) {
+		if (status == 400 || status == 409 || status == 413
+				|| status == 415 || status == 422) {
 			return deadLetter(core, delivery, code, now);
 		}
 		boolean paused = transactionService.pause(delivery, leaseOwner, code, now);
@@ -178,6 +179,7 @@ public final class OwnerEventPublisher {
 			case 408 -> OwnerEventFailureCode.HTTP_408;
 			case 409 -> OwnerEventFailureCode.HTTP_409;
 			case 413 -> OwnerEventFailureCode.HTTP_413;
+			case 415 -> OwnerEventFailureCode.HTTP_415;
 			case 422 -> OwnerEventFailureCode.HTTP_422;
 			case 425 -> OwnerEventFailureCode.HTTP_425;
 			case 429 -> OwnerEventFailureCode.HTTP_429;
