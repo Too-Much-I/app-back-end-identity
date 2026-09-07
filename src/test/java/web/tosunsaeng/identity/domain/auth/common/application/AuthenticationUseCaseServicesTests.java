@@ -310,7 +310,7 @@ class AuthenticationUseCaseServicesTests {
 				NOW.plus(Duration.ofMinutes(30)),
 				1_800
 		);
-		when(accessTokenIssuer.issue(user.getUserId(), Set.of()))
+		when(accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of()))
 				.thenReturn(issuedAccessToken);
 
 		LoginResponse response;
@@ -334,7 +334,7 @@ class AuthenticationUseCaseServicesTests {
 
 		verify(userRepository).findByNormalizedEmail("login.user@example.com");
 		verify(passwordEncoder).matches(RAW_CREDENTIAL, user.getPasswordHash());
-		verify(accessTokenIssuer).issue(user.getUserId(), Set.of());
+		verify(accessTokenIssuer).issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		ArgumentCaptor<RefreshSession> sessionCaptor = ArgumentCaptor.forClass(RefreshSession.class);
 		verify(refreshSessionRepository).save(sessionCaptor.capture());
@@ -390,12 +390,12 @@ class AuthenticationUseCaseServicesTests {
 		assertThat(unknownEmailException.getMessage())
 				.isEqualTo("이메일 또는 비밀번호가 올바르지 않습니다.")
 				.isEqualTo(wrongPasswordException.getMessage());
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
 	}
 
 	@ParameterizedTest
-	@EnumSource(value = UserStatus.class, names = {"SUSPENDED", "WITHDRAWN"})
+	@EnumSource(value = UserStatus.class, names = {"SUSPENDED", "WITHDRAWN", "MERGED"})
 	void rejectsNonActiveAccountWithoutIssuingTokens(UserStatus status) {
 		User user = userFactory.create("user@example.com", RAW_CREDENTIAL, "로그인사용자");
 		ReflectionTestUtils.setField(user, "status", status);
@@ -410,7 +410,7 @@ class AuthenticationUseCaseServicesTests {
 		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
 		assertThat(exception.getMessage()).isEqualTo("활성 상태가 아닌 계정은 로그인할 수 없습니다.");
 		verify(passwordEncoder).matches(RAW_CREDENTIAL, user.getPasswordHash());
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
 	}
 

@@ -18,7 +18,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
@@ -53,9 +56,19 @@ class GuestRefreshLifecycleTests {
 	private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 	private final RefreshTokenHasher refreshTokenHasher = new RefreshTokenHasher();
 
-	@Test
-	void guestRefreshTokenUsesSharedReissueAndRotationFlow() {
+	@ParameterizedTest
+	@CsvSource({"GUEST,false", "GUEST,true", "MEMBER,false", "MEMBER,true"})
+	void refreshUsesCurrentDatabaseTypeIncludingPromotionAndLegacyDocuments(
+			UserAccountType expectedType, boolean legacyDocument
+	) {
 		User guest = guest("A".repeat(43));
+		String originalUserId = guest.getUserId();
+		if (expectedType == UserAccountType.MEMBER) {
+			guest.promoteGuestToFederatedMember("승격회원", "privacy-v1", "term-v1", NOW);
+		}
+		if (legacyDocument) {
+			ReflectionTestUtils.setField(guest, "accountType", null);
+		}
 		RefreshSession currentSession = activeSession(
 				guest.getUserId(),
 				CURRENT_REFRESH_VALUE
@@ -67,7 +80,7 @@ class GuestRefreshLifecycleTests {
 		when(sessionRepository.findByTokenHash(refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)))
 				.thenReturn(Optional.of(currentSession));
 		when(userRepository.findById(guest.getUserId())).thenReturn(Optional.of(guest));
-		when(accessTokenIssuer.issue(guest.getUserId(), Set.of()))
+		when(accessTokenIssuer.issue(originalUserId, expectedType, Set.of()))
 				.thenReturn(issuedAccessToken());
 		when(tokenGenerator.generate()).thenReturn(NEXT_REFRESH_VALUE);
 
@@ -84,10 +97,12 @@ class GuestRefreshLifecycleTests {
 		ArgumentCaptor<RefreshSession> captor = ArgumentCaptor.forClass(RefreshSession.class);
 		verify(sessionRepository, times(2)).save(captor.capture());
 		RefreshSession replacement = captor.getAllValues().get(1);
-		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
-		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);
+		verify(accessTokenIssuer).issue(originalUserId, expectedType, Set.of());
+		assertThat(guest.getAccountType()).isEqualTo(expectedType);
+		assertThat(guest.getProvider()).isEqualTo(expectedType == UserAccountType.GUEST
+				? UserProvider.GUEST : UserProvider.FEDERATED);
 		assertThat(currentSession.getRevocationReason()).isEqualTo(RevocationReason.ROTATED);
-		assertThat(replacement.getUserId()).isEqualTo(guest.getUserId());
+		assertThat(replacement.getUserId()).isEqualTo(originalUserId);
 		assertThat(replacement.getRotatedFromSessionId())
 				.isEqualTo(currentSession.getSessionId());
 		assertThat(replacement.getTokenHash())
@@ -142,7 +157,7 @@ class GuestRefreshLifecycleTests {
 		assertThat(activeSuccessor.getRevocationReason())
 				.isEqualTo(RevocationReason.REUSE_DETECTED);
 		verify(sessionRepository).saveAll(List.of(activeSuccessor));
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(tokenGenerator, never()).generate();
 	}
 

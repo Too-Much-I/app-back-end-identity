@@ -99,7 +99,9 @@ public class TokenReissueService {
 		}
 
 		// 기존 세션 폐기가 저장된 후에만 후속 토큰과 세션을 발급한다.
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				user.getUserId(), user.getAccountType(), Set.of()
+		);
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issueRotated(
 				replacementSessionId,
 				currentSession.getUserId(),

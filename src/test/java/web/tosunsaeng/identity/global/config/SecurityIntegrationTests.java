@@ -55,6 +55,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.global.security.jwt.JwtConfiguration;
@@ -266,7 +267,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void authenticatedUnknownApiReturnsSafeNotFoundResponse() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/not-found")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -287,7 +288,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void authenticatedUnsupportedMethodReturns405() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		mockMvc.perform(get("/api/v1/auth/signup")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -371,7 +372,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void withdrawalEndpointRequiresJwtAndAcceptsValidAccessToken() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 		when(userWithdrawalService.withdraw(any()))
 				.thenReturn(new WithdrawResponse(
 						UserStatus.WITHDRAWN,
@@ -426,7 +427,7 @@ class SecurityIntegrationTests {
 				"토스마스터"
 		);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me")
 						.queryParam("userId", OTHER_USER_ID)
@@ -475,7 +476,7 @@ class SecurityIntegrationTests {
 				TestRsaKeyConfiguration.TEST_INSTANT
 		);
 		when(userRepository.findById(guest.getUserId())).thenReturn(Optional.of(guest));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(guest.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(guest.getUserId(), UserAccountType.GUEST, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -505,7 +506,7 @@ class SecurityIntegrationTests {
 				"동의조회사용자"
 		);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me/consents")
 						.queryParam("userId", OTHER_USER_ID)
@@ -542,7 +543,7 @@ class SecurityIntegrationTests {
 		ReflectionTestUtils.setField(user, "consents", null);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
 		when(userRepository.updateConsentsIfActive(any(), any())).thenReturn(true);
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(put("/api/v1/users/me/consents")
 						.queryParam("userId", OTHER_USER_ID)
@@ -572,7 +573,7 @@ class SecurityIntegrationTests {
 	void logoutAllUsesJwtSubjectAndReturnsNoSessionOrTokenData() throws Exception {
 		when(refreshSessionRepository.findAllByUserIdAndRevokedAtIsNull(USER_ID))
 				.thenReturn(List.of());
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		mockMvc.perform(post("/api/v1/auth/logout-all")
 						.header(
@@ -594,6 +595,7 @@ class SecurityIntegrationTests {
 	void scopeClaimMapsToScopePrefixedAuthoritiesWithoutEnforcingEndpointScope() throws Exception {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				USER_ID,
+				UserAccountType.MEMBER,
 				Set.of("profile:read", "profile:write")
 		);
 
@@ -607,6 +609,19 @@ class SecurityIntegrationTests {
 						"SCOPE_profile:read",
 						"SCOPE_profile:write"
 				)));
+	}
+
+	@Test
+	void legacyTokenWithoutAccountTypeStillAccessesIdentityProfile() throws Exception {
+		User user = userFactory.createGuest("A".repeat(43), TestRsaKeyConfiguration.TEST_INSTANT);
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		String legacyToken = signedToken(jwtEncoder, user.getUserId(), jwtProperties.issuer(),
+				jwtProperties.audience(), TestRsaKeyConfiguration.TEST_INSTANT.plusSeconds(60));
+
+		mockMvc.perform(get("/api/v1/users/me")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + legacyToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.accountType").value("GUEST"));
 	}
 
 	@Test

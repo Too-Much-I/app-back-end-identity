@@ -86,7 +86,9 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 				outbox,
 				now
 		);
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(target.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				target.getUserId(), target.getAccountType(), Set.of()
+		);
 		return new FirebaseSignupResponse(
 				accessToken.tokenValue(),
 				refreshSession.tokenValue(),

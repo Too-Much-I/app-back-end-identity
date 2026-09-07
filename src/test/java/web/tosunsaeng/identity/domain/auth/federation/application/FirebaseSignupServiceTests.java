@@ -26,6 +26,7 @@ import org.mockito.InOrder;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
@@ -163,7 +164,7 @@ class FirebaseSignupServiceTests {
 						NOW,
 						NOW.plus(Duration.ofDays(14))
 				));
-		when(accessTokenIssuer.issue(any(), any())).thenReturn(new IssuedAccessToken(
+		when(accessTokenIssuer.issue(any(), any(), any())).thenReturn(new IssuedAccessToken(
 				"access-secret",
 				"Bearer",
 				NOW,
@@ -196,7 +197,7 @@ class FirebaseSignupServiceTests {
 
 		InOrder order = inOrder(transactionService, accessTokenIssuer);
 		order.verify(transactionService).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
-		order.verify(accessTokenIssuer).issue(user.getUserId(), Set.of());
+		order.verify(accessTokenIssuer).issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 		assertThat(response.toString())
 				.doesNotContain("access-secret", "refresh-secret", FIREBASE_UID, PHONE);
 	}
@@ -276,7 +277,7 @@ class FirebaseSignupServiceTests {
 
 		assertAuthError(() -> service.signup(request()), AuthErrorStatus.PHONE_ALREADY_LINKED);
 
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 	}
 
 	@Test

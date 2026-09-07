@@ -173,7 +173,9 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 			throw classifyUniqueConflict(principal, phoneFingerprints);
 		}
 
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				user.getUserId(), user.getAccountType(), Set.of()
+		);
 		return new FirebaseSignupResponse(
 				accessToken.tokenValue(),
 				refreshSession.tokenValue(),

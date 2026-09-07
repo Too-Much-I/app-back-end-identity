@@ -424,7 +424,7 @@ class UserWithdrawalLifecycleTests {
 	private AccessTokenIssuer accessTokenIssuer() {
 		AccessTokenIssuer issuer = mock(AccessTokenIssuer.class);
 		AtomicInteger sequence = new AtomicInteger();
-		when(issuer.issue(any(), eq(Set.of()))).thenAnswer(invocation -> new IssuedAccessToken(
+		when(issuer.issue(any(), any(), eq(Set.of()))).thenAnswer(invocation -> new IssuedAccessToken(
 				"guest-lifecycle-access-value-" + sequence.incrementAndGet(),
 				IssuedAccessToken.BEARER_TOKEN_TYPE,
 				NOW,

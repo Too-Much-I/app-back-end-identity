@@ -67,7 +67,7 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		assertThat(jwt.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(2)));
 		assertThat(UUID.fromString(jwt.getId()).toString()).isEqualTo(jwt.getId());
 		assertThat(jwt.getClaims()).doesNotContainKeys(
-				"service", "scope", "userId", "email", "phone", "firebaseUid",
+				"account_type", "service", "scope", "userId", "email", "phone", "firebaseUid",
 				"providerSubject", "credential");
 
 		Jwt userMerged = decoder.decode(provider.issue(
@@ -75,6 +75,8 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		Jwt nextUserMerged = decoder.decode(provider.issue(
 				WorkloadIdentityPurpose.USER_MERGED).tokenValue());
 		assertThat(userMerged.getAudience()).containsExactly("learning-core-user-merged");
+		assertThat(userMerged.getClaims()).doesNotContainKey("account_type");
+		assertThat(nextUserMerged.getClaims()).doesNotContainKey("account_type");
 		assertThat(userMerged.getId()).isNotEqualTo(nextUserMerged.getId());
 		assertThatThrownBy(() -> configuration.jwtDecoder(
 				(RSAPublicKey) keyPair.getPublic(),
