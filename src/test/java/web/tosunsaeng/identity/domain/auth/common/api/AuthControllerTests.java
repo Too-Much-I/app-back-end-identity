@@ -35,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.registration.application.EmailAvailabilityService;
 import web.tosunsaeng.identity.domain.auth.registration.application.GuestAuthService;
 import web.tosunsaeng.identity.domain.auth.local.application.LoginService;
@@ -345,7 +346,7 @@ class AuthControllerTests {
 		Instant issuedAt = Instant.parse("2026-07-24T05:06:07Z");
 		when(userRepository.findByNormalizedEmail("user@example.com"))
 				.thenReturn(Optional.of(user));
-		when(accessTokenIssuer.issue(user.getUserId(), Set.of())).thenReturn(new IssuedAccessToken(
+		when(accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of())).thenReturn(new IssuedAccessToken(
 				"test-access-value",
 				"Bearer",
 				issuedAt,
@@ -381,7 +382,7 @@ class AuthControllerTests {
 				.andReturn();
 
 		verify(userRepository).findByNormalizedEmail("user@example.com");
-		verify(accessTokenIssuer).issue(user.getUserId(), Set.of());
+		verify(accessTokenIssuer).issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 		verify(refreshSessionIssuer).issue(user.getUserId());
 		assertThat(result.getResponse().getContentAsString())
 				.doesNotContain(rawCredential, user.getPasswordHash(), user.getNormalizedEmail());
@@ -431,7 +432,7 @@ class AuthControllerTests {
 						"accessToken",
 						"refreshToken"
 				);
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionIssuer, never()).issue(any());
 	}
 
@@ -452,7 +453,7 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.message").value("활성 상태가 아닌 계정은 로그인할 수 없습니다."))
 				.andExpect(jsonPath("$.result").value(nullValue()));
 
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionIssuer, never()).issue(any());
 	}
 
@@ -521,7 +522,7 @@ class AuthControllerTests {
 		)).thenReturn(Optional.of(currentSession));
 		when(refreshSessionRepository.save(currentSession)).thenReturn(currentSession);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		when(accessTokenIssuer.issue(user.getUserId(), Set.of())).thenReturn(new IssuedAccessToken(
+		when(accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of())).thenReturn(new IssuedAccessToken(
 				"controller-next-access-value",
 				"Bearer",
 				currentTime,
@@ -594,7 +595,7 @@ class AuthControllerTests {
 
 		assertThat(result.getResponse().getContentAsString())
 				.doesNotContain(unknownRefreshValue, refreshTokenHasher.hash(unknownRefreshValue));
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
 	}
 
@@ -634,7 +635,7 @@ class AuthControllerTests {
 		);
 		verify(userRepository, never()).findById(any());
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
 	}
 
@@ -686,7 +687,7 @@ class AuthControllerTests {
 		assertThat(session.getLastUsedAt()).isEqualTo(currentTime);
 		assertThat(session.getRevocationReason()).isEqualTo(RevocationReason.LOGOUT);
 		verify(refreshSessionRepository).save(session);
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshSessionIssuer, never()).issue(any());
 		verify(refreshSessionIssuer, never()).issueRotated(any(), any(), any(), any(), any());
 	}

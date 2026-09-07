@@ -5,10 +5,74 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Stage 7 Identity `TMI-123`의 Learning Core `TMI-125` 연동 후속 구현을 완료했다. 신규·legacy UserMerged endpoint는 `/internal/v1/events/user-merged`로 통일했고, 단일 typed-purpose workload provider가 UserWithdrawn·UserMerged의 고정 audience를 발급하며 HTTP 415를 계약 오류로 격리한다. 전체 630개 테스트와 `git diff --check`가 통과했다. 로컬 브랜치의 원격은 PR #37 병합 뒤 삭제된 상태이며 commit·push·후속 PR 병합 전이라 Jira는 `해야 할 일`, feature flag는 모두 `false`를 유지한다.
-- 상태 기준일: 2026-09-03
+- 현재 단계: Stage 7 Identity `TMI-123` 구현과 Learning Core `TMI-125` 연동 후속 보완이 PR #38의 merge commit `fa9843e`로 `develop`과 `origin/develop`에 반영됐다. 전체 630개 테스트와 `git diff --check`가 통과했고 관련 feature flag는 모두 `false`다. Jira `TMI-123`에는 승인된 완료 댓글을 등록했으며 상태와 Resolution 모두 `완료`로 전환됐다.
+- 상태 기준일: 2026-09-07
+
+## 현재 작업 — 사용자 JWT account_type (2026-09-07)
+
+- 브랜치·커밋·PR 명령어를 사용자에게 안내했다. 제안 브랜치는 `codex/add-access-token-account-type`, PR base는 `develop`이며 실제 Git 변경과 PR 생성은 사용자가 수행한다. 프론트 인증 가이드는 별도 변경으로 남기고 작업 기록에는 기존 미커밋 기록도 포함된다.
+- 사용자 요청으로 무료 사용권 조회보다 먼저 `account_type` 발급을 구현했다. `develop@fa9843e` 기준 로컬 미커밋 변경이며 이번 작업의 Jira·PR·merge·배포는 없다.
+- 공통 AccessTokenIssuer에 UserAccountType 필수 인자를 추가하고 7개 사용자 발급 서비스가 현재 `User.getAccountType()`을 전달한다. JWT는 문자열 MEMBER/GUEST를 발급하며 null 유형을 거절한다. refresh는 현재 DB 유형을 사용하고 upgrade는 같은 userId·MEMBER, merge는 target userId·MEMBER를 유지한다.
+- 공개 API·기존 claim·RefreshSession·프로필 `accountType`·legacy User 호환·탈퇴/병합 차단은 유지한다. workload JWT와 Identity의 구형 Token 검증에는 새 claim 요구를 추가하지 않았다.
+- 검증: `./gradlew clean test` 성공, 123개 suite·640개 테스트, 실패·오류·건너뜀 0개. `git diff --check` 통과. 기존 문서 미커밋 변경과 프론트 인증 가이드를 보존했고 예상 밖 변경은 없다.
+- [JWT 계약](../contracts/identity-learning-jwt.md)에 전체 발급 경로와 인계 항목을 반영했다. 실제 운영 TTL·Learning Core 사용자 JWT skew·구버전 발급 instance 종료 시각은 미확인이다. Identity 배포 후 `구버전 종료 시각 + 구버전 최대 실제 TTL + 사용자 JWT skew`가 지난 뒤 Challenge를 활성화한다. PT30M fallback을 운영 TTL로 확정하지 않는다.
+- 다음 작업: 사용자의 commit·PR·merge 및 배포 후 위 증빙을 Learning Core에 전달하고 무료 사용권 조회 작업으로 복귀한다.
 
 ## 완료
+
+- 2026-09-07 현재 우선순위는 Billing public entitlement reader → Identity Billing audience·`billing:read` scope → 프론트 연동 → Firebase Stage 8 순서다. 단, SNS 로그인을 먼저 production에 공개할 경우 Stage 8 logout-all Firebase revoke를 선행 release blocker로 전환한다. (`codex-turn:01a07a6a-8adf-71d1-b5b7-c1bd1b06a6dc`)
+
+- 2026-09-07 무료 사용권 조회와 Firebase Stage 8의 우선순위를 비교해 현재는 Billing public entitlement reader를 먼저 진행하기로 권장했다. Firebase/SNS production flag가 아직 비활성이라 logout-all Firebase revoke 공백이 외부 사용자에게 노출되지 않은 반면, entitlement 조회는 Firebase 외부 설정 없이 구현 가능하고 프론트 기능 가치를 바로 제공한다. 단, SNS 로그인을 먼저 production에 활성화한다면 Stage 8을 release blocker로 앞당긴다.
+
+- 2026-09-07 종료 훅 기준으로 무료 사용권 조회를 Billing public reader 별도 트랙으로 우선 진행할 수 있다는 결정을 현재 turn 식별자와 함께 WORKLOG에 동기화했다. 권장 순서는 Billing의 side-effect 없는 entitlement 조회와 사용자 JWT verifier, Identity의 Billing audience·`billing:read` scope, 프론트 화면 연동이며 완료 후 Firebase Stage 8로 복귀한다.
+
+- 2026-09-07 사용자가 요청한 무료 사용권 수량 조회 기능이 Firebase 후속 Stage 8에 포함되는 작업이 아니라 Billing public reader 별도 트랙임을 재확인했다. 제품 우선순위상 이 기능을 다음 작업으로 선택해도 인증 고정 순서를 위반하지 않으며 Google Cloud Billing·Kakao 설정에도 의존하지 않는다. 구현 순서는 Billing의 side-effect 없는 `GET /api/v1/entitlements`와 사용자 JWT verifier 선배포, Identity Access Token의 `tosunsaeng-billing` audience 및 account type별 `billing:read` scope 추가, 프론트 사용권 화면 연동이다.
+
+- 2026-09-07 다음 고정 작업인 Stage 8 `logout-all Firebase refresh revoke`의 목적과 범위를 현재 구현 기준으로 정리했다. 현재 `/api/v1/auth/logout-all`은 Identity RefreshSession만 모두 폐기하므로 Firebase/SNS 회원이 다른 기기의 Firebase 세션으로 다시 exchange할 수 있다. 권장 구현은 내부 Session 전체 폐기와 exact FirebaseIdentity 대상 revoke job/outbox를 원자적으로 저장하고 worker가 Firebase refresh token을 멱등 revoke하며 실패를 retry·reconciliation하는 방식이다. User disable·delete, Provider unlink와 기존 stateless Identity Access Token 즉시 차단은 이 단계 범위가 아니다.
+
+- 2026-09-07 Firebase signup 요청의 `nickname` 출처를 프론트 가이드에 명확히 했다. `/firebase/signup`은 기존 MEMBER 로그인 요청이 아니라 `/firebase/exchange`의 `ENROLLMENT_REQUIRED` 이후 신규 가입 완료 요청이며, nickname은 Provider에서 서버가 자동 결정하지 않고 가입 화면에서 사용자가 직접 입력·확정한다. Provider 표시 이름은 프론트 초기 제안값으로만 사용할 수 있다.
+
+- 2026-09-07 종료 훅 기준으로 프론트 인증 가이드의 전체 개발 완료·production release 계약 전환을 현재 turn 식별자와 함께 WORKLOG에 동기화했다. 목표 계약은 Firebase 기반 email/password·Google·Apple·Kakao, same-UID phone link, Guest·reissue 응답 유실 복구, Identity·Firebase 전체 로그아웃, 탈퇴·재가입·downstream 차단과 인증수단 변경·rebind 완료 상태를 전제로 하며 신규 wire는 확정된 전용 API 문서 없이 임의로 만들지 않는다.
+
+- 2026-09-07 프론트 Firebase·SNS 로그인 가이드를 현재 구현 현황 보고서에서 인증 후속 단계 1~12와 외부 staging 검증이 모두 완료된 최종 release 계약으로 전환했다. 최종 계약은 Firebase email/password·Google·Apple·Kakao, same-UID phone link, Guest 복구·merge, 응답 유실 안전 재발급, Identity·Firebase 전체 로그아웃, 탈퇴와 재가입, Provider unlink·phone 변경 전용 경계를 전제로 한다. 아직 exact wire가 별도 문서에 없는 후속 API URL·DTO는 임의로 만들지 않고 전용 공개 계약을 따르도록 명시했다.
+
+- 2026-09-07 프론트 전달용 Firebase·SNS 로그인 및 회원 전환 연동 가이드를 실제 Controller·DTO·오류 코드 기준으로 작성했다. 기존 전달본의 Kakao 누락, Guest `ALREADY_LINKED` 오처리, recent-auth와 force refresh 혼동, `/reissue`의 merged 오류 기대, logout-all의 Firebase revoke 과장을 바로잡고 Firebase exchange/signup, Guest 생성·승격·merge, auth-method sync, reissue/logout, 프로필·탈퇴와 legacy API의 요청·응답 예시를 추가했다. 관련 기능은 여전히 기본 비활성이며 실제 Firebase·모바일·Mongo·downstream staging E2E 전 production에 노출하지 않는다.
+
+- 2026-09-07 사용자 무료 사용권 조회 기능을 cross-service 구조로 검토했다. Entitlement 진실 공급원인 Billing이 public `GET /api/v1/entitlements`를 제공하고 사용자 JWT `sub`만으로 benefit별 available unit을 반환하는 방향이 현재 C1-A/C2-A 결정과 맞다. 무료 Grant는 최초 reserve에서 lazy 생성되므로 eligibility·Claim·Grant를 함께 읽는 부작용 없는 resolver가 필요하며, 현재 Billing은 internal API만 있어 public JWT reader·DTO·Security 구현이 남아 있다. Firebase Billing 계정 없이도 개발은 진행할 수 있다.
+
+- 2026-09-07 Google Cloud $300 무료 체험 크레딧 적용을 공식 무료 프로그램 문서로 확인했다. Identity Platform은 공개 제외 목록에 없어 무료 체험 결제 계정에 연결된 staging 프로젝트의 적격 OIDC·SMS 초과 사용료는 일반적으로 90일/$300 범위에서 자동 상계된다. 무료 구간이 먼저 적용되며 정확한 credit 적용은 Billing 보고서에서 확인하고, 만료·소진 시 서비스 중지 또는 유료 전환 위험을 관리해야 한다.
+
+- 2026-09-07 Identity Platform 비용을 공식 가격표로 확인했다. Billing 연결·활성화 자체에는 고정 월요금이 없지만 Kakao Generic OIDC는 프로젝트당 월 50 MAU 초과분이 현재 0.015달러/MAU이고, 한국 전화 인증 SMS는 일 10건 무료 이후 현재 0.01달러/전송 건으로 과금될 수 있다. Tier 1은 월 50,000 MAU까지 무료이며 staging은 테스트 번호·Emulator, KR region 제한, quota·budget alert를 우선한다.
+
+- 2026-09-07 Cloud Billing 연결과 Identity Platform 활성화 절차를 공식 문서 기준으로 정리했다. staging 프로젝트를 선택해 Billing의 내 프로젝트에서 활성 결제 계정을 연결하고 budget alert를 설정한 뒤 Identity Platform Marketplace에서 활성화·Firebase Authentication 업그레이드를 승인한다. 기존 Firebase 앱·SDK는 유지되지만 유료 서비스·quota가 적용되며, OpenID Connect 공급업체가 보이는지 확인하기 전 Kakao 설정으로 진행하지 않는다.
+
+- 2026-09-07 종료 훅 기준으로 신규 MEMBER phone credential link 설명을 현재 turn 식별자로 WORKLOG 끝에 동기화했다. SNS 로그인 Firebase UID에 SMS credential을 link하고 강제 갱신 Token 하나로 가입을 완료하며 phone-only 로그인과 별도 UID 생성을 금지한다는 계약은 변경하지 않았다.
+
+- 2026-09-07 신규 MEMBER의 phone credential link 계약을 설명했다. Google·Apple·Kakao로 로그인된 현재 Firebase User에 SMS 인증 결과를 `linkWithCredential`로 추가해 Firebase UID를 유지하고, provider 변경을 반영한 강제 갱신 ID Token 하나로 Identity 가입을 완료한다. phone sign-in으로 별도 UID를 만들거나 구 Token을 제출하는 흐름은 허용하지 않는다.
+
+- 2026-09-07 삭제한 Firebase 앱의 동일 package/bundle ID 재등록 충돌을 공식 Management API로 확인했다. 기본 삭제는 30일간 app을 `DELETED` 상태로 보존하므로 같은 ID로 새 앱을 만들지 말고 `showDeleted=true` 목록에서 exact app을 찾아 플랫폼별 undelete로 복원해야 한다. 영구 삭제 또는 다른 ACTIVE app 점유라면 프로젝트·app 목록을 확인하고 임시 ID 변경 없이 Support 경계로 처리한다.
+
+- 2026-09-07 종료 훅 기준으로 Firebase 최초 연결 안내를 현재 turn 식별자로 WORKLOG 끝에 동기화했다. 기존 staging Google Cloud 프로젝트에 Firebase를 추가하고 Authentication·모바일 앱·billing·Identity Platform·phone·Kakao provider 순으로 구성하며, 검증 전 feature flag를 false로 유지한다는 결론은 변경하지 않았다.
+
+- 2026-09-07 Firebase 미연결 상태의 최초 설정 순서를 정리했다. 기존 staging Google Cloud 프로젝트에 Firebase를 추가하고 Authentication·모바일 앱을 먼저 등록한 다음 billing과 Identity Platform을 활성화하며, 그 뒤 phone과 Generic OIDC `oidc.kakao`를 설정한다. Identity에는 exact `FIREBASE_PROJECT_ID`와 배포 workload의 Firebase Admin 접근 권한을 연결하되 실제 credential은 저장소에 두지 않고 모든 관련 flag는 staging E2E 전 false로 유지한다.
+
+- 2026-09-07 현재 휴대폰 인증 흐름을 재확인했다. Firebase Phone Authentication과 모바일 SDK가 SMS·OTP를 처리하고, 앱은 SNS로 로그인된 동일 Firebase User에 phone credential을 link한 뒤 강제 갱신 ID Token을 Identity signup/Guest upgrade에 전달한다. Identity는 OTP를 직접 받지 않고 동일 UID의 SNS credential·verified phone을 Admin으로 검증하며 전화번호 원문 대신 HMAC fingerprint를 저장한다. phone-only login과 전화번호 자동 merge는 금지되고 관련 feature flag는 기본 false라 실기기 staging 검증 전 운영 활성화할 수 없다.
+
+- 2026-09-07 Kakao Generic OIDC 콘솔 설정 절차를 최신 공식 문서로 확인했다. Kakao 앱의 REST API 키·client secret을 준비하고, Google Cloud Identity Platform의 ID 공급업체에서 코드 흐름·provider ID `oidc.kakao`·issuer `https://kauth.kakao.com`을 등록한 뒤, 표시되는 `https://<project-id>.firebaseapp.com/__/auth/handler` callback을 Kakao 리다이렉트 URI에 exact 등록해야 한다. Kakao Login과 OpenID Connect를 모두 ON으로 하고 모바일 login/link·UID 안정성을 staging에서 확인하기 전 Identity flag는 false로 유지한다.
+
+- 2026-09-07 종료 훅 기준으로 Kakao Generic OIDC 외부 설정 필요성과 production `NO-GO` 판단을 현재 turn 식별자로 WORKLOG 끝에 동기화했다. Identity의 `oidc.kakao` mapping·kill switch 외에 Kakao Developers, Firebase Identity Platform·billing, 모바일 redirect 설정이 필요하다는 기존 결론은 변경하지 않았다.
+
+- 2026-09-07 Kakao 로그인 운영 조건을 재확인했다. 서버는 `oidc.kakao` providerData mapping과 kill switch만 준비돼 있으며, 실제 사용에는 Kakao Developers의 OIDC·redirect 설정, Firebase project의 Identity Platform 업그레이드·billing 및 Generic OIDC provider 등록, 모바일 SDK의 `oidc.kakao` login/link·deep-link 검증, Identity의 동일 provider ID와 feature flag 설정이 모두 필요하다. 외부 프로젝트 설정은 아직 완료된 것으로 확인되지 않아 Kakao는 production `NO-GO`와 기본 비활성을 유지한다.
+
+- 2026-09-07 종료 훅 기준으로 SNS 로그인 책임 경계 설명을 현재 turn 식별자로 WORKLOG 끝에 동기화했다. 앱·Firebase가 Google·Apple·Kakao 인증과 Firebase ID Token 발급을 담당하고 Identity가 Firebase Admin 검증 후 자체 Token을 발급한다는 기존 계약은 변경하지 않았다.
+
+- 2026-09-07 SNS 인증 책임을 재확인했다. Google·Apple·Kakao의 사용자 인증과 Firebase ID Token 발급은 앱과 Firebase Auth가 담당하며, Identity는 각 Provider와 직접 OAuth 교환하지 않고 Firebase Admin으로 ID Token과 providerData를 검증한 뒤 자체 Access/Refresh Token으로 교환한다. Kakao는 Firebase Generic OIDC provider `oidc.kakao` 경계이며 운영 flag는 아직 비활성이다.
+
+- 2026-09-07 SNS/Firebase 인증 구현 현황을 `develop@fa9843e` 기준으로 재점검했다. Google·Apple·Kakao provider mapping, Firebase ID Token 검증과 Identity Token 교환, 신규 MEMBER 가입, Guest 승격·기존 MEMBER merge, 다중 SocialIdentity 동기화, 탈퇴 재인증·외부 Firebase User 정리·identity release·CLEANED 재가입 gate, 가입 중단 cleanup과 owner event 기반은 코드에 구현돼 있다. 다만 Firebase·각 Provider·탈퇴/cleanup/merge/publisher 기능은 기본 비활성이며 실제 Firebase/mobile·Mongo replica set·서비스 간 staging E2E가 완료되지 않아 운영 SNS 로그인은 아직 활성화 준비 단계다. 후속 구현은 logout-all Firebase revoke, Refresh Token 응답 유실 원자성, Provider unlink·전화번호 변경, Guest 응답 유실 복구, 기존 ACTIVE 회원 Firebase rebind다.
+
+- 2026-09-04 사용자 승인에 따라 Jira `TMI-123`에 PR #38 병합, 630개 테스트 성공, 적용 계약과 남은 staging 검증을 요약한 완료 댓글 ID `10045`를 등록했다. 이어 transition ID `41`을 적용했으며 재조회에서 상태 ID `10003` `완료`와 Resolution ID `10000` `완료`를 확인했다. 다른 Jira 필드는 변경하지 않았다.
+
+- 2026-09-03 `TMI-123` 후속 구현이 PR #38의 merge commit `fa9843e`로 `develop`과 `origin/develop`에 반영된 것을 확인했다. Jira는 `해야 할 일`, Resolution 미설정이고 `완료` 전환 ID `41`을 사용할 수 있다. 완료 댓글과 상태 변경은 사용자 승인 전이라 수행하지 않았다.
 
 - 2026-09-03 Learning Core 측에서 TMI-123 후속 구현을 독립 검토했다. exact `/internal/v1/events/user-merged`, typed `USER_MERGED` audience, legacy/new publisher와 UserWithdrawn 회귀, 415 분류 및 consumer 독립 재시도는 계약과 일치하고 전체 630개 테스트와 `git diff --check`가 성공했다. 다만 `retrySerializationKeepsTheSameEventIdAndPayload`는 같은 객체를 두 번 직렬화하는 비교만 수행해 실제 publisher retry에서 동일 eventId·payload가 유지되는 완료 조건을 직접 검증하지 않으므로 후속 PR 전 테스트 보강을 권장한다. 원 TMI-123은 PR #37로 `develop`에 병합됐지만 현재 후속 변경은 삭제된 원격을 가리키는 로컬 feature branch의 미커밋·미추적 상태라 아직 develop에 반영되지 않았다.
 

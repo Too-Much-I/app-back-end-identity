@@ -109,7 +109,7 @@ class GuestAuthServiceTests {
 		);
 
 		when(userRepository.existsByGuestInstallationIdHash(anyString())).thenReturn(false);
-		when(accessTokenIssuer.issue(anyString(), any())).thenAnswer(invocation ->
+		when(accessTokenIssuer.issue(anyString(), any(), any())).thenAnswer(invocation ->
 				issuedAccessToken()
 		);
 		when(refreshSessionIssuer.prepare(anyString())).thenAnswer(invocation ->
@@ -186,7 +186,7 @@ class GuestAuthServiceTests {
 		assertThat(preparedRefresh.session().getUserId()).isEqualTo(guest.getUserId());
 		assertThat(preparedRefresh.session().getTokenHash())
 				.isNotEqualTo(preparedRefresh.tokenValue());
-		verify(accessTokenIssuer).issue(guest.getUserId(), Set.of());
+		verify(accessTokenIssuer).issue(guest.getUserId(), UserAccountType.GUEST, Set.of());
 		verify(refreshSessionIssuer).prepare(guest.getUserId());
 		assertThat(accessCaptor.getValue().tokenValue()).isEqualTo(response.accessToken());
 		assertThat(response.refreshToken()).isEqualTo(preparedRefresh.tokenValue());
@@ -284,7 +284,7 @@ class GuestAuthServiceTests {
 
 		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.PRIVACY_CONSENT_REQUIRED);
 		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
-		verify(accessTokenIssuer, never()).issue(anyString(), any());
+		verify(accessTokenIssuer, never()).issue(anyString(), any(), any());
 		verify(refreshSessionIssuer, never()).prepare(anyString());
 		verify(registrationTransactionService, never()).register(any(), any(), any());
 	}
@@ -306,7 +306,7 @@ class GuestAuthServiceTests {
 
 		assertThat(exception.getErrorCode()).isEqualTo(UserErrorStatus.TERM_CONSENT_REQUIRED);
 		verify(userRepository, never()).existsByGuestInstallationIdHash(anyString());
-		verify(accessTokenIssuer, never()).issue(anyString(), any());
+		verify(accessTokenIssuer, never()).issue(anyString(), any(), any());
 		verify(refreshSessionIssuer, never()).prepare(anyString());
 		verify(registrationTransactionService, never()).register(any(), any(), any());
 	}
@@ -363,14 +363,14 @@ class GuestAuthServiceTests {
 		);
 
 		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.GUEST_ALREADY_EXISTS);
-		verify(accessTokenIssuer, never()).issue(anyString(), any());
+		verify(accessTokenIssuer, never()).issue(anyString(), any(), any());
 		verify(refreshSessionIssuer, never()).prepare(anyString());
 		verify(registrationTransactionService, never()).register(any(), any(), any());
 	}
 
 	@Test
 	void accessTokenPreparationFailureLeavesNoPersistenceAndAllowsRetry() {
-		when(accessTokenIssuer.issue(anyString(), any()))
+		when(accessTokenIssuer.issue(anyString(), any(), any()))
 				.thenThrow(new IllegalStateException("test-only access preparation failure"))
 				.thenReturn(issuedAccessToken());
 
@@ -455,7 +455,7 @@ class GuestAuthServiceTests {
 
 		assertThat(committed.refreshToken()).isNotBlank();
 		assertThat(retry.getErrorCode()).isEqualTo(AuthErrorStatus.GUEST_ALREADY_EXISTS);
-		verify(accessTokenIssuer, times(1)).issue(anyString(), any());
+		verify(accessTokenIssuer, times(1)).issue(anyString(), any(), any());
 		verify(refreshSessionIssuer, times(1)).prepare(anyString());
 		verify(registrationTransactionService, times(1)).register(any(), any(), any());
 	}

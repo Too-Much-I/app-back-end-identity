@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
@@ -97,7 +98,7 @@ class FirebaseGuestMergeServiceTests {
 		when(sessionIssuer.prepare(target.getUserId())).thenReturn(prepared);
 		when(transactionService.merge(any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)))
 				.thenReturn(issuedRefresh);
-		when(accessTokenIssuer.issue(eq(target.getUserId()), any())).thenReturn(issuedAccess);
+		when(accessTokenIssuer.issue(eq(target.getUserId()), eq(UserAccountType.MEMBER), any())).thenReturn(issuedAccess);
 
 		FirebaseSignupResponse response = service.merge(
 				new FirebaseGuestMergeRequest("fresh-proof")
@@ -106,11 +107,11 @@ class FirebaseGuestMergeServiceTests {
 		assertThat(response.accessToken()).isEqualTo("target-access");
 		assertThat(response.refreshToken()).isEqualTo("target-refresh");
 		verify(resolver).resolve(principal, source.getUserId());
-		verify(accessTokenIssuer, never()).issue(eq(source.getUserId()), any());
+		verify(accessTokenIssuer, never()).issue(eq(source.getUserId()), any(), any());
 		InOrder order = inOrder(transactionService, accessTokenIssuer);
 		order.verify(transactionService).merge(
 				any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)
 		);
-		order.verify(accessTokenIssuer).issue(eq(target.getUserId()), any());
+		order.verify(accessTokenIssuer).issue(eq(target.getUserId()), eq(UserAccountType.MEMBER), any());
 	}
 }

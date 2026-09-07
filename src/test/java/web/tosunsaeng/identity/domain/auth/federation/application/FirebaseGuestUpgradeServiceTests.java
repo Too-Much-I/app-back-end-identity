@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,8 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
+import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
@@ -43,6 +46,9 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneFingerp
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
+import web.tosunsaeng.identity.domain.auth.session.application.TokenReissueService;
+import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
@@ -50,6 +56,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 class FirebaseGuestUpgradeServiceTests {
 
@@ -145,7 +152,7 @@ class FirebaseGuestUpgradeServiceTests {
 				NOW,
 				NOW.plus(Duration.ofDays(14))
 		));
-		when(accessTokenIssuer.issue(guest.getUserId(), Set.of())).thenReturn(
+		when(accessTokenIssuer.issue(guest.getUserId(), UserAccountType.MEMBER, Set.of())).thenReturn(
 				new IssuedAccessToken(
 						"access-secret",
 						"Bearer",
@@ -184,6 +191,7 @@ class FirebaseGuestUpgradeServiceTests {
 
 		assertThat(response.accessToken()).isEqualTo("access-secret");
 		assertThat(response.refreshToken()).isEqualTo("refresh-secret");
+		verify(accessTokenIssuer).issue(originalUserId, UserAccountType.MEMBER, Set.of());
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		ArgumentCaptor<Instant> expectedUpdatedAtCaptor = ArgumentCaptor.forClass(Instant.class);
 		ArgumentCaptor<FirebaseIdentity> firebaseCaptor = ArgumentCaptor.forClass(
@@ -205,6 +213,32 @@ class FirebaseGuestUpgradeServiceTests {
 	}
 
 	@Test
+	void upgradeThenRefreshKeepsSameUserIdAndMemberType() {
+		String originalUserId = guest.getUserId();
+		FirebaseSignupResponse upgraded = service.upgrade(request());
+		RefreshTokenHasher hasher = new RefreshTokenHasher();
+		RefreshSession session = RefreshSession.create(originalUserId,
+				hasher.hash(upgraded.refreshToken()), NOW, NOW.plus(Duration.ofDays(14)));
+		RefreshSessionRepository sessions = mock(RefreshSessionRepository.class);
+		UserRepository users = mock(UserRepository.class);
+		when(sessions.findByTokenHash(hasher.hash(upgraded.refreshToken())))
+				.thenReturn(Optional.of(session));
+		when(users.findById(originalUserId)).thenReturn(Optional.of(guest));
+		when(refreshSessionIssuer.issueRotated(any(), any(), any(), any(), any()))
+				.thenReturn(new IssuedRefreshSession("rotated-refresh", NOW, NOW.plus(Duration.ofDays(14))));
+		TokenReissueService reissue = new TokenReissueService(hasher, sessions, users,
+				accessTokenIssuer, refreshSessionIssuer, new AuthResponseConverter(),
+				Clock.fixed(NOW, ZoneOffset.UTC));
+
+		var refreshed = reissue.reissue(new ReissueRequest(upgraded.refreshToken()));
+
+		assertThat(refreshed.accessToken()).isEqualTo("access-secret");
+		verify(users).findById(originalUserId);
+		verify(accessTokenIssuer, times(2)).issue(originalUserId, UserAccountType.MEMBER, Set.of());
+		assertThat(guest.getUserId()).isEqualTo(originalUserId);
+	}
+
+	@Test
 	void existingMemberOwnerReturnsMergeRequiredWithoutPreparingSessionOrMutation() {
 		when(ownershipService.resolve(principal, guest.getUserId()))
 				.thenReturn(FirebaseOwnershipOutcome.OWNED_BY_OTHER_ACTIVE_MEMBER);
@@ -215,7 +249,7 @@ class FirebaseGuestUpgradeServiceTests {
 		verify(transactionService, never()).upgrade(
 				any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
 		);
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 	}
 
 	@Test

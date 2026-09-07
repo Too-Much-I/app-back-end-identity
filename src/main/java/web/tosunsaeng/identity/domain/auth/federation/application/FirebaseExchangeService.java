@@ -159,7 +159,9 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		}
 		ensureNoSocialIdentityOwner(principal, user.getUserId());
 
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				user.getUserId(), user.getAccountType(), Set.of()
+		);
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
 		return new FirebaseAuthenticatedResponse(
 				accessToken.tokenValue(),

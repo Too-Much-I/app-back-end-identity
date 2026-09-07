@@ -20,11 +20,15 @@ import com.nimbusds.jose.jwk.RSAKey;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 
 class JwtAccessTokenIssuerTests {
 
@@ -58,6 +62,7 @@ class JwtAccessTokenIssuerTests {
 	void issuesRs256TokenWithRequiredHeadersClaimsAndMetadata() {
 		IssuedAccessToken issuedToken = accessTokenIssuer.issue(
 				USER_ID,
+				UserAccountType.MEMBER,
 				Set.of("learning:write", "learning:read")
 		);
 
@@ -75,6 +80,7 @@ class JwtAccessTokenIssuerTests {
 		assertThat(UUID.fromString(jwt.getId()).toString()).isEqualTo(jwt.getId());
 		assertThat(jwt.getClaimAsString("scope"))
 				.isEqualTo("learning:read learning:write");
+		assertThat(jwt.getClaims()).containsEntry("account_type", "MEMBER");
 
 		assertThat(issuedToken.tokenType()).isEqualTo("Bearer");
 		assertThat(issuedToken.issuedAt()).isEqualTo(NOW);
@@ -82,10 +88,29 @@ class JwtAccessTokenIssuerTests {
 		assertThat(issuedToken.expiresInSeconds()).isEqualTo(ACCESS_TOKEN_TTL.getSeconds());
 	}
 
+	@ParameterizedTest
+	@EnumSource(UserAccountType.class)
+	void issuesExactStringAccountTypeForEveryAllowedType(UserAccountType accountType) {
+		Jwt jwt = decodeWith(publicKey,
+				accessTokenIssuer.issue(USER_ID, accountType, Set.of()).tokenValue());
+
+		assertThat(jwt.getClaims()).containsEntry("account_type", accountType.name());
+		assertThat(jwt.getClaims().get("account_type")).isInstanceOf(String.class);
+		assertThat(jwt.getClaims()).containsOnlyKeys(
+				"sub", "iss", "aud", "iat", "exp", "jti", "scope", "account_type");
+	}
+
+	@Test
+	void rejectsMissingAccountTypeInsteadOfDefaultingToMember() {
+		assertThatThrownBy(() -> accessTokenIssuer.issue(USER_ID, null, Set.of()))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("Access Token accountType must not be null.");
+	}
+
 	@Test
 	void usesDefaultScopesWhenRequestedScopesAreEmptyOrNull() {
-		IssuedAccessToken emptyScopesToken = accessTokenIssuer.issue(USER_ID, Set.of());
-		IssuedAccessToken nullScopesToken = accessTokenIssuer.issue(USER_ID, null);
+		IssuedAccessToken emptyScopesToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
+		IssuedAccessToken nullScopesToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, null);
 
 		assertThat(decodeWith(publicKey, emptyScopesToken.tokenValue()).getClaimAsString("scope"))
 				.isEqualTo("learning:read learning:write");
@@ -95,14 +120,14 @@ class JwtAccessTokenIssuerTests {
 
 	@Test
 	void rejectsInvalidUserId() {
-		assertThatThrownBy(() -> accessTokenIssuer.issue("not-a-uuid", Set.of("learning:read")))
+		assertThatThrownBy(() -> accessTokenIssuer.issue("not-a-uuid", UserAccountType.MEMBER, Set.of("learning:read")))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessage("Access Token userId must be a UUID.");
 	}
 
 	@Test
 	void publicKeyVerifiesSignatureButDifferentPublicKeyDoesNot() {
-		IssuedAccessToken issuedToken = accessTokenIssuer.issue(USER_ID, Set.of("learning:read"));
+		IssuedAccessToken issuedToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of("learning:read"));
 
 		assertThat(decodeWith(publicKey, issuedToken.tokenValue()).getSubject()).isEqualTo(USER_ID);
 		RSAPublicKey differentPublicKey = (RSAPublicKey) generateRsaKeyPair().getPublic();
@@ -112,7 +137,7 @@ class JwtAccessTokenIssuerTests {
 
 	@Test
 	void tokenContainsNoCredentialsPersonalDataOrPrivateKeyParameters() {
-		IssuedAccessToken issuedToken = accessTokenIssuer.issue(USER_ID, Set.of("learning:read"));
+		IssuedAccessToken issuedToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of("learning:read"));
 		Jwt jwt = decodeWith(publicKey, issuedToken.tokenValue());
 
 		assertThat(jwt.getClaims()).doesNotContainKeys(
@@ -152,11 +177,11 @@ class JwtAccessTokenIssuerTests {
 	void guestTokensKeepExistingRs256ContractAndSeparateOwnershipBySubject() {
 		Jwt firstGuestToken = decodeWith(
 				publicKey,
-				accessTokenIssuer.issue(USER_ID, Set.of()).tokenValue()
+				accessTokenIssuer.issue(USER_ID, UserAccountType.GUEST, Set.of()).tokenValue()
 		);
 		Jwt secondGuestToken = decodeWith(
 				publicKey,
-				accessTokenIssuer.issue(OTHER_GUEST_USER_ID, Set.of()).tokenValue()
+				accessTokenIssuer.issue(OTHER_GUEST_USER_ID, UserAccountType.GUEST, Set.of()).tokenValue()
 		);
 
 		assertThat(firstGuestToken.getHeaders())
@@ -166,6 +191,8 @@ class JwtAccessTokenIssuerTests {
 		assertThat(firstGuestToken.getAudience()).containsExactly(AUDIENCE);
 		assertThat(firstGuestToken.getSubject()).isEqualTo(USER_ID);
 		assertThat(secondGuestToken.getSubject()).isEqualTo(OTHER_GUEST_USER_ID);
+		assertThat(firstGuestToken.getClaims()).containsEntry("account_type", "GUEST");
+		assertThat(secondGuestToken.getClaims()).containsEntry("account_type", "GUEST");
 		assertThat(firstGuestToken.getSubject()).isNotEqualTo(secondGuestToken.getSubject());
 		assertThat(firstGuestToken.getClaims()).doesNotContainKeys(
 				"installationId",

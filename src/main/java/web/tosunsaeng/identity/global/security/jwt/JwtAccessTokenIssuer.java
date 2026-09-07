@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Service;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
+
 @Service
 @RequiredArgsConstructor
 public class JwtAccessTokenIssuer implements AccessTokenIssuer {
@@ -27,8 +29,11 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 	private final Clock clock;
 
 	@Override
-	public IssuedAccessToken issue(String userId, Set<String> scopes) {
+	public IssuedAccessToken issue(String userId, UserAccountType accountType, Set<String> scopes) {
 		validateUserId(userId);
+		if (accountType == null) {
+			throw new IllegalArgumentException("Access Token accountType must not be null.");
+		}
 		Instant issuedAt = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		Instant expiresAt = issuedAt.plus(properties.accessTokenTtl());
 		// Scope 순서를 고정해 같은 권한 집합의 Claim 표현을 일관되게 유지한다.
@@ -47,6 +52,7 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 				.expiresAt(expiresAt)
 				.id(UUID.randomUUID().toString())
 				.claim("scope", scopeClaim)
+				.claim("account_type", accountType.name())
 				.build();
 
 		Jwt jwt = jwtEncoder.encode(JwtEncoderParameters.from(headers, claims));

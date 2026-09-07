@@ -20,6 +20,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
@@ -114,7 +115,7 @@ class FirebaseExchangeServiceTests {
 				"google-subject",
 				NOW.minusSeconds(60)
 		)));
-		when(accessTokenIssuer.issue(USER_ID, Set.of())).thenReturn(new IssuedAccessToken(
+		when(accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of())).thenReturn(new IssuedAccessToken(
 				"identity-access-token",
 				"Bearer",
 				NOW,
@@ -136,7 +137,7 @@ class FirebaseExchangeServiceTests {
 		assertThat(response.refreshToken()).isEqualTo("identity-refresh-token");
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(1_800_000);
 		assertThat(response.refreshTokenExpiresIn()).isEqualTo(1_209_600_000);
-		verify(accessTokenIssuer).issue(USER_ID, Set.of());
+		verify(accessTokenIssuer).issue(USER_ID, UserAccountType.MEMBER, Set.of());
 		verify(refreshSessionIssuer).issue(USER_ID);
 		verifyNoInteractions(enrollmentAttemptService);
 	}
@@ -431,6 +432,7 @@ class FirebaseExchangeServiceTests {
 	private User member(UserStatus status) {
 		User user = mock(User.class);
 		when(user.getUserId()).thenReturn(USER_ID);
+		when(user.getAccountType()).thenReturn(UserAccountType.MEMBER);
 		when(user.getStatus()).thenReturn(status);
 		when(user.isMember()).thenReturn(true);
 		return user;

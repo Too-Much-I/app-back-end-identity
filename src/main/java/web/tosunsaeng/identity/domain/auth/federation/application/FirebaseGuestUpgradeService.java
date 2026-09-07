@@ -179,7 +179,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 		} catch (DuplicateKeyException exception) {
 			throw classifyUniqueConflict(principal, userId, phoneFingerprints);
 		}
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(userId, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(userId, user.getAccountType(), Set.of());
 		return new FirebaseSignupResponse(
 				accessToken.tokenValue(),
 				refreshSession.tokenValue(),

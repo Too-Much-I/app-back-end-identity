@@ -27,6 +27,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
 import web.tosunsaeng.identity.domain.auth.session.dto.request.LogoutRequest;
 import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
@@ -114,7 +115,7 @@ class RefreshTokenUseCaseServicesTests {
 		)).thenReturn(Optional.of(currentSession));
 		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 		IssuedAccessToken accessToken = issuedAccessToken();
-		when(accessTokenIssuer.issue(USER_ID, Set.of())).thenReturn(accessToken);
+		when(accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of())).thenReturn(accessToken);
 		when(refreshTokenGenerator.generate()).thenReturn(NEXT_REFRESH_VALUE);
 
 		ReissueResponse response;
@@ -138,7 +139,7 @@ class RefreshTokenUseCaseServicesTests {
 				refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)
 		);
 		verify(userRepository).findById(USER_ID);
-		verify(accessTokenIssuer).issue(USER_ID, Set.of());
+		verify(accessTokenIssuer).issue(USER_ID, UserAccountType.MEMBER, Set.of());
 		verify(refreshTokenGenerator).generate();
 
 		ArgumentCaptor<RefreshSession> sessionCaptor = ArgumentCaptor.forClass(RefreshSession.class);
@@ -324,10 +325,11 @@ class RefreshTokenUseCaseServicesTests {
 		verifyNoNewTokensOrSessions();
 	}
 
-	@Test
-	void rejectsSuspendedUserWithoutRotatingOrIssuingTokens() {
+	@ParameterizedTest
+	@EnumSource(value = UserStatus.class, names = {"SUSPENDED", "MERGED"})
+	void rejectsInactiveUserWithoutRotatingOrIssuingTokens(UserStatus status) {
 		RefreshSession session = activeSession(CURRENT_REFRESH_VALUE);
-		User inactiveUser = user(UserStatus.SUSPENDED);
+		User inactiveUser = user(status);
 		when(refreshSessionRepository.findByTokenHash(any()))
 				.thenReturn(Optional.of(session));
 		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(inactiveUser));
@@ -395,7 +397,7 @@ class RefreshTokenUseCaseServicesTests {
 		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN);
 		assertThat(exception.getMessage()).doesNotContain("version conflict");
 		verify(refreshSessionRepository).save(session);
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshTokenGenerator, never()).generate();
 	}
 
@@ -428,7 +430,7 @@ class RefreshTokenUseCaseServicesTests {
 		assertThat(session.getRevokedAt()).isEqualTo(NOW);
 		assertThat(session.getLastUsedAt()).isEqualTo(NOW);
 		assertThat(session.getRevocationReason()).isEqualTo(RevocationReason.LOGOUT);
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshTokenGenerator, never()).generate();
 	}
 
@@ -455,7 +457,7 @@ class RefreshTokenUseCaseServicesTests {
 		logoutService.logout(new LogoutRequest("expired-test-refresh-value"));
 
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshTokenGenerator, never()).generate();
 	}
 
@@ -515,6 +517,7 @@ class RefreshTokenUseCaseServicesTests {
 	private User user(UserStatus status) {
 		User user = mock(User.class);
 		when(user.getUserId()).thenReturn(USER_ID);
+		when(user.getAccountType()).thenReturn(UserAccountType.MEMBER);
 		when(user.getStatus()).thenReturn(status);
 		return user;
 	}
@@ -530,7 +533,7 @@ class RefreshTokenUseCaseServicesTests {
 	}
 
 	private void verifyNoNewTokensOrSessions() {
-		verify(accessTokenIssuer, never()).issue(any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 		verify(refreshTokenGenerator, never()).generate();
 		verify(refreshSessionRepository, never()).save(any(RefreshSession.class));
 	}

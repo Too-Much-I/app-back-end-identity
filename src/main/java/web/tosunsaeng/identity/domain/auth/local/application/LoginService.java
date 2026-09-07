@@ -50,7 +50,9 @@ public class LoginService {
 		}
 
 		// 사용자와 비밀번호 검증이 끝난 뒤에만 인증 토큰을 발급한다.
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				user.getUserId(), user.getAccountType(), Set.of()
+		);
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
 		LoginResponse response = authResponseConverter.toLoginResponse(
 				accessToken,

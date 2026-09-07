@@ -68,6 +68,7 @@ public class GuestAuthService {
 		// 영속성 전에 두 Token과 RefreshSession 문서를 모두 준비한다.
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				guestUser.getUserId(),
+				guestUser.getAccountType(),
 				Set.of()
 		);
 		PreparedRefreshSession refreshSession = refreshSessionIssuer.prepare(
