@@ -29,7 +29,12 @@ import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
-import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
+import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
+import web.tosunsaeng.identity.domain.auth.session.application.TokenReissueService;
+import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 class FirebaseGuestMergeServiceTests {
 
@@ -68,9 +73,10 @@ class FirebaseGuestMergeServiceTests {
 				NOW.minusSeconds(100)
 		);
 		VerifiedFirebasePrincipal principal = mock(VerifiedFirebasePrincipal.class);
+		RefreshTokenHasher hasher = new RefreshTokenHasher();
 		RefreshSession targetSession = RefreshSession.create(
 				target.getUserId(),
-				"target-hash",
+				hasher.hash("target-refresh"),
 				NOW,
 				NOW.plusSeconds(3600)
 		);
@@ -83,13 +89,8 @@ class FirebaseGuestMergeServiceTests {
 				NOW,
 				NOW.plusSeconds(3600)
 		);
-		IssuedAccessToken issuedAccess = new IssuedAccessToken(
-				"target-access",
-				"Bearer",
-				NOW,
-				NOW.plusSeconds(1800),
-				1800
-		);
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		when(currentUserProvider.getCurrentUserId()).thenReturn(source.getUserId());
 		when(userRepository.findById(source.getUserId())).thenReturn(Optional.of(source));
 		when(verifier.verify("fresh-proof", FirebaseVerificationPurpose.GUEST_MERGE))
@@ -98,13 +99,12 @@ class FirebaseGuestMergeServiceTests {
 		when(sessionIssuer.prepare(target.getUserId())).thenReturn(prepared);
 		when(transactionService.merge(any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)))
 				.thenReturn(issuedRefresh);
-		when(accessTokenIssuer.issue(eq(target.getUserId()), eq(UserAccountType.MEMBER), any())).thenReturn(issuedAccess);
 
 		FirebaseSignupResponse response = service.merge(
 				new FirebaseGuestMergeRequest("fresh-proof")
 		);
 
-		assertThat(response.accessToken()).isEqualTo("target-access");
+		tokens.assertClaims(response.accessToken(), target.getUserId(), UserAccountType.MEMBER);
 		assertThat(response.refreshToken()).isEqualTo("target-refresh");
 		verify(resolver).resolve(principal, source.getUserId());
 		verify(accessTokenIssuer, never()).issue(eq(source.getUserId()), any(), any());
@@ -113,5 +113,17 @@ class FirebaseGuestMergeServiceTests {
 				any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)
 		);
 		order.verify(accessTokenIssuer).issue(eq(target.getUserId()), eq(UserAccountType.MEMBER), any());
+
+		RefreshSessionRepository sessions = mock(RefreshSessionRepository.class);
+		when(sessions.findByTokenHash(hasher.hash(response.refreshToken())))
+				.thenReturn(Optional.of(targetSession));
+		when(userRepository.findById(target.getUserId())).thenReturn(Optional.of(target));
+		when(sessionIssuer.issueRotated(any(), any(), any(), any(), any()))
+				.thenReturn(new IssuedRefreshSession("target-rotated-refresh", NOW, NOW.plusSeconds(3600)));
+		TokenReissueService reissue = new TokenReissueService(hasher, sessions, userRepository,
+				accessTokenIssuer, sessionIssuer, new AuthResponseConverter(), Clock.fixed(NOW, ZoneOffset.UTC));
+		var refreshed = reissue.reissue(new ReissueRequest(response.refreshToken()));
+		tokens.assertClaims(refreshed.accessToken(), target.getUserId(), UserAccountType.MEMBER);
+		verify(accessTokenIssuer, never()).issue(eq(source.getUserId()), any(), any());
 	}
 }

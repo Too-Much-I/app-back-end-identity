@@ -57,6 +57,7 @@ import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 
 class FirebaseSignupServiceTests {
@@ -175,9 +176,10 @@ class FirebaseSignupServiceTests {
 
 	@Test
 	void createsCanonicalFederatedMemberAndIssuesAccessTokenAfterTransaction() {
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		FirebaseSignupResponse response = service.signup(request());
 
-		assertThat(response.accessToken()).isEqualTo("access-secret");
 		assertThat(response.refreshToken()).isEqualTo("refresh-secret");
 		ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
 		ArgumentCaptor<FirebaseIdentity> firebaseCaptor = ArgumentCaptor.forClass(
@@ -189,6 +191,7 @@ class FirebaseSignupServiceTests {
 				any(), any(), any(), any(), any(), any(), any()
 		);
 		User user = userCaptor.getValue();
+		tokens.assertClaims(response.accessToken(), user.getUserId(), UserAccountType.MEMBER);
 		assertThat(user.getProvider()).isEqualTo(UserProvider.FEDERATED);
 		assertThat(user.isMember()).isTrue();
 		assertThat(user.hasLocalCredential()).isFalse();
@@ -199,7 +202,7 @@ class FirebaseSignupServiceTests {
 		order.verify(transactionService).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
 		order.verify(accessTokenIssuer).issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 		assertThat(response.toString())
-				.doesNotContain("access-secret", "refresh-secret", FIREBASE_UID, PHONE);
+				.doesNotContain(response.accessToken(), "refresh-secret", FIREBASE_UID, PHONE);
 	}
 
 	@Test

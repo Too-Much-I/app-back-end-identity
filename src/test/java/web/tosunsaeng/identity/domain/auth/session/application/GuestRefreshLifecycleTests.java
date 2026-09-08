@@ -40,7 +40,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
-import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenProperties;
@@ -80,8 +80,8 @@ class GuestRefreshLifecycleTests {
 		when(sessionRepository.findByTokenHash(refreshTokenHasher.hash(CURRENT_REFRESH_VALUE)))
 				.thenReturn(Optional.of(currentSession));
 		when(userRepository.findById(guest.getUserId())).thenReturn(Optional.of(guest));
-		when(accessTokenIssuer.issue(originalUserId, expectedType, Set.of()))
-				.thenReturn(issuedAccessToken());
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		when(tokenGenerator.generate()).thenReturn(NEXT_REFRESH_VALUE);
 
 		TokenReissueService service = tokenReissueService(
@@ -108,7 +108,7 @@ class GuestRefreshLifecycleTests {
 		assertThat(replacement.getTokenHash())
 				.isEqualTo(refreshTokenHasher.hash(NEXT_REFRESH_VALUE))
 				.isNotEqualTo(NEXT_REFRESH_VALUE);
-		assertThat(response.accessToken()).isEqualTo("guest-next-access-test-value");
+		tokens.assertClaims(response.accessToken(), originalUserId, expectedType);
 		assertThat(response.refreshToken()).isEqualTo(NEXT_REFRESH_VALUE);
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(ACCESS_TTL.toMillis());
 		assertThat(response.refreshTokenExpiresIn()).isEqualTo(REFRESH_TTL.toMillis());
@@ -265,13 +265,4 @@ class GuestRefreshLifecycleTests {
 		);
 	}
 
-	private IssuedAccessToken issuedAccessToken() {
-		return new IssuedAccessToken(
-				"guest-next-access-test-value",
-				IssuedAccessToken.BEARER_TOKEN_TYPE,
-				NOW,
-				NOW.plus(ACCESS_TTL),
-				ACCESS_TTL.toSeconds()
-		);
-	}
 }

@@ -12,18 +12,23 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.nimbusds.jose.jwk.RSAKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 
 import web.tosunsaeng.identity.domain.auth.phoneidentity.infrastructure.WorkloadIdentityCredential;
 import web.tosunsaeng.identity.global.workload.WorkloadIdentityPurpose;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 
 class JwtWorkloadIdentityCredentialProviderTests {
 
@@ -40,8 +45,13 @@ class JwtWorkloadIdentityCredentialProviderTests {
 				jwtProperties
 		);
 		WorkloadJwtProperties properties = enabledProperties();
+		JwtEncoder encoder = configuration.jwtEncoder(configuration.jwkSource(rsaKey));
+		JwtAccessTokenIssuer userIssuer = new JwtAccessTokenIssuer(
+				encoder, jwtProperties, Clock.fixed(NOW, ZoneOffset.UTC));
+		IssuedAccessToken userToken = userIssuer.issue(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86", UserAccountType.MEMBER, Set.of());
 		JwtWorkloadIdentityCredentialProvider provider = new JwtWorkloadIdentityCredentialProvider(
-				configuration.jwtEncoder(configuration.jwkSource(rsaKey)),
+				encoder,
 				jwtProperties,
 				properties,
 				Clock.fixed(NOW, ZoneOffset.UTC)
@@ -75,14 +85,29 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		Jwt nextUserMerged = decoder.decode(provider.issue(
 				WorkloadIdentityPurpose.USER_MERGED).tokenValue());
 		assertThat(userMerged.getAudience()).containsExactly("learning-core-user-merged");
-		assertThat(userMerged.getClaims()).doesNotContainKey("account_type");
-		assertThat(nextUserMerged.getClaims()).doesNotContainKey("account_type");
+		assertThat(userMerged.getClaims()).doesNotContainKeys("account_type", "scope");
+		assertThat(nextUserMerged.getClaims()).doesNotContainKeys("account_type", "scope");
+		assertThat(nextUserMerged.getAudience()).containsExactly("learning-core-user-merged");
 		assertThat(userMerged.getId()).isNotEqualTo(nextUserMerged.getId());
-		assertThatThrownBy(() -> configuration.jwtDecoder(
-				(RSAPublicKey) keyPair.getPublic(),
-				jwtProperties,
-				Clock.fixed(NOW, ZoneOffset.UTC)
-		).decode(credential.tokenValue())).isInstanceOf(JwtException.class);
+		for (WorkloadIdentityPurpose purpose : WorkloadIdentityPurpose.values()) {
+			String workloadValue = provider.issue(purpose).tokenValue();
+			assertThatThrownBy(() -> configuration.jwtDecoder(
+					(RSAPublicKey) keyPair.getPublic(), jwtProperties, Clock.fixed(NOW, ZoneOffset.UTC)
+			).decode(workloadValue)).isInstanceOf(JwtException.class);
+			// 소비자 계약 fixture: 같은 서명 키라도 사용자 issuer/audience는 workload가 아니다.
+			String workloadAudience = decoder.decode(workloadValue).getAudience().getFirst();
+			NimbusJwtDecoder workloadDecoder = NimbusJwtDecoder.withPublicKey((RSAPublicKey) keyPair.getPublic())
+					.signatureAlgorithm(SignatureAlgorithm.RS256).build();
+			workloadDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+					new JwtIssuerValidator(properties.getIssuer()), new JwtAudienceValidator(workloadAudience)));
+			assertThatThrownBy(() -> workloadDecoder.decode(userToken.tokenValue())).isInstanceOf(JwtException.class);
+		}
+		Jwt userAfterWorkload = decoder.decode(userIssuer.issue(
+				"73a18ed4-1d56-4c4f-afd6-b39175b82a86", UserAccountType.GUEST, Set.of()).tokenValue());
+		assertThat(userAfterWorkload.getAudience()).containsExactly("tosunsaeng-learning-core", "tosunsaeng-billing");
+		assertThat(userAfterWorkload.getClaimAsString("scope")).isEqualTo("billing:read learning:read");
+		assertThat(jwtProperties.audience()).isEqualTo("tosunsaeng-learning-core");
+		assertThat(jwtProperties.defaultScopes()).containsExactly("learning:read");
 	}
 
 	@Test

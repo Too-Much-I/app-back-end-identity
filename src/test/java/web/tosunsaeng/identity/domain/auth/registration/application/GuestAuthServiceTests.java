@@ -56,6 +56,7 @@ import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.guest.GuestInstallationIdHasher;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.support.LogCapture;
 
@@ -128,6 +129,8 @@ class GuestAuthServiceTests {
 
 	@Test
 	void preparesActiveGuestAndExistingTokensBeforeTransactionalRegistration() {
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		GuestAuthResponse response;
 		try (LogCapture logs = LogCapture.forClass(GuestAuthService.class)) {
 			response = guestAuthService.authenticate(validRequest(INSTALLATION_ID));
@@ -160,6 +163,7 @@ class GuestAuthServiceTests {
 				refreshCaptor.capture()
 		);
 		User guest = userCaptor.getValue();
+		tokens.assertClaims(response.accessToken(), guest.getUserId(), UserAccountType.GUEST);
 		PreparedRefreshSession preparedRefresh = refreshCaptor.getValue();
 
 		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);

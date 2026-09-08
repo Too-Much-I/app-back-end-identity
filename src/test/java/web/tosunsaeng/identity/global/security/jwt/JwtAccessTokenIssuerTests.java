@@ -13,8 +13,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import com.nimbusds.jose.jwk.RSAKey;
 
@@ -26,6 +28,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
@@ -41,6 +44,7 @@ class JwtAccessTokenIssuerTests {
 	private static final String OTHER_GUEST_USER_ID = "45c05c3f-ae7f-4ca7-af88-3ab8aa8f428e";
 
 	private RSAPublicKey publicKey;
+	private JwtEncoder encoder;
 	private JwtAccessTokenIssuer accessTokenIssuer;
 
 	@BeforeEach
@@ -51,8 +55,9 @@ class JwtAccessTokenIssuerTests {
 		JwtProperties properties = properties();
 		JwtConfiguration configuration = new JwtConfiguration();
 		RSAKey rsaKey = configuration.rsaKey(publicKey, privateKey, properties);
+		encoder = configuration.jwtEncoder(configuration.jwkSource(rsaKey));
 		accessTokenIssuer = new JwtAccessTokenIssuer(
-				configuration.jwtEncoder(configuration.jwkSource(rsaKey)),
+				encoder,
 				properties,
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
@@ -74,12 +79,12 @@ class JwtAccessTokenIssuerTests {
 				.containsEntry("typ", "JWT");
 		assertThat(jwt.getSubject()).isEqualTo(USER_ID);
 		assertThat(jwt.getIssuer().toString()).isEqualTo(ISSUER);
-		assertThat(jwt.getAudience()).containsExactly(AUDIENCE);
+		assertThat(jwt.getAudience()).containsExactly(AUDIENCE, "tosunsaeng-billing");
 		assertThat(jwt.getIssuedAt()).isEqualTo(NOW);
 		assertThat(jwt.getExpiresAt()).isEqualTo(NOW.plus(ACCESS_TOKEN_TTL));
 		assertThat(UUID.fromString(jwt.getId()).toString()).isEqualTo(jwt.getId());
 		assertThat(jwt.getClaimAsString("scope"))
-				.isEqualTo("learning:read learning:write");
+				.isEqualTo("billing:read learning:read learning:write");
 		assertThat(jwt.getClaims()).containsEntry("account_type", "MEMBER");
 
 		assertThat(issuedToken.tokenType()).isEqualTo("Bearer");
@@ -96,6 +101,9 @@ class JwtAccessTokenIssuerTests {
 
 		assertThat(jwt.getClaims()).containsEntry("account_type", accountType.name());
 		assertThat(jwt.getClaims().get("account_type")).isInstanceOf(String.class);
+		assertThat(jwt.getAudience()).containsExactly(AUDIENCE, "tosunsaeng-billing");
+		assertThat(jwt.getClaimAsString("scope"))
+				.isEqualTo("billing:read learning:read learning:write");
 		assertThat(jwt.getClaims()).containsOnlyKeys(
 				"sub", "iss", "aud", "iat", "exp", "jti", "scope", "account_type");
 	}
@@ -113,9 +121,65 @@ class JwtAccessTokenIssuerTests {
 		IssuedAccessToken nullScopesToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, null);
 
 		assertThat(decodeWith(publicKey, emptyScopesToken.tokenValue()).getClaimAsString("scope"))
-				.isEqualTo("learning:read learning:write");
+				.isEqualTo("billing:read learning:read learning:write");
 		assertThat(decodeWith(publicKey, nullScopesToken.tokenValue()).getClaimAsString("scope"))
-				.isEqualTo("learning:read learning:write");
+				.isEqualTo("billing:read learning:read learning:write");
+	}
+
+	@Test
+	void explicitScopesPreserveLeastPrivilegeAndDeduplicateBillingRead() {
+		for (Set<String> scopes : List.of(Set.of("profile:read"), Set.of("profile:read", "billing:read"))) {
+			Jwt jwt = decodeWith(publicKey,
+					accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, scopes).tokenValue());
+			assertThat(jwt.getClaimAsString("scope")).isEqualTo("billing:read profile:read");
+		}
+	}
+
+	@Test
+	void deduplicatesBillingAudienceAndDefaultScopeWithoutChangingProperties() {
+		JwtProperties properties = new JwtProperties(ISSUER, "tosunsaeng-billing", KEY_ID,
+				ACCESS_TOKEN_TTL, "unused-private", "unused-public",
+				List.of("billing:read", "profile:read", "billing:read"));
+		JwtAccessTokenIssuer issuer = new JwtAccessTokenIssuer(encoder, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+		Jwt jwt = decodeWith(publicKey, issuer.issue(USER_ID, UserAccountType.GUEST, Set.of()).tokenValue());
+		assertThat(jwt.getAudience()).containsExactly("tosunsaeng-billing");
+		assertThat(jwt.getClaimAsString("scope")).isEqualTo("billing:read profile:read");
+		assertThat(properties.defaultScopes()).containsExactly("billing:read", "profile:read", "billing:read");
+	}
+
+	@Test
+	void concurrentIssuanceDoesNotMutateInputsOrLeakScopesBetweenUsers() {
+		Set<String> explicitScopes = new HashSet<>(Set.of("profile:read"));
+		JwtProperties properties = properties();
+		JwtAccessTokenIssuer issuer = new JwtAccessTokenIssuer(encoder, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+		List<Jwt> tokens = IntStream.range(0, 20).parallel().mapToObj(index -> {
+			boolean member = index % 2 == 0;
+			return decodeWith(publicKey, issuer.issue(member ? USER_ID : OTHER_GUEST_USER_ID,
+					member ? UserAccountType.MEMBER : UserAccountType.GUEST,
+					member ? explicitScopes : Set.of()).tokenValue());
+		}).toList();
+		for (Jwt jwt : tokens) {
+			boolean member = USER_ID.equals(jwt.getSubject());
+			assertThat(jwt.getAudience()).containsExactly(AUDIENCE, "tosunsaeng-billing");
+			assertThat(jwt.getClaimAsString("account_type")).isEqualTo(member ? "MEMBER" : "GUEST");
+			assertThat(jwt.getClaimAsString("scope")).isEqualTo(member
+					? "billing:read profile:read" : "billing:read learning:read learning:write");
+		}
+		assertThat(tokens.stream().map(Jwt::getId).distinct().count()).isEqualTo(20);
+		assertThat(explicitScopes).containsExactly("profile:read");
+		assertThat(properties.defaultScopes()).containsExactly("learning:read", "learning:write");
+		assertThat(properties.audience()).isEqualTo(AUDIENCE);
+	}
+
+	@Test
+	void rejectsMalformedScopesBeforeAddingBillingRead() {
+		for (String invalid : new String[] {null, "", " ", "profile:read learning:write", "profile:\tread", "profile:\nread"}) {
+			Set<String> scopes = new HashSet<>();
+			scopes.add(invalid);
+			assertThatThrownBy(() -> accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, scopes))
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessage("Access Token scopes must be non-blank tokens.");
+		}
 	}
 
 	@Test
@@ -188,7 +252,7 @@ class JwtAccessTokenIssuerTests {
 				.containsEntry("alg", "RS256")
 				.containsEntry("kid", KEY_ID);
 		assertThat(firstGuestToken.getIssuer().toString()).isEqualTo(ISSUER);
-		assertThat(firstGuestToken.getAudience()).containsExactly(AUDIENCE);
+		assertThat(firstGuestToken.getAudience()).containsExactly(AUDIENCE, "tosunsaeng-billing");
 		assertThat(firstGuestToken.getSubject()).isEqualTo(USER_ID);
 		assertThat(secondGuestToken.getSubject()).isEqualTo(OTHER_GUEST_USER_ID);
 		assertThat(firstGuestToken.getClaims()).containsEntry("account_type", "GUEST");

@@ -55,6 +55,7 @@ import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
@@ -214,8 +215,11 @@ class FirebaseGuestUpgradeServiceTests {
 
 	@Test
 	void upgradeThenRefreshKeepsSameUserIdAndMemberType() {
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		String originalUserId = guest.getUserId();
 		FirebaseSignupResponse upgraded = service.upgrade(request());
+		tokens.assertClaims(upgraded.accessToken(), originalUserId, UserAccountType.MEMBER);
 		RefreshTokenHasher hasher = new RefreshTokenHasher();
 		RefreshSession session = RefreshSession.create(originalUserId,
 				hasher.hash(upgraded.refreshToken()), NOW, NOW.plus(Duration.ofDays(14)));
@@ -232,7 +236,7 @@ class FirebaseGuestUpgradeServiceTests {
 
 		var refreshed = reissue.reissue(new ReissueRequest(upgraded.refreshToken()));
 
-		assertThat(refreshed.accessToken()).isEqualTo("access-secret");
+		tokens.assertClaims(refreshed.accessToken(), originalUserId, UserAccountType.MEMBER);
 		verify(users).findById(originalUserId);
 		verify(accessTokenIssuer, times(2)).issue(originalUserId, UserAccountType.MEMBER, Set.of());
 		assertThat(guest.getUserId()).isEqualTo(originalUserId);

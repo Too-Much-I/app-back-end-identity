@@ -44,7 +44,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
-import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 
 class FirebaseExchangeServiceTests {
 
@@ -115,13 +115,8 @@ class FirebaseExchangeServiceTests {
 				"google-subject",
 				NOW.minusSeconds(60)
 		)));
-		when(accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of())).thenReturn(new IssuedAccessToken(
-				"identity-access-token",
-				"Bearer",
-				NOW,
-				NOW.plus(Duration.ofMinutes(30)),
-				1800
-		));
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 		when(refreshSessionIssuer.issue(USER_ID)).thenReturn(new IssuedRefreshSession(
 				"identity-refresh-token",
 				NOW,
@@ -133,7 +128,7 @@ class FirebaseExchangeServiceTests {
 		);
 
 		assertThat(response.type().name()).isEqualTo("AUTHENTICATED");
-		assertThat(response.accessToken()).isEqualTo("identity-access-token");
+		tokens.assertClaims(response.accessToken(), USER_ID, UserAccountType.MEMBER);
 		assertThat(response.refreshToken()).isEqualTo("identity-refresh-token");
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(1_800_000);
 		assertThat(response.refreshTokenExpiresIn()).isEqualTo(1_209_600_000);

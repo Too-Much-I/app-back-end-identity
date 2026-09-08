@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -23,6 +24,9 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 @Service
 @RequiredArgsConstructor
 public class JwtAccessTokenIssuer implements AccessTokenIssuer {
+
+	private static final String BILLING_AUDIENCE = "tosunsaeng-billing";
+	private static final String BILLING_READ_SCOPE = "billing:read";
 
 	private final JwtEncoder jwtEncoder;
 	private final JwtProperties properties;
@@ -47,7 +51,7 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 		JwtClaimsSet claims = JwtClaimsSet.builder()
 				.subject(userId)
 				.issuer(properties.issuer())
-				.audience(List.of(properties.audience()))
+				.audience(userAudiences())
 				.issuedAt(issuedAt)
 				.expiresAt(expiresAt)
 				.id(UUID.randomUUID().toString())
@@ -76,6 +80,10 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 		}
 	}
 
+	private List<String> userAudiences() {
+		return List.copyOf(new LinkedHashSet<>(List.of(properties.audience(), BILLING_AUDIENCE)));
+	}
+
 	private Collection<String> orderedScopes(Set<String> scopes) {
 		Collection<String> selectedScopes = scopes == null || scopes.isEmpty()
 				? properties.defaultScopes()
@@ -87,6 +95,8 @@ public class JwtAccessTokenIssuer implements AccessTokenIssuer {
 			}
 			orderedScopes.add(scope);
 		}
+		// 사용자 조회 권한만 추가한다. workload 발급과 기존 scope 선택 규칙은 변경하지 않는다.
+		orderedScopes.add(BILLING_READ_SCOPE);
 		return orderedScopes;
 	}
 }

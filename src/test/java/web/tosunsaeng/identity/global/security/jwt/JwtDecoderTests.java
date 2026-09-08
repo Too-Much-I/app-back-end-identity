@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
@@ -26,6 +27,9 @@ import com.nimbusds.jwt.SignedJWT;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -33,6 +37,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwsHeader;
+
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 
 class JwtDecoderTests {
 
@@ -91,6 +97,48 @@ class JwtDecoderTests {
 				NOW.plusSeconds(60), null, "JWT", KEY_ID);
 
 		assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(Exception.class);
+	}
+
+	@ParameterizedTest
+	@EnumSource(UserAccountType.class)
+	void newUserTokenSatisfiesBothAudienceBoundariesAndBillingRead(UserAccountType accountType) {
+		JwtAccessTokenIssuer issuer = new JwtAccessTokenIssuer(encoder, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+		String value = issuer.issue(USER_ID, accountType, Set.of()).tokenValue();
+		Jwt jwt = decoder.decode(value);
+		assertThat(jwt.getAudience()).containsExactly(AUDIENCE, "tosunsaeng-billing");
+		assertThat(new JwtAudienceValidator(AUDIENCE).validate(jwt).hasErrors()).isFalse();
+		assertThat(new JwtAudienceValidator("tosunsaeng-billing").validate(jwt).hasErrors()).isFalse();
+		assertThat(new JwtGrantedAuthoritiesConverter().convert(jwt))
+				.extracting(Object::toString)
+				.containsExactlyInAnyOrder("SCOPE_billing:read", "SCOPE_learning:read", "SCOPE_learning:write");
+	}
+
+	@Test
+	void legacyUserTokenRemainsValidForIdentityButLacksBillingAudienceAndPermission() {
+		Jwt legacy = decoder.decode(token(encoder, ISSUER, AUDIENCE, USER_ID,
+				NOW.plusSeconds(60), null, "JWT", KEY_ID));
+		assertThat(legacy.getClaims()).doesNotContainKey("account_type");
+		assertThat(new JwtAudienceValidator("tosunsaeng-billing").validate(legacy).hasErrors()).isTrue();
+		assertThat(new JwtGrantedAuthoritiesConverter().convert(legacy))
+				.extracting(Object::toString).doesNotContain("SCOPE_billing:read");
+	}
+
+	@Test
+	void billingAudienceDoesNotImplyReadPermissionOrReplaceIdentityAudience() {
+		JwtClaimsSet claims = JwtClaimsSet.builder()
+				.issuer(ISSUER).subject(USER_ID).audience(List.of(AUDIENCE, "tosunsaeng-billing"))
+				.issuedAt(NOW).expiresAt(NOW.plusSeconds(60)).id("billing-scope-boundary")
+				.claim("scope", "learning:read").build();
+		String value = encoder.encode(JwtEncoderParameters.from(
+				JwsHeader.with(SignatureAlgorithm.RS256).type("JWT").keyId(KEY_ID).build(), claims)).getTokenValue();
+		Jwt jwt = decoder.decode(value);
+		assertThat(new JwtAudienceValidator("tosunsaeng-billing").validate(jwt).hasErrors()).isFalse();
+		assertThat(new JwtGrantedAuthoritiesConverter().convert(jwt))
+				.extracting(Object::toString).doesNotContain("SCOPE_billing:read");
+		String billingOnly = token(encoder, ISSUER, "tosunsaeng-billing", USER_ID,
+				NOW.plusSeconds(60), null, "JWT", KEY_ID);
+		assertThatThrownBy(() -> decoder.decode(billingOnly))
+				.isInstanceOf(org.springframework.security.oauth2.jwt.JwtException.class);
 	}
 
 	@Test

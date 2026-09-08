@@ -8,15 +8,30 @@
 - 현재 단계: Stage 7 Identity `TMI-123` 구현과 Learning Core `TMI-125` 연동 후속 보완이 PR #38의 merge commit `fa9843e`로 `develop`과 `origin/develop`에 반영됐다. 전체 630개 테스트와 `git diff --check`가 통과했고 관련 feature flag는 모두 `false`다. Jira `TMI-123`에는 승인된 완료 댓글을 등록했으며 상태와 Resolution 모두 `완료`로 전환됐다.
 - 상태 기준일: 2026-09-07
 
-## 현재 작업 — 사용자 JWT account_type (2026-09-07)
+## 현재 작업 — TMI-127 Billing public reader 사용자 JWT 확장 (2026-09-08)
+
+- 2026-09-08 구현 코드를 기준으로 audience 추가·scope 선택/합성·서명·7개 공통 발급 경로·현재 DB 유형을 사용하는 재발급·legacy validator 호환 및 실제 서명 테스트를 설명했다. 추가 코드 수정·테스트 재실행·배포는 없으며 기존 648개 통과는 직전 구현 검증 결과다.
+- TMI-127 로컬 구현 완료. 브랜치는 `feat/TMI-127-billing-reader-jwt`이며 런타임 변경은 JwtAccessTokenIssuer 하나다. 사용자 JWT에 기존 primary + tosunsaeng-billing audience와 기존 선택 scope + billing:read를 순서 고정·중복 제거하여 발급한다. 기존 설정·자체 validator·API·account_type·RefreshSession·workload는 유지한다.
+- 검증: `./gradlew clean test` 성공, 123개 suite·648개 테스트, 실패·오류·건너뜀 0개. 7개 서비스 발급 경로에서 SignedUserTokenFixture로 실제 서명·검증을 수행했고 upgrade→refresh, merge→refresh, legacy DB 유형과 구형 토큰·workload 격리·동시 발급 불변성을 확인했다. `git diff --check` 통과. 기존 미커밋 문서를 보존했고 범위 밖 런타임 변경 없음.
+- Jira는 구현 전 조회했으며 `해야 할 일` 유지, 댓글 미등록이다. 계획서 부록 6.7에 완료 댓글 초안을 준비했다. commit·push·PR·배포는 수행하지 않았다. 다음은 사용자 PR·병합 후 Identity rollout, 구버전 발급 종료와 실제 TTL·JWKS 확인, Billing staging E2E 및 앱 토큰 갱신·화면 활성화다. 실제 운영 연동은 미검증이다.
+- 2026-09-08 사용자 승인 후 공식 Atlassian MCP로 [TMI-127](https://to-teacher.atlassian.net/browse/TMI-127)을 생성했다. 제목은 `[Identity] Billing 사용권 조회용 사용자 JWT audience·scope 확장`, 유형은 작업, 초기 상태는 `해야 할 일`이다. 전체 사용자 발급 경로, 기존 계약 호환, workload 제외, 테스트 및 배포 인계를 등록했고 계획서에 이슈 키를 반영했다. 별도 댓글·상태 전환·구현·배포는 수행하지 않았다.
+- 2026-09-07 계획서의 사용자 관점 의미를 설명했다. 기존 로그인으로 받은 사용자 Access Token에 Billing 사용 대상(audience)과 본인 사용권 조회 권한(billing:read)을 추가하는 작업이며 별도 로그인·무료권 지급·수량 계산 작업이 아니다. Guest/MEMBER 모두 조회하되 실제 자격은 Billing이 판단한다. 기존 토큰은 정상 재발급이 필요하고 재응시 1회 화면 표시는 프론트 후속 범위다. 설명만 수행했으며 구현·배포 상태는 변경하지 않았다.
+- [사용자 JWT 확장 계획서](../contracts/billing-public-reader-user-jwt-plan.md)에 13개 테스트 항목·배포 순서와 TMI-127 로컬 구현 결과·검증 근거·Jira 댓글 초안을 반영했다. 구현 완료와 운영 활성화는 별도이며 PR·병합·배포가 남았다.
+- 위 후속 설명의 종료 기록을 turn `01a07ad1-c40f-7e80-a74c-12ba45beed5e`로 WORKLOG에 추가했다. 이번 작업은 설명·기록만 완료했으며 코드·배포 상태는 바뀌지 않았다.
 
 - 브랜치·커밋·PR 명령어를 사용자에게 안내했다. 제안 브랜치는 `codex/add-access-token-account-type`, PR base는 `develop`이며 실제 Git 변경과 PR 생성은 사용자가 수행한다. 프론트 인증 가이드는 별도 변경으로 남기고 작업 기록에는 기존 미커밋 기록도 포함된다.
-- 사용자 요청으로 무료 사용권 조회보다 먼저 `account_type` 발급을 구현했다. `develop@fa9843e` 기준 로컬 미커밋 변경이며 이번 작업의 Jira·PR·merge·배포는 없다.
+- 사용자 요청으로 무료 사용권 조회보다 먼저 `account_type` 발급을 구현했다. 로컬 Git에서 PR #39 merge commit `fe9c7f6`으로 develop 반영을 확인했다. 실제 배포와 운영 TTL·구버전 발급 instance 종료 시각은 아직 미확인이다.
 - 공통 AccessTokenIssuer에 UserAccountType 필수 인자를 추가하고 7개 사용자 발급 서비스가 현재 `User.getAccountType()`을 전달한다. JWT는 문자열 MEMBER/GUEST를 발급하며 null 유형을 거절한다. refresh는 현재 DB 유형을 사용하고 upgrade는 같은 userId·MEMBER, merge는 target userId·MEMBER를 유지한다.
 - 공개 API·기존 claim·RefreshSession·프로필 `accountType`·legacy User 호환·탈퇴/병합 차단은 유지한다. workload JWT와 Identity의 구형 Token 검증에는 새 claim 요구를 추가하지 않았다.
 - 검증: `./gradlew clean test` 성공, 123개 suite·640개 테스트, 실패·오류·건너뜀 0개. `git diff --check` 통과. 기존 문서 미커밋 변경과 프론트 인증 가이드를 보존했고 예상 밖 변경은 없다.
 - [JWT 계약](../contracts/identity-learning-jwt.md)에 전체 발급 경로와 인계 항목을 반영했다. 실제 운영 TTL·Learning Core 사용자 JWT skew·구버전 발급 instance 종료 시각은 미확인이다. Identity 배포 후 `구버전 종료 시각 + 구버전 최대 실제 TTL + 사용자 JWT skew`가 지난 뒤 Challenge를 활성화한다. PT30M fallback을 운영 TTL로 확정하지 않는다.
-- 다음 작업: 사용자의 commit·PR·merge 및 배포 후 위 증빙을 Learning Core에 전달하고 무료 사용권 조회 작업으로 복귀한다.
+- 다음 작업: Billing 무료 사용권 public reader 계획서를 작성한다. 제안 GET `/api/v1/entitlements`에서 benefit별 수량과 재응시·진행 상태를 구분하고 lazy grant 부재를 0개로 오판하지 않는다. Billing reader·JWT verifier → Identity Billing audience·billing:read → 프론트 순서로 진행한다. account_type 배포 증빙의 Learning Core 전달은 별도 후속이다.
+- Billing 전달용 인계를 정리했다. 조회는 현재 user의 eligibility·retained 사용 이력·Grant·hold·group 및 owner 전환 상태를 읽고 신규 가능 수량과 재응시를 분리한다. exact DTO·state·wrapper와 paid reader 관계는 Billing 계획서에서 확정한다. account_type 병합은 Billing audience·billing:read 발급 완료를 뜻하지 않으며 public 사용자 JWT와 internal SigV4 경계를 구분한다.
+- Billing 인계 본문을 사용자에게 제공했고 현재 turn `01a07a83-7bbc-7603-87f1-c81a4a7f7f3d`의 WORKLOG 종료 기록을 추가했다. 실제 Billing 구현·파일 수정·외부 전송은 수행하지 않았다.
+- PLAN-007 검토: 무료 수량·재응시·LOCAL_PROJECTION·사용자 JWT/internal SigV4 분리와 Identity 9.2 audience/read 요구는 타당하다. 단, 8.2 target Session 귀속을 기본 7일 TTL의 command evidence에만 의존하면 정상 자료 정리 후 지속 PENDING 위험이 있다. 기존 지속성 있는 owner transition/Reservation/session 연결 또는 명시적인 최소 귀속 증빙을 확정하고 command purge 후·다중 재가입 테스트를 추가하도록 권고했다. 검토만 수행했으며 구현은 시작하지 않았다.
+- PLAN-007의 사용자 동작을 설명했다. Billing은 새 무료 수량과 진행·재응시·완료 상태를 읽기 전용으로 제공하고 실제 시험 생성·reserve는 기존 흐름을 사용한다. 설명은 계획 기준이며 Billing의 실시간 구현·배포 완료를 확인한 것은 아니다.
+- 사용자 의견에 따라 중단 후 재응시 가능 상태도 화면에서는 무료 모의고사 1회 이용 가능으로 표현하는 방향을 권고했다. 기존 PLAN-007 availableQuantity는 신규 INITIAL 수량이라 표시용 횟수와 구분하는 계약 보정이 필요하다. 원장·Grant는 복원하지 않고 동일 미완료 group의 반복 중단도 하나의 기회로 계산한다. Billing 문서·코드는 아직 수정하지 않았다.
+- Billing PR #9 merge eb0ae14의 PLAN-007 구현을 검토하고 전체 236개 테스트(35 suite, 실패·오류·skip 0)를 실행해 통과했다. command TTL 귀속 문제는 epoch 증빙과 실제 Mongo 회귀로 보완됐다. 재응시 API는 availableQuantity=0/retake=ALLOWED를 유지하며 Billing 문서의 프론트 통합 표시 방안에 따라 1회 남음으로 표시해야 한다. 별도 표시 횟수 필드는 없고 실제 앱 반영은 미확인이다. Identity Billing audience·billing:read와 운영 이관/활성화 검증이 다음 단계다.
 
 ## 완료
 
@@ -823,3 +838,16 @@
 - 결론별 파일 근거와 구현 사실·계획·추론 구분을 요구하며, 상세 목록과 표는 부록으로 보존한다.
 - 구현 완료 후 변경·계약·테스트·위험·배포 전 확인·예상 밖 diff·다음 확인을 보고한다.
 - Identity 애플리케이션과 외부 계약은 변경하지 않았고 Gradle 테스트를 실행하지 않았다.
+
+
+## 2026-09-08 다우기술 노션 포트폴리오 토선생 소재 선별
+
+- 브랜치: develop. 신규 Jira 없음.
+- 목표: 사용자 요청에 따라 토선생 상세 페이지에 넣을 내용을 선별.
+- 조사: 기존 포트폴리오 소재·트러블슈팅 문서, 각 서비스 현재 상태와 Learning Core 복구·Saga 테스트 및 MDC 구현을 대조.
+- 결정: 빈 종합 피드백과 선택적 채점 복구, 시험 생성·사용권 Reservation Saga를 대표 사례로 추천하고 구조화 로그를 보조 사례로 제안. 인증·저장 모델·S3는 구조 설명에 배치.
+- 구분: 구현 및 과거 테스트 기록은 운영 활성화 증거와 다르며 실제 결제·환불은 현재 구현 성과로 사용하지 않음. 처리량·비용·장애 감소 수치 미측정.
+- 변경 파일: 이 저장소의 docs/codex/WORKLOG.md와 CURRENT_STATE.md에 조사 기록만 추가. 기존 미커밋 작업 보존.
+- 검증: 소스·테스트 정적 조회. 애플리케이션 변경이 없어 Gradle 테스트는 재실행하지 않음.
+- 유지: API·AI 계약·feature flag·코드·외부 서비스·Git 이력 변경 없음.
+- 다음: 본인 역할과 사례별 설명 가능 범위 확인 후 노션 본문 작성.

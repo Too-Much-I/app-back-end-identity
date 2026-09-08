@@ -41,7 +41,7 @@ import web.tosunsaeng.identity.domain.auth.registration.application.SignupServic
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
-import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.support.SignedUserTokenFixture;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenGenerator;
@@ -303,15 +303,8 @@ class AuthenticationUseCaseServicesTests {
 		);
 		when(userRepository.findByNormalizedEmail("login.user@example.com"))
 				.thenReturn(Optional.of(user));
-		IssuedAccessToken issuedAccessToken = new IssuedAccessToken(
-				"test-access-value",
-				"Bearer",
-				NOW,
-				NOW.plus(Duration.ofMinutes(30)),
-				1_800
-		);
-		when(accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of()))
-				.thenReturn(issuedAccessToken);
+		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
+		tokens.delegate(accessTokenIssuer);
 
 		LoginResponse response;
 		try (LogCapture logs = LogCapture.forClass(LoginService.class)) {
@@ -358,7 +351,7 @@ class AuthenticationUseCaseServicesTests {
 		assertThat(savedSession.getRotatedFromSessionId()).isNull();
 		assertThat(savedSession.getReplacedBySessionId()).isNull();
 		assertThat(savedSession.getRevocationReason()).isNull();
-		assertThat(response.accessToken()).isEqualTo(issuedAccessToken.tokenValue());
+		tokens.assertClaims(response.accessToken(), user.getUserId(), UserAccountType.MEMBER);
 		assertThat(response.grantType()).isEqualTo("Bearer");
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(1_800_000L);
 		assertThat(response.toString())
