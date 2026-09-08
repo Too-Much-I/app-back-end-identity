@@ -8308,3 +8308,239 @@
 - 유지한 계약: 사용자 직접 commit·push 원칙, 기존 코드·JWT·API 계약을 유지한다. Git 변경·PR 생성·Jira 작업은 실행하지 않았다.
 - 위험 요소: 실제 PR·merge·배포와 운영 TTL·구버전 instance 종료 시각은 아직 없다. 사용자는 commit 전에 staged diff 범위를 확인해야 한다.
 - 다음 작업: 사용자가 명령어를 실행해 PR을 생성하고 검토·병합한다.
+
+## 2026-09-07 — 다음 작업 무료 사용권 조회 설명
+
+<!-- codex-turn:01a07a80-d818-74a2-852f-820969992e19 -->
+
+- 날짜·브랜치: 2026-09-07, Identity `develop@fe9c7f6`.
+- 작업 목표: account_type 구현 이후 무료 사용권 조회 작업의 책임 서비스·사용자 동작·구현 순서를 설명한다.
+- 확인 결과: 로컬 Git에서 PR #39 merge commit `fe9c7f6`과 account_type 발급 코드 반영을 확인했다. 실제 배포는 확인하지 않았다. Billing 현재 소스에는 public entitlement 조회 Controller가 없고 internal API만 있다.
+- 변경 파일: `docs/codex/WORKLOG.md`, `docs/codex/CURRENT_STATE.md`. Billing은 읽기 전용 조사했다.
+- 구현 내용·결정사항: 다음 작업은 Billing public entitlement reader 계획이다. 제안 경로는 `GET /api/v1/entitlements`; 사용자 JWT sub 기준 benefit별 사용 가능 수량과 진행·재응시 상태를 반환한다. exact DTO와 상태는 계획서에서 확정한다.
+- 근거: Billing `EntitlementGrant`는 available·held·consumed units를 소유한다. `PLAN-002-free-exam-initial-reserve.md`는 최초 reserve에서 FREE_EXAM_ONCE grant를 lazy 생성하고 OPEN·RETAKE_AVAILABLE 재시작에는 추가 차감하지 않는 계약이다. 따라서 grant 부재를 곧바로 0개로 해석하지 않고 eligibility와 현재 권리·AttemptGroup projection을 함께 고려해야 한다.
+- 유지한 계약: 조회는 Claim·Grant 생성이나 소비를 일으키지 않는다. 무료권 수량과 기존 group 재응시 가능성을 구분하며 서로 다른 unitType을 한 수량으로 합치지 않는다. Identity는 사용자 JWT, Billing은 혜택·권리, Learning Core는 시험을 소유한다.
+- 권장 순서: Billing reader·사용자 JWT verifier 구현 → Identity audience에 tosunsaeng-billing 및 billing:read 추가 → 프론트 조회 화면 → Firebase Stage 8 복귀. 결제 구매 구현을 이번 조회 범위에 포함하지 않는다.
+- 테스트: 코드 변경 없이 저장소·문서를 확인했으므로 Gradle 미실행. `git diff --check`로 문서 검증. 직전 account_type 구현의 전체 640개 통과 결과를 재실행한 것으로 보고하지 않는다.
+- 위험 요소: eligibility 연동 지연·진행 중 hold·재응시·사용 완료·저장소 장애를 모두 0개로 표시하면 안 된다. Billing paid entitlement reader 계약과 무료 조회 응답 관계는 계획 시 대조한다. account_type 배포·구버전 종료 시각·운영 TTL 확인은 별도로 남아 있다.
+- 다음 작업: Billing 저장소에 무료 사용권 조회 계획서를 작성해 응답·상태 계산·인증·오류·테스트를 확정한다. Jira 작업과 Git mutation은 수행하지 않았다.
+
+## 2026-09-07 — Billing 무료 사용권 조회 인계 내용 정리
+
+<!-- codex-turn:01a07a80-d818-74a2-852f-820969992e19 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: Billing 작업에서 계획서를 작성할 수 있도록 사용자 무료 사용권 조회 범위·인증·조회 의미·재가입 정책·테스트·배포 순서를 전달용으로 정리한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 인계 본문은 사용자에게 제공하며 Billing 파일·외부 메시지·Jira는 변경하지 않는다.
+- 결정사항: GET /api/v1/entitlements는 제안 경로다. benefit별 신규 사용 가능 수량과 기존 group 재응시 가능 여부를 분리한다. 정확한 DTO·state·wrapper는 Billing paid reader 계약과 대조해 계획서에서 확정한다.
+- 구현 요구: 현재 JWT sub의 eligibility·retained Claim·Grant·hold·AttemptGroup projection과 owner 전환 상태를 읽되 조회가 Grant 생성·consume·owner 변경을 일으키지 않는다. verified eligibility만으로 이미 사용한 혜택을 새 권리로 오판하지 않는다.
+- 인증: 사용자 JWT의 Billing audience·billing:read를 검증하고 Guest와 MEMBER 모두 조회를 허용하는 방향이다. Identity의 account_type은 PR #39에 병합됐으나 Billing audience·scope 발급은 아직 후속 작업이다. 기존 internal SigV4 경계는 유지한다.
+- 테스트: 문서 작업이므로 Gradle 미실행. git diff --check 검증. 전체 발급 경로 테스트 결과를 이번 작업의 신규 실행으로 보고하지 않는다.
+- 유지한 계약·위험: 재가입은 이전 시험 기록을 연결하지 않고 승인된 미완료 group의 재응시 가능성만 표현한다. 여러 benefit·group을 단일 총수량으로 합치지 않는다. 이벤트 지연·장애를 0개로 숨기지 않으며 조회 결과는 reserve 성공 보장이 아니다.
+- 다음 작업: Billing에서 조회 계획서·응답 예시·상태 판정표·인증과 테스트를 정리하고 Identity에 필요한 발급 변경을 회신한다.
+
+## 2026-09-07 — Billing 조회 인계 작업 종료 기록
+
+<!-- codex-turn:01a07a83-7bbc-7603-87f1-c81a4a7f7f3d -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: 사용자에게 전달한 Billing 무료 사용권 조회 인계를 현재 turn 식별자로 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG는 수정하지 않았다.
+- 구현 내용·결정사항: 제안 public 조회 API, 사용자 JWT 인증, lazy grant·retained 혜택 판정, 신규 수량과 재응시 구분, 재가입 owner 이전, 오류·테스트·배포 조건을 전달했다. exact DTO·state·paid reader 관계는 Billing 계획서에서 확정한다.
+- 유지한 계약: Identity 사용자 JWT와 Billing internal SigV4 경계, 조회의 무변경성, 과거 시험 기록의 재가입 연결 금지, 혜택 중복 지급 금지를 유지한다.
+- 테스트: 문서만 변경해 Gradle 미실행. git diff --check로 검증한다.
+- 위험 요소: Billing audience·billing:read 발급과 실제 운영 배포 검증은 후속 작업이다. 사용 가능 조회를 reserve 성공 보장으로 해석하지 않는다.
+- 다음 작업: 사용자가 Billing 작업에 인계하고 Billing에서 계획서와 Identity 후속 요구를 정리한다. 외부 메시지·Jira·Git commit·push는 수행하지 않았다.
+
+## 2026-09-07 — Billing PLAN-007 계약 검토
+
+<!-- codex-turn:01a07a94-8be6-7743-9f9c-a464ae4f57a6 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: 사용자 첨부 PLAN-007을 기존 무료 조회 인계와 Identity·Billing 현재 코드에 대조해 검토한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션·첨부 계획서·Billing 파일·Jira·배포는 변경하지 않았다.
+- 확인한 적합성: 신규 INITIAL 수량과 replacement 분리, Grant lazy 생성의 read-only 추론, current retained Claim 중복 사용 방지, LOCAL_PROJECTION 한계, null/PENDING과 503 구분, 재가입 source 기록 비노출, public 사용자 JWT/internal SigV4 격리와 reader-first 배포는 기존 요청과 일치한다.
+- Identity 인계: 9.2의 기존 Learning Core audience 보존 + Billing audience 배열 추가, 기존 scope 보존 + Guest/MEMBER billing:read 추가는 타당하다. 현재 JwtProperties.audience는 String이며 JwtAccessTokenIssuer는 List.of로 한 audience만 발급한다. defaultScopes는 explicit scopes가 비어 있을 때만 적용하므로 모든 사용자 발급 경로와 명시 scope에서도 read 부여를 검증해야 한다. workload·billing:purchase는 변경 대상에서 제외한다.
+- 주요 보완 요구: 8.2는 command evidence 만료 시 target Session 귀속을 PENDING으로 처리하지만 그 자료가 정상 retention으로 사라지면 재조회만으로 회복되지 않는다. Billing ReservationProperties의 terminalCommandRetention 기본값은 7일이고 ReservationLifecycleService confirm이 command purgeAt을 설정하며 TTL index가 있다. AttemptSession과 Reservation에는 userId 필드가 없다. 따라서 command가 유일한 귀속 근거가 되지 않도록 활성 group/Session 수명 동안 유지되는 정확한 owner 전이·Reservation 연결 증빙을 먼저 확정해야 한다.
+- 권고: 기존 지속성 있는 continuationId/owner transition/session 연결로 검증 가능한 경우와 불가능한 경우를 구분하고, 필요하면 최소 귀속 증빙을 write 시점에 남기는 별도 변경 범위를 명시한다. 조회에서 보정 write나 시각 기반 owner 추정은 하지 않는다. target confirm 후 command TTL 삭제·다중 재가입·source Session 잔존 테스트를 추가한다. 이는 코드에서 이미 발생했다고 확정한 장애가 아니라 계획의 장기 가용성 위험이다.
+- 추가 UX 검토: 자격 projection 없는 Guest의 PENDING은 정상 미인증과 연동 지연을 구분할 수 없으므로 이를 실제 처리 중·곧 완료로 안내하지 않는다. 문서의 LOCAL_PROJECTION 한계와 프론트 제한 polling을 유지한다.
+- 테스트: 읽기 전용 검토와 기록만 수행해 Gradle 미실행. git diff --check로 문서 변경 검증.
+- 유지 계약·결정사항: 발급기와 Billing reader 구현 승인을 임의로 추정하지 않고 검토 결과를 전달한다. 기존 문서 변경·과거 WORKLOG는 보존한다.
+- 다음 작업: Billing 계획서의 8.2 장기 귀속 증빙과 T08 retention 경계 테스트를 보완한 뒤 구현 기준을 확정한다. Identity에는 별도 audience/read 발급 변경이 남는다.
+
+## 2026-09-07 — Billing PLAN-007 구현 범위 사용자 설명
+
+<!-- codex-turn:01a07abb-e96c-7383-a375-4c29f9271431 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: Billing에서 구현하려는 무료 사용권 조회를 사용자 화면과 서버 동작 관점에서 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 설명 내용: PLAN-007 기준 GET /api/v1/entitlements가 로그인 사용자 본인의 신규 무료 수량·진행·재응시·사용 완료·확인 불명 상태를 반환한다. Billing의 자격·사용권·예약·그룹 상태를 조회하며 앱은 수량과 action을 함께 표시한다.
+- 유지한 계약: 조회는 사용권 생성·차감·owner 이전을 수행하지 않는다. 실제 시험 시작은 Learning Core와 기존 Billing reserve 흐름이 최종 판단한다. 재가입 시 기존 기록을 복원하지 않으며 승인된 미완료 그룹 재응시 가능성만 제공한다. 결제 구현은 범위 밖이다.
+- 결정사항: Identity에는 기존 사용자 JWT audience를 유지하면서 Billing audience와 billing:read를 추가하는 별도 후속이 필요하다. account_type 추가만으로 Billing 연동이 완료된 것은 아니다.
+- 테스트: 설명과 문서 기록만 수행해 Gradle 미실행. git diff --check 검증.
+- 위험 요소: 이 설명은 제공된 계획 기준이며 Billing의 실시간 구현 완료·배포 상태를 확인한 보고가 아니다. 이전 검토에서 지적한 세션 귀속 증빙의 retention 문제는 보완 확인이 필요하다.
+- 다음 작업: Billing 조회 구현·검증 결과와 확정 인증 계약을 전달받아 Identity JWT 후속 변경을 진행한다.
+
+## 2026-09-07 — 중단 후 재응시의 사용자 표시 수량 검토
+
+<!-- codex-turn:01a07ac6-3f29-7141-8243-c974feefea13 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: 중단 후 재응시 가능 상태도 사용자에게 1회 남음으로 표시하자는 의견을 검토한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. Billing 계획서·코드·외부 시스템은 변경하지 않았다.
+- 결정사항·권고: 사용자 화면에는 신규 INITIAL 수량보다 실제 이용 가능한 기회를 표시한다. 미사용과 중단 후 재응시 가능은 모두 무료 모의고사 1회 이용 가능으로 표현하고, 후자는 처음부터 다시 응시한다는 설명을 함께 제공한다. 완료하면 0회다.
+- 유지 계약: 동일한 미완료 group의 반복 중단을 새 권리로 누적하지 않는다. 재응시는 기존 consumption을 재사용하며 Grant available 증가·새 지급·원장 복원 없이 표시한다. 진행·채점·예약·연동 대기는 실제 action 조건에 맞게 별도 상태로 표시한다.
+- API 권고: 기존 PLAN-007 availableQuantity는 신규 INITIAL 미예약 수량이므로 조용히 의미를 바꾸지 않는다. 사용자 표시용 이용 가능 횟수를 별도 정의하거나 구현 전 필드 의미를 명시적으로 개정하고 신규/재응시 내부 판정은 보존한다. 여러 benefit/group에서는 같은 기회를 중복 합산하지 않는다.
+- 테스트: 설명·기록만 수행해 Gradle 미실행. git diff --check 검증.
+- 위험 요소: retake ALLOWED라는 이유만으로 신규 Grant 수량에 1을 더하면 다중 group·동일 권리 중복 계산이나 실제 시작 불가 상태의 과장 표시가 생길 수 있다. exact DTO와 상태별 계산은 Billing 계획서 보정이 필요하다.
+- 다음 작업: Billing에 표시용 횟수와 신규/재응시 판정의 분리, 미사용·중단·완료·대기 시나리오 반영을 전달한다.
+
+## 2026-09-07 — Billing 무료 reader 구현 검증
+
+<!-- codex-turn:01a07ace-3281-78c1-b731-14ed60bc16bc -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop. 검토 대상 Billing develop@eb0ae14, PR #9 merge와 구현 commit dadb83f를 로컬 Git에서 확인했다.
+- 작업 목표: PLAN-007 reader·재응시 표시·재가입 귀속 증빙·인증·기존 차감 회귀를 확인한다.
+- 변경 파일: Identity 및 Billing docs/codex/WORKLOG.md·CURRENT_STATE.md의 검토 기록. 애플리케이션·계약·테스트 소스 수정 없음.
+- 확인 결과: GET public reader, lazy eligibility 추론, retained Claim 판정, 신규 수량/재응시 분리, snapshot 읽기·무변경, 사용자 JWT와 별도 public port/internal SigV4 경계가 구현됐다. 검토한 범위에서 추가 차단급 결함은 확인하지 못했다.
+- 표시 계약: evaluator는 Grant.available을 availableQuantity로 반환하고 RETAKE_AVAILABLE은 quantity=0·retake=ALLOWED다. DTO에 별도 사용자 표시 횟수는 없다. Billing CURRENT_STATE에는 newAttempt/retake ALLOWED를 프론트에서 무료 1회 남음으로 통합하는 방향이 명시되어 있어 신규 수량 0 자체를 구현 오류로 분류하지 않는다. 실제 프론트 반영은 이 검토 대상이 아니며 미확인이다.
+- 이전 보완 확인: sessionOwnerEpoch를 link/Reservation/AttemptSession에 저장하고 PHONE_REJOIN에서 증가, USER_MERGED에서 유지한다. sessionBindingVersion CAS로 reserve/confirm과 owner 전이를 직렬화한다. 실제 Mongo 테스트는 command 삭제·8일 경과·반복 재가입 후 귀속 및 기존 Claim/Grant/consumption 유지, 읽기 시 업무 write 부재와 snapshot 경합을 검증한다.
+- 테스트: Billing ./gradlew clean test 성공. 35개 suite, 236개 테스트, 실패·오류·건너뜀 0개. sandbox Gradle cache 접근 차단 후 승인된 실행으로 검증했다. git diff --check 통과. 실제 외부 OAuth/AWS/운영 배포 테스트는 수행하지 않았다.
+- 유지 계약: 원장/사용권을 표시 목적으로 복구하지 않고 반복 재응시·재가입도 기존 consumption을 재사용한다. Guest·Member 모두 조회 가능하되 검증된 sub·Billing audience·billing:read를 요구한다. workload 및 Identity 발급 코드는 변경하지 않는다.
+- 남은 위험·배포 gate: reader·public connector는 기본 OFF. Identity Billing audience/read 발급, 실제 legacy attribution coverage·migration, ALB/SG·JWKS·staging E2E와 화면 통합이 남는다. API 정보로 표시를 만들 수 있다는 사실과 앱에 이미 1회로 보인다는 사실을 구분한다.
+- 다음 작업: Identity audience/read 후속 구현과 프론트 표시 규칙을 확정하고 Billing 운영 활성화 조건을 검증한다. Jira·commit·push·배포는 수행하지 않았다.
+
+## 2026-09-07 — 다음 작업 Identity Billing 조회 인증 설명
+
+<!-- codex-turn:01a07ace-3281-78c1-b731-14ed60bc16bc -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: Billing reader 검증 이후 Identity에서 수행할 JWT audience/read 권한 추가 범위를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 구현·Jira·Git mutation 없음.
+- 확인 결과: JwtProperties는 단일 String audience이고 JwtAccessTokenIssuer는 List.of(properties.audience())를 발급한다. defaultScopes는 explicit scopes가 비어 있을 때만 적용한다.
+- 권장 변경: 기존 Learning Core audience와 scope를 보존하면서 사용자 JWT에 tosunsaeng-billing audience와 billing:read를 추가한다. Guest/MEMBER 전체 사용자 발급·refresh·upgrade·merge 경로에서 적용하고 workload JWT는 제외한다.
+- 유지 계약: account_type, sub, issuer, RS256/kid/JWKS, API URL·응답·RefreshSession을 유지한다. billing:purchase·전화번호·수량 claim은 추가하지 않는다. 기존 토큰의 Identity/LC 검증도 유지한다.
+- 배포 의미: 기존 토큰은 자동 갱신되지 않으므로 정상 refresh/재로그인으로 새 토큰을 받는다. Billing의 aud/scope 검증을 완화하지 않고 reader OFF 선배포 후 Identity 발급 배포·staging 검증·reader/프론트 활성화 순서를 따른다.
+- 테스트: 코드 변경 없는 설명 작업이므로 Gradle 미실행. git diff --check 검증.
+- 위험 요소·다음 작업: 기본 scope 설정만 바꾸면 explicit scope 경로가 누락될 수 있다. 기존 설정 호환·두 서비스 검증·전체 발급 경로 테스트를 계획서에서 확정한 뒤 구현한다.
+
+## 2026-09-07 — Identity Billing 인증 후속 설명 종료 기록
+
+<!-- codex-turn:01a07ad1-c40f-7e80-a74c-12ba45beed5e -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: 다음 작업인 사용자 JWT Billing audience·read 권한 추가 설명을 현재 turn 식별자로 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG는 수정하지 않았다.
+- 설명·결정사항: 기존 Learning Core audience와 scope에 tosunsaeng-billing·billing:read를 추가하고 Guest/MEMBER 전체 사용자 발급·재발급 경로를 검증하는 작업을 안내했다. 구현은 아직 시작하지 않았다.
+- 유지 계약: account_type·기존 API·RefreshSession·서명 구조를 유지하고 workload JWT와 구매 권한은 변경하지 않는다.
+- 테스트: 문서 변경만 수행해 Gradle 미실행. git diff --check로 검증한다.
+- 위험·다음 작업: 기존 토큰은 정상 refresh/재로그인으로 교체해야 한다. 계획서 작성 후 Identity 구현·배포와 Billing staging 검증을 진행한다. 외부 전송·Jira·Git mutation은 수행하지 않았다.
+
+## 2026-09-07 — Billing public reader용 사용자 JWT 구현 계획서 작성
+
+<!-- codex-turn:01a07adc-10ec-7eb0-8825-608ff7614527 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop@fe9c7f6.
+- 작업 목표: 사용자 Access Token의 Billing audience·billing:read 확장을 구체적인 구현·테스트·배포 계획으로 저장한다.
+- 변경 파일: docs/contracts/billing-public-reader-user-jwt-plan.md 신규, docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 기존 미커밋 문서와 프론트 가이드는 보존했다.
+- 구현 내용: 5줄 결론·필독 사항·결정사항·위험·상세 구현·부록 계층으로 계획서를 작성했다. 7개 사용자 발급 경로, 변경 파일, 13개 테스트 항목, 완료 기준과 운영 인계 항목을 포함한다.
+- 결정사항: 기존 JwtProperties.audience·JWT_AUDIENCE와 Identity 자체 required audience 검증을 유지한다. JwtAccessTokenIssuer의 사용자 발급 시 primary + 고정 Billing audience를 순서 고정·중복 제거하고 기존 base scope 선택 이후 billing:read를 합성한다. explicit scope에 default learning scope를 추가하지 않는다.
+- 범위: 기존 API·account_type·RefreshSession·서명·TTL·구형 토큰 검증을 유지한다. workload JWT·billing:purchase 자동 부여·다른 저장소 코드·별도 발급 API·새 운영 dependency는 제외한다. Identity 신규 flag 없이 코드 배포 시 일관 발급하고 Billing 기존 reader flag로 노출을 제어한다.
+- 검증: 계획서·코드 계약 대조와 로컬 링크 존재 확인, git diff --check. 문서 작업이므로 Gradle 테스트 미실행. 과거 Identity 640개·Billing 236개 통과를 이번 실행 결과로 보고하지 않는다.
+- 위험 요소: 구버전 발급 instance 혼재, 기존 토큰 갱신 필요, Billing audience/read 누락의 무한 refresh 방지, 실제 운영 설정·키·staging·legacy coverage 미확인 상태를 명시했다.
+- 예상 밖 변경: 없음. 애플리케이션·테스트·런타임 설정·Billing·Learning Core 파일을 변경하지 않았다. Jira·commit·push·배포도 수행하지 않았다.
+- 다음 작업: 계획서를 기준으로 구현하고 전체 회귀 검증 후 사용자 PR·merge·Identity 배포와 Billing staging 연동을 진행한다. Jira가 배정되면 구현 전에 해당 범위를 확인한다.
+
+## 2026-09-07 — Billing 사용자 JWT 확장 계획 쉬운 설명
+
+<!-- codex-turn:01a07ae9-47f1-7dc3-aa94-78ed6dcbc776 -->
+
+- 날짜·브랜치: 2026-09-07, Identity develop.
+- 작업 목표: 작성된 계획서의 목적·변경 범위·사용자 흐름과 배포 조건을 쉬운 용어로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·애플리케이션·테스트는 변경하지 않았다.
+- 설명 내용: 기존 사용자 인증에 Billing audience와 billing:read를 추가하여 앱이 본인 사용권 조회 API를 호출하게 한다. 7개 발급 경로는 공통 발급 정책을 사용하고 Guest/MEMBER 모두 조회하되 무료 사용 자격·수량은 Billing이 판단한다.
+- 유지한 계약: 기존 로그인·재발급 API, Learning Core 접근, account_type, 서명·TTL·RefreshSession을 유지하며 workload JWT와 구매 권한은 제외한다.
+- 결정사항: 별도 로그인·발급 API 없이 기존 인증을 확장한다. 재응시 1회 표시는 프론트의 상태 해석 작업이고 이번 Identity 구현은 수량을 변경하거나 무료권을 지급하지 않는다.
+- 실행한 테스트와 결과: 문서 확인과 설명 작업으로 Gradle 미실행. git diff --check로 문서 공백 오류를 검증한다.
+- 위험 요소: 기존 발급분은 자동 변경되지 않으며 정상 refresh/재로그인이 필요하다. 구버전 발급 instance 종료·staging 검증·Billing 운영 준비는 여전히 미확인이다.
+- 예상 밖 변경: 없음. 기존 미커밋 문서를 보존했고 외부 시스템·Jira·commit·push·배포는 수행하지 않았다.
+- 다음 작업: 사용자 구현 요청 후 계획서 기준 공통 발급기·테스트·계약을 수정하고 전체 테스트를 실행한다.
+
+
+## 2026-09-08 다우기술 노션 포트폴리오 토선생 소재 선별
+
+- 브랜치: develop. 신규 Jira 없음.
+- 목표: 사용자 요청에 따라 토선생 상세 페이지에 넣을 내용을 선별.
+- 조사: 기존 포트폴리오 소재·트러블슈팅 문서, 각 서비스 현재 상태와 Learning Core 복구·Saga 테스트 및 MDC 구현을 대조.
+- 결정: 빈 종합 피드백과 선택적 채점 복구, 시험 생성·사용권 Reservation Saga를 대표 사례로 추천하고 구조화 로그를 보조 사례로 제안. 인증·저장 모델·S3는 구조 설명에 배치.
+- 구분: 구현 및 과거 테스트 기록은 운영 활성화 증거와 다르며 실제 결제·환불은 현재 구현 성과로 사용하지 않음. 처리량·비용·장애 감소 수치 미측정.
+- 변경 파일: 이 저장소의 docs/codex/WORKLOG.md와 CURRENT_STATE.md에 조사 기록만 추가. 기존 미커밋 작업 보존.
+- 검증: 소스·테스트 정적 조회. 애플리케이션 변경이 없어 Gradle 테스트는 재실행하지 않음.
+- 유지: API·AI 계약·feature flag·코드·외부 서비스·Git 이력 변경 없음.
+- 다음: 본인 역할과 사례별 설명 가능 범위 확인 후 노션 본문 작성.
+
+## 2026-09-08 — Billing 사용자 JWT 확장 Jira 생성안 준비
+
+<!-- codex-turn:01a07ebe-2af5-7883-8912-ebf127806fc6 -->
+
+- 날짜·브랜치: 2026-09-08, Identity develop.
+- 작업 목표: 사용자 요청에 따라 Billing public reader 사용자 JWT 계획을 Jira 생성안으로 정리한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 기존 미커밋 변경은 보존했다.
+- 구현 내용: 코드 구현 없음. 제목과 범위·완료 조건·제외 사항을 사용자에게 제시할 생성안을 준비했고 공식 Atlassian 도구 가용성을 확인했다.
+- 제안 제목: [Identity] Billing 사용권 조회용 사용자 JWT audience·scope 확장.
+- 유지 계약·결정사항: 기존 Learning Core audience와 scope에 고정 Billing audience·billing:read를 추가한다. 7개 발급 경로, explicit/default scope 호환, account_type·API·RefreshSession 유지, workload 및 구매 권한 제외를 완료 기준에 포함한다.
+- Jira 작업·승인 여부: 생성안 사전 제시 후 승인 대기. 이슈 키 미발급, 실제 Jira 생성·수정·댓글·상태 변경 없음.
+- 테스트: 문서 작업으로 Gradle 미실행. git diff --check 검증.
+- 위험 요소: 실제 구현·배포·staging 연동은 아직 수행하지 않았으며 기존 사용자는 정상 재발급이 필요하다.
+- 다음 작업: 사용자 승인 후 대상 프로젝트·이슈 유형·중복 이슈를 조회하고 승인된 내용으로 생성한 뒤 키를 계획서와 작업 기록에 반영한다.
+
+## 2026-09-08 — TMI-127 Billing 사용자 JWT 확장 Jira 생성
+
+<!-- codex-turn:01a07ec1-a96d-7612-b0d0-19321b0d89a7 -->
+
+- 날짜·브랜치: 2026-09-08, Identity develop. 브랜치 생성·변경 없음.
+- Jira: TMI-127
+- 작업 목표: 승인된 Billing 사용자 JWT 확장 작업을 Jira에 등록하고 계획서와 연결한다.
+- 변경 파일: docs/contracts/billing-public-reader-user-jwt-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 기존 미커밋 문서 및 프론트 가이드는 보존했다.
+- 구현 내용: 애플리케이션 변경 없음. 공식 Atlassian MCP에서 TMI 프로젝트·작업 유형 및 관련 중복 검색을 확인한 뒤 승인된 제목·범위·완료 조건·배포 인계·제외 사항으로 이슈를 생성했다. 생성 응답에서 키·본문·초기 상태를 확인했다.
+- Jira 작업·승인 여부: 사용자의 '어 해줘' 승인 후 생성. 초기 상태 `해야 할 일`, 담당자 미지정. 별도 상태 전환·수정·댓글은 없으며 댓글 목적도 해당 없음.
+- 유지한 계약·결정사항: 기존 사용자 JWT의 Learning Core 대상·권한을 보존하고 Billing audience·billing:read를 추가하는 범위다. workload·구매 권한·무료권 계산·타 저장소 구현·실제 운영 활성화는 제외한다.
+- 테스트와 결과: Jira 생성 응답 확인, git diff --check 검증. 코드 변경 없는 이슈·문서 작업이므로 Gradle 테스트 미실행.
+- 위험 요소: 구현·전체 회귀·배포 및 staging 연동은 미수행이다. 이슈 생성은 개발 완료나 운영 준비 완료를 의미하지 않는다.
+- 예상 밖 변경: 없음. Git commit·push, 외부 배포 및 다른 이슈 변경을 수행하지 않았다.
+- 다음 작업: 사용자 구현 요청 시 TMI-127을 다시 조회하고 작업 브랜치와 계획서 기준으로 공통 발급기·테스트·계약을 수정한다. 완료 댓글은 구현·검증 후 초안을 제시하고 별도 승인 없이 등록하지 않는다.
+
+## 2026-09-08 — TMI-127 Billing public reader 사용자 JWT 확장 구현
+
+<!-- codex-turn:01a07ec5-cbb8-7030-a5a9-f2d4e3aba272 -->
+
+- 날짜·브랜치: 2026-09-08, feat/TMI-127-billing-reader-jwt. 기존 사용자 브랜치를 유지했다.
+- Jira: TMI-127
+- 작업 목표: 승인된 이슈와 계획서에 따라 모든 사용자 Access Token에 Billing audience·조회 scope를 추가한다.
+- 변경 파일: JwtAccessTokenIssuer.java; JwtAccessTokenIssuerTests·JwtDecoderTests·JwtWorkloadIdentityCredentialProviderTests·SecurityIntegrationTests; AuthenticationUseCaseServicesTests·GuestAuthServiceTests·FirebaseSignupServiceTests·FirebaseExchangeServiceTests·FirebaseGuestUpgradeServiceTests·FirebaseGuestMergeServiceTests·GuestRefreshLifecycleTests; 신규 support/SignedUserTokenFixture.java; docs/contracts/identity-learning-jwt.md·billing-public-reader-user-jwt-plan.md 및 WORKLOG·CURRENT_STATE.
+- 구현 내용: primary audience 이후 고정 Billing audience를 LinkedHashSet/List.copyOf로 중복 제거하고, 기존 explicit/default scope 선택 이후 TreeSet에 billing:read를 추가한다. 호출자 입력과 설정 집합을 수정하지 않는다. 실제 런타임 변경은 공통 issuer 한 파일이며 서비스와 검증·설정 클래스는 변경하지 않았다.
+- 테스트 보강: 7개 서비스의 응답을 실제 RSA 발급·검증 fixture로 확인했다. upgrade→refresh는 같은 userId/MEMBER, merge→refresh는 target/MEMBER를 유지한다. GUEST·legacy DB 유형, default/explicit·중복·malformed scope, 동시 발급 20건·설정 불변성, 구형 토큰 Identity HTTP 호환과 workload 두 purpose의 교차 사용 거절을 검증했다.
+- 실행한 테스트와 결과: ./gradlew clean test 성공, 123개 suite·648개 테스트, 실패·오류·건너뜀 0개. sandbox Gradle 캐시 잠금 파일 접근 거절 후 승인된 실행으로 검증했고 서비스 검증 보강 후 전체 테스트를 다시 실행했다. git diff --check 통과. 테스트 수치는 이번 실제 XML 결과에서 집계했다.
+- 유지 계약: 기존 Learning Core audience·권한, account_type·sub·issuer·RS256·kid·JWKS·TTL, 공개 API·응답·RefreshSession·탈퇴/병합 source 차단을 유지한다. workload JWT·billing:purchase·혜택 수량·전화번호 claim과 타 저장소는 제외했다.
+- 결정사항: 새 endpoint·dependency·필수 환경변수·Identity feature flag는 추가하지 않는다. 기존 JWT_AUDIENCE 단일 문자열과 자체 required audience 검증을 유지하며 Billing 기존 flag와 정상 refresh/재로그인으로 전환한다. JWT 계약의 오래된 단일 공개키 설명은 기존 rotation 코드 사실에 맞춰 정정했다.
+- 위험·미확인: Billing HTTP/실제 Learning Core 소비자 E2E, 외부 JWKS·키 회전·운영 TTL·구버전 instance 종료 시각·Billing migration/ingress와 프론트 화면은 미검증이다. 로컬 audience/scope·workload fixture가 배포 검증을 대체하지 않는다.
+- 배포 전 확인: 사용자 PR·병합 후 Identity 전체 rollout, 새 토큰 발급과 세 서비스 staging 접근, 운영 설정·Billing 준비 및 기존 앱 정상 재발급을 확인한 뒤 reader·화면을 활성화한다. Challenge account_type TTL/skew gate는 별도다.
+- 예상 밖 변경: 없음. 기존 미커밋 작업 기록·계획서·프론트 가이드를 보존했다. 프론트 가이드·Billing·Learning Core 파일은 수정하지 않았다.
+- Jira 작업·승인: 구현 전에 공식 MCP로 이슈를 읽었으며 댓글·상태 변경은 수행하지 않았다. 상태는 해야 할 일 유지. 완료 댓글 초안은 계획서 부록 6.7에만 작성했다. Git commit·push·PR·배포 없음.
+- 다음 작업: 사용자가 commit·push·PR을 진행한다. 병합·배포 증빙 확인과 별도 승인 후 Jira 완료 처리 및 Billing·프론트에 인증 전환을 인계한다.
+
+## 2026-09-08 — TMI-127 구현 코드 설명
+
+<!-- codex-turn:01a07ed2-995b-7a80-bf93-7b02957fd0ba -->
+
+- 날짜·브랜치: 2026-09-08, feat/TMI-127-billing-reader-jwt.
+- Jira: TMI-127
+- 작업 목표: 사용자 요청에 따라 구현한 Billing 사용자 JWT 확장을 실제 코드와 예시로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·테스트·계약 소스 추가 변경 없음.
+- 설명 내용: 고정 Billing 상수, LinkedHashSet의 중복 제거·입력 순서와 List.copyOf 불변 목록, explicit/default scope 선택 후 TreeSet 합성, claim 구성 및 기존 RS256 서명, 7개 발급 경로 공통 적용을 안내한다.
+- 유지 계약·결정사항: audience는 사용 대상, scope는 조회 권한이며 실제 혜택 자격·횟수는 Billing이 판단한다. 현재 DB User 유형으로 refresh하고 구형 토큰은 기존 primary audience contains 검증을 유지한다. workload·구매 권한·API·RefreshSession 변경 없음.
+- 테스트와 결과: 소스 및 실제 서명 테스트 fixture 정적 확인, git diff --check 검증. 설명 작업이므로 Gradle 미실행. 123개 suite·648개 통과는 직전 구현 작업 결과이며 이번 재실행 결과가 아니다.
+- 위험 요소: 기존 발급분은 자동 변경되지 않아 정상 재발급이 필요하다. 실제 배포·Billing staging E2E·프론트 활성화는 여전히 미확인이다.
+- 예상 밖 변경: 없음. 기존 미커밋 변경 보존. Jira 조회·댓글·상태 변경, commit·push·배포 없음.
+- 다음 작업: 사용자 PR·병합과 배포 후 새 토큰을 통한 Billing 조회 연동을 검증한다.

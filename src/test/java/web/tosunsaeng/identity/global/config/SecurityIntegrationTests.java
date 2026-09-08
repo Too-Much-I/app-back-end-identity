@@ -606,13 +606,14 @@ class SecurityIntegrationTests {
 						))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.authorities", hasItems(
+						"SCOPE_billing:read",
 						"SCOPE_profile:read",
 						"SCOPE_profile:write"
 				)));
 	}
 
 	@Test
-	void legacyTokenWithoutAccountTypeStillAccessesIdentityProfile() throws Exception {
+	void legacyTokenWithoutBillingClaimsOrAccountTypeStillAccessesIdentityProfile() throws Exception {
 		User user = userFactory.createGuest("A".repeat(43), TestRsaKeyConfiguration.TEST_INSTANT);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
 		String legacyToken = signedToken(jwtEncoder, user.getUserId(), jwtProperties.issuer(),

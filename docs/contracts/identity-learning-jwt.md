@@ -1,6 +1,6 @@
 # Identity–Learning Core JWT 계약
 
-이 문서는 Identity Service가 발급하는 Access Token을 Learning Core가 검증하고 사용하는 서버 간 계약을 정의한다.
+이 문서는 Identity Service가 발급하는 사용자 Access Token을 Learning Core와 Billing public reader가 검증하고 사용하는 계약을 정의한다. 서버 간 workload JWT는 별도 계약을 따른다.
 
 ## 사용자 식별 계약
 
@@ -22,20 +22,42 @@ JWT Header에는 다음 값이 필요하다.
 | `typ` | `JWT` |
 | `kid` | 필수. 서명에 사용한 RSA Key를 식별하는 값 |
 
-신규 발급·재발급하는 사용자 JWT에는 다음 Claim이 반드시 포함되어야 한다. `account_type` 추가 이전의 토큰은 아래 호환·배포 계약을 따른다.
+신규 발급·재발급하는 사용자 JWT에는 다음 Claim이 반드시 포함되어야 한다. `account_type` 및 Billing audience/read 추가 이전의 토큰은 아래 호환·배포 계약을 따른다.
 
 | Claim | 계약 |
 | --- | --- |
 | `sub` | UUID 문자열 형식의 실제 `userId` |
 | `iss` | Identity Service의 발급자 식별값 |
-| `aud` | `tosunsaeng-learning-core` 하나를 포함하는 JSON 배열 |
+| `aud` | 기존 primary audience 다음에 `tosunsaeng-billing`을 포함하는 JSON 배열. 표준 설정은 `["tosunsaeng-learning-core", "tosunsaeng-billing"]`. 중복 제거·순서 고정 |
 | `iat` | 토큰 발급 시각 |
 | `exp` | 토큰 만료 시각 |
 | `jti` | Access Token의 고유 식별값 |
-| `scope` | 허용된 접근 범위를 공백으로 구분한 문자열 |
+| `scope` | 기존 선택 권한에 `billing:read`를 합성한 공백 구분 문자열. 정렬·중복 제거 |
 | `account_type` | 문자열 `MEMBER` 또는 `GUEST`. Identity의 현재 UserAccountType에서 결정 |
 
 JWT에는 검증과 인가에 필요한 최소 Claim만 포함한다. 이메일, 닉네임 전체, 비밀번호 또는 비밀번호 해시, Refresh Token 같은 개인정보와 자격증명은 포함하지 않는다.
+
+## Billing public reader 사용자 인증 확장 — TMI-127
+
+- 앱은 기존 로그인·재발급 API에서 받은 같은 사용자 Access Token으로 Billing `GET /api/v1/entitlements`를 호출한다. 별도 로그인·발급 API는 없다.
+- `JwtAccessTokenIssuer`는 모든 사용자 발급 경로에 고정 `tosunsaeng-billing` audience와 `billing:read`를 추가한다. GUEST/MEMBER 모두 본인 조회가 가능하며 무료권 지급·구매 권한을 뜻하지 않는다. 혜택 자격과 이용 상태는 Billing이 판단한다.
+- 기존 `JWT_AUDIENCE`와 `JwtProperties.audience`는 primary audience 단일 문자열로 유지한다. 쉼표 문자열로 변경하거나 Billing으로 교체하지 않는다. Identity·Learning Core의 primary audience 포함 검증은 그대로 유지한다.
+- scope 인자가 null/empty이면 기존 defaultScopes를, 아니면 explicit scopes를 기초로 선택한 뒤 `billing:read`만 추가한다. explicit scope에 default learning 권한을 강제로 넣지 않으며 입력·설정 집합도 변경하지 않는다.
+- `billing:purchase` 자동 추가, 전화번호·혜택 수량 claim, workload 발급 경로 변경은 없다. 기존 API 응답·RefreshSession·서명·TTL은 유지한다.
+- 기존 사용자 토큰에 Billing audience/read가 없어도 Identity 기존 API는 이를 이유로 일괄 거절하지 않는다. Billing에서는 audience 부재는 인증 실패, 유효한 인증에서 read 권한 부재는 인가 실패이며 이를 우회하는 fallback은 없다.
+- 공통 issuer·decoder·SecurityIntegrationTests와 7개 서비스 경로에서 실제 서명/검증을 사용한다. `SignedUserTokenFixture`는 서비스의 발급 호출을 실제 issuer에 위임하여 응답 claim을 확인한다. upgrade→refresh, merge→refresh 및 legacy DB account type도 검증한다.
+
+### Billing 배포·프론트 전환 계약
+
+1. Billing reader/public connector OFF 선배포와 인프라·legacy attribution 준비 상태를 확인한다.
+2. Identity 새 버전 배포를 완료하고 구버전 발급 instance가 모두 종료됐는지 확인한다. Identity 발급용 별도 feature flag나 새 필수 환경변수는 추가하지 않는다.
+3. staging에서 새 토큰으로 Identity profile·Learning Core 보호 API·Billing reader를 검증한다. 로컬 audience/scope fixture는 실제 Billing HTTP E2E 증빙을 대신하지 않는다.
+4. 기존 앱은 정상 refresh/재로그인으로 새 토큰을 받는다. Billing 실패 시 무한 refresh하지 않으며 503 등 서버 장애를 로그아웃으로 해결하지 않는다.
+5. Billing 운영 준비와 staging 검증 후 reader와 앱 화면을 활성화한다. 재응시 가능 시 1회 이용 가능 표시는 Billing 응답을 해석하는 프론트 후속 범위다.
+
+새 토큰을 획득하면 Billing 전환이 가능하므로 일괄 TTL 대기는 필수가 아니다. 구형 토큰의 자연 만료를 기다리는 출시 방식이라면 구버전 발급 종료 시각 + 실제 최대 TTL + 대상 verifier skew를 적용한다. 아래 Challenge account_type 활성화 gate와는 별개다.
+
+구현·PR 병합·운영 배포를 구분하며 실제 TTL·issuer/JWKS·키 회전·구버전 종료 시각과 staging 검증 상태를 인계한다. 상세 기준은 [TMI-127 계획서](billing-public-reader-user-jwt-plan.md)를 따른다.
 
 ## account_type 발급과 호환 계약
 
@@ -86,11 +108,11 @@ JWT에는 검증과 인가에 필요한 최소 Claim만 포함한다. 이메일,
 - Identity Service는 `GET /.well-known/jwks.json`에서 BaseResponse로 감싸지 않은 표준 JWKS를 제공한다.
 - Learning Core는 JWKS에서 `kid`에 대응하는 Public Key를 조회해 RS256 서명을 검증한다.
 - Learning Core는 서명뿐 아니라 예상한 `issuer`와 `audience`를 모두 검증한다.
-- Learning Core가 허용하는 `audience`는 정확히 `tosunsaeng-learning-core`다.
+- Learning Core가 요구하는 audience 값은 `tosunsaeng-learning-core`다. 배열의 포함 여부를 검사하며 Billing이 추가된 배열도 허용한다. Billing public reader는 별도로 `tosunsaeng-billing`과 `billing:read`를 요구한다.
 - Learning Core는 매 요청마다 Identity Service의 토큰 확인 API를 호출하지 않고 JWKS 기반으로 토큰을 검증한다.
 - RSA Private Key는 Identity Service 밖으로 공유하지 않는다.
 
-현재 JWKS에는 단일 Active Key의 Public Key만 제공한다. 향후 Key Rotation 시에는 새 Active Key로 발급을 전환한 뒤에도 이미 발급된 Access Token의 최대 유효 기간과 캐시 정책을 고려해 이전 Public Key를 JWKS에 일정 기간 유지해야 한다.
+현재 JWKS는 Active Key와 `JwksRotationProperties`로 설정한 이전 Public Key를 함께 제공할 수 있다. 실제 배포에서 이전 키가 설정됐는지는 별도 확인해야 한다. Key Rotation 시에는 새 Active Key로 발급을 전환한 뒤에도 이미 발급된 Access Token의 최대 유효 기간과 verifier skew·캐시 정책을 고려해 이전 Public Key를 유지해야 한다. 이 작업은 기존 키 로딩·회전 구현을 변경하지 않는다.
 
 JWKS endpoint의 배포 호스트와 허용할 `issuer` 값은 환경별 설정으로 관리하며, 실제 Key나 Secret을 이 문서에 기록하지 않는다.
 
