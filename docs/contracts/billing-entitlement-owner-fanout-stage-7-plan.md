@@ -930,4 +930,4 @@ Billing `TMI-120`은 `develop` 병합이 확인됐으므로 신규로 중복 생
 
 즉시 다음 순서는 Learning Core `TMI-122`의 `develop` 병합 확인 → Identity 7-A → Identity 7-C다. phone continuation vertical slice가 끝난 뒤에도 Learning Core 7-D2 `UserMerged` consumer와 7-E 운영 검증이 남는다.
 
-Stage 7 전체 production 활성화가 끝난 뒤에만 고정 순서 Stage 8 `logout-all Firebase refresh revoke`로 진행한다. Stage 7 구현이 오래 걸리더라도 Stage 8을 위해 owner publisher를 임시 우회하거나 동기 HTTP로 바꾸지 않는다.
+2026-09-08 사용자 승인으로 개발 착수 순서를 조정한다. Stage 7 production 활성화를 기다리지 않고 Stage 8 `logout-all Firebase refresh revoke`의 코드·격리 테스트를 기능 OFF 상태로 먼저 구현한다. Stage 7·8의 운영 활성화 전 검증은 통합해서 수행하고, 세 서비스 staging E2E·Firebase/mobile·Mongo Transaction·권한·중단/재개 검증을 통과한 뒤에만 각 consumer 준비 순서를 지켜 production 기능을 활성화한다. 검증을 한 번에 한다는 것은 미검증 기능의 production 활성화나 실제 사용자 대상 선행 실험을 허용한다는 뜻이 아니다. Stage 8을 위해 owner publisher를 임시 우회하거나 동기 HTTP로 바꾸지 않는다.

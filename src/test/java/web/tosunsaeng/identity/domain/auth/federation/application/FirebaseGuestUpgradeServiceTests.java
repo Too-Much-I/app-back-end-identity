@@ -185,6 +185,8 @@ class FirebaseGuestUpgradeServiceTests {
 
 	@Test
 	void promotesSameCanonicalGuestAndIssuesTokensOnlyAfterTransaction() {
+		when(refreshSessionIssuer.isFenceEnabled()).thenReturn(true);
+		when(refreshSessionIssuer.captureEpoch(guest.getUserId())).thenReturn(7L);
 		String originalUserId = guest.getUserId();
 		Instant expectedUpdatedAt = guest.getUpdatedAt();
 
@@ -211,6 +213,10 @@ class FirebaseGuestUpgradeServiceTests {
 		assertThat(promoted.getConsents().isQualityReviewConsented()).isTrue();
 		assertThat(expectedUpdatedAtCaptor.getValue()).isEqualTo(expectedUpdatedAt);
 		assertThat(firebaseCaptor.getValue().getUserId()).isEqualTo(originalUserId);
+		ArgumentCaptor<PreparedRefreshSession> sessionCaptor = ArgumentCaptor.forClass(PreparedRefreshSession.class);
+		verify(transactionService).upgrade(any(), any(), any(), any(), any(), any(), any(), sessionCaptor.capture(), any(), any());
+		assertThat(sessionCaptor.getValue().session().getSessionEpoch()).isEqualTo(7);
+		assertThat(sessionCaptor.getValue().session().getAuthentication().firebaseBindingId()).isEqualTo(firebaseCaptor.getValue().getFirebaseIdentityId());
 	}
 
 	@Test

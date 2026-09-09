@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.local.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication;
+
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ public class LoginService {
 		String normalizedEmail = emailNormalizer.normalize(request.email());
 		User user = userRepository.findByNormalizedEmail(normalizedEmail)
 				.orElseThrow(() -> new AuthException(AuthErrorStatus.INVALID_CREDENTIALS));
+		long epoch = refreshSessionIssuer.captureEpoch(user.getUserId());
 
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 			throw new AuthException(AuthErrorStatus.INVALID_CREDENTIALS);
@@ -53,7 +56,11 @@ public class LoginService {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				user.getUserId(), user.getAccountType(), Set.of()
 		);
-		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
+		IssuedRefreshSession refreshSession = refreshSessionIssuer.isFenceEnabled()
+				? refreshSessionIssuer.issueAuthenticated(user.getUserId(),
+						new SessionAuthentication(epoch,
+								SessionAuthentication.Source.LOCAL, null, null))
+				: refreshSessionIssuer.issue(user.getUserId());
 		LoginResponse response = authResponseConverter.toLoginResponse(
 				accessToken,
 				refreshSession.tokenValue()

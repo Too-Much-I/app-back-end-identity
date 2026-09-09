@@ -1,8 +1,8 @@
 # Billing public reader용 Identity 사용자 JWT 확장 계획
 
 - 작성일: 2026-09-07
-- 상태: 2026-09-08 로컬 구현·전체 테스트 완료 / PR·병합·배포 전
-- Jira: [TMI-127](https://to-teacher.atlassian.net/browse/TMI-127), 상태 `해야 할 일` 유지. 이번 구현에서는 조회만 수행했으며 댓글·상태 변경 없음.
+- 상태: 2026-09-08 구현·전체 테스트·PR #40 develop 병합 완료. merge commit `03e4c5a34e4496e1e1329a95a522350070fbaf5c`. 운영 배포·staging E2E 미확인.
+- Jira: [TMI-127](https://to-teacher.atlassian.net/browse/TMI-127), 사용자 승인 후 완료 댓글 등록 및 상태·Resolution 모두 `완료` 확인. 댓글 ID `10081`.
 - 기준: Identity `develop@fe9c7f6` (account_type PR #39), Billing `develop@eb0ae14` (무료 reader PR #9, 직전 교차 검토 기준).
 - 목적: 앱이 기존 Identity 사용자 Access Token으로 Billing `GET /api/v1/entitlements`를 호출하도록 audience와 조회 권한을 추가한다.
 
@@ -241,6 +241,6 @@ Billing HTTP 응답 401/403, 실제 Learning Core consumer, 외부 JWKS·키 회
 
 기존 미커밋 WORKLOG·CURRENT_STATE·계획서·프론트 인증 가이드는 보존했다. 계획된 범위 밖 런타임 변경은 없으며, JWT 계약 문서의 오래된 단일 공개키 설명은 기존 다중 공개키 지원 코드에 맞게 바로잡았다.
 
-### 6.7 Jira 완료 댓글 초안 — 미등록
+### 6.7 Jira 완료 댓글 작성 근거 — 2026-09-08 병합 증빙을 포함하여 등록 완료
 
 TMI-127 사용자 JWT Billing audience·billing:read 확장 로컬 구현 완료. 공통 JwtAccessTokenIssuer, 7개 발급 경로 테스트와 SignedUserTokenFixture, JWT decoder/workload/security 테스트 및 계약 문서를 수정했다. 전체 123개 suite·648개 테스트와 git diff --check 통과. 기존 API·account_type·RefreshSession·workload 경계는 유지했다. PR 병합·운영 배포·구버전 발급 종료·운영 TTL 및 Billing staging E2E는 미확인이다.

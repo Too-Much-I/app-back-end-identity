@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+import java.util.stream.Stream;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -72,6 +75,14 @@ public class FirebaseGuestMergeTransactionService {
 		Instant requiredMergedAt = Objects.requireNonNull(mergedAt);
 		String sourceUserId = requiredSource.getUserId();
 		String targetUserId = requiredSource.getMergedIntoUserId();
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			Long epoch = requiredTargetSession.relatedEpochs().get(sourceUserId);
+			if (epoch == null) throw SessionSecurityService.unavailable();
+			// Fixed order on the two controls avoids opposite-order merge contention.
+			Stream.of(sourceUserId, targetUserId).sorted().forEach(id ->
+					refreshSessionIssuer.security().touchExpected(id, id.equals(sourceUserId)
+							? epoch : requiredTargetSession.session().getSessionEpoch()));
+		}
 		if (requiredSource.getStatus() != UserStatus.MERGED
 				|| !sourceUserId.equals(requiredOutbox.getSourceUserId())
 				|| !targetUserId.equals(requiredOutbox.getTargetUserId())

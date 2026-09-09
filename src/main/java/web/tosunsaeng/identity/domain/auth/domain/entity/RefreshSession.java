@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.domain.entity;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication;
+
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -43,6 +45,20 @@ public class RefreshSession {
 	private String replacedBySessionId;
 
 	private RevocationReason revocationReason;
+
+	private long sessionEpoch;
+	private SessionAuthentication authentication;
+
+	public void attachAuthentication(SessionAuthentication proof) {
+		if (authentication != null) throw new IllegalStateException("Authentication evidence is immutable.");
+		authentication = Objects.requireNonNull(proof);
+		sessionEpoch = proof.epoch();
+	}
+
+	public long getSessionEpoch() { return sessionEpoch; }
+	public SessionAuthentication getAuthentication() {
+		return authentication;
+	}
 
 	// 동일한 세션의 동시 회전 요청은 버전 충돌로 감지한다.
 	@Version

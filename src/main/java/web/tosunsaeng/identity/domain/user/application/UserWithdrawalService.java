@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+
 import java.time.Clock;
 import java.time.Instant;
 
@@ -30,6 +32,9 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 @Service
 public class UserWithdrawalService {
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private static final int MAX_WITHDRAWAL_ATTEMPTS = 2;
 	private static final Logger log = LoggerFactory.getLogger(UserWithdrawalService.class);
@@ -202,6 +207,7 @@ public class UserWithdrawalService {
 				|| session.isExpiredAt(currentTime)) {
 			throw invalidCredentials();
 		}
+		if (sessionSecurity != null) sessionSecurity.transaction(() -> { sessionSecurity.checkAndTouch(session, false); return null; });
 	}
 
 	private FirebaseWithdrawalTarget validateProviderCredential(

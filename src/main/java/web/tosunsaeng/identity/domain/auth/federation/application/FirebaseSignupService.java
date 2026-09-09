@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -155,6 +157,11 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(
 				user.getUserId()
 		);
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			preparedRefreshSession.session().attachAuthentication(new SessionAuthentication(
+					0, SessionAuthentication.Source.FIREBASE,
+					firebaseIdentity.getFirebaseIdentityId(), principal.authTime()));
+		}
 
 		IssuedRefreshSession refreshSession;
 		try {

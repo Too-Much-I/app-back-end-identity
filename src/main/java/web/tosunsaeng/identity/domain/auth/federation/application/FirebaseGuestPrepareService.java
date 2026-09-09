@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
@@ -18,6 +21,9 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 
 public final class FirebaseGuestPrepareService implements FirebaseGuestPrepareUseCase {
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private final CurrentUserProvider currentUserProvider;
 	private final UserRepository userRepository;
@@ -56,6 +62,7 @@ public final class FirebaseGuestPrepareService implements FirebaseGuestPrepareUs
 				FirebaseVerificationPurpose.GUEST_ENROLLMENT_PREPARE
 		);
 		FirebaseOwnershipOutcome ownership = ownershipService.resolve(principal, userId);
+		if (sessionSecurity != null) sessionSecurity.validateExistingFirebaseProof(principal);
 		if (ownership == FirebaseOwnershipOutcome.OWNED_BY_CURRENT_USER) {
 			return FirebaseGuestPrepareResponse.alreadyLinked();
 		}

@@ -82,6 +82,9 @@ public final class UserWithdrawalExternalCleanupWorker {
 		if (guard.type() == WithdrawalCleanupTargetGuard.ResultType.LEASE_LOST) {
 			return record(WithdrawalCleanupOutcome.LEASE_LOST, null, lifecycle.getAttemptCount());
 		}
+		if (guard.type() == WithdrawalCleanupTargetGuard.ResultType.LOGOUT_PENDING) {
+			return retryOrReconcile(lifecycle, version, WithdrawalCleanupFailureCode.LOGOUT_REVOKE_PENDING);
+		}
 		if (guard.type() == WithdrawalCleanupTargetGuard.ResultType.RECONCILIATION_REQUIRED) {
 			return reconcile(lifecycle, version, guard.failureCode(), false);
 		}

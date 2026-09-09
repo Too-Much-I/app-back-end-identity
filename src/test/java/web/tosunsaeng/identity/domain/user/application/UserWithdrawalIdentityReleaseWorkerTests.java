@@ -15,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.OptimisticLockingFailureException;
 
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserWithdrawalCleanupStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
@@ -39,6 +41,18 @@ class UserWithdrawalIdentityReleaseWorkerTests {
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 		lifecycle = mock(UserWithdrawalLifecycle.class);
+	}
+
+	@Test
+	void pendingLogoutActorKeepsReleasePending() {
+		when(repository.findFirstByStatusOrderByExternalDeletedAtAscWithdrawalIdAsc(
+				UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING
+		)).thenReturn(Optional.of(lifecycle));
+		when(transactionService.release(lifecycle, NOW)).thenThrow(
+				new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING)
+		);
+
+		assertThat(worker.processNext()).isEqualTo(IdentityReleaseOutcome.DEPENDENCY_PENDING);
 	}
 
 	@Test

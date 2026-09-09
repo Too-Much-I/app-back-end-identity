@@ -34,6 +34,16 @@ sentry:
     enabled: false
 
 app:
+  session-revocation:
+    fence-enabled: ${AUTH_SESSION_FENCE_ENABLED:false}
+    capture-enabled: ${FIREBASE_LOGOUT_ALL_CAPTURE_ENABLED:false}
+    worker-enabled: ${FIREBASE_LOGOUT_ALL_WORKER_ENABLED:false}
+    retention: ${FIREBASE_LOGOUT_ALL_RETENTION:P7D}
+    verifier-skew: ${FIREBASE_LOGOUT_ALL_VERIFIER_SKEW:PT1M}
+    lease: ${FIREBASE_LOGOUT_ALL_LEASE:PT1M}
+    poll-delay: ${FIREBASE_LOGOUT_ALL_POLL_DELAY:PT5S}
+    batch-size: ${FIREBASE_LOGOUT_ALL_BATCH_SIZE:20}
+    max-attempts: ${FIREBASE_LOGOUT_ALL_MAX_ATTEMPTS:8}
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}
     term-version: ${TERM_CONSENT_VERSION}

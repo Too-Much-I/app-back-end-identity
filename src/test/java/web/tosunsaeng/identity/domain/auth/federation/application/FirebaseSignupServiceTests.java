@@ -176,6 +176,7 @@ class FirebaseSignupServiceTests {
 
 	@Test
 	void createsCanonicalFederatedMemberAndIssuesAccessTokenAfterTransaction() {
+		when(refreshSessionIssuer.isFenceEnabled()).thenReturn(true);
 		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
 		tokens.delegate(accessTokenIssuer);
 		FirebaseSignupResponse response = service.signup(request());
@@ -197,6 +198,11 @@ class FirebaseSignupServiceTests {
 		assertThat(user.hasLocalCredential()).isFalse();
 		assertThat(user.getGuestInstallationIdHash()).isNull();
 		assertThat(firebaseCaptor.getValue().getUserId()).isEqualTo(user.getUserId());
+		ArgumentCaptor<PreparedRefreshSession> sessionCaptor = ArgumentCaptor.forClass(PreparedRefreshSession.class);
+		verify(transactionService).register(any(), any(), any(), any(), any(), any(), sessionCaptor.capture(), any(), any());
+		assertThat(sessionCaptor.getValue().session().getAuthentication().source().name()).isEqualTo("FIREBASE");
+		assertThat(sessionCaptor.getValue().session().getAuthentication().firebaseBindingId()).isEqualTo(firebaseCaptor.getValue().getFirebaseIdentityId());
+		assertThat(sessionCaptor.getValue().session().getSessionEpoch()).isZero();
 
 		InOrder order = inOrder(transactionService, accessTokenIssuer);
 		order.verify(transactionService).register(any(), any(), any(), any(), any(), any(), any(), any(), any());

@@ -4,6 +4,8 @@
 
 아래 작업은 원칙적으로 번호 순서대로 구현한다. 각 단계의 코드·테스트·운영 계약이 완료되기 전에는 다음 단계의 production 기능을 활성화하지 않는다. 다른 저장소에서 구현하는 항목도 선행 단계 완료 여부를 동일하게 확인한다.
 
+2026-09-08 사용자 승인 예외: Stage 7 production 활성화 완료를 기다리지 않고 Stage 8의 기능 OFF 코드·격리 테스트 개발을 먼저 진행한다. Stage 7·8 운영 활성화 전 검증은 통합 수행하되, 실제 production 활성화는 staging E2E·Firebase/mobile·Mongo·권한 검증과 consumer 준비 순서 확인 후에만 허용한다.
+
 ## 구현 체크리스트
 
 1. [ ] [Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle](firebase-withdrawal-lifecycle-stage-1-plan.md)
@@ -13,7 +15,7 @@
 5. [ ] [`UserWithdrawn` event와 downstream Access Token deny marker](user-withdrawn-downstream-deny-marker-stage-5-plan.md)
 6. [ ] [가입 중단 Firebase User cleanup](firebase-abandoned-enrollment-cleanup-stage-6-plan.md)
 7. [ ] [Billing SigV4 eligibility와 owner event durable fan-out](billing-entitlement-owner-fanout-stage-7-plan.md)
-8. [ ] logout-all Firebase refresh revoke
+8. [ ] [logout-all Firebase refresh revoke](firebase-logout-all-revoke-stage-8-plan.md)
 9. [ ] Refresh Token 응답 유실 복구와 rotation 원자성 개선
 10. [ ] Provider unlink와 전화번호 변경
 11. [ ] Guest 생성 응답 유실 복구
@@ -33,7 +35,8 @@
 - phone 재가입의 없음·`OPEN`·`RETAKE_AVAILABLE`은 Billing owner rebind 대상이며, Learning Core는 Billing의 exact continuation을 조회해 source 기록을 이전하지 않고 target 명의의 새 Session을 만든다. `GRADING`은 terminal까지 retry하고 `COMPLETED`는 새 무료권 없이 NOOP다.
 - 반복 탈퇴·재가입에서는 직전 AVAILABLE lineage를 successor 가입이 CONSUMED하고 successor 탈퇴가 새 AVAILABLE lineage를 만든다. 과거 CONSUMED lineage가 여러 건인 것은 정상이며 동일 benefit scope의 AVAILABLE predecessor가 여러 건일 때만 자동 이전을 중단한다. 서로 다른 benefit scope는 독립 처리한다.
 - Billing owner event는 consumer별 단조 sequence로 직렬화하고, exact predecessor가 PUBLISHED되기 전 후속 owner event를 전송하지 않는다. phone 재가입 source lineage가 없거나 모호하면 가입은 허용하되 자동 권리 이전은 하지 않는다.
-- 8~9단계는 정상 로그아웃·네트워크 재시도가 세션 재생성 또는 전체 세션 유실로 이어지지 않게 한 뒤 완료한다.
+- 8~9단계는 정상 로그아웃·네트워크 재시도가 이전 인증의 무단 세션 재생성 또는 의도하지 않은 전체 세션 유실로 이어지지 않게 한 뒤 완료한다.
+- 8단계 승인 정책(2026-09-08): Firebase 폐기 대기·결과 불명 중에도 새 인증 로그인은 허용하고, 지연 폐기에 영향받은 Firebase 기반 자체 세션만 추가 무효화한다. 결과 불명 mutation 자동 재전송은 하지 않고 확인 조회·운영 조사와 로그인 허용을 분리한다. 기존 200은 자체 보안 처리+durable 접수이며 같은 검증 jti는 같은 요청이다. 기존 탈퇴/release 보호 및 선행 운영 gate는 유지한다. 상세 데이터·모바일·검증 조건은 Stage 8 계획서를 따른다.
 - 10~12단계는 자동 merge 없이 fresh proof와 명시적 사용자 행위로만 인증수단을 변경·복구하도록 구현한다.
 - 각 단계에는 정상 흐름뿐 아니라 동시 요청, 외부 성공 후 내부 실패, 내부 성공 후 응답 유실, retry와 reconciliation 테스트를 포함한다.
 - 전체 선행 조건과 staging E2E가 완료되기 전에는 Firebase·Guest merge·eligibility publisher 관련 production flag를 활성화하지 않는다.

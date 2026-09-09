@@ -43,10 +43,37 @@ public class TokenReissueService {
 	private final Clock clock;
 
 	public ReissueResponse reissue(ReissueRequest request) {
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			// Reuse revocations must commit even though the public result is an error.
+			Object result = refreshSessionIssuer.security().transaction(() -> {
+				try { return reissueInternal(request); }
+				catch (AuthException exception) {
+					if (exception.getErrorCode() == AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED) return exception;
+					throw exception;
+				}
+			});
+			if (result instanceof AuthException exception) throw exception;
+			return (ReissueResponse) result;
+		}
+		return reissueInternal(request);
+	}
+
+	private ReissueResponse reissueInternal(ReissueRequest request) {
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
 		RefreshSession currentSession = refreshSessionRepository.findByTokenHash(tokenHash)
 				.orElseThrow(this::invalidRefreshToken);
 		Instant currentTime = clock.instant();
+		if (currentSession.getRevocationReason() == RevocationReason.ACCOUNT_WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		}
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			// Account state and epoch precede reuse handling: old rotated tokens must not
+			// revoke sessions issued after an explicit logout-all boundary.
+			refreshSessionIssuer.security().checkAndTouch(currentSession, false);
+			if (currentSession.getRevocationReason() == RevocationReason.LOGOUT_ALL) {
+				throw new AuthException(AuthErrorStatus.SESSION_LOGGED_OUT);
+			}
+		}
 
 		// 회전된 토큰이 재사용되면 탈취 가능성에 대비해 활성 세션을 모두 폐기한다.
 		if (currentSession.getRevocationReason() == RevocationReason.ROTATED) {
@@ -62,9 +89,6 @@ public class TokenReissueService {
 					.addKeyValue("errorCode", AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED.getCode())
 					.log("Refresh Token 재사용을 감지했습니다");
 			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
-		}
-		if (currentSession.getRevocationReason() == RevocationReason.ACCOUNT_WITHDRAWN) {
-			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
 		}
 		if (currentSession.isRevoked()) {
 			throw invalidRefreshToken();
@@ -102,7 +126,9 @@ public class TokenReissueService {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				user.getUserId(), user.getAccountType(), Set.of()
 		);
-		IssuedRefreshSession refreshSession = refreshSessionIssuer.issueRotated(
+		IssuedRefreshSession refreshSession = refreshSessionIssuer.isFenceEnabled()
+				? refreshSessionIssuer.issueRotated(currentSession, replacementSessionId, currentTime)
+				: refreshSessionIssuer.issueRotated(
 				replacementSessionId,
 				currentSession.getUserId(),
 				rotationFamilyId,
