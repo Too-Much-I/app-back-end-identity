@@ -8872,3 +8872,31 @@
 - 위험 요소: feature flags 기본 OFF. 실제 Mongo Transaction rollback·Firebase API·모바일·운영 경보/격리 복구는 미검증이며 Stage 7·8 통합 검증이 남는다.
 - Jira 작업: 없음. 기존 구현 완료 댓글 초안을 유지하며 댓글·상태 변경하지 않는다.
 - 다음 작업: 사용자 코드 확인 및 commit/PR/merge 이후 OFF 배포와 통합 운영 검증. 기존 미커밋 변경 보존, 이번 설명의 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-09 — TMI-129 JWT jti 의미 설명
+
+<!-- codex-turn:01a083cf-267f-7ac0-a6fd-07c974bf785c -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-129-firebase-logout-all-revoke.
+- Jira: TMI-129
+- 작업 목표: jti의 의미와 이번 전체 로그아웃에서 사용하는 목적을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 확인·설명 내용: JwtAccessTokenIssuer의 발급별 UUID 생성과 LogoutAllCoordinator의 검증된 issuer/userId/jti fingerprint 사용을 확인했다. 사용자 식별자 sub와 JWT 식별자 jti를 구분하고 동일 요청 재시도와 새 발급에 따른 별도 logout cycle을 설명한다.
+- 유지 계약·결정사항: 기존 JWT·API 계약과 feature flags 기본 OFF 유지. jti 자체가 암호나 인증 검증을 대체하지 않으며 새 토큰 자동 재요청은 별도 logout으로 처리됨.
+- 테스트와 결과: 관련 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 기존 실제 Firebase/Mongo/mobile 통합 운영 검증 미완료 상태 유지.
+- 다음 작업: 기존 구현 검토·사용자 commit/PR/merge 및 통합 운영 검증. 추가 구현·Jira 변경·배포 없음. 기존 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-09 — TMI-129 worker start 및 revoke 코드 설명
+
+<!-- codex-turn:01a083f2-ec32-7f93-8695-8922fe2c9dac -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-129-firebase-logout-all-revoke.
+- Jira: TMI-129
+- 작업 목표: start/null/revoke 코드의 실행 순서와 안전장치를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 확인·설명 내용: FirebaseSessionRevocationWorker.start와 LogoutAllOperation.startMutation을 정적 확인했다. lease owner/만료·active slot·User/target 검사 후 외부 계정 생성 시각과 dispatchAt/mutationStarted/REVOKING을 저장하며, null이면 중단하고 정상 반환 시에만 port.revoke를 호출함을 설명한다. owner는 worker 담당 식별자이며 remote creation과 dispatch 시각은 서로 다른 값이다.
+- 유지 계약·결정사항: 원격 호출 전에 durable 시작 기록 유지. 기록이 원격 성공을 보장하지 않고 결과 불명은 재전송 없이 조사한다. lease가 일시 정지된 프로세스의 원격 호출을 취소하지 못한다는 기존 제한 유지.
+- 테스트와 결과: 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 실제 Firebase/Mongo/mobile 운영 검증 미완료, 기본 OFF 유지.
+- 다음 작업: 기존 구현 검토와 통합 운영 검증. 추가 코드·Jira·배포 변경 없음. 사용자 변경 보존, 예상 밖 변경 없음.

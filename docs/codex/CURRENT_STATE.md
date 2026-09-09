@@ -6,9 +6,13 @@
 
 - 이름: `app-back-end-identity`
 - 현재 단계: Stage 7 Identity `TMI-123` 구현과 Learning Core `TMI-125` 연동 후속 보완이 PR #38의 merge commit `fa9843e`로 `develop`과 `origin/develop`에 반영됐다. 전체 630개 테스트와 `git diff --check`가 통과했고 관련 feature flag는 모두 `false`다. Jira `TMI-123`에는 승인된 완료 댓글을 등록했으며 상태와 Resolution 모두 `완료`로 전환됐다.
-- 상태 기준일: 2026-09-08
+- 상태 기준일: 2026-09-09
 
 ## 현재 작업 — TMI-129 Stage 8 구현·검증 (2026-09-08)
+
+- 2026-09-09 worker의 start/null/revoke 세 줄을 설명했다. start는 원격 호출이 아니라 담당 lease·slot·계정/target 재검사와 mutationStarted/dispatchAt의 Transaction 저장이다. null이면 호출을 중단하며 성공 시 저장된 exact target과 dispatchAt으로 Firebase revoke를 요청한다. 시작 기록은 원격 성공 증거가 아니며 lease는 외부 호출 취소 보장이 아니다. 코드 변경 없음.
+
+- 2026-09-09 jti의 의미와 logout 중복 판정을 설명했다. 사용자 식별자 sub와 달리 jti는 발급마다 생성하는 JWT 고유 ID이며, 검증된 issuer/userId/jti 조합으로 동일 logout 요청을 판정한다. 같은 유효 JWT 재시도는 같은 요청, 새 JWT는 별도 요청이다. 코드·계약·기능 OFF 상태 변경 없음.
 
 <!-- codex-turn:01a07f9c-963e-7e61-aefe-da0d49c61309 -->
 
