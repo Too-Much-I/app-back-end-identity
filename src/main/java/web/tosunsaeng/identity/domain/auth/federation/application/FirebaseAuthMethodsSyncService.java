@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +31,9 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 
 public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethodsSyncUseCase {
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private final CurrentUserProvider currentUserProvider;
 	private final UserRepository userRepository;
@@ -76,6 +82,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 	public FirebaseAuthMethodsSyncResponse sync(FirebaseAuthMethodsSyncRequest request) {
 		FirebaseAuthMethodsSyncRequest requiredRequest = Objects.requireNonNull(request);
 		String userId = currentUserProvider.getCurrentUserId();
+		long expectedEpoch = sessionSecurity == null ? 0 : sessionSecurity.captureEpoch(userId);
 		User user = userRepository.findById(userId)
 				.orElseThrow(() -> new UserException(UserErrorStatus.USER_NOT_FOUND));
 		if (user.getStatus() != UserStatus.ACTIVE || !user.isMember()) {
@@ -112,7 +119,13 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 			}
 		}
 		try {
-			transactionService.saveMissing(missing);
+			if (sessionSecurity == null) transactionService.saveMissing(missing);
+			else sessionSecurity.transactionKeepingUniqueConflicts(() -> {
+				var proof = sessionSecurity.firebase(userId, expectedEpoch, principal);
+				sessionSecurity.checkFirebaseAuthentication(userId, proof);
+				transactionService.saveMissing(missing);
+				return null;
+			});
 		} catch (DuplicateKeyException exception) {
 			ensureAllPrincipalSocialIdentitiesOwnedBy(principal, userId);
 		}

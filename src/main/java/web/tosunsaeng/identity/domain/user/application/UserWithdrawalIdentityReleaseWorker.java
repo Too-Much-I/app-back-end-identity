@@ -51,6 +51,11 @@ public final class UserWithdrawalIdentityReleaseWorker {
 			return record(IdentityReleaseOutcome.CONCURRENT_CHANGE);
 		} catch (TransientDataAccessException exception) {
 			return record(IdentityReleaseOutcome.TRANSIENT_FAILURE);
+		} catch (web.tosunsaeng.identity.domain.auth.common.exception.AuthException exception) {
+			if (exception.getErrorCode() == web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING) {
+				return record(IdentityReleaseOutcome.DEPENDENCY_PENDING);
+			}
+			throw exception;
 		}
 	}
 

@@ -129,6 +129,7 @@ class GuestAuthServiceTests {
 
 	@Test
 	void preparesActiveGuestAndExistingTokensBeforeTransactionalRegistration() {
+		when(refreshSessionIssuer.isFenceEnabled()).thenReturn(true);
 		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
 		tokens.delegate(accessTokenIssuer);
 		GuestAuthResponse response;
@@ -165,6 +166,8 @@ class GuestAuthServiceTests {
 		User guest = userCaptor.getValue();
 		tokens.assertClaims(response.accessToken(), guest.getUserId(), UserAccountType.GUEST);
 		PreparedRefreshSession preparedRefresh = refreshCaptor.getValue();
+		assertThat(preparedRefresh.session().getAuthentication().source().name()).isEqualTo("GUEST");
+		assertThat(preparedRefresh.session().getSessionEpoch()).isZero();
 
 		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
 		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);

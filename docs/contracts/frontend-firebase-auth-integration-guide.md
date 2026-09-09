@@ -250,7 +250,15 @@ Firebase email/password 로그인 또는 가입
 2. 현재 기기의 Identity Token과 Firebase 상태를 정리한다.
 3. 다른 기기는 다음 `/reissue`에서 더 이상 Identity Token을 받을 수 없다.
 
-서버는 Identity 세션 폐기와 함께 Firebase refresh revoke를 durable하게 수행한다. 외부 revoke가 일시 실패해도 retry되며 내부 세션을 다시 활성화하지 않는다.
+`200`은 내부 세션 무효화와 Firebase revoke 작업의 durable 접수다. 다른 기기 UI 변경이나 Firebase 원격 완료를 뜻하지 않는다. 기존 자체 Access Token은 기존 만료·차단 정책을 따른다.
+
+- 응답 유실은 같은 유효 Access Token/jti로 제한 재시도한다. 새 Token으로 자동 재요청하면 별도 logout cycle이 된다.
+- 대기·결과 불명 상태만으로 새 인증 로그인을 막지 않는다. 과거 Firebase 인증의 강제 Token 갱신은 새 인증이 아니다.
+- 지연 revoke에 영향받은 Firebase 기반 자체 세션은 `401 SESSION_LOGGED_OUT`으로 거절될 수 있다. Firebase signOut과 자체 Token 삭제 후 “전체 로그아웃 요청 처리로 다시 로그인이 필요합니다”를 안내한다. 영향 없는 LOCAL·경계 이후 새 인증 세션은 유지한다.
+- 안전한 조회/호출 전 실패만 제한 재시도한다. 원격 mutation 결과가 불명확하면 자동 재전송하지 않고 서버 운영 조사로 전환한다. 앱에서 이를 해결하려고 logout이나 exchange를 무한 반복하지 않는다.
+- `503 SESSION_SECURITY_UNAVAILABLE`은 접수/인증 처리를 확정할 수 없는 일시 오류다. logout 성공을 단정하지 않고 제한 재시도한다.
+
+서버 구현·활성화 조건은 [Stage 8 계획서](firebase-logout-all-revoke-stage-8-plan.md)와 [운영 검증](firebase-logout-all-revoke-stage-8-runbook.md)을 따른다. 이 가이드의 최종 release 전제와 달리 Stage 8 코드의 기본 feature flag는 OFF다.
 
 ## 6. 회원탈퇴 관련 프론트 계약
 
@@ -320,7 +328,7 @@ Firebase email/password 로그인 또는 가입
 | `POST /api/v1/auth/firebase/auth-methods/sync` | MEMBER Identity Bearer + Firebase ID Token body | `linkedProviders` | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/reissue` | Refresh Token body | 새 Identity Token 묶음 | 400, 401, 403 |
 | `POST /api/v1/auth/logout` | Refresh Token body | `null` | 400 |
-| `POST /api/v1/auth/logout-all` | Identity Bearer | `null` | 401, 403 |
+| `POST /api/v1/auth/logout-all` | Identity Bearer | `null` (원격 완료가 아닌 접수) | 401, 403, 503 |
 | `GET /api/v1/users/me` | Identity Bearer | 사용자 프로필 | 401, 403, 404 |
 | `POST /api/v1/users/withdraw` | Identity Bearer + account credential body | 탈퇴 상태 | 400, 401, 404, 409 |
 

@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import java.util.Map;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -58,6 +60,7 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 	public FirebaseSignupResponse merge(FirebaseGuestMergeRequest request) {
 		FirebaseGuestMergeRequest requiredRequest = Objects.requireNonNull(request);
 		String sourceUserId = currentUserProvider.getCurrentUserId();
+		long sourceEpoch = refreshSessionIssuer.captureEpoch(sourceUserId);
 		User source = userRepository.findById(sourceUserId)
 				.orElseThrow(() -> new UserException(UserErrorStatus.USER_NOT_FOUND));
 		if (source.getStatus() != UserStatus.ACTIVE || !source.isGuest()) {
@@ -74,6 +77,12 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 		PreparedRefreshSession preparedTargetSession = refreshSessionIssuer.prepare(
 				target.getUserId()
 		);
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			preparedTargetSession.session().attachAuthentication(refreshSessionIssuer.security().firebase(
+					target.getUserId(), refreshSessionIssuer.captureEpoch(target.getUserId()), principal));
+			preparedTargetSession = new PreparedRefreshSession(preparedTargetSession.tokenValue(),
+					preparedTargetSession.session(), Map.of(sourceUserId, sourceEpoch));
+		}
 		UserMergedOutbox outbox = UserMergedOutbox.create(
 				sourceUserId,
 				target.getUserId(),

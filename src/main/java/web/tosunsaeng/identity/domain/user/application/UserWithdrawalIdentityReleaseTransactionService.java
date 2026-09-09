@@ -1,5 +1,9 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.util.ArrayList;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -33,7 +37,10 @@ import web.tosunsaeng.identity.domain.user.domain.enums.WithdrawalCleanupFailure
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 
-public final class UserWithdrawalIdentityReleaseTransactionService {
+public class UserWithdrawalIdentityReleaseTransactionService {
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private final UserWithdrawalLifecycleRepository lifecycleRepository;
 	private final UserRepository userRepository;
@@ -104,6 +111,7 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 		if (lifecycle.getStatus() == UserWithdrawalCleanupStatus.CLEANED) {
 			return IdentityReleaseOutcome.IDEMPOTENT;
 		}
+		if (sessionSecurity != null) sessionSecurity.guardIdentityRelease(lifecycle.getUserId());
 		if (lifecycle.getStatus() != UserWithdrawalCleanupStatus.IDENTITY_RELEASE_PENDING
 				|| !Objects.equals(lifecycle.getVersion(), requiredSelected.getVersion())) {
 			throw concurrentChange("Withdrawal lifecycle changed before identity release.");
@@ -324,7 +332,7 @@ public final class UserWithdrawalIdentityReleaseTransactionService {
 			List<PhoneEligibilityBindingRevision> activeBindings,
 			Instant revokedAt
 	) {
-		java.util.ArrayList<PhoneEligibilityBindingRevision> revokedBindings = new java.util.ArrayList<>();
+		ArrayList<PhoneEligibilityBindingRevision> revokedBindings = new ArrayList<>();
 		for (PhoneEligibilityBindingRevision active : activeBindings) {
 			PhoneEligibilityBindingRevision revoked = bindingRevisionRepository.advanceRevoked(
 					active.getUserId(),

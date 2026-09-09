@@ -117,6 +117,17 @@ class FirebaseExchangeServiceTests {
 		)));
 		SignedUserTokenFixture tokens = new SignedUserTokenFixture(NOW);
 		tokens.delegate(accessTokenIssuer);
+		var security = new web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService(
+				mock(org.springframework.data.mongodb.core.MongoTemplate.class), mock(org.springframework.transaction.support.TransactionTemplate.class),
+				userRepository, firebaseIdentityRepository);
+		when(refreshSessionIssuer.isFenceEnabled()).thenReturn(true);
+		when(refreshSessionIssuer.security()).thenReturn(security);
+		when(refreshSessionIssuer.captureEpoch(USER_ID)).thenReturn(4L);
+		var evidence = new web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication(4,
+				web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication.Source.FIREBASE,
+				identity.getFirebaseIdentityId(), principal.authTime());
+		when(refreshSessionIssuer.issueAuthenticated(USER_ID, evidence)).thenReturn(new IssuedRefreshSession(
+				"identity-refresh-token", NOW, NOW.plus(Duration.ofDays(14))));
 		when(refreshSessionIssuer.issue(USER_ID)).thenReturn(new IssuedRefreshSession(
 				"identity-refresh-token",
 				NOW,
@@ -133,7 +144,7 @@ class FirebaseExchangeServiceTests {
 		assertThat(response.accessTokenExpiresIn()).isEqualTo(1_800_000);
 		assertThat(response.refreshTokenExpiresIn()).isEqualTo(1_209_600_000);
 		verify(accessTokenIssuer).issue(USER_ID, UserAccountType.MEMBER, Set.of());
-		verify(refreshSessionIssuer).issue(USER_ID);
+		verify(refreshSessionIssuer).issueAuthenticated(USER_ID, evidence);
 		verifyNoInteractions(enrollmentAttemptService);
 	}
 

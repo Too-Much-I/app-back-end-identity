@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.session.application;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Clock;
 import java.time.Instant;
 
@@ -22,6 +24,20 @@ public class RefreshSessionIssuer {
 	private final RefreshTokenProperties properties;
 	private final Clock clock;
 
+	private SessionSecurityService security;
+
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { this.security = security; }
+	public boolean isFenceEnabled() { return security != null; }
+	public long captureEpoch(String userId) { return security == null ? 0 : security.captureEpoch(userId); }
+	public SessionSecurityService security() { return security; }
+
+	public IssuedRefreshSession issueAuthenticated(String userId, SessionAuthentication proof) {
+		PreparedRefreshSession prepared = prepare(userId);
+		prepared.session().attachAuthentication(proof);
+		return savePrepared(prepared);
+	}
+
 	public IssuedRefreshSession issue(String userId) {
 		return savePrepared(prepare(userId));
 	}
@@ -42,6 +58,16 @@ public class RefreshSessionIssuer {
 	}
 
 	public IssuedRefreshSession savePrepared(PreparedRefreshSession preparedRefreshSession) {
+		if (security != null) {
+			return security.transaction(() -> {
+				security.checkAndTouch(preparedRefreshSession.session(), true);
+				return persistPrepared(preparedRefreshSession);
+			});
+		}
+		return persistPrepared(preparedRefreshSession);
+	}
+
+	private IssuedRefreshSession persistPrepared(PreparedRefreshSession preparedRefreshSession) {
 		RefreshSession savedSession = refreshSessionRepository.save(
 				preparedRefreshSession.session()
 		);
@@ -59,6 +85,17 @@ public class RefreshSessionIssuer {
 			String rotatedFromSessionId,
 			Instant createdAt
 	) {
+		if (security != null) throw SessionSecurityService.unavailable();
+		return rotateWithEvidence(sessionId, userId, rotationFamilyId, rotatedFromSessionId, createdAt, null);
+	}
+
+	public IssuedRefreshSession issueRotated(RefreshSession previous, String sessionId, Instant createdAt) {
+		return rotateWithEvidence(sessionId, previous.getUserId(), previous.getRotationFamilyId(),
+				previous.getSessionId(), createdAt, previous.getAuthentication());
+	}
+
+	private IssuedRefreshSession rotateWithEvidence(String sessionId, String userId,
+			String rotationFamilyId, String rotatedFromSessionId, Instant createdAt, SessionAuthentication proof) {
 		String tokenValue = refreshTokenGenerator.generate();
 		String tokenHash = refreshTokenHasher.hash(tokenValue);
 		RefreshSession refreshSession = RefreshSession.createRotated(
@@ -71,6 +108,8 @@ public class RefreshSessionIssuer {
 				createdAt.plus(properties.ttl())
 		);
 
+		if (proof != null) refreshSession.attachAuthentication(proof);
+		if (security != null) security.checkAndTouch(refreshSession, false);
 		RefreshSession savedSession = refreshSessionRepository.save(refreshSession);
 		return new IssuedRefreshSession(
 				tokenValue,

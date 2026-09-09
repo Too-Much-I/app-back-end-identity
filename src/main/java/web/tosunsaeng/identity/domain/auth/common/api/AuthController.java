@@ -313,11 +313,13 @@ public class AuthController {
 
 	@Operation(
 			summary = "전체 로그아웃",
-			description = "현재 사용자의 활성 RefreshSession을 모두 멱등적으로 폐기합니다."
+			description = "현재 사용자의 RefreshSession을 폐기합니다. Firebase 전체 로그아웃 기능 활성화 시 "
+					+ "200은 내부 무효화와 비동기 폐기 작업 접수 완료이며 Firebase 원격 완료를 뜻하지 않습니다. "
+					+ "동일한 유효 Access Token의 jti로 재요청하면 같은 접수 결과를 유지합니다."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "전체 로그아웃 성공"),
+			@ApiResponse(responseCode = "200", description = "내부 세션 폐기 및 전체 로그아웃 접수 완료"),
 			@ApiResponse(
 					responseCode = "401",
 					description = "인증 실패",
@@ -326,6 +328,11 @@ public class AuthController {
 			@ApiResponse(
 					responseCode = "403",
 					description = "권한 부족",
+					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+			),
+			@ApiResponse(
+					responseCode = "503",
+					description = "SESSION_SECURITY_UNAVAILABLE: 내부 보안 처리 또는 접수를 확정할 수 없음",
 					content = @Content(schema = @Schema(implementation = BaseResponse.class))
 			)
 	})

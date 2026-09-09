@@ -6,6 +6,9 @@ import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum AuthErrorStatus implements ErrorCode {
 
+	SESSION_LOGGED_OUT(HttpStatus.UNAUTHORIZED, "SESSION_LOGGED_OUT", "로그아웃된 세션입니다. 다시 로그인해 주세요."),
+	SESSION_SECURITY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "SESSION_SECURITY_UNAVAILABLE", "인증 처리를 일시적으로 완료할 수 없습니다."),
+
 	EMAIL_ALREADY_EXISTS(
 			HttpStatus.CONFLICT,
 			"EMAIL_ALREADY_EXISTS",

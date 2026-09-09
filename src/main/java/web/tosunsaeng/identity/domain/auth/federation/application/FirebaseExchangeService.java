@@ -158,11 +158,15 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
 		}
 		ensureNoSocialIdentityOwner(principal, user.getUserId());
+		long epoch = refreshSessionIssuer.captureEpoch(firebaseIdentity.getUserId());
 
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				user.getUserId(), user.getAccountType(), Set.of()
 		);
-		IssuedRefreshSession refreshSession = refreshSessionIssuer.issue(user.getUserId());
+		IssuedRefreshSession refreshSession = refreshSessionIssuer.isFenceEnabled()
+				? refreshSessionIssuer.issueAuthenticated(user.getUserId(),
+						refreshSessionIssuer.security().firebase(user.getUserId(), epoch, principal))
+				: refreshSessionIssuer.issue(user.getUserId());
 		return new FirebaseAuthenticatedResponse(
 				accessToken.tokenValue(),
 				refreshSession.tokenValue(),

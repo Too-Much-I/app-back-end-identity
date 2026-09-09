@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
 public enum IdentityReleaseOutcome {
+	DEPENDENCY_PENDING,
 	NONE,
 	CLEANED,
 	IDEMPOTENT,

@@ -97,7 +97,17 @@ class FirebaseGuestMergeServiceTests {
 				.thenReturn(principal);
 		when(resolver.resolve(principal, source.getUserId())).thenReturn(target);
 		when(sessionIssuer.prepare(target.getUserId())).thenReturn(prepared);
-		when(transactionService.merge(any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)))
+		var security = mock(web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService.class);
+		when(sessionIssuer.isFenceEnabled()).thenReturn(true);
+		when(sessionIssuer.security()).thenReturn(security);
+		when(sessionIssuer.captureEpoch(source.getUserId())).thenReturn(2L);
+		when(sessionIssuer.captureEpoch(target.getUserId())).thenReturn(5L);
+		var evidence = new web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication(5,
+				web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication.Source.FIREBASE,
+				"00000000-0000-4000-8000-000000000123", NOW);
+		when(security.firebase(target.getUserId(), 5, principal)).thenReturn(evidence);
+		when(security.transaction(any())).thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(0)).get());
+		when(transactionService.merge(any(), eq(source.getUpdatedAt()), any(), any(), eq(NOW)))
 				.thenReturn(issuedRefresh);
 
 		FirebaseSignupResponse response = service.merge(
@@ -110,15 +120,21 @@ class FirebaseGuestMergeServiceTests {
 		verify(accessTokenIssuer, never()).issue(eq(source.getUserId()), any(), any());
 		InOrder order = inOrder(transactionService, accessTokenIssuer);
 		order.verify(transactionService).merge(
-				any(), eq(source.getUpdatedAt()), eq(prepared), any(), eq(NOW)
+				any(), eq(source.getUpdatedAt()), any(), any(), eq(NOW)
 		);
 		order.verify(accessTokenIssuer).issue(eq(target.getUserId()), eq(UserAccountType.MEMBER), any());
+		var preparedCaptor = org.mockito.ArgumentCaptor.forClass(PreparedRefreshSession.class);
+		verify(transactionService).merge(any(), any(), preparedCaptor.capture(), any(), any());
+		assertThat(preparedCaptor.getValue().relatedEpochs()).containsEntry(source.getUserId(), 2L);
+		assertThat(preparedCaptor.getValue().session().getAuthentication()).isEqualTo(evidence);
 
 		RefreshSessionRepository sessions = mock(RefreshSessionRepository.class);
 		when(sessions.findByTokenHash(hasher.hash(response.refreshToken())))
 				.thenReturn(Optional.of(targetSession));
 		when(userRepository.findById(target.getUserId())).thenReturn(Optional.of(target));
 		when(sessionIssuer.issueRotated(any(), any(), any(), any(), any()))
+				.thenReturn(new IssuedRefreshSession("target-rotated-refresh", NOW, NOW.plusSeconds(3600)));
+		when(sessionIssuer.issueRotated(any(RefreshSession.class), any(), any()))
 				.thenReturn(new IssuedRefreshSession("target-rotated-refresh", NOW, NOW.plusSeconds(3600)));
 		TokenReissueService reissue = new TokenReissueService(hasher, sessions, userRepository,
 				accessTokenIssuer, sessionIssuer, new AuthResponseConverter(), Clock.fixed(NOW, ZoneOffset.UTC));

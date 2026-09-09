@@ -56,6 +56,20 @@ class UserWithdrawalExternalCleanupWorkerTests {
 	}
 
 	@Test
+	void pendingLogoutActorWaitsWithoutCallingFirebase() {
+		when(targetGuard.verify(lifecycle, NOW)).thenReturn(new WithdrawalCleanupTargetGuard.Result(
+				WithdrawalCleanupTargetGuard.ResultType.LOGOUT_PENDING, null
+		));
+		when(repository.scheduleRetry(
+				"withdrawal-id", "lease-token", 7L,
+				WithdrawalCleanupFailureCode.LOGOUT_REVOKE_PENDING, NOW.plusSeconds(5), NOW
+		)).thenReturn(true);
+
+		assertThat(worker.processNext()).isEqualTo(WithdrawalCleanupOutcome.RETRY_SCHEDULED);
+		verifyNoInteractions(cleanupPort);
+	}
+
+	@Test
 	void localTargetCompletesWithoutFirebaseCall() {
 		when(targetGuard.verify(lifecycle, NOW)).thenReturn(new WithdrawalCleanupTargetGuard.Result(
 				WithdrawalCleanupTargetGuard.ResultType.LOCAL_TARGET, null

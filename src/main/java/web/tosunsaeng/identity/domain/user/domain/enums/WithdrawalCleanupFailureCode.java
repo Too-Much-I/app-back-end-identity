@@ -7,6 +7,7 @@ public enum WithdrawalCleanupFailureCode {
 	UNAVAILABLE(true),
 	DELETE_NOT_CONFIRMED(true),
 	RESULT_UNKNOWN(true),
+	LOGOUT_REVOKE_PENDING(true),
 	PROJECT_MISMATCH(false),
 	TARGET_OWNERSHIP_MISMATCH(false),
 	PERMISSION_DENIED(false),

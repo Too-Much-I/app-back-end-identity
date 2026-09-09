@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -101,6 +103,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 	public FirebaseSignupResponse upgrade(FirebaseGuestUpgradeRequest request) {
 		FirebaseGuestUpgradeRequest requiredRequest = Objects.requireNonNull(request);
 		String userId = currentUserProvider.getCurrentUserId();
+		long expectedEpoch = refreshSessionIssuer.captureEpoch(userId);
 		User user = userRepository.findById(userId)
 				.orElseThrow(() -> new UserException(UserErrorStatus.USER_NOT_FOUND));
 		if (user.getStatus() != UserStatus.ACTIVE || !user.isGuest()) {
@@ -162,6 +165,12 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 				now
 		);
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(userId);
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			FirebaseIdentity sessionBinding = firebaseIdentityToCreate != null ? firebaseIdentityToCreate : currentFirebaseIdentity.orElseThrow();
+			preparedRefreshSession.session().attachAuthentication(new SessionAuthentication(
+					expectedEpoch, SessionAuthentication.Source.FIREBASE,
+					sessionBinding.getFirebaseIdentityId(), principal.authTime()));
+		}
 		IssuedRefreshSession refreshSession;
 		try {
 			refreshSession = transactionService.upgrade(

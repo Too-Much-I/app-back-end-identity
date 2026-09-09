@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.session.application;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -22,10 +24,14 @@ public class LogoutAllService {
 	private final CurrentUserProvider currentUserProvider;
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final Clock clock;
+	private LogoutAllCoordinator coordinator;
+	@Autowired(required = false)
+	public void setCoordinator(LogoutAllCoordinator coordinator) { this.coordinator = coordinator; }
 
 	public void logoutAll() {
 		// 인증된 JWT의 사용자 ID로 본인이 소유한 세션만 조회한다.
 		String userId = currentUserProvider.getCurrentUserId();
+		if (coordinator != null) { coordinator.logoutCurrent(userId); return; }
 		List<RefreshSession> activeSessions = refreshSessionRepository
 				.findAllByUserIdAndRevokedAtIsNull(userId);
 		if (activeSessions.isEmpty()) {

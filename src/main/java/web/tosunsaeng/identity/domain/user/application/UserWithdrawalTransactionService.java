@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -31,6 +33,9 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 
 @Service
 public class UserWithdrawalTransactionService {
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private final UserRepository userRepository;
 	private final RefreshSessionRepository refreshSessionRepository;
@@ -82,6 +87,7 @@ public class UserWithdrawalTransactionService {
 				currentUser.getUserId(),
 				withdrawnAt
 		);
+		if (sessionSecurity != null) sessionSecurity.handoffWithdrawal(currentUser.getUserId(), withdrawnAt);
 
 		UserStatus expectedStatus = currentUser.getStatus();
 		Instant expectedUpdatedAt = currentUser.getUpdatedAt();
@@ -202,6 +208,7 @@ public class UserWithdrawalTransactionService {
 		RefreshSession session = refreshSessionRepository
 				.findByTokenHash(credentialTokenHash)
 				.orElseThrow(this::invalidCredentials);
+		if (sessionSecurity != null) sessionSecurity.checkAndTouch(session, false);
 		if (!session.getUserId().equals(userId)
 				|| session.isRevoked()
 				|| session.isExpiredAt(currentTime)) {

@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.registration.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication;
+
 import java.time.Clock;
 import java.util.Objects;
 import java.util.Set;
@@ -74,6 +76,10 @@ public class GuestAuthService {
 		PreparedRefreshSession refreshSession = refreshSessionIssuer.prepare(
 				guestUser.getUserId()
 		);
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			refreshSession.session().attachAuthentication(new SessionAuthentication(
+					0, SessionAuthentication.Source.GUEST, null, null));
+		}
 		try {
 			GuestAuthResponse response = registrationTransactionService.register(
 					guestUser,
