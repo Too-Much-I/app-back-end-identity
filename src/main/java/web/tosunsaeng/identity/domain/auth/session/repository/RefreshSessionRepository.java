@@ -14,4 +14,6 @@ public interface RefreshSessionRepository extends MongoRepository<RefreshSession
 	List<RefreshSession> findAllByUserIdAndRevokedAtIsNull(String userId);
 
 	boolean existsByTokenHash(String tokenHash);
+
+	boolean existsByUserIdAndRotationRequestKeyHash(String userId, String rotationRequestKeyHash);
 }

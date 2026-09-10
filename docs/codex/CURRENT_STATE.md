@@ -5,10 +5,43 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: Stage 7 Identity `TMI-123` 구현과 Learning Core `TMI-125` 연동 후속 보완이 PR #38의 merge commit `fa9843e`로 `develop`과 `origin/develop`에 반영됐다. 전체 630개 테스트와 `git diff --check`가 통과했고 관련 feature flag는 모두 `false`다. Jira `TMI-123`에는 승인된 완료 댓글을 등록했으며 상태와 Resolution 모두 `완료`로 전환됐다.
-- 상태 기준일: 2026-09-09
+- 현재 단계: TMI-130 Stage 9 재발급 응답 유실 복구 코드·격리 테스트 구현 완료, commit/PR/운영 검증 전. 기능 기본 OFF.
+- 상태 기준일: 2026-09-10
 
-## 현재 작업 — TMI-129 Stage 8 구현·검증 (2026-09-08)
+## 현재 작업 — TMI-130 Stage 9 구현·검증 (2026-09-09)
+
+<!-- codex-turn:01a0891f-0584-7102-91de-3d5ba6a0d82c -->
+
+- 2026-09-10: RefreshSession의 @Version 조건부 저장과 Mongo Transaction write conflict를 통해 동시 회전 충돌을 감지함을 설명했다. 실제로는 선행 UserSessionControl 쓰기에서 먼저 충돌할 수도 있다. 재조회 후 같은 요청 ID는 유효한 기존 결과 복구, 다른 ID는 기존 의심 재사용 정책으로 분기한다. 코드·정책 변경 없이 정적 확인 및 기록만 수행.
+
+<!-- codex-turn:01a0891c-5020-7813-b26a-9afbc947ddf2 -->
+
+- 2026-09-10: 세션 A의 rotation 저장은 독립 commit이 아니라 새 토큰·child 세션·암호화 응답 저장과 같은 Transaction의 중간 쓰기임을 설명했다. 실패로 abort되면 함께 rollback되며 commit 결과 불명은 replay-only로 구분한다. 코드·정책·Jira 변경 없음. 설명용 정적 확인만 수행하고 Gradle은 재실행하지 않는다.
+
+<!-- codex-turn:01a084d8-0215-7183-890c-5341c9155a2f -->
+
+- Refresh Token rotation은 A 문자열을 가공하는 것이 아니라 기존 A 세션을 ROTATED로 종료하고 독립 난수 B를 만들어 교체하는 것임을 설명했다. A 기록은 삭제하지 않고 B와 연결하며 같은 요청의 제한된 응답 복구만 예외로 허용한다. 사용자 계정은 그대로 유지된다. 설명·기록만 수행, 코드/정책/Jira 변경 없음.
+
+<!-- codex-turn:01a084c3-bfd2-74e0-95d1-521c5b8599f6 -->
+
+- 2026-09-09 구현 코드를 재확인하여 요청 ID·최초 원자 회전·암호문 보관·같은 결과 replay·로그아웃 취소·commit 불명 처리·절대 만료 헤더를 코드 발췌와 함께 설명했다. 기능 ON 기준 동작과 기본 OFF 상태를 구분한다. 이번에는 코드·계획·Jira 변경 없이 기록만 갱신, git diff --check 통과. 788개 통과는 직전 구현 검증 결과이며 Gradle을 재실행하지 않았다.
+
+<!-- codex-turn:01a084a3-a4fb-73c2-8d95-aae027c5b08c -->
+
+- Jira: [TMI-130](https://to-teacher.atlassian.net/browse/TMI-130), 구현 전 공식 조회에서 제목·본문·상태 해야 할 일 확인. 댓글·상태 변경 없음.
+- 브랜치: `feat/TMI-130-refresh-token-response-recovery`. 사용자가 준비한 브랜치에서 구현했고 기존 WORKLOG 미커밋 변경 및 미추적 Stage 9 계획서를 보존했다.
+- `ReissueRecoveryService`에 필수 ID·동일 결과 최대 2분 복구·source/child/control Transaction·bounded conflict reread·unknown commit replay-only·정상 만료와 의심 재사용 분리를 구현했다. 취소/구 epoch/만료 source로 최신 로그인 세션을 공격 탐지 폐기하지 않는다.
+- AES-256-GCM·전용 read-only key mount·환경/AAD·key rotation용 제한 keyring·별도 response collection TTL·원 Session 증거 보존을 추가했다. Mongo 전용 manager는 동일 DB factory의 primary/snapshot/majority·maxCommitTime 5초, template timeout 10초·REQUIRES_NEW다.
+- source 단일 logout은 복구 취소 및 exact direct active child만 폐기한다. 다른 family·다음 descendant·Firebase 원격 revoke로 확대하지 않았다. 기존 logout/탈퇴/승격/병합 fence를 재사용한다.
+- 기존 reissue URL/body/BaseResponse JSON·RS256/JWKS/account_type/workload·도메인 경계 유지. ON에서는 Idempotency-Key 필수 및 두 절대 만료 응답 헤더, 400/409/503 신규 분기. no-store filter 및 고정-label metrics 포함.
+- `AUTH_REISSUE_RECOVERY_ENABLED=false`, maintenance 기본 false. ON이면 fence/키 필수이며 오류 시 안전한 실패. live 복구 중단은 enabled 유지 + maintenance true, 기존 코드 rollback은 금지한다.
+- [계획·구현 상태](../contracts/refresh-token-response-recovery-stage-9-plan.md), [프론트·키/운영 runbook 및 T01~T30 증빙](../contracts/refresh-token-response-recovery-stage-9-runbook.md), 기존 프론트 가이드와 구현 순서를 갱신했다.
+- 검증: 최종 `./gradlew clean test --console=plain` 성공, 131 suite·788 tests, 실패·오류·건너뜀 0. 신규 집중 테스트·문서 로컬 링크 51개/누락 0·추적/미추적 파일 diff whitespace 검사 통과.
+- 테스트 한계: mock snapshot rollback은 실제 Mongo Transaction 증거가 아니다. mongo-java-server 1.47 partial predicate 미지원으로 인덱스 정의/대상 행 uniqueness/CAS를 분리 검증했고 Stage 8 fixture에서 해당 신규 인덱스만 제외했다. 생산 인덱스를 약화하지 않았으며 실제 legacy 다건 공존은 staging gate다.
+- 남은 위험/배포 전: 실제 replica set rollback/commit 불명/다중 instance·성능, 실제 키 공급/회전/백업·TTL, 모바일 single-flight/crash/Guest 전환, ingress rate limit/경보/비상중단은 미검증. 운영 활성화하지 않았다.
+- 다음 작업: 사용자 diff 검토·commit/PR/merge 후 별도 승인된 통합 운영 검증. 예상 밖 도메인 변경 없음, 다른 저장소·Git 이력·배포 미변경. Jira 댓글 초안은 WORKLOG에만 남겼다.
+
+## 이전 작업 — Stage 8 구현·검증 이력 (아래 상태는 당시 기록)
 
 - 2026-09-09 worker의 start/null/revoke 세 줄을 설명했다. start는 원격 호출이 아니라 담당 lease·slot·계정/target 재검사와 mutationStarted/dispatchAt의 Transaction 저장이다. null이면 호출을 중단하며 성공 시 저장된 exact target과 dispatchAt으로 Firebase revoke를 요청한다. 시작 기록은 원격 성공 증거가 아니며 lease는 외부 호출 취소 보장이 아니다. 코드 변경 없음.
 

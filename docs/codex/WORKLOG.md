@@ -8900,3 +8900,449 @@
 - 테스트와 결과: 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
 - 위험 요소: 실제 Firebase/Mongo/mobile 운영 검증 미완료, 기본 OFF 유지.
 - 다음 작업: 기존 구현 검토와 통합 운영 검증. 추가 코드·Jira·배포 변경 없음. 사용자 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-08 — TMI-127 병합 확인 및 Jira 종료안 준비
+
+<!-- codex-turn:01a07ee0-8883-72d0-abc5-b54b6c51717c -->
+
+- 날짜·브랜치: 2026-09-08, develop. 작업 시작 시 worktree clean.
+- Jira: TMI-127
+- 작업 목표: Jira 종료 요청에 따라 PR 병합과 현재 상태를 확인하고 승인할 변경안을 제시한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·테스트 변경 없음.
+- 확인 결과: GitHub PR #40 MERGED, base develop, merge commit 03e4c5a34e4496e1e1329a95a522350070fbaf5c, mergedAt 2026-09-08T02:36:40Z. 로컬 develop HEAD도 같은 병합 commit이다. 구현 commit은 7b71124다.
+- Jira 작업: 공식 MCP로 summary·status·resolution과 transitions를 조회했다. 현재 해야 할 일, Resolution null, 완료 transition 41 사용 가능. 댓글·상태 변경은 아직 수행하지 않았다.
+- 제안·승인 상태: 공통 발급기·관련 테스트·계약 변경, 직전 전체 648개 통과, 미확인 운영 연동을 요약한 완료 댓글과 해야 할 일→완료 전환을 사용자에게 제시하고 승인 대기한다. 댓글 목적은 구현·검증·잔여 위험 인계다.
+- 테스트: GitHub API·로컬 Git·Jira 읽기 검증, git diff --check. 코드 변경이 없어 Gradle 미실행. 648개 통과는 이전 구현 검증 결과다.
+- 유지 계약·위험: PR 병합과 실제 배포는 구분한다. 운영 TTL·구버전 issuer 종료·Billing staging E2E·프론트 활성화는 미확인이다. 기존 JWT/API/workload 계약은 변경하지 않았다.
+- 다음 작업: 승인 후 제시한 완료 댓글과 상태 전환을 실행하고 상태·Resolution을 재조회한다. Git commit·push·배포는 수행하지 않는다.
+
+## 2026-09-08 — TMI-127 Jira 완료 처리
+
+<!-- codex-turn:01a07f14-6bf4-7e82-b746-fd28d5465bc1 -->
+
+- 날짜·브랜치: 2026-09-08, develop.
+- Jira: TMI-127
+- 작업 목표: 직전 제시한 완료 댓글과 상태 전환에 대한 사용자 승인을 실행한다.
+- 변경 파일: docs/contracts/billing-public-reader-user-jwt-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 기존 기록 변경을 보존하고 이번 항목을 끝에 추가했다.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 기존 상태 확인 후 완료 댓글 10081 등록, transition 41로 해야 할 일→완료 전환, 재조회로 status와 Resolution 모두 완료 확인.
+- 승인 여부·댓글 목적: 사용자 '어'로 제시한 댓글 등록·상태 변경 승인. 댓글은 구현 요약·변경 파일·직전 테스트 결과·PR 병합·잔여 운영 위험 인계를 목적으로 한다. 본문 전체는 기록에 복사하지 않았다.
+- 구현 내용: 코드 변경 없음. 직전 확인한 PR #40 develop 병합 03e4c5a34e4496e1e1329a95a522350070fbaf5c를 근거로 이슈를 종료했다.
+- 테스트와 결과: Jira 쓰기 성공 응답과 후속 status/Resolution 조회 확인, git diff --check 검증. 코드 변경이 없어 Gradle 미실행. 648개 통과는 기존 구현 결과다.
+- 유지 계약·결정사항: 사용자 JWT Billing audience/read 확장과 기존 API·RefreshSession·workload 경계를 유지한다. 개발 완료와 실제 운영 배포는 구분한다.
+- 위험 요소: 운영 TTL/JWKS·구버전 발급 instance 종료·Billing staging E2E·앱 활성화는 미확인이다.
+- 다음 작업: Identity 배포와 Billing·프론트 인증 전환을 검증한다. 이번 작업에서 Git commit·push·배포는 수행하지 않았다.
+
+## 2026-09-08 — Billing JWT 완료 후 다음 작업 설명
+
+<!-- codex-turn:01a07f34-8952-7c23-bde8-593cc334aa5e -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 무료 사용권 조회 후속 연동과 인증 고정 순서의 다음 작업을 구분하여 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계획서 변경 없음.
+- 확인 내용: LogoutAllService는 내부 RefreshSession만 LOGOUT_ALL로 저장하고 0건이면 반환한다. Firebase revoke 연동은 없으며 Admin 작업은 기존 탈퇴·가입중단 cleanup adapter에 있다. 고정 순서의 다음 예정 항목은 Stage 8이다.
+- 제안 범위: 내부 세션 폐기와 exact Firebase 대상 durable revoke 작업 저장의 원자성, worker 재시도·실패 처리, 세션 0건 경계·재로그인/늦은 revoke 경합과 모바일 계약을 설계한다.
+- 유지 계약·결정사항: 정상 전체 로그아웃은 계정 삭제·disable·SNS 연결 해제가 아니다. 이전 Firebase 세션을 통한 Identity 세션 재생성을 차단하되 새 정상 로그인은 허용해야 한다. 이미 발급된 자체 Access Token 즉시 차단은 별개이며 worker 완료 전 즉시 차단을 보장한다고 설명하지 않는다.
+- 위험 요소: Stage 7 계획서 마지막 절은 production 활성화 후 Stage 8 진행을 요구하므로 병합만으로 선행 조건 충족을 단정하지 않는다. Billing reader rollout/staging·모바일 및 Stage 7 운영 증빙은 미확인이다.
+- 테스트: 문서·소스 정적 확인과 git diff --check. 설명만 수행하여 Gradle 미실행.
+- 다음 작업: Billing 조회 배포·연동 및 Stage 7 운영 완료 여부를 확인한다. 순서 변경이 필요하면 사용자에게 별도 승인받는다. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Firebase 로그인 세션 폐기 의미 설명
+
+<!-- codex-turn:01a07f3c-7327-7852-86ba-6f32715d5e79 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: Firebase 로그인 세션 폐기가 Identity 전체 로그아웃과 왜 별도로 필요한지 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계약 변경 없음.
+- 확인·설명 내용: 모바일 SDK가 관리하는 Firebase refresh credential과 자체 RefreshSession은 별개다. 기존 Firebase 인증이 남으면 새 ID Token으로 exchange할 수 있다. FirebaseAdminAuthenticationVerifier는 verify(requiredToken, true)를 호출하여 폐기 검사를 요청한다.
+- 유지 계약·결정사항: revoke는 기존 Firebase 세션의 인증 효력을 폐기하는 것이지 User 삭제·disable·SNS unlink·SNS Provider 전역 로그아웃이 아니다. 새 정상 로그인은 가능하고 Provider 세션에 따라 비밀번호 재입력이 반드시 필요한 것은 아니다.
+- 위험 요소: 원격 revoke가 다른 기기 저장소를 지우거나 즉시 화면을 바꾸지는 않는다. 앱의 실패 처리와 signOut이 필요하며 자체 Access Token 즉시 차단·worker 지연은 별도 문제다.
+- 테스트: 정적 코드 확인 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 다음 작업: Stage 8 계획 시 revoke 완료·지연과 새 로그인 경합 및 모바일 오류 처리 계약을 확정한다. Jira·Git commit/push·배포 없음.
+
+## 2026-09-08 — Stage 8 세션 폐기 구현 범위 재확인
+
+<!-- codex-turn:01a07f3c-7327-7852-86ba-6f32715d5e79 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 다음 작업이 전체 로그아웃의 세션 폐기와 관련 실패 처리 구현인지 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드 변경 없음.
+- 설명·결정사항: 내부 세션 폐기와 Firebase revoke 및 durable 처리·재시도·재로그인 경합 검증이 예정 범위다. 모바일 signOut·로컬 정보 삭제·안내는 연동 계약을 정리하고 실제 앱 구현은 프론트에서 수행한다.
+- 유지 계약: 계정 삭제·SNS unlink·자체 Access Token 즉시 차단은 별개다. 새 정상 로그인은 허용한다.
+- 위험 요소: worker 지연 중 상태와 늦은 revoke의 새 로그인 영향, 선행 운영 gate는 계획서에서 확인해야 한다. 아직 구현에 착수하지 않았다.
+- 테스트: 설명 작업으로 Gradle 미실행, git diff --check 검증.
+- 다음 작업: 상세 계획서에서 성공 응답 의미·재시도·경합·모바일 오류 계약을 확정한다. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Stage 8 범위 확인 현재 대화 기록
+
+<!-- codex-turn:01a07f3e-a098-71e1-a3da-900bd712fdc0 -->
+
+- 날짜·브랜치: 2026-09-08, develop.
+- 작업 목표: 전체 로그아웃 시 Identity·Firebase 세션 폐기와 관련 처리 구현이 다음 작업 범위임을 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 과거 기록은 유지했다.
+- 설명 내용·결정사항: 내부 세션 폐기, Firebase revoke 작업의 durable 저장·재시도, 새 로그인과 늦은 revoke 경합 처리 및 모바일 오류 처리 계약을 예정 범위로 정리했다. 실제 모바일 구현은 프론트 작업이다.
+- 유지 계약: 계정 삭제·SNS unlink·이미 발급된 자체 Access Token 즉시 차단은 별개이며 새 정상 로그인은 허용한다.
+- 테스트와 결과: 설명·기록 작업으로 Gradle 미실행. git diff --check 검증.
+- 위험 요소: 상세 성공 응답·재시도·경합 정책과 선행 운영 조건은 아직 확정·검증되지 않았다.
+- 다음 작업: 사용자 요청 시 Stage 8 계획서를 작성한다. 코드 구현·Jira 변경·commit·push·배포는 수행하지 않았다.
+
+## 2026-09-08 — Stage 8 전체 로그아웃 Firebase revoke 계획서 작성
+
+<!-- codex-turn:01a07f43-2d33-7fb1-a5d1-4cd9b8cf8388 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 전체 로그아웃의 Identity·Firebase 세션 폐기와 실패 복구를 실제 구현 가능한 범위·계약·검증 계획으로 정리한다.
+- 변경 파일: 신규 docs/contracts/firebase-logout-all-revoke-stage-8-plan.md; docs/contracts/firebase-auth-follow-up-implementation-order.md의 8번 링크; docs/codex/CURRENT_STATE.md·WORKLOG.md.
+- 조사 내용: 현재 LogoutAllService의 Transaction 부재·0건 조기 반환, RefreshSessionIssuer 직접 저장과 회전 경계, Firebase verifier checkRevoked/authTime, exact FirebaseIdentity, 기존 withdrawal worker의 lease·외부 retry, 관련 가입·승격·병합·탈퇴 Transaction과 Stage 7 운영 gate를 확인했다.
+- 작성 내용: 5줄 결론·필독·결정사항·위험·구현 설명·부록 계층에 사용자별 epoch/CAS, operation/receipt·retention, 단일 외부 dispatch·결과 불명 격리, 완료 auth_time watermark, pending gate, 20개 테스트 항목·단계별 rollout과 모바일 오류 제안을 포함했다.
+- 결정사항: 기존 200은 내부 보안 처리 및 durable 접수 의미, pending 동안 새 발급 차단, 결과 불명은 자동 mutation 재전송 금지, 동일 검증 jti 중복 방지를 권장했다. Stage 7 선행 운영 조건은 변경하지 않았다. D1~D5는 구현 전 사용자 영향 확인이 필요한 제안이다.
+- 유지 계약: 기존 URL·무본문 요청·BaseResponse, 사용자 JWT/Billing scope·workload, 단일 logout 유지. 계정 삭제·disable·SNS unlink·혜택 이벤트·즉시 downstream 차단 제외. logout 경합에 필요한 최소 회전 Transaction만 포함하고 Stage 9 응답 유실 복구 정책은 제외한다.
+- 테스트와 결과: 문서·소스 정적 검토, 상대 링크 확인 및 git diff --check. 코드 변경 없는 문서 작업으로 Gradle 미실행. 실제 SDK timeout/hidden retry·Mongo 경합·모바일·외부 staging 검증은 미수행이다.
+- 위험 요소: Firebase는 DB lease를 검증하지 않으며 결과 불명 호출 종료를 증명하지 못하면 자동 완료가 불가능하다. 사용자 로그인 대기·운영 해결 부담, auth_time 초 단위 경계, 모든 writer 전환과 unresolved actor의 release/rejoin 차단이 중요한 activation gate다.
+- 예상 밖 변경: 없음. 기존 WORKLOG/CURRENT_STATE와 Billing JWT 계획서 미커밋 변경을 보존했다. 애플리케이션·테스트·runtime flag·다른 저장소·외부 서비스 변경 없음.
+- 다음 작업: 권장 UX와 선행 운영 조건을 사용자와 확인한 뒤 별도 Jira 생성·구현 승인을 받는다. commit·push·PR·배포는 수행하지 않았다.
+
+## 2026-09-08 — Stage 8 계획서 사용자 관점 설명
+
+<!-- codex-turn:01a07f4a-75ec-7730-a9ad-c4d95c261bb2 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 전체 로그아웃 계획을 정상 흐름·실패 사례·데이터 역할과 사용자 영향으로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·코드 변경 없음.
+- 설명 내용: 원자적 내부 폐기·pending gate·durable 작업 접수, Firebase worker의 exact 대상 폐기·종료 확인, 이전 인증과 새 인증 경계, 로그인/재발급 동시 요청 및 동일 jti 중복 방지를 풀어 설명한다.
+- 유지 계약·결정사항: 기존 URL/응답 형태는 유지하되 200은 내부 보안 처리 및 접수 의미라는 제안이다. UserSessionControl은 인증에 필요한 세대 상태이고 완료된 operation은 기본 7일 및 요청 유효기간 조건 이후 정리한다. 계정 삭제·SNS unlink·즉시 downstream 차단은 제외한다.
+- 위험 요소: 결과 불명 원격 요청은 무조건 재전송하거나 안전 종료로 추정하지 않는다. 운영 확인까지 새 로그인이 막힐 수 있는 보수적인 가용성 절충이며 사용자 승인 전 확정 계약으로 취급하지 않는다.
+- 테스트와 결과: 계획서 재확인과 git diff --check. 설명·기록 작업이므로 Gradle 미실행.
+- 다음 작업: 200 의미·로그인 대기·결과 불명 복구·중복 요청 정책과 Stage 7 선행 조건을 확인한 뒤 별도 구현 승인을 받는다. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Stage 8 worker 실행 방식 설명
+
+<!-- codex-turn:01a07f4e-8296-7851-b48a-795db250d6ca -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: worker 신규 구현이 별도 서버 구축을 의미하는지 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드 변경 없음.
+- 확인 내용: 기존 UserWithdrawalExternalCleanupScheduler는 @Scheduled, configuration은 조건부 Bean과 EnableScheduling으로 Identity 내부에서 실행한다.
+- 결정사항·유지 계약: Stage 8도 동일 애플리케이션 안에 전용 worker·scheduler·DB 작업 저장·revoke adapter를 추가할 계획이다. 별도 인프라 도입은 필요 범위가 아니며 탈퇴 worker의 delete/disable 동작은 재사용하지 않는다.
+- 테스트: 정적 소스 확인 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 위험 요소: 실제 운영에서는 활성화 설정·Firebase 권한·다중 instance claim과 결과 불명 처리 검증이 필요하다. worker는 아직 구현되지 않았다.
+- 다음 작업: Stage 8 계획 승인 후 서버 코드와 관련 테스트로 구현한다. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Stage 8 sessionEpoch와 장애 중 재로그인 정책 검토
+
+<!-- codex-turn:01a07f54-fe49-7191-9ac5-71439c5c282c -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: sessionEpoch 소유 범위와 사용자 결정사항, Firebase 폐기 지연 중 재로그인 허용 대안을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·애플리케이션 변경 없음.
+- 확인 내용: Stage 8 D1~D5와 SessionControl 제안, TokenReissueService의 자체 세션 검증·회전을 확인했다. 현재 refresh는 Firebase 세션 상태를 확인하지 않는다.
+- 결정사항: 기존 무기한 발급 차단을 확정 정책으로 취급하지 않는다. 요청 이전 인증 차단과 epoch 무효화는 유지하면서 새 인증을 허용하는 대안을 제시한다. 지연 revoke 후 신규 자체 세션 유지/추가 폐기, 재시도 제한·사용자 안내·200 의미는 사용자 확정 대상으로 남긴다.
+- 유지 계약: sessionEpoch는 Identity 내부 상태이며 사용자 JWT와 workload JWT·downstream 검증 계약은 변경하지 않는다. 기존 Access Token 즉시 차단은 별도 범위다. 로그인 허용과 exact binding release/rejoin 안전성은 별도로 취급한다.
+- 위험 요소: Firebase 장애 자체는 새 인증을 막을 수 있다. 지연 revoke가 새 Firebase 인증에 영향을 줄 수 있고 로컬 timeout은 외부 취소 보장이 아니다. 추가 자체 폐기는 작업별 중복 방지·인증 시각 경계가 필요하며 무제한 재전송 또는 모든 후속 세션 무조건 폐기는 반복 로그아웃을 유발한다.
+- 테스트와 결과: 계획서·코드 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 다음 작업: 사용자 정책 확정 후 Stage 8 계획서의 gate·상태 전이·테스트·모바일 계약을 함께 수정한다. 기존 미커밋 변경 보존, 예상 밖 변경 없음. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — 기존 탈퇴 안전장치와 Stage 8 연계 범위 구분
+
+<!-- codex-turn:01a07f59-7076-7a02-bb43-28bf457af282 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 탈퇴·연결 정리·재가입 보호가 이미 구현됐는지 확인하고 추가 필요 범위를 구분한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계획서 변경 없음.
+- 확인 내용: WithdrawalEnrollmentGate, UserWithdrawalIdentityReleaseTransactionService, UserWithdrawalExternalCleanupWorker의 target guard 호출을 확인했다. 기존 lifecycle·소유권·version 검사와 Transaction 기반 release/CLEANED 전환이 존재한다. Stage 8 sessionEpoch/LogoutAllOperation은 현재 main 소스에 없다.
+- 결정사항·유지 계약: 기존 탈퇴 장치를 재구현하지 않는다. 신규 지연 revoke 작업과 기존 탈퇴/연결 정리 사이의 경합 방지 연계·테스트가 추가 검토 대상이다. 탈퇴 시 연결 정리와 일반 Provider unlink 기능을 혼동하지 않는다.
+- 테스트와 결과: 정적 코드 확인 및 git diff --check. 설명·기록만 수행해 Gradle 미실행.
+- 위험 요소: 구현 존재는 운영 활성화 증빙이 아니다. 신규 revoke와 기존 cleanup 연계는 아직 구현되지 않았다.
+- 다음 작업: Stage 8 정책 확정 후 기존 guard/lifecycle 재사용과 신규 작업 경합 처리 조건을 계획에 반영한다. 기존 미커밋 변경 보존, 예상 밖 변경 없음. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Stage 8 정책 선택지와 장단점 정리
+
+<!-- codex-turn:01a07f59-7076-7a02-bb43-28bf457af282 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 사용자 승인이 필요한 전체 로그아웃 정책의 대안과 장단점을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·코드 변경 없음.
+- 검토 내용: Stage 8 D1~D5와 앞선 정책 검토를 대조하고 새 인증 허용, 지연 폐기 시 자체 세션 처리, 결과 불명 재시도, 응답 의미, 중복 요청, Stage 7 순서 조건을 분리했다.
+- 결정사항: 새 인증 허용·영향받은 Firebase 기반 세션만 추가 무효화·결과 불명 확인 조회 우선·기존 200 접수 의미·jti 중복 제거를 권장하되 확정하지 않는다. Stage 7 gate 변경은 별도 승인 사항이다.
+- 유지 계약: sessionEpoch Identity 내부 관리, 이전 인증 재사용 차단, 기존 탈퇴 안전장치 유지, 사용자/서비스 JWT 및 즉시 downstream 차단 범위 불변.
+- 위험 요소: 선택적 무효화에는 인증 시각과 연결 식별 증빙의 세션 회전 전파가 필요하다. 원격 호출의 취소·한 번만 추가 로그아웃 보장은 불가하며 Firebase 자체 장애는 로그인 허용 정책으로 해소되지 않는다.
+- 테스트와 결과: 문서 정적 대조 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 다음 작업: 사용자 선택 후 계획서 상태 전이·모바일 오류·검증 항목을 함께 수정한다. 기존 변경 보존, 예상 밖 변경 없음. Jira·commit·push·배포 없음.
+
+## 2026-09-08 — Stage 8 정책 선택지 설명 종료 기록 동기화
+
+<!-- codex-turn:01a07f5b-94a1-72c2-bc32-210e96da73bd -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 현재 turn의 정책 선택지 설명 결과를 정확한 식별자로 기록한다. 과거 기록은 보존한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 작업 내용: 로그인 허용, 지연 폐기의 자체 세션 처리, 결과 불명 재시도, 성공 응답 의미, 중복 요청 처리의 선택지와 장단점을 사용자에게 제공했다.
+- 결정사항: 1-A/2-A/3-A/4-A/5-A를 추천했으나 사용자 승인은 아직 없다. Stage 7 운영 선행 조건 변경도 미승인이다. 계획서 본문과 애플리케이션은 수정하지 않았다.
+- 유지 계약: 기존 탈퇴·재가입 안전장치, Identity 내부 sessionEpoch 설계, JWT/API 경계를 유지한다.
+- 위험 요소: 선택적 자체 세션 무효화와 원격 결과 불명 처리는 추가 설계·검증이 필요하다. 새 로그인 허용은 Firebase 장애 자체를 해결하지 않는다.
+- 테스트와 결과: git diff --check 통과. 기록 변경만 수행하여 Gradle 미실행.
+- 다음 작업: 사용자 정책 선택 후 계획서를 수정한다. Jira·commit·push·배포 없음. 기존 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-08 — Stage 8 승인 정책 반영 및 계획서 정합성 보완
+
+<!-- codex-turn:01a07f5f-38bf-7fd3-b300-03d1a9ab5f5d -->
+
+- 날짜·브랜치: 2026-09-08, develop. 신규 Jira 없음.
+- 작업 목표: 사용자가 승인한 1-A/2-A/3-A/4-A/5-A 정책을 Stage 8 계획서 전체에 반영한다.
+- 변경 파일: docs/contracts/firebase-logout-all-revoke-stage-8-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- 문서 변경: pending/결과 불명 중 새 인증 로그인 허용, 영향받은 Firebase 기반 자체 세션만 추가 무효화, 결과 불명 mutation 자동 재전송 금지·확인 조회 우선, 기존 200 durable 접수 의미, 검증 jti 중복 제거를 승인 정책으로 표시했다. 사용자 전체 epoch 재증가 대신 exact binding/authTime 경계와 회전 전파를 설계했다.
+- 정합성 보완: 조회/완료 시각 기반 광범위 폐기와 pending 로그인용 409/503 제안을 제거했다. 새 로그인 jti는 이전 작업이 대기 중이어도 새 epoch/operation/receipt를 생성하고 원격 작업만 직렬화하도록 정리했다. 관측된 validAfter의 보호 반영과 미해결 actor 종료 판정을 분리하고 중복 완료·최신 경계 덮어쓰기 방지를 추가했다.
+- 테스트 계획: 26개 항목으로 보강했다. 선택적 폐기·LOCAL 보존·인증 증빙 회전/legacy·지연 확인·다중 logout·actor 대기와 로그인 허용 분리를 포함한다. 실제 테스트 코드를 구현하거나 실행한 것은 아니다.
+- 실행한 검증과 결과: 계획서 상대 링크 19건 모두 존재, 테스트 매트릭스 26행 확인, git diff --check 통과. 문서 변경만 수행해 Gradle 미실행.
+- 유지 계약·결정사항: sessionEpoch는 Identity 내부 관리, 기존 URL·BaseResponse·JWT 및 도메인 경계 유지. 기존 탈퇴 guard/CLEANED/release는 재사용하고 신규 actor 연계만 보완한다. Stage 7 선행 운영 gate 면제·Jira 생성·코드 구현·배포 승인은 포함하지 않는다.
+- 위험 요소: SDK 9.4.3 정밀도·hidden retry·원격 종료 증빙, legacy 세션 인증 증빙, Mongo 경합·모바일·운영 설정 미검증. 지연 폐기의 즉시 반영 또는 추가 재로그인 정확히 1회는 보장하지 않는다. 미해결 작업은 후속 dispatch/release를 대기시킬 수 있다.
+- 예상 밖 변경: 없음. 기존 Billing JWT 계획서·작업 기록 등 미커밋 변경을 보존했다. 신규 계획서는 기존 미추적 파일 상태를 유지하며 애플리케이션·테스트 코드·다른 저장소는 수정하지 않았다.
+- 다음 작업: 유지된 Stage 7 선행 조건과 기술 검증 항목을 확인한 뒤 별도 Jira 생성·구현 승인을 받는다. commit·push·외부 변경 없음.
+
+## 2026-09-08 — Stage 8 Jira 생성 내용 사전 확인
+
+<!-- codex-turn:01a07f65-d8a8-71b1-b345-31c05c7e1491 -->
+
+- 날짜·브랜치: 2026-09-08, develop. Jira 키 미발급.
+- 작업 목표: 사용자 Jira 생성 요청에 대해 등록할 제목·범위·완료 조건을 사전 제시하고 승인을 받는다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·코드 변경 없음.
+- 작성 내용: 승인된 Stage 8 계획 기준으로 전체 로그아웃 원자 처리·새 인증 허용·선택적 Firebase 세션 폐기·worker 결과 불명 확인·jti 멱등성·기존 탈퇴 연계·검증 및 운영 gate를 포함한 Jira 초안을 제시한다.
+- Jira 작업·승인 여부: 공식 Atlassian 생성 도구 가용성만 확인했다. 생성 본문 승인 대기이며 실제 이슈 생성·댓글·상태 변경은 수행하지 않았다. 추가 댓글 목적과 변경 상태는 해당 없음.
+- 유지 계약·결정사항: 기존 URL/BaseResponse·JWT·도메인 경계 및 Stage 7 선행 조건 유지. 구현·배포는 이번 생성 요청 범위가 아니다.
+- 테스트와 결과: 계획서 상태·브랜치 정적 확인 및 git diff --check 통과. 기록 작업으로 Gradle 미실행.
+- 위험 요소: Stage 7 운영 증빙과 Firebase/Mongo/mobile 검증은 미확인 상태이며 이슈 생성이 구현 또는 운영 활성화 완료를 의미하지 않는다.
+- 다음 작업: 제시한 등록 내용 승인 후 공식 Jira 도구로 생성하고 발급 키를 계획서·작업 기록에 반영한다. 기존 변경 보존, 예상 밖 변경 없음. commit·push 없음.
+
+## 2026-09-08 — TMI-129 Stage 8 Jira 생성
+
+<!-- codex-turn:01a07f65-d8a8-71b1-b345-31c05c7e1491 -->
+
+- 날짜·브랜치: 2026-09-08, develop. 브랜치 변경 없음.
+- Jira: TMI-129
+- 작업 목표: 사전 제시한 Stage 8 Jira 등록 내용에 대한 사용자 승인 후 실제 이슈를 생성한다.
+- 변경 파일: docs/contracts/firebase-logout-all-revoke-stage-8-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- 수행 내용: 공식 Atlassian 도구로 기존 관련 이슈·작업 유형을 확인하고 승인된 제목·본문으로 TMI-129를 생성했다. 승인 정책·구현 범위·26개 검증 계획·제외 범위·선행 조건을 등록하고 계획서에 이슈 링크를 반영했다.
+- Jira 작업·승인: 사용자에게 등록 내용을 먼저 제시한 뒤 명시적 승인을 받아 생성했다. 유형 작업, 초기 상태 해야 할 일. 생성 후 getJiraIssue로 제목·본문·상태를 재확인했다. 별도 상태 전환·댓글 등록 없음. 추가 댓글 목적은 해당 없음.
+- 유지 계약·결정사항: 구현·배포 미착수. 기존 URL/BaseResponse·JWT·도메인 경계·Stage 7 선행 조건 유지. 구현용 브랜치에는 TMI-129를 포함하되 이번에는 생성하지 않았다.
+- 테스트와 결과: Jira 생성 후 읽기 검증 및 git diff --check 통과. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: Stage 7 운영 증빙·SDK 원격 종료/정밀도·Mongo/mobile 검증 미확인. Jira 생성은 구현 완료나 운영 활성화 승인이 아니다.
+- 다음 작업: TMI-129와 선행 조건을 확인한 뒤 별도 구현 승인을 받아 진행한다. 댓글 초안(미등록): 승인된 계획 기준 이슈 생성·문서 연결 완료, 코드 변경 및 Gradle 실행 없음, 선행 운영 검증 필요.
+- 예상 밖 변경: 없음. 기존 미커밋 변경 보존. commit·push·상태 전환·배포 없음.
+
+## 2026-09-08 — TMI-129 생성 작업 종료 기록 동기화
+
+<!-- codex-turn:01a07f67-8815-77a1-9b3c-5fbd27819153 -->
+
+- 날짜·브랜치: 2026-09-08, develop.
+- Jira: TMI-129
+- 작업 목표: Jira 생성 완료 결과를 현재 turn 식별자로 기록한다. 과거 WORKLOG는 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 수행 내용: 앞서 사용자 승인 후 생성하고 재조회한 TMI-129의 완료 인계를 동기화했다. 유형 작업·상태 해야 할 일이며 승인된 계획 범위와 완료 조건이 등록되어 있다. 이번 기록 보완에서 이슈를 다시 생성하지 않았다.
+- Jira 작업·승인 여부: 사전 본문 제시 후 사용자 승인으로 생성 완료. 댓글 등록·별도 상태 전환 없음. 추가 댓글 목적 해당 없음.
+- 유지 계약·결정사항: 코드 구현·배포 미착수, Stage 7 선행 조건·기존 API/JWT 경계 유지.
+- 테스트와 결과: git diff --check 통과. 기록 변경만 수행하여 Gradle 미실행.
+- 위험 요소: 선행 운영 증빙과 Firebase/Mongo/mobile 검증은 미확인 상태다.
+- 다음 작업: TMI-129와 선행 조건 확인 및 구현 승인 후 착수한다. 기존 변경 보존, 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-08 — TMI-129 최종 계획 사용자 흐름 설명
+
+<!-- codex-turn:01a07f65-d8a8-71b1-b345-31c05c7e1491 -->
+
+- 날짜·브랜치: 2026-09-08, develop.
+- Jira: TMI-129
+- 작업 목표: 승인된 최종 계획의 정상·지연·장애 흐름과 구현 범위를 이해하기 쉽게 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획서·애플리케이션 변경 없음.
+- 설명 내용: 기존 자체 세션과 Firebase 인증의 차이, 원자적 epoch/작업 접수, 새 인증 허용, 인증 출처·시각에 따른 선택적 추가 무효화, 중복 요청·원격 결과 불명 처리, 탈퇴 actor 보호 연계를 설명한다.
+- 유지 계약·결정사항: 승인된 5개 정책 유지. 새 정책 선택이나 구현 승인으로 해석하지 않는다. 계정 삭제·SNS unlink·즉시 downstream Access Token 차단·Stage 9 응답 유실 복구 제외. 현재 기기 logout과 전체 Firebase revoke의 차이 유지.
+- 테스트와 결과: 최종 계획서 정적 재확인 및 git diff --check 통과. 설명·기록만 수행하여 Gradle 미실행.
+- 위험 요소: 지연 revoke 확인 전후 시차와 추가 재로그인 가능, 기존 Access Token 만료 전 사용 가능성, SDK/Mongo/mobile 검증 및 Stage 7 운영 증빙 미확인.
+- Jira 작업: 없음. 댓글·상태 전환·새 이슈 생성 없음.
+- 다음 작업: 선행 조건 확인과 구현 승인 후 TMI-129 범위로 착수한다. 기존 변경 보존, 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-08 — TMI-129 최종 계획 설명 종료 기록 동기화
+
+<!-- codex-turn:01a07f69-0fb2-7531-9a4a-6fdb786abe79 -->
+
+- 날짜·브랜치: 2026-09-08, develop.
+- Jira: TMI-129
+- 작업 목표: 최종 계획 설명 결과를 현재 turn 식별자로 기록한다. 과거 기록은 보존한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 수행 내용: 전체 로그아웃 원자 접수, epoch와 인증 시각의 역할, 새 인증 허용, 지연 폐기의 선택적 세션 무효화, worker 장애·중복 요청, 기존 탈퇴 연계와 제외 범위를 사용자에게 설명한 결과를 동기화했다.
+- 유지 계약·결정사항: 승인 정책 유지. 설명은 구현 승인이나 배포 완료를 의미하지 않는다. 기존 API/JWT·탈퇴 안전장치 유지, 즉시 downstream Access Token 차단 제외.
+- 테스트와 결과: git diff --check 통과. 기록 변경만 수행하여 Gradle 미실행.
+- 위험 요소: Firebase/Mongo/mobile 검증 및 Stage 7 선행 운영 증빙은 미확인이다.
+- Jira 작업: 추가 생성·댓글·상태 변경 없음.
+- 다음 작업: 선행 조건 확인 및 구현 승인 후 TMI-129 착수. 기존 변경 보존, 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-08 — TMI-129 구현 착수 전 선행 조건 확인
+
+<!-- codex-turn:01a07f71-d7ad-7871-917c-519fd54cf134 -->
+
+- 날짜·브랜치: 2026-09-08, feat/TMI-129-firebase-logout-all-revoke. 사용자가 생성한 브랜치 유지.
+- Jira: TMI-129
+- 작업 목표: 구현 요청에 따라 저장소 규칙·작업 범위와 명시된 Stage 7 선행 조건을 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·테스트·계획서 수정 없음.
+- 조사 내용: AGENTS.md 전체, 공식 Jira TMI-129 본문·상태·댓글과 TMI-123 완료 댓글, Stage 7 마지막 운영 gate·runbook, Stage 8 D5, 기존 기록·설정 기본값을 확인했다. TMI-123은 코드 병합 완료지만 staging E2E·환경 검증이 후속으로 명시돼 있으며 production 완료 증빙은 확인되지 않았다. 저장소 기본 false만으로 실제 운영 OFF를 단정하지 않는다.
+- 결정사항: 구현 요청은 받았으나 별도 승인이 필요하다고 명시된 선행 순서 조정을 임의로 승인된 것으로 해석하지 않는다. Stage 7 운영 검증 완료는 배포/활성화 조건으로 유지하고 기능 OFF의 코드·테스트 개발을 먼저 허용할지 사용자에게 확인한다.
+- 유지 계약: 기존 API·JWT·도메인 경계 및 승인된 5개 정책 유지. Jira의 선행 조건을 자동 수정하거나 운영 기능을 활성화하지 않는다.
+- 테스트와 결과: 읽기 전용 선행 조사 및 git diff --check 통과. 코드 변경 없이 착수 조건 확인 단계이므로 Gradle 미실행.
+- 위험 요소: Stage 7 production 활성화 완료 미확인. 구현 전에 선행 조건 완료 근거 또는 개발 선행 승인 필요.
+- Jira 작업: 읽기만 수행. 댓글·상태 변경·이슈 수정 없음. 댓글 초안(미등록): 구현 브랜치와 범위 확인 완료, 선행 운영 증빙 또는 기능 OFF 개발 선행 승인 대기, 코드·테스트 변경 없음.
+- 다음 작업: 사용자 확인 후 선행 조건을 명확히 하고 TMI-129 구현·테스트 진행. 기존 미커밋 변경 보존, 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-08 — TMI-129 Stage 8 전체 로그아웃 Firebase revoke 구현
+
+<!-- codex-turn:01a07f74-2be2-7bc0-b7d9-513419053bea -->
+
+- 날짜·브랜치: 2026-09-08, feat/TMI-129-firebase-logout-all-revoke. 사용자 브랜치 유지.
+- Jira: TMI-129
+- 작업 목표: 승인된 전체 로그아웃·새 인증 허용·선택적 세션 무효화·결과 불명 격리 정책을 구현한다. 사용자 추가 승인에 따라 Stage 7·8 운영 검증은 통합 수행하며 기능 OFF 개발을 먼저 진행한다.
+- 변경 파일(신규 런타임): session/application의 SessionAuthentication, SessionSecurityService, LogoutAllCoordinator, FirebaseSessionRevocationPort/Worker; session/domain의 UserSessionControl, LogoutAllOperation; session/infrastructure의 SessionRevocationProperties/Configuration; federation/infrastructure/firebase의 FirebaseSessionRevocationHttpAdapter.
+- 변경 파일(기존 런타임): AuthController/AuthErrorStatus, RefreshSession, RefreshSessionIssuer/PreparedRefreshSession/TokenReissueService/LogoutAllService, LoginService/GuestAuthService, Firebase signup/exchange/guest prepare·upgrade·merge/merge Transaction/auth methods sync, UserWithdrawalService/TransactionService/ExternalCleanupWorker/IdentityReleaseTransactionService/IdentityReleaseWorker/WithdrawalCleanupTargetGuard 및 관련 outcome/failure enum, application.yml.
+- 변경 파일(검증·문서): 신규 SessionRevocationTests/HttpAdapterTests/ConfigurationTests, 기존 Firebase 가입·로그인·Guest 승격/병합·Guest 생성 및 탈퇴 worker 테스트. Stage 8 계획·신규 runbook, Stage 7 계획의 선행 gate, 구현 순서, 프론트 인증 가이드, CURRENT_STATE, WORKLOG append.
+- 구현 내용: UserSessionControl epoch와 서버 검증된 인증 출처/binding/authTime을 모든 신규 세션·refresh에 연결했다. Mongo Transaction 안에서 공통 control CAS와 Session 저장을 묶어 logout 이전 인증 결과가 새 epoch로 저장되는 것을 차단한다. refresh 재사용 탐지의 폐기는 오류 응답 시에도 commit한다. Guest merge는 source/target control을 고정 순서로 갱신한다.
+- logout 접수: 검증된 사용자 JWT issuer/sub/jti의 길이 구분 SHA-256 fingerprint로 중복을 판정한다. 같은 jti 재시도는 같은 operation, 새 jti는 pending 중에도 새 epoch/operation이다. 내부 세션 0건도 Firebase 연결이 있으면 작업을 만든다. 동시 DB 충돌은 안전한 503 후 같은 jti로 제한 재시도하며 접수 없는 200은 반환하지 않는다.
+- worker: 단일 slot·lease/version, exact local/remote target, mutation marker와 dispatchAt 영속화, 단일 revoke, ack/read-only 확인, 경계 저장·완료를 구현했다. started 결과 불명은 자동 재전송하지 않는다. 기다리는 사용자의 queue가 다른 사용자 작업을 계속 막지 않도록 다음 확인 시각을 늦추며 due batch는 유효 lease를 제외한다.
+- 전송 결정: 설치된 firebase-admin 9.4.3 소스에서 기본 503 재시도 최대 4회 및 revoke의 client-side validSince 설정을 확인했다. 이를 피하려고 동일 고정 Identity Toolkit HTTPS API에 ADC 인증을 적용하는 HTTP adapter를 분리했다. numberOfRetries=0, redirect/logging OFF, 응답 크기 제한과 설정 timeout, exact project/tenant 적용. 기존 Firebase ID Token verifier는 유지했다.
+- 인증 정책: pending/격리 자체는 새 로그인 거절 조건이 아니다. 요청 시각 이후 새로운 authTime을 요구하고 확인된 validSince 경계에 영향받은 Firebase 기반 자체 세션만 거절한다. LOCAL·경계 이후 인증 보존, 지연 완료 시 epoch 재증가 없음. lookup 완료 시각을 revoke cutoff로 쓰지 않는다.
+- 탈퇴 연계: 미dispatch 작업만 supersede하고 started/unknown actor는 durable dependency로 남긴다. 외부 cleanup은 LOGOUT_REVOKE_PENDING으로 bounded retry/필요 시 격리, release는 DEPENDENCY_PENDING으로 대기한다. 관련 검토 중 기존 final release Transaction 서비스의 CGLIB proxy 불가 문제를 발견하여 final을 제거하고 프록시 생성 테스트를 추가했다.
+- 유지·변경 계약: 기존 URL·무본문 logout-all·200 BaseResponse, RS256/kid/JWKS/sub/account_type·Billing audience/scope·workload, 내부 UUID·Refresh Token hash 저장, 도메인 경계를 유지했다. 신규 오류 SESSION_LOGGED_OUT(401), SESSION_SECURITY_UNAVAILABLE(503) 및 접수/재로그인 모바일 문서를 추가했다. 단일 logout·Firebase User 삭제·Provider unlink·즉시 downstream 차단·Stage 9 응답 replay는 변경하지 않았다.
+- 보존·관측: control TTL 없음, 미해결 operation TTL 없음. terminal은 max(terminalAt+P7D, requestExpiresAt+설정 skew) TTL. receipt는 operation에 포함한다. 물리 마킹은 접수 1,000개/worker 20×100개 제한이며 논리 fence가 보안 기준이다. outcome counter는 commit 이후 반영; queue/age/backlog 대시보드와 경보는 운영 후속이다.
+- 테스트와 결과: 최종 ./gradlew clean test --console=plain 성공, 126개 suite·695개 테스트, 실패·오류·건너뜀 0개. SessionRevocation 집중 테스트 및 git diff --check 통과. Gradle 캐시 접근 sandbox 오류는 승인된 확장 권한으로 재실행했다. 외부 Provider/Atlas는 호출하지 않았으며 in-memory Mongo mapping/index/CAS + mock Transaction/fake HTTP를 사용했다.
+- 위험 요소·배포 전 확인: 실제 replica-set rollback/write conflict·commit 응답 유실, Firebase 정밀도/권한/다중 기기, 모바일 200/401/503 처리, 운영 경보·unknown actor 복구 리허설은 미검증이다. 모든 writer fence 전환·old instance 종료 전에 capture 활성화 금지. worker OFF와 fence OFF를 혼동하거나 control을 삭제하는 rollback 금지. unresolved actor는 일반 새 로그인은 허용하되 원격 queue/탈퇴 release를 대기시킬 수 있다.
+- 결정사항: 코드 완료와 병합·배포·운영 활성화를 분리한다. Stage 7·8 통합 운영 검증 전 신규 flags는 모두 기본 false다. 설정·원격 환경 활성화는 수행하지 않았다.
+- 예상 밖 변경: 기존 release Transaction proxy 문제의 연계 보완을 명시했다. 그 외 Identity 범위를 벗어난 런타임 변경 없음. 기존 billing-public-reader-user-jwt-plan.md와 과거 WORKLOG 등 사용자 미커밋 변경을 보존했다. Billing/Learning Core 저장소는 수정하지 않았다.
+- Jira 작업: 착수 전 읽기 완료. 이번에 이슈 수정·댓글·상태 변경 없음. 댓글 초안은 계획서/runbook의 구현 결과를 기반으로 별도 작성하며 자동 등록하지 않는다.
+- 다음 작업: 사용자 commit/PR/merge 후 OFF 배포, Stage 7·8 통합 staging/운영 검증 증빙 확보 및 별도 활성화 승인. commit·push·배포 없음.
+
+## 2026-09-08 — TMI-129 구현 코드와 사용자 흐름 설명
+
+<!-- codex-turn:01a07f9c-963e-7e61-aefe-da0d49c61309 -->
+
+- 날짜·브랜치: 2026-09-08, feat/TMI-129-firebase-logout-all-revoke.
+- Jira: TMI-129
+- 작업 목표: 사용자에게 실제 코드와 함께 전체 로그아웃·Firebase revoke 구현을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·테스트·계약 추가 변경 없음.
+- 확인·설명 내용: LogoutAllCoordinator 원자 접수·검증 jti 멱등성, UserSessionControl epoch 및 두 인증 시각 경계, SessionAuthentication 증빙과 RefreshSessionIssuer/TokenReissueService 공통 검사, worker inspect/dispatch marker/단일 revoke/확인·격리, 재시도 없는 고정 HTTPS adapter, 탈퇴 handoff/release guard를 소스와 대조했다. 새 인증 허용과 지연 revoke의 선택적 무효화를 시간 예시로 설명한다.
+- 유지 계약·결정사항: 기존 URL/BaseResponse·JWT·단일 logout·도메인 경계 유지. pending/격리 상태만으로 새 로그인 차단하지 않음. 내부 세션 무효화와 이미 발급된 Access Token의 downstream 즉시 차단을 구분한다. 제품 정책 추가 결정 없음.
+- 테스트와 결과: 코드 정적 재확인 및 git diff --check. 설명·기록만 수행하여 Gradle 재실행 없음. 126개 suite·695개 테스트 통과는 직전 구현 작업의 검증 결과로 명시한다.
+- 위험 요소: feature flags 기본 OFF. 실제 Mongo Transaction rollback·Firebase API·모바일·운영 경보/격리 복구는 미검증이며 Stage 7·8 통합 검증이 남는다.
+- Jira 작업: 없음. 기존 구현 완료 댓글 초안을 유지하며 댓글·상태 변경하지 않는다.
+- 다음 작업: 사용자 코드 확인 및 commit/PR/merge 이후 OFF 배포와 통합 운영 검증. 기존 미커밋 변경 보존, 이번 설명의 예상 밖 변경 없음. commit·push·배포 없음.
+
+## 2026-09-09 — TMI-129 JWT jti 의미 설명
+
+<!-- codex-turn:01a083cf-267f-7ac0-a6fd-07c974bf785c -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-129-firebase-logout-all-revoke.
+- Jira: TMI-129
+- 작업 목표: jti의 의미와 이번 전체 로그아웃에서 사용하는 목적을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 확인·설명 내용: JwtAccessTokenIssuer의 발급별 UUID 생성과 LogoutAllCoordinator의 검증된 issuer/userId/jti fingerprint 사용을 확인했다. 사용자 식별자 sub와 JWT 식별자 jti를 구분하고 동일 요청 재시도와 새 발급에 따른 별도 logout cycle을 설명한다.
+- 유지 계약·결정사항: 기존 JWT·API 계약과 feature flags 기본 OFF 유지. jti 자체가 암호나 인증 검증을 대체하지 않으며 새 토큰 자동 재요청은 별도 logout으로 처리됨.
+- 테스트와 결과: 관련 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 기존 실제 Firebase/Mongo/mobile 통합 운영 검증 미완료 상태 유지.
+- 다음 작업: 기존 구현 검토·사용자 commit/PR/merge 및 통합 운영 검증. 추가 구현·Jira 변경·배포 없음. 기존 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-09 — TMI-129 worker start 및 revoke 코드 설명
+
+<!-- codex-turn:01a083f2-ec32-7f93-8695-8922fe2c9dac -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-129-firebase-logout-all-revoke.
+- Jira: TMI-129
+- 작업 목표: start/null/revoke 코드의 실행 순서와 안전장치를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 확인·설명 내용: FirebaseSessionRevocationWorker.start와 LogoutAllOperation.startMutation을 정적 확인했다. lease owner/만료·active slot·User/target 검사 후 외부 계정 생성 시각과 dispatchAt/mutationStarted/REVOKING을 저장하며, null이면 중단하고 정상 반환 시에만 port.revoke를 호출함을 설명한다. owner는 worker 담당 식별자이며 remote creation과 dispatch 시각은 서로 다른 값이다.
+- 유지 계약·결정사항: 원격 호출 전에 durable 시작 기록 유지. 기록이 원격 성공을 보장하지 않고 결과 불명은 재전송 없이 조사한다. lease가 일시 정지된 프로세스의 원격 호출을 취소하지 못한다는 기존 제한 유지.
+- 테스트와 결과: 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 실제 Firebase/Mongo/mobile 운영 검증 미완료, 기본 OFF 유지.
+- 다음 작업: 기존 구현 검토와 통합 운영 검증. 추가 코드·Jira·배포 변경 없음. 사용자 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-09 — TMI-130 Stage 9 재발급 응답 유실 복구 구현
+
+<!-- codex-turn:01a084a3-a4fb-73c2-8d95-aae027c5b08c -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-130-refresh-token-response-recovery.
+- Jira: TMI-130.
+- 작업 목표: 승인된 계획/이슈 기준으로 재발급 결과 단기 암호화 복구와 회전 원자성, 로그아웃·계정 상태 경합을 구현한다.
+- Jira 작업·승인: 사용자 구현 요청 후 공식 Atlassian getjiraissue로 본문·상태 해야 할 일 확인. Jira 수정·댓글·상태 전환 없음. 구현 승인은 배포/활성화 또는 Jira 종료 승인으로 해석하지 않았다.
+- 변경 파일(코드): AuthController, AuthErrorStatus, RefreshSession, RefreshSessionRepository, TokenReissueService, LogoutService, application.yml. 신규 ReissueRecoveryService/Result/ResponseCipher/EncryptionKeyProvider, RefreshReissueResponse/Repository, AesGcmReissueResponseCipher, MountedReissueEncryptionKeys, ReissueRecoveryProperties/Configuration, ReissueNoStoreFilter.
+- 변경 파일(테스트): 신규 ReissueRecoveryServiceTests, ReissueCipherTests, ReissueRecoveryConfigurationTests, ReissueRecoveryHttpTests, ReissueRecoveryRepositoryTests. 기존 RefreshSessionTests와 SessionRevocationTests의 신규 반복 인덱스/테스트 대역 조건을 보완했다.
+- 변경 파일(문서): Stage 9 계획서, 신규 refresh-token-response-recovery-stage-9-runbook.md, frontend-firebase-auth-integration-guide.md, firebase-auth-follow-up-implementation-order.md, CURRENT_STATE 갱신 및 WORKLOG append.
+- 구현 내용: 필수 소문자 UUID v4 요청 ID·같은 원 credential 결합, 최초 결과 최대 2분 불변 복구, source/child/ciphertext 원자 저장, child/control CAS, 증거와 단기 암호문 TTL 분리, current account type/epoch/Firebase 경계 검사, bounded 충돌 재조회 및 commit 불명 replay-only. 정상 만료는 전체 세션 폐기 없이 409, 유효 rotated credential의 다른 ID 재사용에는 기존 활성 세션 전체 폐기를 commit한 뒤 오류 반환한다.
+- 로그아웃 연계: source로 단일 logout하면 복구 취소 및 exact direct active child만 원자 폐기. 다른 family·후속 descendant·Firebase 원격 revoke는 변경하지 않았다. 이미 취소된 복구·구 epoch·만료 source는 새 로그인 세션의 재사용 공격 폐기보다 우선 차단한다.
+- 암호화/설정: JCE AES-256-GCM, 난수 96-bit nonce·128-bit tag, 환경/세션/요청/epoch/유형/기한 AAD. 별도 keyring을 읽기 전용 절대 경로 mount에서 startup에 로드, 중복/잘못된 키/활성 키 부재는 fail-fast. Transaction 내 원격 secret fetch 없음. 기능·maintenance 기본 false, ON에서 fence/키 요구. Mongo primary/snapshot/majority, maxCommitTime 5초·template timeout 10초·REQUIRES_NEW.
+- 외부 계약: 기존 URL/body/BaseResponse JSON·RS256/JWKS/account_type/audience/scope·workload·도메인 경계 유지. ON이면 Idempotency-Key 필수, Reissue-Access-Expires-At/Reissue-Refresh-Expires-At 추가, 400/409/503 오류 분리 및 no-store. Access 만료는 실제 JWT exp, Mongo 시각은 밀리초. 기존 앱의 API 미사용 전제를 따르며 keyless 단계적 rollout은 추가하지 않았다.
+- 검증 과정: 초기 컴파일의 중복 Swagger annotation과 실패 주입 mock 설정을 수정했다. 신규 반복 CompoundIndex annotation에 맞춰 기존 reflection 테스트를 보완했다. 인메모리 Mongo가 partialFilterExpression을 실제 unique 검사에 반영하지 않는 제한을 라이브러리 소스와 실패로 확인했다. 프로덕션 인덱스는 유지하고 index 정의/predicate·eligible row uniqueness/CAS와 실제 legacy 공존 검증을 구분했다. 기존 Stage 8 인메모리 fixture에서 해당 신규 인덱스만 제외했다.
+- 실행한 테스트와 결과: 신규 집중 테스트 성공. 최종 ./gradlew clean test --console=plain 성공, 131 suite·788 tests, 실패·오류·건너뜀 0. Gradle cache sandbox 제한은 승인된 escalation으로 실행했다. 문서 로컬 링크 51개/누락 0, git diff --check 및 미추적 신규 파일 whitespace 검사 통과. 실제 Provider/Atlas 호출 없음.
+- 결정사항: 구현 결과·정확한 설정/오류·T01~T30 증빙 매핑을 runbook에 기록했다. 기존 Guest-only 앱의 업데이트 후 SNS 전환 유도와 장애 복구 만료를 분리한다. 강제 가입·Guest 폐지·기록 포기·새 장기 Guest 인증 수단 없음.
+- 위험 요소: mock transaction snapshot은 실제 rollback 증거가 아니다. 실제 replica-set rollback/commit 불명/다중 instance/성능 및 partial unique legacy 공존, 실제 키 공급/권한/교체/백업·TTL, 모바일 저장/crash/single-flight/Guest 전환, ingress rate limit/경보/비상중단 리허설은 운영 활성화 전 필수다. 2분은 API 복구 한도이지 백업 암호문 삭제 보장이 아니다.
+- 범위 확인: 사용자의 기존 WORKLOG 변경과 미추적 계획서를 보존했다. 테스트 대역/반복 annotation 보완 외 예상 밖 변경 없음. 다른 저장소 변경, commit·push·PR 생성·배포·기능 활성화 없음.
+- Jira 댓글 초안(미등록): TMI-130 재발급 응답 암호화 복구·원자 회전·logout/fence 연계 및 HTTP/운영 계약 구현. 핵심 파일 ReissueRecoveryService/RefreshSession/AuthController 및 전용 cipher/config/tests. 전체 788개 테스트 통과, 기능 OFF. 실제 Mongo·키·모바일 통합 검증은 활성화 전 후속이며 PR 병합은 아직 확인하지 않음.
+- 다음 작업: 사용자 diff 검토 및 commit/PR/merge. 이후 별도 승인된 실제 환경에서 운영 gate 검증. Jira 완료는 PR 병합 확인과 별도 승인 뒤 진행한다.
+
+## 2026-09-09 — TMI-130 구현 흐름 코드 설명
+
+<!-- codex-turn:01a084c3-bfd2-74e0-95d1-521c5b8599f6 -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-130-refresh-token-response-recovery.
+- Jira: TMI-130. 이번 Jira 조회·댓글·상태 변경 없음.
+- 작업 목표: 사용자가 개발 내용을 이해하도록 실제 코드와 정상/응답 유실/로그아웃/오류 흐름을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계획서 변경 없음.
+- 확인·설명 내용: ReissueRecoveryService, TokenReissueService, RefreshSession/RefreshReissueResponse, AesGcmReissueResponseCipher, ReissueRecoveryConfiguration, AuthController를 확인했다. source=A/child=B의 개념, 요청별 ID와 원 credential 결합, 동일 Transaction 저장, AES-GCM/AAD, 요청 증거와 암호문 TTL 분리, replay child CAS, 원자적 source logout 취소, commit 불명 replay-only 및 절대 만료 헤더를 설명한다.
+- 유지한 계약·결정사항: 기능 기본 OFF 유지. ON 기준으로 설명하며 추가 정책/구현 승인으로 해석하지 않는다. 기존 URL/JSON/JWT/workload 계약 유지, 최대 2분은 응답 복구 한도이지 로그인 수명이 아니다. 정상 복구 만료와 의심 재사용 전체 활성 세션 폐기를 구분한다.
+- 테스트와 결과: 소스 정적 확인 및 git diff --check 통과. 설명·기록만 변경하여 Gradle 미실행. 직전 구현의 131 suite·788 tests 통과를 이번에 새로 실행한 결과로 표현하지 않는다.
+- 위험 요소: 실제 Mongo rollback·partial index legacy 공존·키/백업·모바일 검증은 여전히 활성화 전 후속이다. TTL 즉시 삭제 및 모든 메모리 평문 사본 제거를 보장하지 않는다.
+- Jira 댓글 초안(미등록): 구현 코드 설명만 수행했으며 새 코드/테스트 변경 없음. 기존 운영 검증 gate 유지.
+- 다음 작업: 사용자 검토·commit/PR/merge 및 별도 승인된 통합 운영 검증. 기존 변경 보존, 예상 밖 변경·commit·push·배포 없음.
+
+## 2026-09-09 — TMI-130 Refresh Token rotation 의미 설명
+
+<!-- codex-turn:01a084d8-0215-7183-890c-5341c9155a2f -->
+
+- 날짜·브랜치: 2026-09-09, feat/TMI-130-refresh-token-response-recovery.
+- Jira: TMI-130. 외부 조회·댓글·상태 변경 없음.
+- 작업 목표: 기존 A를 회전한다는 표현을 새 B로 교체한다는 사용자 관점으로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신.
+- 설명 내용: A는 기존 Refresh Token, B는 독립적으로 생성하는 새 Refresh Token이다. rotate는 A 세션을 ROTATED로 표시하고 후속 B 세션 ID를 연결하는 상태 변경이며 문자열 변환/물리 삭제/새 User 생성이 아니다. 이후 일반 재발급에는 B를 사용한다. 응답 유실 시 같은 A와 같은 요청 ID로 기존 B를 제한 복구하는 예외와 일반 재사용을 구분했다.
+- 유지한 계약·결정사항: 최대 2분 복구·기한 연장 금지·기존 사용자 유지·기능 기본 OFF. 정책 변경 없음.
+- 테스트와 결과: 기록 확인 및 git diff --check, 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 복구 예외가 A를 일반 인증수단으로 재활성화한다는 의미는 아니다. 기존 운영 검증 잔여 유지.
+- Jira 댓글 초안(미등록): rotation 용어 설명만 수행, 코드 변경 없음.
+- 다음 작업: 사용자 검토 후 기존 commit/PR 및 운영 검증 절차. 기존 변경 보존, 예상 밖 변경·commit·push·배포 없음.
+
+## 2026-09-10 — TMI-130 세션 교체와 토큰 생성 순서 설명
+
+<!-- codex-turn:01a0891c-5020-7813-b26a-9afbc947ddf2 -->
+
+- 날짜·브랜치: 2026-09-10, feat/TMI-130-refresh-token-response-recovery.
+- Jira: TMI-130. 조회·댓글·상태 변경 없음.
+- 작업 목표: 세션 대체 저장 이후 토큰을 생성하는 이유와 commit 경계를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 설명 내용: ReissueRecoveryService의 transactions.execute 범위에서 source rotation 저장, Access/Refresh 생성, child 및 암호화 응답 저장이 이루어진다. source 선행 쓰기는 동시 수정 충돌을 토큰 생성 전에 발견하는 데 도움이 되며 childId 할당은 토큰 생성이 아니다. commit 이후에만 응답한다. abort 시 회전도 rollback되지만 commit 결과 불명은 replay-only로 확인한다.
+- 유지한 계약·결정사항: 기능 기본 OFF, 기존 원자성·복구·JWT/API 계약 유지. 토큰 생성 순서 자체보다 원자 commit과 commit 전 응답 금지가 핵심이며 정책 변경 없음.
+- 테스트와 결과: 소스 정적 확인. git diff --check 수행. 설명·기록만 변경하여 Gradle 미실행; 기존 788개 통과를 신규 실행 결과로 주장하지 않는다.
+- 위험 요소: 실제 Mongo Transaction rollback·commit 불명 검증 등 기존 운영 활성화 gate 유지. 동시 별도 폐기가 있는 경우 A 사용 가능성을 보장하지 않는다.
+- Jira 댓글 초안(미등록): 세션 교체와 토큰 생성의 Transaction 순서 설명만 수행, 코드 변경 없음.
+- 다음 작업: 사용자 검토 및 기존 commit/PR·운영 검증 절차. 기존 변경 보존, 이번 예상 밖 변경·commit·push·배포 없음.
+
+## 2026-09-10 — TMI-130 동시 회전 충돌 검증 설명
+
+- 날짜·브랜치: 2026-09-10, feat/TMI-130-refresh-token-response-recovery. Jira: TMI-130.
+- 작업 목표: 두 요청이 같은 세션을 읽었을 때 충돌을 감지하는 원리를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 확인 내용: RefreshSession의 @Version, ReissueRecoveryService의 source save 및 retryable 분기, SessionSecurityService의 선행 control save를 정적 확인했다. 버전 조건부 쓰기와 Mongo Transaction write conflict를 구분하고 재조회 후 동일 ID 복구와 다른 ID 의심 재사용 분기를 설명한다.
+- 유지한 계약·결정사항: 기존 원자 회전·복구 기간·보안 정책·기능 기본 OFF 유지. 충돌 검증을 애플리케이션의 별도 조회만으로 수행한다고 설명하지 않는다.
+- 테스트와 결과: git diff --check 수행. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 충돌이 항상 source 저장 지점에서만 발생하는 것은 아니다. 실제 replica set 동시성·rollback 검증은 기존 운영 gate로 유지한다.
+- Jira 댓글 초안(미등록): 동시성 제어 원리 설명만 수행, 코드 변경 없음. Jira 조회·수정 없음.
+- 다음 작업: 사용자 검토 및 기존 PR·운영 검증. 기존 변경 보존, 이번 예상 밖 변경·commit·push 없음.
+
+### 동시 회전 충돌 설명 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a0891f-0584-7102-91de-3d5ba6a0d82c -->
+
+- 날짜: 2026-09-10. 브랜치: feat/TMI-130-refresh-token-response-recovery. Jira: TMI-130.
+- 작업 목표·내용: @Version 조건부 저장과 Mongo Transaction 쓰기 충돌, 충돌 후 재조회 및 동일 요청 응답 복구를 설명했다. 선행 사용자 세션 관리 문서에서 먼저 충돌할 가능성도 구분했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드·정책·외부 계약 변경 없음.
+- 검증: 정적 코드 확인 및 git diff --check 통과. 설명·기록 작업으로 Gradle 미실행.
+- 결정사항·위험·다음 작업: 기존 기능 OFF 및 운영 동시성 검증 gate 유지. 사용자 검토 후 기존 PR·운영 검증 진행. Jira 변경·commit·push 없음. Secret 기록 없음.

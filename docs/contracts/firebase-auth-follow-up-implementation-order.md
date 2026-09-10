@@ -16,7 +16,7 @@
 6. [ ] [가입 중단 Firebase User cleanup](firebase-abandoned-enrollment-cleanup-stage-6-plan.md)
 7. [ ] [Billing SigV4 eligibility와 owner event durable fan-out](billing-entitlement-owner-fanout-stage-7-plan.md)
 8. [ ] [logout-all Firebase refresh revoke](firebase-logout-all-revoke-stage-8-plan.md)
-9. [ ] Refresh Token 응답 유실 복구와 rotation 원자성 개선
+9. [ ] [Refresh Token 응답 유실 복구와 rotation 원자성 개선](refresh-token-response-recovery-stage-9-plan.md) — TMI-130 코드·격리 테스트 구현, [운영·모바일 검증](refresh-token-response-recovery-stage-9-runbook.md) 대기
 10. [ ] Provider unlink와 전화번호 변경
 11. [ ] Guest 생성 응답 유실 복구
 12. [ ] 기존 ACTIVE 회원의 Firebase rebind 정책

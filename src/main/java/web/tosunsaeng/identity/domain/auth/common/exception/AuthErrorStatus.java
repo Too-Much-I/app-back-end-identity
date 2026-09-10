@@ -5,6 +5,10 @@ import org.springframework.http.HttpStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum AuthErrorStatus implements ErrorCode {
+	INVALID_REISSUE_REQUEST_ID(HttpStatus.BAD_REQUEST, "INVALID_REISSUE_REQUEST_ID", "재발급 요청 식별자가 올바르지 않습니다."),
+	REISSUE_REQUEST_CONFLICT(HttpStatus.CONFLICT, "REISSUE_REQUEST_CONFLICT", "이미 사용한 재발급 요청 식별자입니다."),
+	REISSUE_RECOVERY_EXPIRED(HttpStatus.CONFLICT, "REISSUE_RECOVERY_EXPIRED", "재발급 응답 복구 기한이 지났습니다. 다시 인증해 주세요."),
+	REISSUE_RESULT_SUPERSEDED(HttpStatus.CONFLICT, "REISSUE_RESULT_SUPERSEDED", "이미 변경된 인증 결과입니다. 최신 인증 상태를 확인해 주세요."),
 
 	SESSION_LOGGED_OUT(HttpStatus.UNAUTHORIZED, "SESSION_LOGGED_OUT", "로그아웃된 세션입니다. 다시 로그인해 주세요."),
 	SESSION_SECURITY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "SESSION_SECURITY_UNAVAILABLE", "인증 처리를 일시적으로 완료할 수 없습니다."),

@@ -41,8 +41,17 @@ public class TokenReissueService {
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final AuthResponseConverter authResponseConverter;
 	private final Clock clock;
+	private ReissueRecoveryService recovery;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setRecovery(ReissueRecoveryService recovery) { this.recovery = recovery; }
+
+	public ReissueResult reissue(ReissueRequest request, List<String> requestIds) {
+		if (recovery != null) return recovery.reissue(request, requestIds);
+		return new ReissueResult(reissue(request), null, null, null);
+	}
 
 	public ReissueResponse reissue(ReissueRequest request) {
+		if (recovery != null) return recovery.reissue(request, List.of()).response();
 		if (refreshSessionIssuer.isFenceEnabled()) {
 			// Reuse revocations must commit even though the public result is an error.
 			Object result = refreshSessionIssuer.security().transaction(() -> {
@@ -75,6 +84,8 @@ public class TokenReissueService {
 			}
 		}
 
+		// A recovery-aware source must never fall back to legacy reuse punishment after flag OFF.
+		if (currentSession.getRotationResponseId() != null) throw SessionSecurityService.unavailable();
 		// 회전된 토큰이 재사용되면 탈취 가능성에 대비해 활성 세션을 모두 폐기한다.
 		if (currentSession.getRevocationReason() == RevocationReason.ROTATED) {
 			int revokedSessionCount = revokeActiveSessionsForReuse(
