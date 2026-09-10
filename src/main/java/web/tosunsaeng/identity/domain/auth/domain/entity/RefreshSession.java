@@ -13,8 +13,11 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 
 @Document(collection = "refresh_sessions")
+@CompoundIndex(name = "uk_refresh_user_rotation_request", def = "{ 'userId': 1, 'rotationRequestKeyHash': 1 }",
+		unique = true, partialFilter = "{ 'rotationRequestKeyHash': { '$type': 'string' } }")
 @CompoundIndex(
 		name = "ix_refresh_sessions_user_id_revoked_at",
 		def = "{ 'userId': 1, 'revokedAt': 1 }"
@@ -48,6 +51,37 @@ public class RefreshSession {
 
 	private long sessionEpoch;
 	private SessionAuthentication authentication;
+	private String rotationRequestKeyHash;
+	private String rotationResponseId;
+	private Instant rotationCommittedAt;
+	private Instant recoveryUntil;
+	private Instant recoveryDisabledAt;
+	private UserAccountType issuedAccountType;
+
+	public void recordRecovery(String requestHash, String responseId, Instant now, Instant until,
+			UserAccountType accountType) {
+		if (revocationReason != RevocationReason.ROTATED || rotationResponseId != null || !until.isAfter(now)) {
+			throw new IllegalStateException("Invalid recovery transition.");
+		}
+		rotationRequestKeyHash = requireTokenHash(requestHash);
+		rotationResponseId = requireUuid(responseId, "responseId");
+		rotationCommittedAt = Objects.requireNonNull(now);
+		recoveryUntil = Objects.requireNonNull(until);
+		issuedAccountType = Objects.requireNonNull(accountType);
+	}
+	public void cancelRecovery(Instant now) {
+		if (recoveryDisabledAt == null) recoveryDisabledAt = Objects.requireNonNull(now);
+	}
+	public void touchForRecovery(Instant now) {
+		if (isRevoked() || isExpiredAt(now)) throw new IllegalStateException("Session cannot be recovered.");
+		lastUsedAt = now;
+	}
+	public String getRotationRequestKeyHash() { return rotationRequestKeyHash; }
+	public String getRotationResponseId() { return rotationResponseId; }
+	public Instant getRotationCommittedAt() { return rotationCommittedAt; }
+	public Instant getRecoveryUntil() { return recoveryUntil; }
+	public Instant getRecoveryDisabledAt() { return recoveryDisabledAt; }
+	public UserAccountType getIssuedAccountType() { return issuedAccountType; }
 
 	public void attachAuthentication(SessionAuthentication proof) {
 		if (authentication != null) throw new IllegalStateException("Authentication evidence is immutable.");

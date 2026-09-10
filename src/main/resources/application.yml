@@ -34,6 +34,15 @@ sentry:
     enabled: false
 
 app:
+  reissue-recovery:
+    enabled: ${AUTH_REISSUE_RECOVERY_ENABLED:false}
+    maintenance: ${AUTH_REISSUE_RECOVERY_MAINTENANCE:false}
+    window: ${AUTH_REISSUE_RECOVERY_WINDOW:PT2M}
+    response-max-bytes: ${AUTH_REISSUE_RESPONSE_MAX_BYTES:16384}
+    concurrency-attempts: ${AUTH_REISSUE_CONCURRENCY_ATTEMPTS:3}
+    encryption-active-key-id: ${AUTH_REISSUE_ENCRYPTION_ACTIVE_KEY_ID:}
+    encryption-keyring-location: ${AUTH_REISSUE_ENCRYPTION_KEYRING_LOCATION:}
+    environment: ${AUTH_REISSUE_ENCRYPTION_ENVIRONMENT:}
   session-revocation:
     fence-enabled: ${AUTH_SESSION_FENCE_ENABLED:false}
     capture-enabled: ${FIREBASE_LOGOUT_ALL_CAPTURE_ENABLED:false}

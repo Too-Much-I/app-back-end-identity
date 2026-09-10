@@ -50,7 +50,13 @@ class SessionRevocationTests {
 		mongo = new MongoTemplate(client, "session-revocation-test");
 		for (Class<?> type : List.of(UserSessionControl.class, LogoutAllOperation.class, RefreshSession.class)) {
 			new MongoPersistentEntityIndexResolver(mongo.getConverter().getMappingContext()).resolveIndexFor(type)
-					.forEach(index -> mongo.indexOps(type).ensureIndex(index));
+					.forEach(index -> {
+						// mongo-java-server 1.47 does not enforce partialFilterExpression. Installing
+						// this as an unconditional unique index would reject unrelated legacy sessions.
+						if (!"uk_refresh_user_rotation_request".equals(index.getIndexOptions().getString("name"))) {
+							mongo.indexOps(type).ensureIndex(index);
+						}
+					});
 		}
 		time = new AtomicReference<>(NOW);
 		clock = new Clock() {

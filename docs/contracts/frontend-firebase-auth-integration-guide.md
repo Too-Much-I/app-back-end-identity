@@ -1,7 +1,7 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
 - 문서 성격: 모든 인증 후속 단계와 staging E2E가 완료된 시점의 최종 프론트 계약
-- 기준일: 2026-09-07
+- 기준일: 2026-09-09 (TMI-130 재발급 계약 반영)
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자
 - 적용 조건: Identity·Firebase·Billing·Learning Core 배포 및 Provider별 운영 설정이 모두 완료된 release
 
@@ -231,10 +231,15 @@ Firebase email/password 로그인 또는 가입
 
 최종 `/reissue` 응답 유실 계약:
 
+- TMI-130 구현/운영 상세는 [Stage 9 연동·운영 가이드](refresh-token-response-recovery-stage-9-runbook.md)를 따른다. 현재 기능 기본 OFF이며 실제 운영·모바일 검증 전에는 사용하지 않는다.
+- `Idempotency-Key` 단일 헤더가 필수다. 요청별 소문자 UUID v4를 전송 전에 안전하게 저장하고, 같은 원 Refresh Token의 전송 재시도는 같은 ID를 사용한다.
 - 서버는 rotation과 replacement Session을 원자적으로 확정한다.
-- 같은 논리 재발급의 전송 재시도는 기존 성공 결과를 안전하게 복구하며 Token 탈취 재사용으로 오판하지 않는다.
+- 같은 논리 재발급은 현재 계정/세션 상태가 유효하고 고정 최대 2분 기한 이내일 때 최초 결과를 재전달한다. 재시도에 따라 기한을 연장하거나 새로운 Token을 생성하지 않는다.
+- `Reissue-Access-Expires-At`·`Reissue-Refresh-Expires-At` 절대 만료 헤더를 사용하고, replay의 기존 ExpiresIn을 현재 수신 시각에 다시 더하지 않는다.
+- `409 REISSUE_RECOVERY_EXPIRED`는 정상 복구 만료이며 전체 세션 폐기가 아니다. `REISSUE_RESULT_SUPERSEDED`이면 로컬 최신 결과를 확인한다. `503 SESSION_SECURITY_UNAVAILABLE`만 같은 요청으로 제한 재시도한다(통신 장애/429 포함).
 - 서로 다른 논리 작업에서 실제로 rotation된 옛 Token을 다시 사용하면 `REFRESH_TOKEN_REUSE_DETECTED`로 처리한다.
 - 프론트는 서버의 최종 멱등·복구 계약을 보존하고, 매 transport retry마다 새로운 논리 작업을 만들지 않는다.
+- 복구 취소/구 epoch/만료된 원 credential은 재사용 공격보다 우선해 거절한다. Guest 자동 초기화나 SNS만으로 과거 Guest 기록 연결은 하지 않는다.
 
 ### 5.2 현재 기기 로그아웃
 
@@ -326,7 +331,7 @@ Firebase email/password 로그인 또는 가입
 | `POST /api/v1/auth/firebase/guest/upgrade` | Guest Identity Bearer + Firebase ID Token body | Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/guest/merge` | Guest Identity Bearer + Firebase ID Token body | target MEMBER Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/auth-methods/sync` | MEMBER Identity Bearer + Firebase ID Token body | `linkedProviders` | 400, 401, 403, 409, 429, 503 |
-| `POST /api/v1/auth/reissue` | Refresh Token body | 새 Identity Token 묶음 | 400, 401, 403 |
+| `POST /api/v1/auth/reissue` | Refresh Token body + Idempotency-Key | 최초 Identity Token 묶음 또는 같은 결과 복구, 절대 만료 헤더 | 400, 401, 403, 409, 503 |
 | `POST /api/v1/auth/logout` | Refresh Token body | `null` | 400 |
 | `POST /api/v1/auth/logout-all` | Identity Bearer | `null` (원격 완료가 아닌 접수) | 401, 403, 503 |
 | `GET /api/v1/users/me` | Identity Bearer | 사용자 프로필 | 401, 403, 404 |
@@ -576,6 +581,12 @@ Spring Security가 Bearer Token 자체를 거절하면 application 오류 대신
 ### 8.8 `POST /api/v1/auth/reissue`
 
 인증: 공개. Body의 Refresh Token 자체가 credential이다.
+
+필수 헤더: `Idempotency-Key: <요청별 소문자 UUID v4>`. 전송 재시도는 같은 값을 유지한다. 만료된 Access Token을 자동 첨부하지 않는다.
+
+성공 응답 헤더: `Reissue-Access-Expires-At`, `Reissue-Refresh-Expires-At` (UTC ISO-8601 Instant). 성공·오류 모두 `Cache-Control: no-store`, `Pragma: no-cache`.
+
+아래 JSON은 최초와 replay에서 동일하며 두 ExpiresIn은 최초 duration(밀리초)이다. 409/503 및 pending 저장·single-flight·계정 전환 처리 전체 계약은 [Stage 9 가이드](refresh-token-response-recovery-stage-9-runbook.md)의 2절을 따른다.
 
 요청:
 

@@ -22,8 +22,12 @@ public class LogoutService {
 	private final RefreshTokenHasher refreshTokenHasher;
 	private final RefreshSessionRepository refreshSessionRepository;
 	private final Clock clock;
+	private ReissueRecoveryService recovery;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setRecovery(ReissueRecoveryService recovery) { this.recovery = recovery; }
 
 	public void logout(LogoutRequest request) {
+		if (recovery != null) { recovery.logout(request.refreshToken()); return; }
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
 		RefreshSession session = refreshSessionRepository.findByTokenHash(tokenHash)
 				.orElse(null);
@@ -38,6 +42,10 @@ public class LogoutService {
 		}
 
 		Instant currentTime = clock.instant();
+		if (session.getRotationResponseId() != null && session.getRecoveryDisabledAt() == null
+				&& session.getRecoveryUntil() != null && currentTime.isBefore(session.getRecoveryUntil())) {
+			throw SessionSecurityService.unavailable();
+		}
 		if (session.isRevoked() || session.isExpiredAt(currentTime)) {
 			log.atDebug()
 					.addKeyValue("event", "auth.logout.completed")

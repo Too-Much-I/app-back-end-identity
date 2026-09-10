@@ -30,8 +30,8 @@ class RefreshSessionTests {
 		Indexed expiresAtIndex = RefreshSession.class
 				.getDeclaredField("expiresAt")
 				.getAnnotation(Indexed.class);
-		CompoundIndex userRevocationIndex = RefreshSession.class
-				.getAnnotation(CompoundIndex.class);
+		CompoundIndex userRevocationIndex = Arrays.stream(RefreshSession.class.getAnnotationsByType(CompoundIndex.class))
+				.filter(index -> index.name().equals("ix_refresh_sessions_user_id_revoked_at")).findFirst().orElseThrow();
 
 		assertThat(document.collection()).isEqualTo("refresh_sessions");
 		assertThat(sessionId.isAnnotationPresent(Id.class)).isTrue();

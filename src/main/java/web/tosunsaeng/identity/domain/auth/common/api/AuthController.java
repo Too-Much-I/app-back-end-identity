@@ -262,10 +262,14 @@ public class AuthController {
 
 	@Operation(
 			summary = "인증 토큰 재발급",
-			description = "Refresh Token을 Rotation하고 새 Access Token과 Refresh Token을 발급합니다."
+			description = "Refresh Token을 Rotation합니다. 응답 복구 활성화 시 단일 Idempotency-Key(UUID v4 소문자)가 필수이며 "
+					+ "같은 요청은 최대 2분간 최초 결과를 반환합니다. 재시도마다 ID를 변경하지 마세요. "
+					+ "만료는 Reissue-Access-Expires-At·Reissue-Refresh-Expires-At UTC 응답 헤더를 사용합니다."
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "인증 토큰 재발급 성공"),
+			@ApiResponse(responseCode = "409", description = "REISSUE_REQUEST_CONFLICT / REISSUE_RECOVERY_EXPIRED / REISSUE_RESULT_SUPERSEDED"),
+			@ApiResponse(responseCode = "503", description = "SESSION_SECURITY_UNAVAILABLE: 같은 요청 ID로 제한 재시도"),
 			@ApiResponse(
 					responseCode = "400",
 					description = "입력값 검증 실패",
@@ -285,10 +289,22 @@ public class AuthController {
 			)
 	})
 	@PostMapping("/reissue")
+	@io.swagger.v3.oas.annotations.Parameter(name = "Idempotency-Key", in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER,
+			required = true, description = "논리적 재발급 요청별 canonical lowercase UUID v4. 재시도 시 동일 값 유지")
 	public BaseResponse<ReissueResponse> reissue(
-			@Valid @RequestBody ReissueRequest request
+			@Valid @RequestBody ReissueRequest request,
+			jakarta.servlet.http.HttpServletRequest httpRequest,
+			jakarta.servlet.http.HttpServletResponse httpResponse
 	) {
-		return BaseResponse.success(tokenReissueService.reissue(request));
+		httpResponse.setHeader("Cache-Control", "no-store");
+		httpResponse.setHeader("Pragma", "no-cache");
+		var result = tokenReissueService.reissue(request,
+				java.util.Collections.list(httpRequest.getHeaders("Idempotency-Key")));
+		if (result.accessExpiresAt() != null) {
+			httpResponse.setHeader("Reissue-Access-Expires-At", result.accessExpiresAt().toString());
+			httpResponse.setHeader("Reissue-Refresh-Expires-At", result.refreshExpiresAt().toString());
+		}
+		return BaseResponse.success(result.response());
 	}
 
 	@Operation(
