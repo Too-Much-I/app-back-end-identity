@@ -186,6 +186,10 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 							socialPrincipal.provider(),
 							socialPrincipal.providerSubject()
 					);
+			if (expectedUserId != null && socialIdentity.isEmpty()
+					&& web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.social(principal.signInMethod()) == socialPrincipal.provider()) {
+				throw new AuthException(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
+			}
 			if (socialIdentity.isPresent()
 					&& !Objects.equals(
 							expectedUserId,

@@ -32,6 +32,8 @@ import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 @ActiveProfiles("test")
 @Import(TestRsaKeyConfiguration.class)
 class DisabledSwaggerIntegrationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	@Autowired
 	private MockMvc mockMvc;

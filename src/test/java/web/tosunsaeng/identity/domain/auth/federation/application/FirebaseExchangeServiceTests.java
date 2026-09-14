@@ -125,7 +125,7 @@ class FirebaseExchangeServiceTests {
 		when(refreshSessionIssuer.captureEpoch(USER_ID)).thenReturn(4L);
 		var evidence = new web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication(4,
 				web.tosunsaeng.identity.domain.auth.session.application.SessionAuthentication.Source.FIREBASE,
-				identity.getFirebaseIdentityId(), principal.authTime());
+				identity.getFirebaseIdentityId(), principal.authTime(), principal.signInMethod());
 		when(refreshSessionIssuer.issueAuthenticated(USER_ID, evidence)).thenReturn(new IssuedRefreshSession(
 				"identity-refresh-token", NOW, NOW.plus(Duration.ofDays(14))));
 		when(refreshSessionIssuer.issue(USER_ID)).thenReturn(new IssuedRefreshSession(

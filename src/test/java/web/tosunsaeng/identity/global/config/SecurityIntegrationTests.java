@@ -79,8 +79,46 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+	@MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
+
+	@ParameterizedTest
+	@ValueSource(strings = {"/api/v1/auth/firebase/providers/unlink", "/api/v1/auth/firebase/providers/relink/prepare",
+			"/api/v1/auth/firebase/providers/link/prepare", "/api/v1/auth/firebase/providers/link/start",
+			"/api/v1/auth/firebase/providers/link/complete", "/api/v1/auth/firebase/providers/link/status"})
+	void providerChangesRequireUserJwtAndRejectWorkloadJwt(String path) throws Exception {
+		mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+		String workload = signedToken(jwtEncoder, "identity-service", "https://identity.test/workload",
+				"learning-core-user-merged", TestRsaKeyConfiguration.TEST_INSTANT.plusSeconds(60));
+		mockMvc.perform(post(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + workload)
+				.contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test void providerStatusReachesProofValidationWithoutUserJwt() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/unlink/status")
+				.contentType(MediaType.APPLICATION_JSON).content("{\"requestId\":\"11111111-1111-4111-8111-111111111111\"}"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/unlink/status")
+				.contentType(MediaType.APPLICATION_JSON).content("{\"requestId\":\"11111111-1111-4111-8111-111111111111\",\"firebaseIdToken\":\"test-only-proof\"}"))
+				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"))
+				.andExpect(header().string("Cache-Control", "no-store"));
+	}
+
+	@Test void providerOpenApiSeparatesUserBearerFromStatusProof() throws Exception {
+		mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/unlink'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/relink/prepare'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/prepare'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/start'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/complete'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/status'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/unlink/status'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.ChangeRequest.properties.firebaseIdToken.writeOnly").value(true));
+	}
 	private static final String OTHER_USER_ID = "45c05c3f-ae7f-4ca7-af88-3ab8aa8f428e";
 
 	@Autowired

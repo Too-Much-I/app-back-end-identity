@@ -5,10 +5,135 @@
 ## 프로젝트
 
 - 이름: `app-back-end-identity`
-- 현재 단계: TMI-130 Stage 9 재발급 응답 유실 복구 코드·격리 테스트 구현 완료, commit/PR/운영 검증 전. 기능 기본 OFF.
-- 상태 기준일: 2026-09-10
+- 현재 단계: Stage 10 TMI-131 SNS 공통 연결 prepare/start/complete/status 구현 완료. 최종 로컬 회귀 137 suites / 886 tests 통과. 최초/재연결 프론트 분기 및 legacy sync 신규 저장 폐기. 기능 기본 OFF, 프론트 전환·실제 Provider·모바일·replica set·STARTED 결과 불명 복구 gate 미완료. Jira 조회 상태 해야 할 일 유지, commit·push·배포 미실행.
+- 상태 기준일: 2026-09-14
 
-## 현재 작업 — TMI-130 Stage 9 구현·검증 (2026-09-09)
+## 현재 작업 — TMI-131 Stage 10 Provider unlink (전화번호 변경 보류)
+
+<!-- codex-turn:01a09d80-df20-77e0-b522-919d2f206b9b -->
+
+- 현재 turn 기록 보완: 공통 연결 수정 내용 설명을 정확한 식별자로 WORKLOG 끝에 추가했다. 코드·API·정책 추가 변경 없이 기존 구현 및 운영 미검증 상태를 유지한다.
+
+- 2026-09-14 후속 설명: 현재 코드를 재확인하여 최초/재연결 공통화, prepare와 start 분리 이유, 대상만 저장하는 complete, 응답 유실별 복구 및 legacy sync 폐기를 사용자 흐름 중심으로 설명했다. 이번 설명에서 애플리케이션 코드·API·정책 변경 없음. 직전 886개 테스트 결과와 실제 운영 미검증 상태를 구분한다.
+
+<!-- codex-turn:01a08ebf-39df-7462-b538-bf03c8605eed -->
+
+- 최신 구현(2026-09-14 완료): 사용자 승인에 따라 최초/재연결을 동일한 공통 link API로 전환했다. `ProviderLinkService/Controller/Attempt` 추가, 기존 해제 service의 shared proof/transaction 검사를 재사용했다.
+- PREPARED는 mutation slot 없이 PT5M 만료 가능, expiresAt+PT24H TTL. start에서 epoch/revision/소유권을 검사하고 대상 block·공통 slot·STARTED를 원자 저장한다. 최초 start만 linkAllowed=true, 중복 start/status는 false다.
+- complete는 post-start 대상 재인증과 정확한 binding·epoch/revision을 확인하고 해당 SocialIdentity 한 건 저장·block 해제·완료·slot release를 같은 Transaction으로 수행한다. 완료+PT24H 보존, 응답 유실 재전송에서 새 저장/해제 없음. ALREADY_LINKED도 요청 ID receipt를 남긴다.
+- STARTED 만료/불명은 ACTION_REQUIRED이며 자동 TTL/slot 해제 없음. 기존 provider_relink_attempts 미소비 기록도 유지하고 신규 PREPARED로 재해석하지 않는다. 미승인 SNS의 Firebase 직접 link→login/기존 sync 우회를 차단한다.
+- 외부 계약 변경: providers/link/prepare, start, complete, status 신규 추가(모두 사용자 Bearer+Firebase 증거). 구형 relink/prepare는 503으로 폐기. sync URL/response는 유지하지만 신규 연결 저장 및 linkAttemptId 소비는 거절한다. 새 FIREBASE_PROVIDER_LINK_ENABLED 기본 false, deprecated RELINK_ENABLED=true는 startup 실패. capture OFF에서도 fence ON이면 complete/status drain 가능.
+- 검증: 집중 테스트 및 최종 `./gradlew clean test --console=plain` 성공, XML 137 suites / 886 tests / 실패·오류·skip 0. Gradle cache 접근에 승인된 권한 사용. Mongo snapshot rollback 테스트는 실제 replica-set Transaction 증빙이 아니다.
+- 유지 계약: User/userId·FirebaseIdentity·phone·혜택·기존 해제/탈퇴·Refresh/JWT 구조. 코드·문서 외 변경, Billing/LC 수정, Jira 쓰기, commit/push/배포 없음. 기존 미커밋 변경 보존, 예상 밖 범위 변경 없음.
+- 후속 gate: [계획](../contracts/firebase-provider-unlink-stage-10-plan.md)·[runbook/프론트 요청·응답](../contracts/firebase-provider-unlink-stage-10-runbook.md)에 새 흐름 반영. 프론트 single-flight/늦은 응답 무시/실행 종료 확인, 구형 writer 전부 종료, 인덱스/replica set·모바일/Firebase·운영 reconciliation 통합 검증 전 활성화 금지. Jira 원문은 기존 설계라 별도 승인 후 업데이트 필요.
+
+### 이전 논의 기록 — 아래의 미구현·구형 sync 설명은 위 최신 구현으로 대체됨
+
+<!-- codex-turn:01a08ebc-4680-73b2-92a4-66719dd34d98 -->
+
+- 현재 turn 기록 보완: 공통 prepare/start/complete/status 변경안 설명을 정확한 식별자로 WORKLOG 끝에 추가했다. 준비만 한 상태의 만료와 start 이후 결과 불명을 구분하는 제안이며, 기존 sync 전환·모바일 실행 순서·중단 복구 검토가 남아 있다. 실제 API/코드 변경 없이 설명·기록만 수행했으며 기능 OFF 유지.
+
+- 2026-09-11 공통 SNS 연결 구체화 설명: 최초 추가·재연결 모두 link prepare/complete를 공통 사용하고 서버가 owner/binding/provider/revision·진행 중 작업을 검사하는 변경안을 설명한다. 준비만 한 경우와 외부 변경을 시작할 수 있는 경우를 구분하기 위한 명시적 start 및 상태 조회를 제안했다. PREPARED 만료는 준수 앱이 start 승인 전 Firebase를 호출하지 않는 계약 아래 정리 가능하지만 STARTED 후 crash/timeout은 결과 불명으로 유지해야 한다. 준비 시 차단을 풀지 않으며 검증된 단일 대상 연결 완료 시만 해제한다. 기존 sync의 무허가 신규 저장 경로도 동일 정책으로 전환해야 하며 호환성 확인 필요. 제안만 설명했고 코드/API/계획은 변경하지 않았다.
+
+<!-- codex-turn:01a08eba-3f05-7620-87ec-12a6549dd7ca -->
+
+- 현재 turn 기록 확인: 공통 SNS 준비 흐름에 대한 사용자 선호와 최초/재연결 명칭보다 현재 상태·미확정 변경 검사가 중요하다는 설명을 정확한 식별자로 WORKLOG 끝에 추가했다. 공통 API 구현은 아직 변경하지 않았으며, 중단 복구·운영 검증과 기능 OFF 상태를 유지한다.
+
+<!-- codex-turn:01a08eba-47f3-7c82-9298-0e582613f215 -->
+
+- 2026-09-11: 사용자는 모든 SNS 연결의 공통 준비 절차 방향을 선호하며 최초 연결/재연결 구분의 필요성을 질문했다. 구분의 본질은 과거 연결 횟수가 아니라 현재 연결·차단·미확정 원격 작업 및 요청 revision이다. 공통 prepare/완료 흐름에서 같은 안전 검사를 적용하고 과거 차단은 새 연결 완료 시에만 정당하게 해제하는 방향을 설명한다. 별도 FIRST_LINK/RELINK 제품 분기 자체가 보안 필수는 아니다. 기존 코드는 일반 sync와 relink permit이 분리된 상태로, 이번에는 구현 요청 없이 설명·기록만 수행한다. 미소비 허가 중단 복구와 운영 gate는 계속 남아 있다.
+
+<!-- codex-turn:01a08eb8-51fb-7351-b983-1beeff7d94de -->
+
+- 현재 turn 기록 보완: 재연결 허가 및 프론트 prepare 판정 설명을 정확한 turn 식별자로 WORKLOG 끝에 추가했다. 상태 조회/nextAction 또는 공통 prepare는 아직 제안이며 코드 변경 승인·구현 없음. 기록 검증만 수행하고 기능 OFF를 유지한다.
+
+- 2026-09-11 프론트 prepare 판정 계약 점검: 현재 sync 응답은 linkedProviders만 제공하고 해제 차단/다음 행동 조회 계약이 없어 재설치·다른 기기에서 일반 추가와 재연결을 확실히 구분할 수 없다. Firebase link 후 PROVIDER_RELINK_REQUIRED를 받아 prepare하는 fallback도 현재 prepare의 이미 연결된 대상 거절과 충돌한다. 구현·모바일 인계의 미완성 부분으로 명시한다. 보완안은 서버 상태/nextAction 조회 제공 또는 신규·재연결 공통 prepare이며, 후자를 UX 단순화 방향으로 권장하지만 승인·구현은 하지 않았다. 코드·flag 유지, 기록만 갱신.
+
+<!-- codex-turn:01a08eb6-86bd-7331-b32a-323ed895ca01 -->
+
+- 2026-09-11 재연결 절차 검토 설명: 일반 SNS 추가와 동일한 사용자 화면/버튼은 가능하지만, 목록 기반 sync만으로 해제 차단을 자동 해제하면 이전 요청과 미확정 unlink actor를 구분하지 못한다. 기존 계정 소유권·새 SNS 인증·이전 변경 종료·원자적 최신 상태 검사는 유지해야 한다. prepare는 서버의 명시적 의도 기록이라는 현재 설계 선택이며 Firebase 필수 API가 아니다. 미소비 prepare의 장기 slot 보류도 재연결의 본질적 필수 조건이 아닌 현 구현의 보수적 제한이다. 공통 연결 UX와 중단 복구 개선을 검토 방향으로 설명하되 정책 승인·코드/계획 변경으로 간주하지 않는다.
+
+<!-- codex-turn:01a08e2d-579d-7ef1-af6e-5291712c4eb4 -->
+
+- 2026-09-11, `feat/TMI-131-provider-unlink-relink-lifecycle`: 구현 전에 공식 Jira TMI-131 본문/완료 조건을 읽고 승인 범위로 구현했다. Jira 댓글·상태 쓰기 없음.
+- 접수·status·relink prepare API, 선택적 sync `linkAttemptId`, operation/control/permit Mongo 문서·인덱스, 사용자 epoch 및 Provider revision 원자 검사, exact Firebase unlink/revoke worker를 추가했다. 남는 SNS 재인증·마지막 수단 보호·stale sync/로그인 차단을 적용한다.
+- UserSessionControl의 기존 activeLogoutId를 logout UUID / unlink: / relink: 공통 slot으로 사용한다. 탈퇴는 안전한 미dispatch/ACK 단계만 supersede하고 in-flight/unknown·미소비 relink는 release barrier로 유지한다. 대상 SocialIdentity 한 건만 최종 삭제하며 User/FirebaseIdentity/phone/다른 SNS는 유지한다.
+- Firebase mutation 자동 retry/redirect/401 response 재시도 OFF, exact project/tenant/UID/incarnation 검사, body limit·socket/owner 예산·no-store·고정 label metrics. SessionAuthentication에는 검증된 실제 Firebase 인증 수단을 기록하며 기존 문서의 null 필드는 호환해서 읽는다.
+- 최종 `./gradlew clean test --console=plain` 성공: 136 suites, 854 tests, 실패/오류/건너뜀 0. `git diff --check` 성공. 테스트용 snapshot rollback은 실제 replica set 검증이 아니다.
+- [구현·프론트·운영 runbook](../contracts/firebase-provider-unlink-stage-10-runbook.md), [계획](../contracts/firebase-provider-unlink-stage-10-plan.md), [프론트 가이드](../contracts/frontend-firebase-auth-integration-guide.md)를 갱신했다. 미소비 relink는 준비만 하고 앱이 중단돼도 dispatch 부재를 확정할 수 없어 만료 자동 해제하지 않는다. 남는 SNS 로그인은 가능하지만 후속 변경/외부 cleanup이 운영 확인을 기다릴 수 있다. 이 제한 수용 또는 시작/취소 증빙 보완은 출시 gate다.
+- 다음: 사용자 diff/PR 검토·직접 commit/push, 미소비 permit/격리 복구 절차 확인, 기존 계획대로 통합 운영 검증. 신규 기능 flag 모두 false이며 지금 활성화하지 않는다. Billing/LC 변경 없음. 기존 미커밋 문서 변경과 WORKLOG 과거 항목 보존, 예상 밖 도메인 변경 없음.
+
+### 이전 검토·생성 경과
+
+<!-- codex-turn:01a08e94-0c14-7612-b199-f983553c93dc -->
+
+- 2026-09-11 TMI-131 코드 설명: 실제 Service/Controller/Worker/Guard/control/permit/sync/HTTP adapter를 다시 읽고 Google 해제 예시로 남는 SNS 재인증, 접수 Transaction·epoch, 원격 unlink/revoke, exact SocialIdentity 삭제, 멱등 요청/status, stale revision 및 일회성 relink를 설명했다. 미소비 prepare 만료가 자동 unlock이 아니며 후속 변경/탈퇴 정리가 운영 확인을 기다릴 수 있다는 제한을 재강조한다. 애플리케이션·계약·설정 수정 없이 작업 기록만 갱신, Gradle 재실행 없음. 기존 854개 테스트 통과는 직전 구현 검증 결과다. Jira·Git·배포 변경 없음.
+
+<!-- codex-turn:01a08e2b-1ca2-7f50-b11a-4097ccbe602e -->
+
+- 2026-09-11: 사용자 생성 승인 후 공식 Atlassian MCP로 [TMI-131](https://to-teacher.atlassian.net/browse/TMI-131)을 작업 유형으로 생성했다. 제목 `[Identity][Stage 10] SNS 연결 해제 및 명시적 재연결 lifecycle 구현`, 재조회 상태 해야 할 일. 계획·순서 문서에 키 반영. 별도 댓글·상태 전환 없음. 브랜치 develop 유지, 코드 구현·commit·push 없음. 다음은 이슈 키를 포함한 구현 브랜치 준비 및 구현 착수다.
+
+<!-- codex-turn:01a08e2a-4c51-76e1-bfe0-9c433d182d9b -->
+
+- 2026-09-11: Jira 생성 요청에 따라 공식 Atlassian 도구로 Stage 10/unlink/재연결 제목 검색을 수행했고 해당 결과는 없었다. `[Identity][Stage 10] SNS 연결 해제 및 명시적 재연결 lifecycle 구현` 작업 생성 초안을 제시하며 사용자 내용 승인 대기다. 아직 이슈 생성·댓글·상태 변경 없음. 계획서의 정책·API·U01~U30·운영 OFF gate를 등록 기준으로 사용한다.
+
+<!-- codex-turn:01a08e14-051e-7712-8d3c-2459fd3f7854 -->
+
+- 2026-09-11: 재인증 5분은 auth_time 기준 증거의 최대 나이, 재연결 준비 5분은 prepare에서 발급한 일회성 허가의 별도 만료임을 구분했다. 로그인 수명·의무 대기·worker 완료 제한이 아니며 합산 10분도 아니다. 원격 link 시도 후 결과 불명은 단순 새 준비로 반복하지 않고 기존 상태 확인이 필요하다. 설계값 설명만 수행, 정책·계획·코드 변경 없음.
+
+<!-- codex-turn:01a08e0a-9803-77f1-ba6a-4da68ccb871c -->
+
+- 2026-09-11: 사용자가 명시적 재연결 A안 구현 범위를 승인하여 계획·순서 문서에 반영했다. 일회성 prepare와 기존 계정/연결할 SNS 양쪽 증거를 포함한다. 이번에는 코드 착수 없이 추가 주의사항 질문에 답한다. 지연 revoke 재인증·외부 결과 불명 변경 제한·모바일 개발·보존 기록 구분·실제 Provider 검증은 잔여다. PT5M/P7D 등 수치는 상세 설계값이며 별도 정책 승인으로 과장하지 않는다. Jira 미생성·기능 OFF 유지.
+
+<!-- codex-turn:01a08e03-52d2-7b53-81f6-11eacc10fcb7 -->
+
+- 2026-09-11: 사용자 질문의 4번은 로그아웃 후 상태 조회, 6번은 자동 재연결 방지로 해석했다. 자체 로그인과 Firebase 본인 인증의 차이, 유효한 증거 재사용과 별도 exchange, 지연 revoke 시 재인증 가능성을 설명한다. 자동 부활 차단은 유지 조건이고 명시적 relink 일회성 준비 절차는 제안임을 구분하여 안전한 재연결 지원 대 초기 재연결 보류를 검토용으로 제시했다. 정책·계획·코드 변경 없음.
+
+<!-- codex-turn:01a0896a-53b2-7aa3-9892-084c384d1c3d -->
+
+- 2026-09-10 계획 설명: Google 해제 예시로 남는 Apple/Kakao 재인증, durable 접수와 전체 로그아웃, worker의 unlink/revoke 및 exact 연결 삭제, 로그인 후 상태 확인, 오래된 sync 부활 차단과 명시적 relink 제안을 설명했다. 처리 중 정상 remaining 로그인과 지연 revoke의 추가 재인증 가능성, 정책 확정과 구현 전 설계 제안을 구분한다. 설명·기록만 수행, 코드·계획 변경 없음.
+
+<!-- codex-turn:01a08965-bee5-7ea3-9536-c1cb3b6064a8 -->
+
+- 2026-09-10: [Stage 10 계획서](../contracts/firebase-provider-unlink-stage-10-plan.md) 작성 완료. 제품 정책은 승인됐고 신규 API·재연결 permit·공통 mutation 조정은 상세 설계안이며 구현·Jira 생성 전이다. 전체 로그아웃 뒤 Firebase 증거로 상태 조회, pending remaining 로그인과 지연 revoke, stale sync 차단, exact SocialIdentity 삭제, 탈퇴 actor 인수, U01~U30 검증·운영 OFF 조건을 정리했다. 로컬 링크 17건 모두 존재, 문서 검사 통과. 코드 변경·Gradle 실행 없음.
+
+<!-- codex-turn:01a08964-0171-7521-b62e-6a5a291ea9ef -->
+
+- 카카오 포함 확인: SocialProvider와 FirebaseAuthenticationMethod에 KAKAO가 정의되어 있다. 남는 수단 재인증 정책은 Google·Apple·Kakao 중 동일 사용자에게 연결되고 서비스에서 허용된 수단에 적용한다. 실제 카카오 운영 설정·활성화 완료를 의미하지 않는다.
+
+<!-- codex-turn:01a08963-33f2-7c22-8b1a-cd9145b5fb3a -->
+
+- 2026-09-10 경계 확인: 전화번호 변경 보류는 기존 계정을 유지한 교체에 해당한다. 탈퇴 cleanup과 identity release 완료 후 같은 SNS로 신규 enrollment에 진입하여 검증된 새 번호로 재가입하는 것은 기존 가입 계약상 가능하다. 다른 owner 번호 충돌은 거절하며 새 내부 User를 생성한다. 과거 기록 복구나 무료 혜택 초기화를 의미하지 않는다. 코드·정책 변경 없이 관련 코드·문서를 확인했다.
+
+<!-- codex-turn:01a0895f-5f28-78c0-819e-f8416f030071 -->
+
+- 2026-09-10 사용자 확정: 2번 B, 나머지 A. 전화번호 셀프 변경·예외 변경/복구는 당분간 미지원, 해제 후 남는 수단 재인증, 현재 기기 포함 모든 자체 세션 종료·Firebase UID revoke, 비동기 진행 상태·복구를 적용한다. 고정 구현 순서 문서에 승인 정책 반영. 번호 재할당 가입 차단 가능성을 명시한다. Provider unlink 장애 복구는 제외하지 않는다.
+- 정책 문서만 수정했고 코드·Jira·운영 설정은 변경하지 않았다. 상태 조회 인증·재로그인과 지연 revoke·외부 변경 검증 등 상세 설계는 후속이다. 아래 내용은 확정 전 검토 경과다.
+
+<!-- codex-turn:01a08957-d1f0-79d0-ae09-a27ef2bed379 -->
+
+- 2026-09-10 정책 선택지 제시: 전화번호 셀프 변경 보류, 번호 재할당 문의 접수·검증된 별도 처리, 해제 후 남는 수단으로 재인증, 연결 해제 시 전체 자체 세션 폐기 및 Firebase UID revoke, 외부 실패 시 진행 상태 표시·복구를 권장안으로 제시했다. 모두 사용자 확정 전이며 실제 지원 도구·처리 SLA나 Provider별 독립 revoke를 보장하지 않는다. 마지막 허용 수단 보호·자동 merge 금지·현재 User 유지·fresh explicit relink 및 불일치 자동 반영 금지는 설계 안전 조건이다.
+
+<!-- codex-turn:01a08953-8bbe-7c50-b685-8b6151c8f05b -->
+
+- 2026-09-10 추가 검토: 사용자 전화번호 변경 미지원 제안은 아직 확정 전이다. 초기 버전의 셀프 변경 보류는 가능하나 영구 변경 금지와는 구분한다. 실제 번호 변경·재할당 시 기존 Firebase 번호 점유 및 신규 소유자 충돌 대응, Firebase 외부 변경 불일치 감지·거절 경계는 별도 설계가 필요하다. Stage 10 범위·코드·계약은 아직 변경하지 않았다.
+
+<!-- codex-turn:01a08951-8757-7692-8789-08d643683b41 -->
+
+- 고정 순서 문서 기준 다음은 로그인 수단 연결 해제 및 검증된 새 전화번호 교체다. 아직 전용 상세 계획·API 계약·Jira는 이번 작업에서 작성하거나 생성하지 않았다.
+- 현재 auth methods sync는 누락 SocialIdentity 추가용이며 삭제를 수행하지 않는다. PhoneIdentityService.linkOrReplace 기반은 있으나 공개 변경 lifecycle 완료를 뜻하지 않는다.
+- 기존 설계 원칙: fresh proof와 명시적 사용자 행위, 마지막 허용 로그인 수단 보호, 동일 User 유지, 다른 owner 자동 merge 금지, Firebase·Identity 부분 실패 복구. 구체 세션 폐기 범위·번호 교체 순서·Billing 혜택 처리 계약은 계획 단계에서 확정해야 한다.
+- 이번에는 설명·기록만 수행했다. Stage 9 및 선행 운영 검증과 기능 OFF는 그대로 유지한다.
+
+## 최근 완료 작업 — Stage 9 구현·검증
+
+<!-- codex-turn:01a08927-108f-7990-9055-c0a5ddbcbdf7 -->
+
+- 2026-09-10: 사용자 승인 후 완료 댓글 등록 및 Jira 완료 전환을 실행하고 공식 재조회로 완료 상태를 확인했다. PR #42, develop 589018f. 상세 이슈 및 댓글 식별자는 WORKLOG에 기록한다. 운영·모바일·실제 Mongo·키 검증은 별도 후속이며 활성화하지 않았다. 아래 항목은 완료 전 경과 기록이다.
+
+<!-- codex-turn:01a08924-532c-7153-a7a5-f04997bacd9f -->
+
+- 2026-09-10: GitHub API에서 PR #42의 develop 병합(589018f1435633104567537127f90b4bff683cc4, 2026-09-10 11:27:11 KST)을 확인했다. 공식 Jira 조회에서 TMI-130은 해야 할 일이며 완료 전환 가능하다. 완료 댓글 초안 및 해야 할 일→완료 전환 승인을 요청하며 아직 외부 변경하지 않았다. 기존 131 suite·788 tests 통과 기록을 인계하고 이번에는 Gradle 미실행. 실제 운영·모바일·키 검증 gate 유지.
 
 <!-- codex-turn:01a0891f-0584-7102-91de-3d5ba6a0d82c -->
 

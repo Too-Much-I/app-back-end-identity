@@ -85,46 +85,16 @@ class FirebaseAuthMethodsSyncServiceTests {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
-	void addsOnlyMissingSocialIdentityToCurrentCanonicalMember() {
-		SocialIdentity google = SocialIdentity.create(
-				member.getUserId(),
-				SocialProvider.GOOGLE,
-				"google-subject-sensitive",
-				NOW
-		);
-		when(socialRepository.findByProviderAndProviderSubject(
-				SocialProvider.GOOGLE,
-				"google-subject-sensitive"
-		)).thenReturn(Optional.of(google));
-		when(socialRepository.findByProviderAndProviderSubject(
-				SocialProvider.APPLE,
-				"apple-subject-sensitive"
-		)).thenReturn(Optional.empty());
-		when(socialRepository.findAllByUserId(member.getUserId())).thenReturn(List.of(
-				google,
-				SocialIdentity.create(
-						member.getUserId(),
-						SocialProvider.APPLE,
-						"apple-subject-sensitive",
-						NOW
-				)
-		));
-
-		FirebaseAuthMethodsSyncResponse response = service.sync(
-				new FirebaseAuthMethodsSyncRequest("sync-credential")
-		);
-
-		ArgumentCaptor<List<SocialIdentity>> captor = ArgumentCaptor.forClass(List.class);
-		verify(transactionService).saveMissing(captor.capture());
-		assertThat(captor.getValue())
-				.singleElement()
-				.satisfies(identity -> {
-					assertThat(identity.getUserId()).isEqualTo(member.getUserId());
-					assertThat(identity.getProvider()).isEqualTo(SocialProvider.APPLE);
-				});
-		assertThat(response.linkedProviders())
-				.containsExactlyInAnyOrder(SocialProvider.GOOGLE, SocialProvider.APPLE);
+	void missingSocialIdentityCannotBypassCommonLinkProtocol() {
+		assertThatThrownBy(() -> service.sync(new FirebaseAuthMethodsSyncRequest("sync-credential")))
+				.isInstanceOf(AuthException.class);
+		verify(transactionService, never()).saveMissing(any());
+	}
+	@Test
+	void legacyPermitCannotBypassStartAndComplete() {
+		assertThatThrownBy(() -> service.sync(new FirebaseAuthMethodsSyncRequest("sync-credential", "11111111-1111-4111-8111-111111111111")))
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
+		verify(transactionService, never()).saveMissing(any());
 	}
 
 	@Test
@@ -155,7 +125,7 @@ class FirebaseAuthMethodsSyncServiceTests {
 				new FirebaseAuthMethodsSyncRequest("sync-credential")
 		);
 
-		verify(transactionService).saveMissing(List.of());
+		verify(transactionService, never()).saveMissing(any());
 		assertThat(response.linkedProviders()).hasSize(2);
 	}
 

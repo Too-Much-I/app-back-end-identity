@@ -29,6 +29,11 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 
 /** All issuance and account mutation writers must contend on this Mongo document. */
 public class SessionSecurityService {
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChanges;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProviderChanges(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard guard) {
+		providerChanges = guard;
+	}
 	private final MongoTemplate mongo;
 	private final TransactionTemplate transactions;
 	private final UserRepository users;
@@ -85,6 +90,7 @@ public class SessionSecurityService {
 		if (newAuthentication && proof == null) throw unavailable();
 		control.validate(session.getSessionEpoch(), proof, newAuthentication);
 		if (proof != null && proof.source() == SessionAuthentication.Source.FIREBASE) {
+			if (providerChanges != null) providerChanges.authenticate(session.getUserId(), proof.firebaseBindingId(), proof.firebaseMethod(), proof.firebaseAuthTime());
 			var binding = identities.findById(proof.firebaseBindingId())
 					.orElseThrow(() -> new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT));
 			if (!binding.getUserId().equals(session.getUserId())) {
@@ -97,6 +103,7 @@ public class SessionSecurityService {
 
 	public void checkFirebaseAuthentication(String userId, SessionAuthentication proof) {
 		requireActive(userId);
+		if (providerChanges != null) providerChanges.authenticate(userId, proof.firebaseBindingId(), proof.firebaseMethod(), proof.firebaseAuthTime());
 		var control = control(userId);
 		control.validate(proof.epoch(), proof, true);
 		var binding = identities.findById(proof.firebaseBindingId())
@@ -107,6 +114,7 @@ public class SessionSecurityService {
 
 	public void validateExistingFirebaseProof(VerifiedFirebasePrincipal principal) {
 		identities.findByFirebaseProjectIdAndFirebaseUid(principal.firebaseProjectId(), principal.firebaseUid()).ifPresent(binding -> {
+			if (providerChanges != null) providerChanges.authenticate(binding.getUserId(), binding.getFirebaseIdentityId(), principal.signInMethod(), principal.authTime());
 			var control = control(binding.getUserId());
 			control.validate(control.getSessionEpoch(), new SessionAuthentication(control.getSessionEpoch(),
 					SessionAuthentication.Source.FIREBASE, binding.getFirebaseIdentityId(), principal.authTime()), true);
@@ -114,6 +122,7 @@ public class SessionSecurityService {
 	}
 
 	public boolean hasUnresolvedLogout(String userId) {
+		if (providerChanges != null && providerChanges.unresolved(userId)) return true;
 		return mongo.exists(Query.query(
 				Criteria.where("userId").is(userId)
 						.and("status").nin(LogoutAllOperation.Status.COMPLETED,
@@ -124,6 +133,17 @@ public class SessionSecurityService {
 	/** Called in the withdrawal transaction. Never abandons an actor which may still dispatch. */
 	public void handoffWithdrawal(String userId, Instant now) {
 		var control = control(userId);
+		// A pending/acknowledged provider actor cannot dispatch after this transaction:
+		// each dispatch checks ACTIVE and contends on the same user control. In-flight/unknown actors remain fenced.
+		for (var op : mongo.find(Query.query(Criteria.where("userId").is(userId).and("state").in(
+				web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation.State.PENDING,
+				web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation.State.UNLINK_ACKED,
+				web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation.State.REVOKE_ACKED)),
+				web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation.class)) {
+			op.finish(web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation.State.SUPERSEDED, now, now.plus(retention));
+			mongo.save(op);
+			if (op.slot().equals(control.getActiveLogoutId())) control.releaseLogout(op.slot());
+		}
 		var operations = mongo.find(Query.query(
 				Criteria.where("userId").is(userId)
 						.and("status").nin(LogoutAllOperation.Status.COMPLETED,
@@ -146,6 +166,9 @@ public class SessionSecurityService {
 		var control = control(userId);
 		control.touch(); mongo.save(control);
 		if (hasUnresolvedLogout(userId)) throw new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
+		// The enclosing release transaction deletes the exact Firebase/Social bindings too.
+		mongo.remove(Query.query(Criteria.where("_id").is(userId)),
+				web.tosunsaeng.identity.domain.auth.providerchange.AuthMethodChangeControl.class);
 	}
 
 	/** Physical marking is bounded and secondary to the logical epoch/authentication fence. */
@@ -186,7 +209,7 @@ public class SessionSecurityService {
 				.orElseThrow(() -> new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT));
 		if (!binding.getUserId().equals(userId)) throw new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
 		return new SessionAuthentication(epoch, SessionAuthentication.Source.FIREBASE,
-				binding.getFirebaseIdentityId(), principal.authTime());
+				binding.getFirebaseIdentityId(), principal.authTime(), principal.signInMethod());
 	}
 
 	public static AuthException unavailable() { return new AuthException(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE); }
