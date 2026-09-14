@@ -14,7 +14,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class ReissueNoStoreFilter extends OncePerRequestFilter {
 	@Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
-		if ((request.getContextPath() + "/api/v1/auth/reissue").equals(request.getRequestURI())) {
+		String path = request.getRequestURI().substring(request.getContextPath().length());
+		if ("/api/v1/auth/reissue".equals(path) || path.startsWith("/api/v1/auth/firebase/providers/")
+				|| "/api/v1/auth/firebase/auth-methods/sync".equals(path)) {
 			response.setHeader("Cache-Control", "no-store"); response.setHeader("Pragma", "no-cache");
 		}
 		chain.doFilter(request, response);

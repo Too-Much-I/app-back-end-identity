@@ -5,6 +5,15 @@ import org.springframework.http.HttpStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum AuthErrorStatus implements ErrorCode {
+	PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "PROVIDER_RATE_LIMITED", "인증 수단 변경 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+	PROVIDER_CHANGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_CHANGE_UNAVAILABLE", "인증 수단 변경을 일시적으로 사용할 수 없습니다."),
+	PROVIDER_CHANGE_CONFLICT(HttpStatus.CONFLICT, "PROVIDER_CHANGE_CONFLICT", "인증 수단 변경 상태를 확인해 주세요."),
+	PROVIDER_LAST_METHOD(HttpStatus.FORBIDDEN, "PROVIDER_LAST_METHOD", "마지막 로그인 수단은 해제할 수 없습니다."),
+	PROVIDER_REMAINING_AUTH_REQUIRED(HttpStatus.FORBIDDEN, "PROVIDER_REMAINING_AUTH_REQUIRED", "남는 로그인 수단으로 다시 인증해 주세요."),
+	PROVIDER_RELINK_REQUIRED(HttpStatus.CONFLICT, "PROVIDER_RELINK_REQUIRED", "명시적인 인증 수단 재연결이 필요합니다."),
+	PROVIDER_RELINK_EXPIRED(HttpStatus.CONFLICT, "PROVIDER_RELINK_EXPIRED", "재연결 허가가 만료되었습니다. 연결 상태를 확인해 주세요."),
+	PROVIDER_OPERATION_NOT_FOUND(HttpStatus.NOT_FOUND, "PROVIDER_OPERATION_NOT_FOUND", "인증 수단 변경 작업을 찾을 수 없습니다."),
+	INVALID_PROVIDER_REQUEST_ID(HttpStatus.BAD_REQUEST, "INVALID_PROVIDER_REQUEST_ID", "인증 수단 변경 요청 식별자가 올바르지 않습니다."),
 	INVALID_REISSUE_REQUEST_ID(HttpStatus.BAD_REQUEST, "INVALID_REISSUE_REQUEST_ID", "재발급 요청 식별자가 올바르지 않습니다."),
 	REISSUE_REQUEST_CONFLICT(HttpStatus.CONFLICT, "REISSUE_REQUEST_CONFLICT", "이미 사용한 재발급 요청 식별자입니다."),
 	REISSUE_RECOVERY_EXPIRED(HttpStatus.CONFLICT, "REISSUE_RECOVERY_EXPIRED", "재발급 응답 복구 기한이 지났습니다. 다시 인증해 주세요."),

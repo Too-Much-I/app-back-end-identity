@@ -193,13 +193,13 @@ public class FirebaseExchangeController {
 	}
 
 	@Operation(
-			summary = "MEMBER Firebase 인증수단 동기화",
+			summary = "MEMBER Firebase 승인 인증수단 확인",
 			description = "Identity JWT 사용자와 기존 FirebaseIdentity UID가 일치할 때 "
-					+ "fresh Firebase proof의 누락 SocialIdentity만 멱등하게 추가합니다."
+					+ "fresh Firebase proof의 기존 승인 목록만 검증합니다. 신규/재연결은 providers/link/prepare, start, complete를 사용하세요."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "연결된 소셜 Provider 동기화 성공"),
+			@ApiResponse(responseCode = "200", description = "기존 승인된 소셜 Provider 확인 성공"),
 			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "ACTIVE MEMBER가 아니거나 Provider 정책 위반", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "409", description = "Firebase 또는 Social identity 소유권 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),

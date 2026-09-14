@@ -17,7 +17,7 @@
 7. [ ] [Billing SigV4 eligibility와 owner event durable fan-out](billing-entitlement-owner-fanout-stage-7-plan.md)
 8. [ ] [logout-all Firebase refresh revoke](firebase-logout-all-revoke-stage-8-plan.md)
 9. [ ] [Refresh Token 응답 유실 복구와 rotation 원자성 개선](refresh-token-response-recovery-stage-9-plan.md) — TMI-130 코드·격리 테스트 구현, [운영·모바일 검증](refresh-token-response-recovery-stage-9-runbook.md) 대기
-10. [ ] Provider unlink와 전화번호 변경
+10. [ ] [Provider unlink](firebase-provider-unlink-stage-10-plan.md) — TMI-131 서버 구현·격리 테스트, [운영/모바일 검증과 STARTED 결과 불명 복구 gate](firebase-provider-unlink-stage-10-runbook.md) 대기. 전화번호 셀프 변경·예외 처리 보류
 11. [ ] Guest 생성 응답 유실 복구
 12. [ ] 기존 ACTIVE 회원의 Firebase rebind 정책
 
@@ -40,6 +40,25 @@
 - 10~12단계는 자동 merge 없이 fresh proof와 명시적 사용자 행위로만 인증수단을 변경·복구하도록 구현한다.
 - 각 단계에는 정상 흐름뿐 아니라 동시 요청, 외부 성공 후 내부 실패, 내부 성공 후 응답 유실, retry와 reconciliation 테스트를 포함한다.
 - 전체 선행 조건과 staging E2E가 완료되기 전에는 Firebase·Guest merge·eligibility publisher 관련 production flag를 활성화하지 않는다.
+
+## Stage 10 승인 정책 (2026-09-10)
+
+사용자는 제시된 선택지 중 2번 B, 나머지 1·3·4·5번 A를 승인했다. 이번 확정은 제품 정책과 개발 범위이며 구현 완료를 의미하지 않는다.
+
+1. 전화번호 셀프 변경 API·화면은 초기 버전에서 제공하지 않는다. 영구 변경 금지가 아니라 기능 보류이며, 신규 가입의 번호 인증과 기존 탈퇴·가입 중단 cleanup은 유지한다.
+2. 실제 번호 변경·재할당에 대한 예외 변경·복구 처리도 당분간 지원하지 않는다. 기존 번호 점유로 신규 소유자의 가입이 막힐 수 있고 현재 이를 해소하는 지원 절차를 제공하지 않는다는 제약을 안내한다. 번호 소유 증명만으로 기존 계정을 넘기거나 다른 User의 번호를 자동 해제하지 않는다. 이 보류는 Provider unlink 작업 자체의 장애 복구·운영 조정을 제외한다는 뜻이 아니다.
+3. Provider unlink는 해제 후 남는 허용 로그인 수단으로 최근 재인증한 뒤 요청한다. 마지막 허용 로그인 수단 제거는 금지하며 phone-only는 남는 로그인 수단으로 계산하지 않는다.
+4. 연결 해제 시 현재 기기를 포함한 모든 자체 세션을 종료하고 Firebase UID의 refresh revoke를 수행한다. 이후 남은 로그인 수단으로 재인증한다. Firebase revoke는 Provider별 선별 폐기가 아니며 이미 발급된 Access Token의 downstream 즉시 차단을 보장하는 정책도 아니다.
+5. 외부 처리는 진행 상태를 노출하는 비동기 방식으로 설계한다. Firebase·Identity 처리가 끝나기 전에 완료로 표시하지 않으며 부분 실패·결과 불명은 저장된 작업을 바탕으로 확인·복구한다. 결과 불명 mutation을 무조건 재전송한다는 의미는 아니다.
+
+유지할 안전 조건과 상세 계획의 후속 항목:
+
+- User와 사용자 기록은 유지한다. 다른 owner와 자동 merge하지 않는다.
+- 오래된 Firebase proof나 auth methods sync가 해제한 연결을 자동 복원하지 못하게 한다. 재연결은 명시적 사용자 행위와 새로운 인증 증거를 요구한다.
+- 2026-09-11 최종 승인·구현: 최초 연결과 재연결을 공통 prepare/start/complete/status로 통일한다. PREPARED는 비차단 만료, STARTED는 실행 종료 확인 전 보호 상태 유지. 기존 sync 신규 저장과 relink 전용 prepare를 폐기한다. 프론트·운영 전환 gate는 Stage 10 runbook을 따르며 feature flag 기본 OFF다.
+- 전화번호 변경 화면이 없어도 Firebase 외부 번호 변경은 발생할 수 있으므로, 불일치 자동 수용 금지 및 영향 경로 검증을 상세 계획에 포함한다. 변경 API 보류를 이유로 가입·탈퇴 내부 PhoneIdentity 기반을 제거하지 않는다.
+- 전체 세션 종료 뒤 처리 상태 조회 권한, 남는 수단 재로그인 및 지연 revoke의 영향, 재인증 유효기간, mutation 순서·완료 조건·retry·운영 조정은 상세 계획에서 정의한다. 기존 Stage 8 정책을 새 unlink lifecycle에 무조건 그대로 적용하지 않는다.
+- Billing의 전화번호 변경용 혜택 조정은 이번 범위에서 제외한다. 기존 가입·탈퇴·재가입의 혜택 계약은 유지한다.
 
 ## 완료 기준
 

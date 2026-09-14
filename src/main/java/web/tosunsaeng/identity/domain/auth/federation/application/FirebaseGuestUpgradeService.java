@@ -169,7 +169,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 			FirebaseIdentity sessionBinding = firebaseIdentityToCreate != null ? firebaseIdentityToCreate : currentFirebaseIdentity.orElseThrow();
 			preparedRefreshSession.session().attachAuthentication(new SessionAuthentication(
 					expectedEpoch, SessionAuthentication.Source.FIREBASE,
-					sessionBinding.getFirebaseIdentityId(), principal.authTime()));
+					sessionBinding.getFirebaseIdentityId(), principal.authTime(), principal.signInMethod()));
 		}
 		IssuedRefreshSession refreshSession;
 		try {

@@ -34,6 +34,22 @@ sentry:
     enabled: false
 
 app:
+  provider-change:
+    fence-enabled: ${FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED:false}
+    enabled: ${FIREBASE_PROVIDER_UNLINK_ENABLED:false}
+    worker-enabled: ${FIREBASE_PROVIDER_UNLINK_WORKER_ENABLED:false}
+    relink-enabled: ${FIREBASE_PROVIDER_RELINK_ENABLED:false}
+    link-enabled: ${FIREBASE_PROVIDER_LINK_ENABLED:false}
+    recent-auth: ${PROVIDER_UNLINK_RECENT_AUTH_MAX_AGE:PT5M}
+    permit-ttl: ${PROVIDER_RELINK_ATTEMPT_TTL:PT5M}
+    retention: ${PROVIDER_UNLINK_TERMINAL_RETENTION:P7D}
+    permit-retention: ${PROVIDER_RELINK_TERMINAL_RETENTION:PT24H}
+    lease: ${PROVIDER_UNLINK_LEASE:PT60S}
+    initial-backoff: ${PROVIDER_UNLINK_BACKOFF_INITIAL:PT5S}
+    max-backoff: ${PROVIDER_UNLINK_BACKOFF_MAX:PT5M}
+    max-attempts: ${PROVIDER_UNLINK_MAX_ATTEMPTS:12}
+    batch-size: ${PROVIDER_UNLINK_BATCH_SIZE:20}
+    poll-delay: ${PROVIDER_UNLINK_FIXED_DELAY:PT5S}
   reissue-recovery:
     enabled: ${AUTH_REISSUE_RECOVERY_ENABLED:false}
     maintenance: ${AUTH_REISSUE_RECOVERY_MAINTENANCE:false}

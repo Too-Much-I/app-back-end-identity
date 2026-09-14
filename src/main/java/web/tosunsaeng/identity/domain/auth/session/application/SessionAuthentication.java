@@ -5,7 +5,11 @@ import java.util.Objects;
 
 /** Server-verified authentication evidence; never derived from request account-type claims. */
 public record SessionAuthentication(long epoch, Source source, String firebaseBindingId,
-		Instant firebaseAuthTime) {
+		Instant firebaseAuthTime,
+		web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationMethod firebaseMethod) {
+	public SessionAuthentication(long epoch, Source source, String bindingId, Instant authTime) {
+		this(epoch, source, bindingId, authTime, null);
+	}
 	public enum Source { LOCAL, GUEST, FIREBASE }
 
 	public SessionAuthentication {
@@ -16,7 +20,7 @@ public record SessionAuthentication(long epoch, Source source, String firebaseBi
 				throw new IllegalArgumentException("Firebase binding is required.");
 			}
 			Objects.requireNonNull(firebaseAuthTime);
-		} else if (firebaseBindingId != null || firebaseAuthTime != null) {
+		} else if (firebaseBindingId != null || firebaseAuthTime != null || firebaseMethod != null) {
 			throw new IllegalArgumentException("Unexpected Firebase evidence.");
 		}
 	}

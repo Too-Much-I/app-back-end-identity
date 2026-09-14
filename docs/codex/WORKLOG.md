@@ -9346,3 +9346,425 @@
 - 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드·정책·외부 계약 변경 없음.
 - 검증: 정적 코드 확인 및 git diff --check 통과. 설명·기록 작업으로 Gradle 미실행.
 - 결정사항·위험·다음 작업: 기존 기능 OFF 및 운영 동시성 검증 gate 유지. 사용자 검토 후 기존 PR·운영 검증 진행. Jira 변경·commit·push 없음. Secret 기록 없음.
+
+## 2026-09-10 — TMI-130 병합 확인 및 Jira 종료 승인 요청
+
+<!-- codex-turn:01a08924-532c-7153-a7a5-f04997bacd9f -->
+
+- 날짜·브랜치: 2026-09-10, develop. Jira: TMI-130.
+- 작업 목표: 사용자 종료 요청에 따라 PR 병합 및 Jira 현황 확인 후 변경 내용을 제시한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드 변경 없음.
+- 확인 내용: GitHub API PR #42 MERGED, base develop, merge commit 589018f1435633104567537127f90b4bff683cc4, 병합 시각 2026-09-10T02:27:11Z. 로컬 HEAD 일치 및 작업 시작 시 clean 상태 확인.
+- Jira 작업·승인 여부: 공식 MCP로 본문·현재 상태 해야 할 일·완료 transition 41 조회. 댓글 및 완료 전환은 내용 제시 후 사용자 승인 대기; 아직 실행하지 않음.
+- Jira 댓글 초안 목적: 구현 완료와 테스트 결과 및 운영 검증 잔여를 인계한다. 최대 2분 동일 응답 복구·원자 회전·암호화 보관 구현, 주요 파일 ReissueRecoveryService/RefreshSession/AesGcmReissueResponseCipher 및 관련 테스트·runbook, 기존 131 suite·788 tests 성공, 실제 Mongo·모바일·키 운영 미검증 및 기능 OFF를 요약할 예정이다.
+- 테스트와 결과: 병합·Jira 읽기 확인 및 git diff --check. 상태 확인 작업이므로 Gradle 재실행하지 않음; 테스트 수치는 기존 구현 기록 기준.
+- 유지한 계약·결정사항: 코드 완료와 운영 활성화를 구분하고 운영 검증 gate 유지. 사용자에게 제시한 댓글·상태 변경 승인 전 외부 쓰기 금지.
+- 위험 요소·다음 작업: 승인 후 댓글 등록 및 완료 전환·재조회. 실제 Mongo·모바일·키 운영 검증은 별도 후속. 이번 예상 밖 변경·commit·push·배포 없음.
+
+## 2026-09-10 — TMI-130 Jira 완료 처리
+
+<!-- codex-turn:01a08927-108f-7990-9055-c0a5ddbcbdf7 -->
+
+- 날짜·브랜치: 2026-09-10, develop. Jira: TMI-130.
+- 작업 목표: 사전 제시한 완료 댓글·상태 전환을 사용자 승인 후 실행한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드 변경 없음.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 완료 댓글 10084 등록, transition 41로 해야 할 일→완료 변경, getJiraIssue 재조회에서 완료 확인.
+- 댓글 목적·승인 여부: 사용자 “어” 승인으로 구현 요약·주요 파일·기존 테스트 결과·병합 근거·운영 잔여 위험을 인계했다. 전체 댓글 본문은 복사하지 않는다.
+- 병합 근거: 직전 확인한 PR #42 develop 병합 commit 589018f1435633104567537127f90b4bff683cc4.
+- 테스트와 결과: Jira 완료 상태 재조회 및 git diff --check 통과. 업무 상태·문서 변경만 수행하여 Gradle 미실행; 131 suite·788 tests는 기존 구현 당시 결과로 명시했다.
+- 유지한 계약·결정사항: 코드 완료와 운영 활성화를 구분한다. 기능 기본 OFF, 기존 JWT/API/복구 계약 변경 없음.
+- 위험 요소·다음 작업: 실제 Mongo Transaction·모바일·키 운영 검증은 별도 후속. 검증 전 활성화 금지. 기존 변경 보존, 이번 예상 밖 변경·commit·push·배포 없음.
+
+## 2026-09-10 — 다음 Stage 10 작업 설명
+
+<!-- codex-turn:01a08951-8757-7692-8789-08d643683b41 -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음; 직전 완료 이슈 TMI-130.
+- 작업 목표: 고정 구현 순서에 따른 다음 작업과 기존 기반·미확정 정책을 사용자에게 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계약 문서 변경 없음.
+- 확인 내용: firebase-auth-follow-up-implementation-order의 10단계, social-login-implementation-plan의 unlink 원칙, frontend-firebase-auth-integration-guide의 sync 경계, FirebaseAuthMethodsSyncService 및 PhoneIdentityService를 확인했다. sync는 누락 연결 추가이고 PhoneIdentity linkOrReplace는 내부 기반이며 전용 변경 lifecycle의 완료 증거는 아니다.
+- 설명 내용: 계정을 유지한 SNS 연결 해제, 마지막 허용 로그인 수단 보호, 새 번호 인증 후 교체, Firebase와 Identity 부분 성공 복구, 기존 토큰 및 Billing 혜택 연동 검토가 다음 범위다. 번호 변경만으로 신규 무료권 발급이나 다른 계정 이력 자동 연결을 확정하지 않는다.
+- 결정사항·유지 계약: fresh proof·명시적 사용자 행위·자동 merge 금지 원칙 유지. 구체 mutation 순서·세션 폐기 범위·혜택 변경 계약은 후속 계획에서 확정하며 이번 설명을 구현 승인으로 해석하지 않는다. 기능 OFF 및 선행 운영 gate 유지.
+- 검증: 소스·문서 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 위험 요소: Firebase 외부 상태 변경은 Mongo Transaction으로 함께 rollback할 수 없으며 재처리·조정 설계 필요. 기존 회원의 번호 변경과 무료권 정책 미확정.
+- 다음 작업: 사용자 요청 시 Stage 10 결정사항·상세 계획 작성. Jira 조회·생성·댓글·상태 변경 없음. 기존 문서 변경 보존, 이번 예상 밖 변경·commit·push 없음.
+
+## 2026-09-10 — 전화번호 변경 미지원 정책 검토
+
+<!-- codex-turn:01a08951-8757-7692-8789-08d643683b41 -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 사용자 제안인 전화번호 변경 미지원의 장단점과 남는 안전장치를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획·외부 계약 변경 없음.
+- 확인·분석: 기존 계약은 phone-only 로그인 거절 및 동일 Firebase User phone credential link다. 셀프 변경을 보류하면 변경용 분산 처리와 혜택 연결 조정 범위를 줄일 수 있지만 번호 재할당·장기 점유 문제를 없애지는 않는다. primary SNS 접근 가능성과 민감 작업 추가 인증 조건을 구분한다.
+- 결정사항: 초기 버전 셀프 변경 미지원 권장안을 제시하되 아직 사용자 확정으로 해석하지 않는다. Firebase 외부 상태 변경 감지·거절, 기존 가입·탈퇴 cleanup 유지, 번호 재할당 시 지원 정책 검토가 필요하다. 자동 owner 연결·무료권 추가 지급은 승인하지 않았다.
+- 검증: 관련 계약 정적 확인 및 git diff --check. 설명·기록 작업이므로 Gradle 미실행.
+- 위험 요소: 앱 UI 제거만으로 Firebase credential 변경이 차단되는 것은 아니며, 번호 재할당 시 Firebase/Identity 불일치와 계정 보호를 별도 검토해야 한다.
+- 다음 작업: 사용자 정책 확정 후 Stage 10 범위 조정 여부 결정. Jira 변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+### 전화번호 변경 미지원 검토 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a08953-8bbe-7c50-b685-8b6151c8f05b -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 Jira 없음.
+- 작업 목표·내용: 앱 내 전화번호 변경 보류의 장점과 번호 재할당·기존 점유·Firebase 외부 변경 불일치 위험을 설명했다. 영구 금지와 초기 기능 보류를 구분하며 사용자 정책 확정 전이다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계약 변경 없음.
+- 검증: git diff --check 통과. 설명·기록만 변경하여 Gradle 미실행.
+- 유지한 계약·결정사항: 가입 인증과 탈퇴·가입 중단 cleanup 유지. 자동 계정 연결 금지. Stage 10 범위는 아직 변경하지 않았다.
+- 위험·다음 작업: 번호 재할당 지원 및 외부 변경 검증은 후속 설계 필요. 사용자 확정 후 계획 범위 조정 여부 결정. Jira 변경·commit·push 없음. Secret 기록 없음.
+
+## 2026-09-10 — Stage 10 사용자 결정 선택지·장단점 안내
+
+<!-- codex-turn:01a08957-d1f0-79d0-ae09-a27ef2bed379 -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 전화번호 변경 보류 제안을 포함한 Stage 10 정책 선택지와 장단점을 제시한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계약·계획 변경 없음.
+- 확인 근거: social-login-implementation-plan의 unlink 원칙, frontend-firebase-auth-integration-guide의 추가 sync 경계, 현재 진행 기록.
+- 제안 내용: 번호 셀프 변경 보류 대 즉시 구현, 번호 문제의 문의·검증 처리 대 복구 미지원, 남는 수단 재인증 대 어느 수단이든 재인증, 전체 세션 종료 대 특정 인증수단 세션 선별 종료, 비동기 진행 상태 대 단기 대기 후 진행 상태 fallback의 장단점을 설명한다.
+- 결정사항: 권장안은 아직 미승인. 번호 소유만으로 계정 연결 금지, 마지막 로그인 수단 보호, 변경 완료까지 진행 상태 보존, 과거 sync로 해제 수단 부활 금지, 재연결은 명시적 fresh proof 원칙을 유지한다. 수동 지원 도구가 구현됐다고 주장하지 않는다.
+- 테스트와 결과: 문서 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 위험 요소: Firebase revoke는 UID 전체에 적용되고 Provider별 폐기가 아니다. 기존 Access Token 즉시 downstream 차단은 별도 정책이며 세션 종료와 혼동하지 않는다. 번호 재할당 지원은 별도 검증과 도구 필요.
+- 다음 작업: 사용자 정책 승인 후 Stage 10 계획 작성·범위 조정. Jira 변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+## 2026-09-10 — Stage 10 정책 확정 반영
+
+<!-- codex-turn:01a0895f-5f28-78c0-819e-f8416f030071 -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 사용자 승인인 2번 B·나머지 A를 구현 순서 및 현재 상태에 반영한다.
+- 변경 파일: docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- 반영 내용: Stage 10은 Provider unlink 중심으로 축소하고 전화번호 셀프 변경·예외 변경/복구 보류, 남는 수단 재인증, 모든 자체 세션 종료·Firebase UID revoke, 비동기 진행 상태·부분 실패 복구를 명문화했다.
+- 유지한 계약·결정사항: 신규 가입 번호 인증과 탈퇴·가입 중단 cleanup, 기존 Billing 혜택 계약 유지. 마지막 로그인 수단 제거·자동 merge 금지. 번호 예외 처리 미지원과 unlink 자체의 장애 복구 필요성을 구분한다. 코드·API·운영 설정 변경 없음.
+- 검증: git diff --check 및 이번 문서 diff 검토. 문서만 변경하여 Gradle 미실행.
+- 위험 요소: 번호 재할당 시 가입 차단에 대한 지원이 당분간 없다. 기존 Access Token 즉시 downstream 차단은 별도다. 상태 조회 권한·재로그인과 지연 revoke·외부 번호 변경 검증·mutation 순서 등은 상세 설계에서 확정해야 한다.
+- 다음 작업: 승인 정책 기반 Stage 10 상세 계획 작성. Jira 조회·생성·댓글·상태 변경 없음. 기존 문서 변경 보존, 이번 예상 밖 변경·commit·push 없음.
+
+## 2026-09-10 — 탈퇴 후 동일 SNS·새 번호 재가입 가능 여부 확인
+
+<!-- codex-turn:01a08963-33f2-7c22-8b1a-cd9145b5fb3a -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 번호 변경 미지원 정책과 탈퇴 후 신규 가입 흐름을 구분한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계약 변경 없음.
+- 확인 근거: FirebaseExchangeService의 owner 부재 시 enrollment 응답, FirebaseSignupService의 현재 verified phone 기반 신규 회원 생성과 owner conflict 검사, WithdrawalEnrollmentGate 및 Stage 3 계획의 CLEANED release 계약.
+- 확인 결과: 탈퇴 cleanup·인증 연결 해제가 완료된 뒤 동일 SNS로 신규 Firebase 인증·enrollment를 진행하고 새 번호를 검증·연결하여 신규 User로 가입할 수 있다. 기존 탈퇴 계정을 되살리거나 기록을 자동 이전하는 흐름은 아니다. 새 번호가 다른 owner에게 점유되어 있으면 기존 충돌 거절 유지.
+- 결정사항·유지 계약: 기존 회원 번호 교체 보류와 신규 가입 허용은 별개이며 정책 추가 변경 없음. 무료 혜택은 Billing의 별도 판정이고 새 번호 연결만으로 초기화를 보장하지 않는다.
+- 검증: 소스·문서 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: 실제 Firebase/mobile 재가입 E2E 및 기존 운영 활성화 gate는 미검증 상태 유지. 탈퇴 접수 즉시 재가입 가능하다고 보장하지 않는다.
+- 다음 작업: 확정된 Stage 10 정책 기반 상세 계획. Jira 변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+## 2026-09-10 — SNS 해제 재인증 정책의 Kakao 포함 확인
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 Jira 없음.
+- 작업 목표·확인: SocialProvider 및 FirebaseAuthenticationMethod의 KAKAO 정의를 확인하고, 해제 후 남는 수단 재인증 정책에 카카오도 포함됨을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·정책 변경 없음.
+- 유지 계약·결정사항: 동일 User에 연결된 허용 Provider 중 해제 대상을 제외한 하나로 재인증한다. 마지막 수단 제거 금지 및 phone-only 제외 유지.
+- 검증: 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험·다음 작업: 카카오 운영 설정·활성화 확인은 별도이며 기능 준비 완료를 주장하지 않는다. 기존 Stage 10 상세 계획 후속 유지. Jira 변경·commit·push 없음.
+
+### Kakao 재인증 범위 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a08964-0171-7521-b62e-6a5a291ea9ef -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 Jira 없음.
+- 작업 목표·내용: Google·Apple·Kakao 중 동일 계정에 연결된 허용 수단에서 해제 대상을 제외한 하나로 재인증하는 정책을 확인했다. 마지막 수단 제거 금지는 유지한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·정책 변경 없음.
+- 검증: git diff --check 통과. 설명·기록 작업으로 Gradle 미실행.
+- 위험·다음 작업: 실제 Kakao 운영 활성화는 별도 검증 사항이다. 기존 Stage 10 상세 계획 후속 유지. Jira 변경·commit·push 없음. Secret 기록 없음.
+
+## 2026-09-10 — Stage 10 Provider unlink 상세 계획서 작성
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 사용자 승인 정책 1-A/2-B/3-A/4-A/5-A에 따른 저장소 구현 계획서를 작성한다.
+- 변경 파일: docs/contracts/firebase-provider-unlink-stage-10-plan.md 신규, docs/contracts/firebase-auth-follow-up-implementation-order.md 링크 갱신, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- 작성 내용: 5줄 결론·필독·확정/제안·위험·상세 설계·부록 구조로 접수/로그아웃 후 상태 조회 API, 재연결 준비 제안, remaining Provider 증거, operation/control/TTL, 접수 Transaction, unlink/revoke phase, 원격 actor 결과 불명과 공통 coordinator, stale sync·phone drift·탈퇴 연계, U01~U30 검증표를 정리했다.
+- 근거: AGENTS.md, 기존 Stage 8/9 계획과 UserSessionControl/SessionSecurityService/revoke worker/Firebase verifier/Principal/SocialIdentity/BaseResponse 및 sync 코드를 확인했다. SDK unlink 지원·실제 reauth 출처·actor 종료 증거는 검증된 사실이 아닌 후속 gate로 구분했다.
+- 결정사항·유지 계약: 전화번호 변경·예외 처리 미지원, 가입/탈퇴 cleanup·User 기록·JWT/기존 API 유지. 신규 URL은 하이픈 없이 제안. 구현 승인·신규 relink 프론트 계약·운영 활성화는 문서 작성과 구분한다.
+- 검증: 신규 문서 로컬 링크 17건 확인, 누락 0. git diff --check 통과. 계획 문서만 변경하여 Gradle 미실행. 기존 문서 미커밋 변경 보존.
+- 위험 요소: 원격 mutation 결과 불명·SDK 자동 retry·외부 provider/phone drift·모바일 status/relink·실제 Mongo Transaction 검증 필요. 기능 기본 OFF, 확인 전 활성화 금지.
+- 다음 작업: 상세 계획 검토·구현 범위 승인 후 Jira 생성 초안 제시 및 구현. Jira 조회·변경·commit·push·배포 없음. 이번 예상 밖 파일 변경 없음.
+
+### Stage 10 계획서 작성 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a08965-bee5-7ea3-9536-c1cb3b6064a8 -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 Jira 없음.
+- 작업 목표·내용: 승인된 SNS 연결 해제 정책에 따라 상세 구현 계획서를 작성했다. 재인증·접수·상태 조회·전체 세션 폐기·unlink/revoke·실패 복구·재연결 제안·30개 검증 항목을 포함했다.
+- 변경 파일: docs/contracts/firebase-provider-unlink-stage-10-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 로컬 링크 17건 존재, 누락 0. git diff --check 통과. 신규 미추적 계획서는 no-index --check에서 공백 오류 출력 없음. 문서만 변경하여 Gradle 미실행.
+- 유지 계약·결정사항: 전화번호 변경·예외 처리 보류와 기존 가입·탈퇴·JWT 계약 유지. 추가 relink 절차는 구현 전 검토할 제안으로 구분했다.
+- 위험·다음 작업: Firebase·모바일·실제 Mongo 검증 및 상세 계획 승인 후 구현. 코드·Jira·운영 설정·commit·push 변경 없음. Secret 기록 없음.
+
+## 2026-09-10 — Stage 10 계획 사용자 관점 설명
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 진행 Jira 없음.
+- 작업 목표: 작성된 Stage 10 계획을 Google 연결 해제 예시와 장애 사례로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 계획·코드 변경 없음.
+- 확인·설명: 계획서의 확정 정책/제안/API/데이터/worker/동시성/운영 항목을 재확인했다. 사용자 계정 유지, 남는 SNS 재인증, 원자 접수와 전체 세션 종료, 비동기 Firebase unlink/revoke, 상태 조회 인증, exact SocialIdentity 삭제, stale sync 방지, 재연결 permit 제안, 기록 보존과 테스트 목적을 설명한다.
+- 유지 계약·결정사항: 번호 변경·재할당 예외 처리 미지원과 신규 가입·탈퇴 cleanup 유지. 상태 조회 자체는 Token 발급이 아니며 처리 중 허용된 남는 수단 로그인과 구분한다. 실제 Firebase·모바일·Mongo 검증 전 OFF 유지.
+- 검증: 계획 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 위험 요소: 지연 revoke로 새 Firebase 기반 세션도 재인증이 필요할 수 있다. 외부 결과 불명은 무조건 mutation 재시도하지 않는다. relink permit·수치·세부 API는 구현 전 검토할 제안이다.
+- 다음 작업: 사용자 계획 검토 후 구현 범위 승인·Jira 초안. Jira 조회·변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+### Stage 10 계획 설명 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a0896a-53b2-7aa3-9892-084c384d1c3d -->
+
+- 날짜·브랜치: 2026-09-10, develop. 신규 Jira 없음.
+- 작업 목표·내용: Google 연결 해제 예시로 남는 SNS 재인증, 원자적 접수·전체 세션 종료, worker 처리, 로그아웃 후 상태 조회, 외부 실패 복구, 오래된 sync 차단과 재연결 제안을 설명했다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획·외부 계약 변경 없음.
+- 검증: git diff --check 통과. 설명·기록 작업으로 Gradle 미실행.
+- 유지한 계약·결정사항: 승인된 전화번호 변경·예외 처리 보류 유지. 재연결 준비 절차·API·보존 수치는 구현 전 검토할 설계안으로 구분했다.
+- 위험·다음 작업: 실제 Firebase·모바일·Mongo 검증 및 지연 revoke 영향은 후속 확인 대상이다. 사용자 검토 후 구현 범위 승인·Jira 초안. 기존 변경 보존, Jira 변경·commit·push 없음. Secret 기록 없음.
+
+## 2026-09-11 — Stage 10 상태 조회·재연결 제안 설명
+
+<!-- codex-turn:01a08e03-52d2-7b53-81f6-11eacc10fcb7 -->
+
+- 날짜·브랜치: 2026-09-11, develop. 신규 진행 Jira 없음.
+- 작업 목표: 앞선 설명 4번의 로그아웃 후 상태 확인을 쉽게 설명하고 6번의 자동 재연결 방지·명시적 relink 절차를 사용자 검토용으로 정리한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획 변경 없음.
+- 확인 내용: Stage 10 계획 5.2의 unlink/status/relink 계약을 재확인했다. Firebase 증거 기반 상태 조회와 자체 로그인 토큰 발급은 분리되고, 유효기간 안의 동일 증거로 조회를 반복할 수 있으나 revoke 영향 시 새 인증이 필요하다.
+- 결정사항·유지 계약: 오래된 sync의 자동 부활 차단은 유지한다. 명시적 재연결 지원·일회성 prepare와 초기 재연결 미지원의 장단점은 검토안이며 새 정책 확정으로 해석하지 않는다. 남는 수단 본인 인증과 새로 붙이는 계정의 소유 증명을 모두 요구하는 기존 제안 유지.
+- 검증: 계획 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 미실행.
+- 위험 요소: status 증거 만료·지연 revoke 시 재인증 UX, 이미 시작된 원격 해제 종료 확인 전 relink 불가, 별도 프론트 구현 필요. 단순 Firebase 로그인과 기존 계정 연결 행위는 다르다.
+- 다음 작업: 재연결 제안에 대한 사용자 검토 후 계획 확정. Jira 조회·변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+## 2026-09-11 — Stage 10 재연결 범위 승인 반영·추가 주의사항 안내
+
+<!-- codex-turn:01a08e0a-9803-77f1-ba6a-4da68ccb871c -->
+
+- 날짜·브랜치: 2026-09-11, develop. 신규 진행 Jira 없음.
+- 작업 목표: 사용자 재연결 A안 승인을 계획에 반영하고 구현 전 알아둘 제약을 설명한다.
+- 변경 파일: docs/contracts/firebase-provider-unlink-stage-10-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- 반영 내용: 명시적 재연결 지원·일회성 준비·기존 계정과 연결할 SNS 양쪽 인증의 범위 승인을 기록했다. 신규 API 상세·설정값 및 Provider 검증은 계획/미확인 상태를 유지한다. 코드 구현은 이번 질문의 실행 범위로 해석하지 않았다.
+- 유지 계약·결정사항: 기존 1-A/2-B/3-A/4-A/5-A와 번호 변경 보류 유지. 지연 revoke로 재인증 가능, 처리 불명 시 해당 변경 제한, 남는 수단 정상 로그인 허용의 조건, 모바일 구현 및 운영 gate를 안내한다.
+- 검증: git diff --check. 문서 변경만 수행하여 Gradle 미실행.
+- 위험 요소: 원격 이전 호출 종료 확인이 안 되면 relink를 무조건 허용할 수 없다. 작업 이력 TTL과 장기 provider 차단 상태를 구분하며 SDK·카카오 설정·Mongo 실제 검증은 완료 전이다.
+- 다음 작업: 상세 계획 기준 구현 착수 절차·필요 시 Jira 생성 초안 제시. Jira 조회·생성·댓글·상태 변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+## 2026-09-11 — 재인증·재연결 준비 5분의 의미 설명
+
+<!-- codex-turn:01a08e14-051e-7712-8d3c-2459fd3f7854 -->
+
+- 날짜·브랜치: 2026-09-11, develop. 신규 Jira 없음.
+- 작업 목표: 서로 다른 두 PT5M 설정의 기준 시각과 만료 효과를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획 변경 없음.
+- 확인 내용: Stage 10 계획의 recent auth max age와 relink attempt TTL을 재확인했다. 전자는 실제 인증 시각 기준 최대 나이, 후자는 prepare 발급 시각 기준 일회성 허가 만료이며 독립 검사다.
+- 유지 계약·결정사항: 5분은 아직 제안값이다. 로그인 수명·강제 대기·접수된 worker 완료 제한으로 해석하지 않는다. 만료가 원격 변경을 자동 rollback하거나 기존 계정을 삭제하지 않는다.
+- 검증: 문서 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 위험 요소: 원격 link 시도 후 결과 불명은 기한 만료만 보고 신규 작업으로 반복하면 안 되며 기존 상태 확인·복구가 필요하다.
+- 다음 작업: 사용자 검토 및 Stage 10 구현 착수 절차. Jira 변경·commit·push 없음. 기존 변경 보존, 이번 예상 밖 변경 없음.
+
+## 2026-09-11 — Stage 10 Jira 생성 초안 및 중복 확인
+
+<!-- codex-turn:01a08e2a-4c51-76e1-bfe0-9c433d182d9b -->
+
+- 날짜·브랜치: 2026-09-11, develop. 신규 Jira 키 없음.
+- 작업 목표: 사용자 생성 요청에 따라 변경 내용을 먼저 제시하고 승인받는다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획 변경 없음.
+- Jira 작업: 이전 tool 이름은 사용 불가하여 현재 공식 Atlassian Rovo 도구를 발견한 뒤 TMI 프로젝트의 Stage 10/unlink/재연결 제목 검색을 수행했다. 결과 0건. 생성·댓글·상태 전환 미실행.
+- 생성 초안: 작업 유형, 제목 `[Identity][Stage 10] SNS 연결 해제 및 명시적 재연결 lifecycle 구현`. Stage 10 계획을 기준으로 남는 Provider 재인증, 전체 자체 세션 폐기·Firebase unlink/revoke, 비동기 상태/복구, stale sync 차단·일회성 relink, 기존 lifecycle 경합 및 U01~U30 검증을 포함한다.
+- 승인 여부·댓글 목적: 생성 내용 승인 대기. 댓글 등록 계획 없음. 번호 변경·예외 지원·Billing/LC 변경·운영 배포는 제외하고 코드 완료와 실제 환경 검증을 구분한다.
+- 검증: 공식 Jira 읽기 조회 및 git diff --check. 문서 작업으로 Gradle 미실행.
+- 위험 요소: Firebase/모바일·실제 Mongo·지연 mutation 증빙은 후속 gate이며 기능 기본 OFF 유지. 새 API·설정은 계획 기준으로 명시한다.
+- 다음 작업: 사용자 승인 후 이슈 생성·재조회 및 키 문서 반영. 기존 변경 보존, 이번 예상 밖 변경·commit·push 없음.
+
+## 2026-09-11 — TMI-131 Stage 10 Jira 생성
+
+- 날짜·브랜치: 2026-09-11, develop.
+- Jira: TMI-131.
+- 작업 목표: 사용자가 승인한 Stage 10 등록 내용으로 신규 작업을 생성한다.
+- 변경 파일: docs/contracts/firebase-provider-unlink-stage-10-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md append.
+- Jira 작업·승인 여부: 사전 초안에 대한 사용자 “어 생성해줘” 승인 후 공식 Atlassian MCP로 작업 생성, TMI-131 재조회로 제목·유형·상태 해야 할 일 확인. 별도 댓글 없음, 생성 후 상태 전환 없음.
+- 등록 내용 요약: 남는 SNS 재인증·전체 세션 종료·Firebase unlink/revoke·상태 조회·부분 실패 복구·자동 재연결 방지·일회성 relink·U01~U30·운영 OFF gate. 전체 본문은 작업 기록에 복사하지 않는다.
+- 유지 계약·결정사항: 번호 변경·예외 지원 및 Billing/LC 변경 제외, 기존 인증·가입·탈퇴 계약 유지. 코드 완료와 운영 검증 구분.
+- 검증: 생성 후 공식 조회 및 git diff --check. 문서·Jira 작업으로 Gradle 미실행.
+- 위험 요소: 실제 Provider·모바일·Mongo·지연 actor 검증 전 활성화 금지. 코드 구현 전 상태 유지.
+- 다음 작업: 이슈 키를 포함한 구현 브랜치 준비 및 사용자 구현 요청에 따라 착수. 현재 브랜치는 변경하지 않았다. 기존 변경 보존, 이번 예상 밖 변경·commit·push 없음.
+
+### TMI-131 생성 — 현재 turn 기록 확인
+
+<!-- codex-turn:01a08e2b-1ca2-7f50-b11a-4097ccbe602e -->
+
+- 날짜·브랜치: 2026-09-11, develop. Jira: TMI-131.
+- 작업 목표·내용: 사전 제시한 내용에 대한 사용자 승인 후 공식 Atlassian MCP로 Stage 10 작업을 생성하고 재조회했다. 상태는 해야 할 일이다.
+- 변경 파일: docs/contracts/firebase-provider-unlink-stage-10-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- Jira 작업·승인: 생성 승인 확인, 신규 이슈 생성 완료. 댓글 등록·별도 상태 전환 없음.
+- 검증: git diff --check 통과. 코드 변경이 없어 Gradle 미실행.
+- 유지 계약·위험·다음 작업: 코드 구현 전·기능 OFF 및 실제 환경 검증 조건 유지. 구현 브랜치 준비 후 착수. 기존 변경 보존, commit·push 없음. Secret 기록 없음.
+
+## 2026-09-11 — TMI-131 Stage 10 SNS unlink·명시적 relink 서버 구현
+
+<!-- codex-turn:01a08e2d-579d-7ef1-af6e-5291712c4eb4 -->
+
+- 날짜·브랜치: 2026-09-11, `feat/TMI-131-provider-unlink-relink-lifecycle`.
+- Jira: TMI-131. 구현 전에 공식 Atlassian MCP로 본문/완료 조건/상태를 읽었다. 상태 해야 할 일. 구현 승인만 사용했으며 Jira 댓글·상태 전환·수정 없음. 댓글 초안은 runbook에만 작성했다.
+- 작업 목표: 승인된 남는 SNS 재인증·전체 자체 세션 무효화·Firebase exact unlink/revoke·상태 복구·명시적 relink 및 stale sync 차단을 구현한다. 전화번호 변경/예외·Billing/LC·운영 배포는 제외한다.
+- 변경 파일:
+  - 신규 `domain/auth/providerchange/`의 Service/Controller/Guard/Configuration/Properties/UnlinkOperation/RelinkAttempt/AuthMethodChangeControl/Worker/MutationPort/RequestFilter/RequestBudget/Metrics.
+  - 신규 `FirebaseProviderMutationHttpAdapter`, providerchange 격리 테스트 4종 및 adapter tests.
+  - `FirebaseAuthMethodsSyncService`, sync Request, `FirebaseAdminAuthenticationVerifier`, `FirebaseSignupService`, `FirebaseGuestUpgradeService`, `SessionAuthentication`, `SessionSecurityService`, `AuthErrorStatus`, `ReissueNoStoreFilter`, `SecurityConfig`, `application.yml`.
+  - 기존 `FirebaseExchangeServiceTests`, `SecurityIntegrationTests`, IdentityApplication/DisabledSwagger/SentryCapture integration tests의 Mongo guard mock 경계. 테스트에서만 외부 Mongo 자동설정을 제외하는 기존 방식을 유지했다.
+  - Stage 10 계획·신규 runbook·구현 순서·프론트 가이드·CURRENT_STATE 및 이 WORKLOG append.
+- 구현 내용: 단일 UUID v4 Idempotency-Key 해시 기반 접수와 epoch 1회 증가, provider block/operation/common slot 원자 저장. 사용자 JWT 없는 status는 남는 SNS Firebase 소유권·최근 인증으로 보호하며 Token을 발급하지 않는다. worker의 durable dispatch marker와 ACK/inspect 검증 뒤 exact SocialIdentity만 삭제한다. DB/외부 결과 불명은 재dispatch하지 않고 증거·slot을 보존한다. unknown revoke에서 확보한 관측 경계로 영향받은 새 세션도 차단한다.
+- 구현 내용: 재연결 prepare와 post-prepare 대상 SNS 증거·일회성 sync, owner/binding/revision/expiry 검사. epoch 및 change revision을 원격 검증 전에 캡처하고 같은 Transaction에서 비교한다. operation TTL 이후에도 control 차단을 유지한다. 기존 session control slot을 logout/unlink/relink가 공유하며 탈퇴 dispatch/release에 barrier를 연결했다.
+- 보안·운영: 기본 flag false, no-store, 요청 24 KiB/원격 응답 64 KiB 제한, 인스턴스별 socket 120회/분·검증 owner 60회/분 및 map capacity 10,000, 고정 outcome/phase metric. 원격 mutation retry/redirect/401 response handler OFF. 원문 인증정보 저장/로그 출력 없음.
+- 실행한 검증과 결과:
+  - 중간 compile 및 focused tests 수행. 401 credential response-handler 경로, 테스트에서 누락된 Mongo guard mock, SessionAuthentication 신규 필드 matcher, SimpleMeterRegistry 테스트 resource 구문 오류를 발견해 수정했다.
+  - 최종 `./gradlew clean test --console=plain` 성공: 136 suites / 854 tests, failures=0 / errors=0 / skipped=0. Gradle cache 접근 제한으로 clean test는 승인된 외부 sandbox 실행을 사용했다.
+  - 집중 정상/멱등/old proof/버전 경합/rollback fault/늦은 ACK/unknown revoke/실제 HTTP security 및 full suite 회귀 성공. 실제 Atlas·Firebase·SNS Provider 호출 없음.
+  - `git diff --check` 성공. 기존 미커밋 문서·과거 WORKLOG 보존, 예상 밖 도메인 변경 없음.
+- 유지·변경 계약: 신규 API 세 개와 sync의 선택적 linkAttemptId 추가. 기존 URL/BaseResponse, 사용자 RS256/JWKS/account_type/workload JWT, 자체 토큰 TTL/rotation, User/FirebaseIdentity/PhoneIdentity 및 다른 Provider 소유권, Billing/LC/S3/Redis/AI 계약 유지. 신규 자체 세션에 실제 인증 수단 저장, legacy null 문서는 호환 읽기 유지.
+- 결정사항: 별도 coordinator document 대신 versioned UserSessionControl.activeLogoutId에 unlink:/relink: namespace 사용. 기존 Firebase timeout 설정 재사용. 외부 성공을 모르는 상태에서는 안전장치를 제거하지 않는다.
+- 위험 요소: 미소비 prepare는 앱에서 link를 시작했는지 확정할 수 없으므로 준비만 하고 중단해도 자동 만료 삭제/slot 해제하지 않는다. 일반 remaining 로그인은 가능하나 후속 변경·외부 탈퇴 정리가 운영 확인을 기다릴 수 있다. 이 제약의 release 수용 또는 client 시작/취소 증빙 보완을 운영 활성화 전 검토한다. generic 수동 재시도 API/무조건 DB unlock 명령을 제공하지 않았다.
+- 배포 전: 실제 replica set rollback/인덱스/다중 instance 경합/P99, Provider별 reauth와 auth_time/link/revoke, unknown actor 종료/만료 permit 복구 리허설, trusted proxy/분산 quota, dashboard/경보 확인. in-memory snapshot rollback은 실제 Mongo Transaction 증거가 아니다. 계획 U01~U30의 외부 검증 잔여를 runbook에 분리했다.
+- 다음 작업: 사용자 코드 검토와 직접 commit/push/PR, 위 운영 제한 확인 및 이전 합의대로 통합 staging 검증. 기능 기본 OFF 유지, commit·push·배포·Jira 상태 변경 없음.
+
+## 2026-09-11 — TMI-131 구현 코드와 사용자 흐름 설명
+
+<!-- codex-turn:01a08e94-0c14-7612-b199-f983553c93dc -->
+
+- 날짜·브랜치: 2026-09-11, `feat/TMI-131-provider-unlink-relink-lifecycle`.
+- Jira: TMI-131. 설명 요청으로 Jira 조회/수정/댓글/상태 전환 없음.
+- 작업 목표: 구현된 SNS 해제·재연결을 실제 코드 발췌와 Google/Apple/Kakao 예시로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 설명 이력 갱신. 애플리케이션·계약·설정 변경 없음.
+- 확인·설명 내용: 남는 SNS signInMethod·최근 auth_time 검증, request hash 중복 처리, epoch/block/operation 공통 Transaction, remote slot과 durable dispatch/ACK, 별도 Firebase revoke 및 exact SocialIdentity 삭제, status 소유권 검증, operation TTL 이후 block 유지, 검증 전 revision snapshot·sync 재검사, prepare·post-prepare 대상 SNS proof·일회성 소비.
+- 유지 계약·결정사항: 기존 User/FirebaseIdentity/phone/나머지 SNS 및 JWT/API 계약 유지. 새로운 정책/설계 결정 없이 현재 구현 사실을 설명한다. 자체 세션 epoch 무효화와 이미 발급된 downstream Access Token의 즉시 차단은 구분한다.
+- 검증: 실제 소스·분기와 줄 번호 정적 확인, git diff --check. 설명/기록 작업으로 Gradle 미실행. 136 suites/854 tests 성공은 직전 구현 turn의 검증이며 이번 재실행 결과로 표시하지 않는다.
+- 위험 요소: 원격 응답 유실은 실패 확정이 아니므로 mutation 자동 재전송 금지. 미소비 relink는 준비만 하고 중단해도 원격 시도 부재를 확정할 수 없어 자동 만료 unlock 없음. 남는 SNS 로그인과 후속 변경/탈퇴 cleanup barrier를 구분하고 실제 Provider/모바일/replica set 검증 미완료를 유지한다.
+- 다음 작업: 사용자 코드 이해·검토, 만료 permit 운영 제한 및 향후 통합 검증 확인. 기존 미커밋 변경 보존, 예상 밖 변경 없음. commit/push/배포 없음.
+
+## 2026-09-11 — 일반 SNS 추가와 재연결 절차 구분 설명
+
+<!-- codex-turn:01a08eb6-86bd-7331-b32a-323ed895ca01 -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 재연결을 일반 SNS 연결처럼 처리할 수 있는지와 현 prepare 도입 이유를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md. 애플리케이션·계약·계획 변경 없음.
+- 확인 내용: ProviderChangeService의 prepare/synchronize·blocked 검사·permit expiry/consumption·revision 경계를 재확인했다. 일반 로그인과 기존 Firebase User에 credential을 link하는 작업을 구분하고, 사용자 경험 통일과 서버 검증 생략이 다른 사안임을 설명한다.
+- 결정사항: 목록 기반 자동 복원 금지, 기존 계정 및 새 Provider 소유권·실제 fresh 인증·원격 이전 작업 종료·원자적 최신 상태 검사 유지. prepare는 현 설계 선택이며 Firebase 자체 필수 조건은 아니다. 미소비 허가 장기 보류를 보안상 유일한 해법으로 주장하지 않고 공통 연결 UX·중단 복구 보완을 검토 방향으로 제시한다. 새 정책 승인 없음.
+- 검증: 관련 소스 정적 확인, git diff --check. 코드 변경 없는 설명으로 Gradle 재실행 없음.
+- 위험 요소: 단순 신규 sign-in은 기존 Firebase User link가 아닐 수 있으며 자동 계정 병합을 허용하지 않는다. 미확정 unlink/revoke 재호출과 오래된 sync 자동 복원은 계속 금지한다. 만료 permit의 현 운영 제한 유지.
+- 다음 작업: 사용자 검토 후 필요 시 별도 설계 변경 승인. 기존 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-11 — 프론트의 재연결 prepare 호출 판정 계약 점검
+
+<!-- codex-turn:01a08eb6-86bd-7331-b32a-323ed895ca01 -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 일회성 허가의 의미와 프론트가 prepare 필요 여부를 판정하는 방법을 현재 구현 기준으로 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md. 코드·API·설계 문서 변경 없음.
+- 확인 내용: sync 응답은 linkedProviders만 제공하며 차단된 provider/nextAction 조회가 없다. prepare는 해제 차단이 존재하는 대상만 받고, Firebase에 대상이 이미 연결돼 있으면 새 prepare를 거절한다. 따라서 Firebase link 후 sync 오류를 보고 prepare로 전환하는 방식은 정상 복구 계약이 아니며, 로컬 해제 이력만으로도 다른 기기·재설치를 처리할 수 없다.
+- 분석·제안: 허가는 기존 계정에 대한 명시적 재연결 의도·provider/binding/revision/expiry·일회성 적용을 묶는 현 설계다. 프론트 UX와 서버 검사 구분 유지. 상태/nextAction 조회 제공 또는 일반 추가·재연결 공통 prepare 계약으로 보완할 필요가 있으며 공통 prepare는 미구현 제안이다.
+- 결정사항·유지 계약: 신규 설계 승인·구현 없음. 기존 차단·fresh proof·원격 actor 종료 검증 유지, 기능 OFF. 앞선 서버 구현 완료와 프론트의 사전 판정 계약 완성을 동일시하지 않는다.
+- 검증: rg 기반 응답/오류 경로와 prepare/synchronize 정적 확인, git diff --check. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소·다음 작업: 사전 판정/공통 준비와 미소비 허가 중단 복구를 함께 검토한 뒤 승인 범위에서 보완한다. 사용자 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-11 — 재연결 허가·프론트 판정 설명의 현재 turn 기록
+
+<!-- codex-turn:01a08eb8-51fb-7351-b983-1beeff7d94de -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 일회성 재연결 허가의 이유와 프론트의 prepare 호출 판정 방법을 설명하고 현재 turn 식별자로 기록을 보완한다. 과거 기록은 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 최신 상태 갱신.
+- 확인·설명: 현재 연결 목록만으로 최초 추가/재연결을 구분할 수 없고, Firebase link 후 sync 오류를 받아 prepare로 전환하는 방식도 이미 연결된 대상 거절 조건과 충돌한다. 프론트 사전 판정 계약의 누락을 명시했다.
+- 결정사항: 서버 상태/nextAction 조회 또는 일반 추가·재연결 공통 prepare를 보완안으로 제시했다. 공통 준비를 권장했지만 승인·구현하지 않았다. 미소비 허가의 앱 중단/만료 복구도 함께 검토해야 한다.
+- 유지 계약: 기존 소유권·fresh proof·revision·원격 이전 actor 종료 확인 및 기능 OFF 유지. 애플리케이션·API·정책 변경 없음.
+- 검증: 관련 코드 정적 확인과 git diff --check. 설명/기록 작업으로 Gradle 재실행 없음. 기존 854개 테스트 통과를 이번 실행으로 주장하지 않는다.
+- 위험·다음 작업: 프론트 계약 누락과 만료 permit 장기 보류는 출시 전 보완/검토 대상이다. 사용자 검토 후 승인된 범위에서 후속 설계를 진행한다. Secret 기록·Jira 쓰기·commit·push·배포 없음, 기존 변경 보존.
+
+## 2026-09-11 — 공통 SNS 준비 흐름과 최초/재연결 상태 구분 설명
+
+<!-- codex-turn:01a08eba-47f3-7c82-9298-0e582613f215 -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 공통 연결 준비 방향에 대한 사용자 선호를 반영하고 최초/재연결을 구분하는 이유를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md. 코드·API·계획 변경 없음.
+- 확인 내용: ProviderChangeService.prepare는 blocked 대상만 허용하고, synchronize는 일반 permit 없는 sync와 relink 허가 소비를 분리한다. 이 구현상 분기와 필수 보안 조건을 구분한다.
+- 설명·결정사항: 최초/재연결이라는 이름이나 과거 횟수 자체의 분기는 필수가 아니다. 공통 흐름에서 기존 계정/대상 소유권, 현재 연결 상태, 미확정 원격 actor, 최신 revision/일회성 요청을 확인할 수 있다. 이전 해제가 안전하게 종료됐다면 새 연결을 동일 흐름으로 처리하되 차단 기록은 새 연결이 검증·확정될 때만 해제해야 한다. 사용자 공통 prepare 방향 선호는 기록하되 실제 코드 구현 요청으로 확대하지 않는다.
+- 검증: 관련 소스 정적 확인, git diff --check. 설명/기록 작업으로 Gradle 재실행 없음.
+- 유지 계약·위험: 자동 merge와 오래된 요청의 자동 복원 금지, 신규 인증·원격 작업 종료 확인, 기존 도메인 계약 및 flag OFF 유지. 미소비 prepare 중단 복구 제한은 이 설명만으로 해결되지 않는다.
+- 다음 작업: 공통 연결 준비/완료와 중단 복구의 후속 설계·구현 요청에 따라 진행한다. 기존 변경·과거 기록 보존, 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-11 — 공통 SNS 연결 설명 현재 turn 기록 보완
+
+<!-- codex-turn:01a08eba-3f05-7620-87ec-12a6549dd7ca -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 최초 연결/재연결 구분에 대한 설명을 현재 turn의 정확한 식별자로 추가 기록한다. 과거 항목은 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·API·계획 변경 없음.
+- 설명·결정사항: 사용자 공통 준비 절차 선호를 확인했다. 필수 구분은 연결 횟수나 최초/재연결 명칭이 아니라 현재 연결 상태, 차단 기록, 미확정 원격 변경과 최신 요청 revision이다. 동일 준비/완료 흐름으로 검사하되 과거 차단은 새 인증과 연결 확정 시에만 해제하는 방향을 설명했다. 구현은 아직 요청받지 않아 실행하지 않았다.
+- 유지 계약·위험: 소유권·fresh proof·이전 원격 작업 종료 검증, 자동 복원/merge 금지 및 feature flag OFF 유지. 미소비 준비 허가의 중단/만료 복구 제한은 별도 보완 필요.
+- 검증: 소스 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 다음 작업: 공통 연결 및 중단 복구 후속 설계·구현 승인 확인. 기존 변경 보존, 예상 밖 변경 없음. Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-11 — 공통 SNS 연결 준비·완료 흐름 구체화 설명
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 사용자 요청에 따라 공통 SNS 연결 구조의 프론트·서버 동작과 중단 복구 개선 방향을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md. 애플리케이션·계약·계획 변경 없음.
+- 확인 내용: 현재 prepare는 즉시 공통 slot을 확보하고 미소비 attempt의 외부 시작 여부를 구분하지 않는다. sync는 허가 없는 최초 저장과 허가 기반 relink를 분리한다.
+- 제안: 공통 prepare/complete, 사용자 인증된 status 및 실제 외부 변경 전에 start 승인을 추가해 PREPARED와 STARTED를 구분한다. prepare는 owner/binding/provider/revision/epoch에 결합하고 start에서 원자적으로 최신 상태와 mutation slot을 확보한다. 완료는 검증된 대상 한 건만 연결하고 차단 해제·허가 소비·slot 해제를 같은 Transaction에서 수행한다. 최초/재연결은 프론트 분기 대상이 아니다.
+- 유지 계약·결정사항: 아직 제안이며 API 이름/상태/호환 전환을 확정하거나 구현하지 않았다. 기존 자체 User·FirebaseIdentity·phone·다른 Provider·혜택 소유권 유지. target과 기존 계정 fresh proof, unresolved actor 경계 유지. 무허가 sync가 공통 준비를 우회하지 못하도록 전환 검토가 필요하다.
+- 위험 요소: start 승인 전 Firebase link를 호출하지 않는 모바일 계약이 전제다. Firebase 외부 직접 호출을 Mongo 상태로 강제 취소할 수는 없다. start 승인 뒤 SDK 미호출 crash도 결과 불명일 수 있어 자동 unlock을 약속하지 않는다. 미확정 원격 actor는 status/reconciliation으로 처리하며 기한 만료만으로 재호출하지 않는다.
+- 검증: 관련 소스 정적 확인 및 git diff --check. 코드 변경 없는 설명으로 Gradle 미실행.
+- 다음 작업: 사용자 이해·검토 후 상세 계획/기존 클라이언트 호환/중단 복구의 승인 범위 확정. 기존 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push·배포·Secret 기록 없음.
+
+## 2026-09-11 — 공통 SNS 연결 변경안 설명의 현재 turn 기록
+
+<!-- codex-turn:01a08ebc-4680-73b2-92a4-66719dd34d98 -->
+
+- 날짜·브랜치: 2026-09-11, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 공통 SNS 연결 준비·완료 흐름 설명을 정확한 현재 turn 식별자로 추가 기록한다. 과거 항목은 보존한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계약·계획 변경 없음.
+- 설명·제안: 일반 추가와 재연결 모두 prepare/start/complete/status 흐름으로 통일하고, 서버가 owner/binding/provider·현재 상태·revision을 검사하는 구조를 설명했다. start 승인 전 Firebase link를 호출하지 않는 앱 계약을 통해 준비만 한 만료와 외부 결과 불명을 구분하는 방안을 제시했다. API와 상태명은 미구현 제안이다.
+- 유지 계약·결정사항: 연결 완료 시 검증된 대상 SocialIdentity만 저장하고 기존 차단 해제·일회성 소비·slot 해제를 원자적으로 처리한다. 무허가 sync 신규 저장의 우회 방지와 기존 앱 호환성 검토가 필요하다. 코드 변경 승인은 아직 없으며 feature flag OFF 유지.
+- 위험 요소: start 이후 crash/timeout은 미호출 여부를 확정할 수 없어 자동 unlock을 보장하지 않는다. Firebase 직접 호출을 Mongo 상태로 강제 차단할 수 없으며 실제 Provider·모바일 검증이 필요하다.
+- 검증: 관련 소스 정적 확인 및 git diff --check. 설명·기록만 변경하여 Gradle 재실행 없음.
+- 다음 작업: 사용자 검토 후 상세 설계·전환·중단 복구 범위 승인 확인. 기존 변경 보존, 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-14 — TMI-131 최초/재연결 공통 준비·시작·완료 구현
+
+<!-- codex-turn:01a08ebf-39df-7462-b538-bf03c8605eed -->
+
+- 날짜: 2026-09-11 승인·착수, 2026-09-14 최종 검증·기록. 브랜치: feat/TMI-131-provider-unlink-relink-lifecycle.
+- Jira: TMI-131. 구현 전 공식 Atlassian MCP로 본문/상태(해야 할 일) 조회. 기존 relink-only 설명과 사용자 추가 승인을 구분했으며 Jira 본문/댓글/상태 변경 없음. 댓글 초안은 runbook에만 작성했다.
+- 작업 목표: 일반 SNS 추가와 해제 후 재연결을 하나의 prepare/start/complete/status 흐름으로 통일하고 PREPARED 중단과 STARTED 원격 결과 불명을 분리한다.
+- 변경 파일: providerchange/ProviderLinkAttempt.java, ProviderLinkService.java, ProviderLinkController.java 신규; ProviderChangeService/Guard/Controller/Properties/Configuration.java 수정. FirebaseAuthMethodsSyncService/Request, FirebaseExchangeService/Controller, application.yml 수정. ProviderChangeTests/ConfigurationTests, ProviderLinkHttpTests 신규, FirebaseAuthMethodsSyncServiceTests, SecurityIntegrationTests 수정. Stage 10 계획/runbook, 프론트 가이드, 후속 순서, CURRENT_STATE 및 이 WORKLOG append.
+- 구현: 새 provider_link_attempts unique(userId,requestIdHash) 및 @Version/TTL. PREPARED는 slot 없이 PT5M·expiresAt+PT24H cleanup. start는 exact owner/binding/epoch/revision·남는 SNS proof 검사 후 대상 block/revision 증가·slot 확보·STARTED 저장. 최초 응답만 linkAllowed=true이며 재요청/조회는 다시 SDK 실행을 허가하지 않는다.
+- 구현: complete는 post-start 대상 SNS 증거로 대상 SocialIdentity 한 건만 저장하고 block 해제·attempt 완료·slot 해제를 같은 Mongo Transaction으로 처리한다. 완료+PT24H 보존 및 idempotent 완료 확인, ALREADY_LINKED receipt, 원래 requestId 기반 prepare 응답 유실 조회. 대상 외 원격 SNS는 저장하지 않으며 foreign owner의 withdrawal gate 오류 분류도 유지한다.
+- 안전 경계: STARTED 만료/불명은 ACTION_REQUIRED 및 TTL/자동 slot release 없음. PREPARED만 안전한 논리 만료를 허용한다. legacy provider_relink_attempts 미소비 기록을 새 PREPARED로 바꾸거나 삭제하지 않는다. 남는 SNS 로그인과 기존 탈퇴 접수/cleanup barrier를 유지한다.
+- 외부 계약: /providers/link/prepare·start·complete·status(사용자 Bearer+Firebase proof) 추가. /relink/prepare는 503 폐기. 기존 sync URL/응답은 유지하되 읽기 검증 전용으로 바꾸고 신규 저장/legacy permit 소비를 금지했다. 기존 bound User의 미승인 대상 SNS 직접 Firebase link→exchange/일반 검증 우회도 거절한다. 프론트 동시 전환 필요.
+- 설정·결정: FIREBASE_PROVIDER_LINK_ENABLED=false 기본. 신규 prepare/start OFF에서도 기존 complete/status는 fence ON 상태에서 drain 가능. deprecated FIREBASE_PROVIDER_RELINK_ENABLED=true는 startup 실패시켜 묵시적으로 넓은 권한을 켜지 않는다. 기존 provider/session fence는 데이터 생성 후 끄지 않는다.
+- 테스트·결과: 집중 ProviderChange/FirebaseSync/FirebaseExchange 테스트 성공. 최종 ./gradlew clean test --console=plain 성공; XML 137 suites / 886 tests / failures 0 / errors 0 / skipped 0. 초기 sandbox Gradle cache lock 접근 거절 뒤 승인된 require_escalated로 재실행. git diff --check와 untracked 신규 파일 whitespace 검증 수행.
+- 테스트 범위: Google/Apple/Kakao 최초 연결 공통 흐름, 명시적 재연결, prepare/start/complete 응답 유실 및 duplicate grant 거절, 만료/epoch/revision/binding/owner 불일치, target-only 저장·권한 우회 차단, 시작/완료 rollback fault, 이전 unlink와 경합, legacy barrier, flag OFF drain, HTTP JWT/proof/no-store/OpenAPI. in-memory Mongo snapshot 복원은 실제 replica set rollback/동시성 증거가 아니다.
+- 유지 계약: userId/User/FirebaseIdentity/PhoneIdentity/혜택 소유권, 자동 merge 금지, 기존 unlink/revoke/탈퇴 안전장치, Access/Refresh Token/JWKS 및 BaseResponse 구조. 전화번호 변경, Billing/LC 코드 변경, 외부 Firebase mutation/운영 배포 없음. Secret/credential 저장·로그 노출 추가 없음.
+- 위험 요소: start 승인 뒤 SDK 미호출 crash와 결과 불명은 여전히 운영 확인 필요. Firebase 외부 호출은 Mongo 상태로 강제 취소할 수 없다. 실제 모바일 재인증 출처·auth_time, SDK single-flight/늦은 응답 무시, replica set·다중 instance·P99·운영 복구 리허설은 미검증.
+- 배포 전/다음 작업: 프론트를 새 공통 API로 전환하고 구형 sync writer 전부 종료 확인. 실제 인덱스와 트랜잭션·Provider별 모바일·운영 reconciliation을 사용자가 요청한 통합 운영 테스트에서 함께 검증한다. 별도 승인 전 feature flag ON/Jira 업데이트·종료/commit/push/배포 금지.
+- diff 점검: 이전 TMI-131 미커밋 코드와 사용자 문서 변경을 보존하고 이번 공통 연결 범위만 추가 수정했다. 예상 밖 변경 파일/범위 없음. 과거 WORKLOG 수정·삭제 없음.
+
+## 2026-09-14 — TMI-131 공통 SNS 연결 변경 내용 설명
+
+- 날짜·브랜치: 2026-09-14, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 수정한 연결 흐름을 사용자가 이해할 수 있게 기존 방식과 비교하여 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md. 애플리케이션 코드·API·계약 변경 없음.
+- 확인·설명: ProviderLinkService/Attempt와 기존 sync 구현 확인. 최초/재연결 공통 prepare/start/complete/status, 기존 SNS와 대상 SNS 재인증의 역할, PREPARED 비차단 만료와 STARTED 결과 불명 보호, 최초 start만 linkAllowed=true, 대상만 원자 저장, 응답 유실별 복구 및 legacy sync 신규 저장 폐기를 설명한다.
+- 결정사항·유지 계약: 새로운 정책 결정 없음. userId·FirebaseIdentity·phone·혜택 및 기존 탈퇴/해제 안전 조건과 feature flag OFF 유지.
+- 검증: 코드 정적 확인과 git diff --check. 설명·기록만 변경하여 Gradle 재실행 없음. 137 suites/886 tests 통과는 직전 구현의 검증 결과로 구분한다.
+- 위험 요소: STARTED 후 SDK 미호출 crash/원격 결과 불명은 자동 unlock되지 않으며 실제 Firebase·모바일·replica set 통합 검증은 미완료다.
+- 다음 작업: 프론트 공통 API 전환과 승인된 통합 운영 테스트. 이전 미커밋 변경 보존, 예상 밖 변경 없음. Jira 쓰기·commit·push·배포·Secret 기록 없음.
+
+## 2026-09-14 — 공통 SNS 연결 설명의 현재 turn 기록 보완
+
+<!-- codex-turn:01a09d80-df20-77e0-b522-919d2f206b9b -->
+
+- 날짜·브랜치: 2026-09-14, feat/TMI-131-provider-unlink-relink-lifecycle. Jira: TMI-131.
+- 작업 목표: 공통 SNS 연결 변경 설명에 현재 turn 식별자를 기록한다. 과거 항목은 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 코드 변경 없음.
+- 설명 내용: 최초/재연결 공통 prepare/start/complete/status, 기존 계정과 대상 SNS 각각의 재인증, PREPARED 비차단 만료, STARTED 실행 허가의 중복 발급 방지, 대상만 원자 저장, 응답 유실별 복구 및 legacy sync 신규 저장 폐기를 설명했다.
+- 검증: git diff --check. 설명·기록만 변경하여 Gradle 재실행 없음. 137 suites/886 tests 통과는 직전 구현 결과다.
+- 유지 계약·결정사항: 신규 정책 변경 없음. userId·FirebaseIdentity·전화번호·혜택·탈퇴/해제 경계 및 기능 OFF 유지.
+- 위험 요소: STARTED 결과 불명은 자동 잠금 해제하지 않으며 실제 Firebase·모바일·replica set 검증은 남아 있다.
+- 다음 작업: 프론트 공통 API 전환과 통합 운영 검증. 기존 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push·배포·Secret 기록 없음.

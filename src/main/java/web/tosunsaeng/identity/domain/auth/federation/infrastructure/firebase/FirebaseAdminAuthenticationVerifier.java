@@ -23,6 +23,9 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 
 public final class FirebaseAdminAuthenticationVerifier
 		implements FirebaseAuthenticationVerifier {
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChanges;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProviderChanges(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard guard) { providerChanges = guard; }
 
 	private static final int MAX_FIREBASE_ID_TOKEN_LENGTH = 16_384;
 	private static final int MAX_FIREBASE_UID_LENGTH = 128;
@@ -74,7 +77,7 @@ public final class FirebaseAdminAuthenticationVerifier
 		validateProviderPolicy(data, providers, requiredPurpose);
 
 		try {
-			return new VerifiedFirebasePrincipal(
+			var principal = new VerifiedFirebasePrincipal(
 					data.firebaseProjectId(),
 					data.firebaseUid(),
 					providers.signInMethod(),
@@ -87,6 +90,10 @@ public final class FirebaseAdminAuthenticationVerifier
 					providers.linkedMethods(),
 					providers.socialPrincipals()
 			);
+			// Sync/high-risk have operation-specific permit checks. Ordinary login/enrollment may never bypass a block.
+			if (providerChanges != null && purpose != FirebaseVerificationPurpose.AUTH_METHOD_SYNC
+					&& purpose != FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) providerChanges.validatePrincipal(principal);
+			return principal;
 		} catch (IllegalArgumentException exception) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
 		}

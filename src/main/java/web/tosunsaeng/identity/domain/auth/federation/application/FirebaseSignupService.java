@@ -160,7 +160,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 		if (refreshSessionIssuer.isFenceEnabled()) {
 			preparedRefreshSession.session().attachAuthentication(new SessionAuthentication(
 					0, SessionAuthentication.Source.FIREBASE,
-					firebaseIdentity.getFirebaseIdentityId(), principal.authTime()));
+					firebaseIdentity.getFirebaseIdentityId(), principal.authTime(), principal.signInMethod()));
 		}
 
 		IssuedRefreshSession refreshSession;

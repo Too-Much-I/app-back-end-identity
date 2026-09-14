@@ -48,6 +48,8 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutbox
 		TestRsaKeyConfiguration.class
 })
 class IdentityApplicationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	@Autowired
 	private MockMvc mockMvc;
