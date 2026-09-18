@@ -18,8 +18,8 @@
 8. [ ] [logout-all Firebase refresh revoke](firebase-logout-all-revoke-stage-8-plan.md)
 9. [ ] [Refresh Token 응답 유실 복구와 rotation 원자성 개선](refresh-token-response-recovery-stage-9-plan.md) — TMI-130 코드·격리 테스트 구현, [운영·모바일 검증](refresh-token-response-recovery-stage-9-runbook.md) 대기
 10. [ ] [Provider unlink](firebase-provider-unlink-stage-10-plan.md) — TMI-131 서버 구현·격리 테스트, [운영/모바일 검증과 STARTED 결과 불명 복구 gate](firebase-provider-unlink-stage-10-runbook.md) 대기. 전화번호 셀프 변경·예외 처리 보류
-11. [ ] Guest 생성 응답 유실 복구
-12. [ ] 기존 ACTIVE 회원의 Firebase rebind 정책
+11. 제외: [Guest 생성 응답 유실 복구 계획(이력)](guest-creation-response-recovery-stage-11-plan.md) — 신규 Guest 종료·구버전 업데이트 정책으로 미구현 취소. 2026-09-16 사용자 TMI-133 직접 삭제 보고
+12. [ ] 기존 ACTIVE 회원의 Firebase rebind 정책 — 2026-09-16 사용자 확인으로 기존 이메일(LOCAL) 회원 migration은 대상 없음으로 제외. Firebase UID 변경·연결 손실의 예외 복구 정책은 별도 검토이며 구현 완료로 표시하지 않음
 
 ## 순서 적용 원칙
 
