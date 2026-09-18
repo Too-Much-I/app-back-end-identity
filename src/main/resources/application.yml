@@ -34,6 +34,8 @@ sentry:
     enabled: false
 
 app:
+  guest-recovery:
+    enabled: ${GUEST_RECOVERY_ENABLED:false}
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}
     term-version: ${TERM_CONSENT_VERSION}

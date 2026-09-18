@@ -12,8 +12,6 @@ import org.springframework.stereotype.Service;
 
 import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
-import web.tosunsaeng.identity.domain.auth.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
@@ -35,6 +33,7 @@ public class GuestAuthService {
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final GuestRegistrationTransactionService registrationTransactionService;
+	private final GuestRecoveryTransactionService recoveryTransactionService;
 	private final Clock clock;
 
 	public GuestAuthResponse authenticate(GuestAuthRequest request) {
@@ -55,7 +54,7 @@ public class GuestAuthService {
 				requiredRequest.installationId()
 		);
 		if (userRepository.existsByGuestInstallationIdHash(installationIdHash)) {
-			throw new AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS);
+			return recover(installationIdHash);
 		}
 
 		User guestUser = userFactory.createGuest(
@@ -88,9 +87,18 @@ public class GuestAuthService {
 		} catch (DuplicateKeyException exception) {
 			// Transaction rollback 뒤 현재 hash가 존재할 때만 설치 중복으로 분류한다.
 			if (userRepository.existsByGuestInstallationIdHash(installationIdHash)) {
-				throw new AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS);
+				return recover(installationIdHash);
 			}
 			throw exception;
 		}
+	}
+
+	private GuestAuthResponse recover(String installationIdHash) {
+		GuestAuthResponse response = recoveryTransactionService.recover(installationIdHash);
+		// Only log after the transaction proxy successfully committed. No identifiers/tokens.
+		log.atInfo().addKeyValue("event", "identity.guest.recovered")
+				.addKeyValue("outcome", "recovered")
+				.log("게스트 세션 복구가 완료되었습니다");
+		return response;
 	}
 }

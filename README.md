@@ -141,7 +141,7 @@ Sentry는 기본적으로 꺼져 있으며 실제 DSN은 저장소에 두지 않
 
 Access Token 또는 Refresh Token 준비, User 저장, RefreshSession 저장이나 응답 객체 구성에서 서버 내부 실패가 발생하면 Transaction 전체가 rollback되어 User와 RefreshSession이 모두 남지 않는다. 이 경우 같은 `installationId`로 정상 재시도할 수 있다.
 
-Transaction commit 후 네트워크에서 응답을 잃거나 클라이언트가 Token을 분실하면 Guest는 이미 정상 생성된 상태다. 같은 `installationId` 재요청은 `409 GUEST_ALREADY_EXISTS`이며 설치 ID만으로 기존 Guest 계정이나 Token을 복구하지 않는다. 앱 삭제나 기기 변경에서도 기록 복구가 제한될 수 있다. 정상 응답으로 받은 Refresh Token이 이후 인증 상태를 증명하며, 복구·계정 연결은 별도 후속 기능으로 다룬다.
+Transaction commit 후 네트워크에서 응답을 잃거나 클라이언트가 Token을 분실하면 Guest는 이미 정상 생성된 상태다. 기본 설정에서는 같은 `installationId` 재요청이 `409 GUEST_ALREADY_EXISTS`다. TMI-134 긴급 복구용 `GUEST_RECOVERY_ENABLED=true`일 때만 동일 설치 ID의 ACTIVE GUEST에 같은 userId로 새 세션을 발급한다. 기존 응답 재전송이 아니며 기존 동의/프로필/세션은 덮어쓰지 않는다. 자동 종료나 별도 요청 횟수 제한은 없으며 SNS 전환 후 서버 설정을 수동 OFF한다. OFF만으로 기존 유효 세션을 폐기하지 않고 정상 Refresh 회전을 유지한다. 설치 ID 보유자를 신뢰하는 위험을 수용하는 임시 기능으로, 앱 삭제나 기기 변경의 복구를 보장하지 않는다. [배포 및 종료 절차](docs/contracts/guest-session-recovery-hotfix-TMI-134.md)를 따른다.
 
 현재 서비스에는 재사용할 Rate Limit 인프라가 없으므로 Guest 대량 생성 방어는 남은 위험이다. 이 작업에서 Redis나 외부 의존성을 추가하지 않았으며, 기존 Gateway 또는 향후 Identity Rate Limit 표준을 확정한 뒤 후속 이슈로 적용해야 한다.
 
@@ -189,7 +189,7 @@ userId / provider / createdAt / consents = 유지
 
 같은 Transaction에서 해당 userId의 모든 미폐기 RefreshSession을 동일 시각과 `ACCOUNT_WITHDRAWN` 사유로 폐기한다. 조건부 User update가 기존 `status`와 `updatedAt`을 비교하므로 동시에 변경된 User를 조용히 덮어쓰지 않는다. 충돌 시 최신 User를 다시 읽어 WITHDRAWN이면 멱등 성공하고, 아직 탈퇴 전 상태이면 자격 증명을 다시 검증해 한 번 재시도한 뒤에도 충돌하면 `409 WITHDRAWAL_CONFLICT`를 반환한다. 동의 갱신도 ACTIVE 상태와 `updatedAt`이 일치할 때 `consents` 필드만 partial update하여 오래된 User 객체가 WITHDRAWN 상태를 ACTIVE로 복구하지 못한다.
 
-Guest 탈퇴는 `guestInstallationIdHash` unique 점유를 해제한다. 이후 같은 installationId로 Guest 인증하면 기존 WITHDRAWN User를 복구하지 않고 새 UUID와 새 RefreshSession을 생성한다. 반면 ACTIVE Guest가 점유 중인 installationId 요청은 기존처럼 `409 GUEST_ALREADY_EXISTS`다. LOCAL도 이메일 필드를 unset하므로 문자열에만 적용되는 partial unique index에서 기존 이메일 점유가 해제되어 새 User로 재가입할 수 있다.
+Guest 탈퇴는 `guestInstallationIdHash` unique 점유를 해제한다. 이후 같은 installationId로 Guest 인증하면 기존 WITHDRAWN User를 복구하지 않고 새 UUID와 새 RefreshSession을 생성한다. ACTIVE Guest가 점유 중인 installationId 요청은 기본적으로 `409 GUEST_ALREADY_EXISTS`이며, TMI-134 긴급 복구 ON일 때만 기존 ACTIVE Guest에 새 세션을 발급한다. LOCAL도 이메일 필드를 unset하므로 문자열에만 적용되는 partial unique index에서 기존 이메일 점유가 해제되어 새 User로 재가입할 수 있다.
 
 이미 WITHDRAWN인 사용자가 아직 유효한 Access Token으로 같은 API를 다시 호출하면 기존 `withdrawnAt`을 반환하는 200 멱등 성공이다. 탈퇴 성공 후에는 모든 Refresh Token이 즉시 재발급 불가능해지며 클라이언트는 Access/Refresh Token을 모두 삭제해야 한다. Access Token은 stateless JWT이므로 기본 `PT30M` TTL 또는 배포 설정의 만료 시각 전까지 Learning Core 같은 외부 검증 서비스에서 암호학적으로 유효할 수 있다. 이번 범위에는 denylist나 introspection을 추가하지 않는다.
 

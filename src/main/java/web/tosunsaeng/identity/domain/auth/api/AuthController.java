@@ -96,11 +96,12 @@ public class AuthController {
 
 	@Operation(
 			summary = "Guest 사용자 생성 및 인증",
-			description = "설치 UUID를 중복 방지용으로만 사용해 ACTIVE Guest 사용자를 한 번 생성하고 "
+			description = "설치 UUID로 중복을 방지하며 ACTIVE Guest 사용자를 생성하고 "
 					+ "서버의 현재 개인정보 처리방침과 이용약관 버전 동의 및 선택한 품질 검토 이용 동의를 저장한 뒤 "
 					+ "기존 RS256 Access Token과 Opaque Refresh Token을 발급합니다. "
-					+ "설치 UUID는 인증 수단이 아니므로 이미 생성된 Guest의 Token을 다시 발급하지 않습니다. "
-					+ "응답 유실 또는 Token 분실 시 설치 UUID만으로 계정을 복구할 수 없습니다."
+					+ "기본 설정에서는 설치 UUID가 인증 수단이 아니므로 기존 계정을 복구할 수 없습니다. "
+					+ "긴급 복구 설정이 활성화된 동안만 동일 설치 UUID의 ACTIVE Guest에 새 세션을 발급합니다. "
+					+ "복구는 기존 동의 및 프로필을 변경하지 않으며, 설정을 꺼도 이미 발급된 세션은 유지됩니다."
 	)
 	@ApiResponses({
 			@ApiResponse(

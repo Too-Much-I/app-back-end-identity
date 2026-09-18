@@ -107,6 +107,9 @@ class SentryCaptureIntegrationTests {
 	private UserRepository userRepository;
 
 	@MockitoBean
+	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
+	@MockitoBean
 	private RefreshSessionRepository refreshSessionRepository;
 
 	@BeforeEach

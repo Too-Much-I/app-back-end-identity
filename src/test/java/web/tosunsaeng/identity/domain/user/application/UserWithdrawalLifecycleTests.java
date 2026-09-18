@@ -123,6 +123,9 @@ class UserWithdrawalLifecycleTests {
 						refreshSessionIssuer,
 						responseConverter
 				);
+		var recoveryService = mock(web.tosunsaeng.identity.domain.auth.application.GuestRecoveryTransactionService.class);
+		when(recoveryService.recover(org.mockito.ArgumentMatchers.anyString())).thenThrow(
+				new web.tosunsaeng.identity.domain.auth.exception.AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS));
 		guestAuthService = new GuestAuthService(
 				userRepository,
 				userFactory,
@@ -131,6 +134,7 @@ class UserWithdrawalLifecycleTests {
 				accessTokenIssuer,
 				refreshSessionIssuer,
 				guestTransactionService,
+				recoveryService,
 				clock
 		);
 
