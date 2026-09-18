@@ -9768,3 +9768,764 @@
 - 유지 계약·결정사항: 신규 정책 변경 없음. userId·FirebaseIdentity·전화번호·혜택·탈퇴/해제 경계 및 기능 OFF 유지.
 - 위험 요소: STARTED 결과 불명은 자동 잠금 해제하지 않으며 실제 Firebase·모바일·replica set 검증은 남아 있다.
 - 다음 작업: 프론트 공통 API 전환과 통합 운영 검증. 기존 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push·배포·Secret 기록 없음.
+
+## 2026-09-14 — TMI-131 Jira 종료 사전 확인 및 승인 요청
+
+<!-- codex-turn:01a09d93-4dcb-7a42-ba49-5932661acd69 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira: TMI-131.
+- 작업 목표: 사용자 종료 요청에 따라 병합·이슈 상태를 확인하고 댓글 및 완료 전환 내용을 먼저 제시한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md. 애플리케이션 변경 없음.
+- 확인 결과: GitHub API에서 PR #43 MERGED, base develop, merge commit 8604ad809019c0b6e43c8eece1a4d2a90e8d36f8, mergedAt 2026-09-14T01:40:49Z. 로컬 develop commit 일치 및 작업 전 clean 확인. 네트워크 제한으로 첫 GitHub 조회 실패 뒤 승인된 조회로 성공.
+- Jira 작업: 공식 Atlassian MCP로 본문·상태·전환 조회만 수행. 현재 해야 할 일, 완료 전환 ID 41 확인. 댓글/본문/상태 쓰기 없음, 실행할 내용 제시 후 승인 대기.
+- 댓글 목적: 병합된 서버 구현, 최초/재연결 공통 prepare/start/complete/status 및 sync 변경, 주요 파일, 직전 137 suites/886 tests 통과, 실제 운영 검증 미완료와 기능 OFF 유지 인계. 본문 전체 재작성은 하지 않는다.
+- 검증: git 상태·로그, GitHub PR 병합 조회, Jira 조회 및 git diff --check. 애플리케이션 변경이 없어 Gradle 재실행 없음. 테스트 수치는 직전 구현 결과다.
+- 유지 계약·결정사항: 실제 운영 활성화와 서버 구현 완료를 구분. 사용자 요청만으로 저장소의 사전 내용 제시/승인 절차를 생략하지 않는다.
+- 위험·다음 작업: 승인 후 댓글 등록 및 완료 전환, 재조회 확인. 실제 Firebase·모바일·replica set 및 STARTED 결과 불명 운영 검증은 후속 통합 작업. 예상 밖 변경·Secret 기록·commit·push·배포 없음.
+
+## 2026-09-14 — TMI-131 Jira 완료 전환
+
+<!-- codex-turn:01a09d99-4266-7753-9b72-7951ebeb8e21 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira: TMI-131.
+- 작업 목표: 사용자의 승인 응답에 따라 완료 댓글을 등록하고 이슈를 완료 상태로 전환한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 코드 변경 없음.
+- 승인 여부: 앞서 댓글과 전환 내용을 제시한 뒤 사용자가 승인했다.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 완료 댓글 ID 10085 등록. PR #43 병합 커밋, SNS 해제와 최초/재연결 공통 흐름, 직전 137 suites/886 tests, 유지 계약, feature flag OFF와 후속 운영 검증을 요약했다. transition ID 41을 실행해 해야 할 일에서 완료로 변경했다.
+- 상태 확인: 재조회 결과 TMI-131 상태 완료, status ID 10003, updated 2026-09-14T10:48:48.276+09:00 확인.
+- 검증: Jira 댓글 응답·상태 전환 응답·최종 read-back 및 git diff --check. 코드 변경이 없어 Gradle 재실행 없음. 테스트 수치는 직전 구현 결과다.
+- 유지 계약·위험: Jira 완료는 서버 구현 범위 완료다. 실제 Firebase Provider·모바일·Mongo replica set·다중 인스턴스·STARTED 결과 불명 운영 검증은 후속이며 관련 기능은 기본 OFF 유지.
+- 다음 작업: 현재 진행 중 Jira 없음. 프론트 공통 API 전환과 통합 운영 검증을 별도 작업으로 진행한다. 예상 밖 변경·Secret 기록·commit·push·배포 없음.
+
+## 2026-09-14 — TMI-131 Jira 완료 현재 turn 기록 보완
+
+<!-- codex-turn:01a09d99-ce42-77a3-961e-d7c258a22454 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira: TMI-131.
+- 작업 목표: 완료 처리 결과를 종료 훅이 요구한 현재 turn 식별자로 추가 기록한다. 과거 WORKLOG 항목은 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- Jira 결과: 사용자 승인 후 완료 댓글 10085 등록 및 transition 41 실행 완료. 최종 재조회에서 상태 완료, status ID 10003 확인.
+- 검증: git diff --check 및 marker 위치 확인. 코드 변경이 없어 Gradle 재실행 없음.
+- 유지 계약·위험: 기능 기본 OFF. 실제 Firebase·모바일·Mongo replica set·STARTED 결과 불명 검증은 후속이다.
+- 다음 작업: 프론트 공통 API 전환과 통합 운영 검증. 예상 밖 변경·Secret 기록·추가 Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-14 — 다음 작업 Stage 11 Guest 생성 응답 유실 복구 설명
+
+<!-- codex-turn:01a09d9b-4959-7d62-b22b-a10864da8f73 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira 키 없음.
+- 작업 목표: TMI-131 완료 이후 구현 순서상 다음 코드 작업을 확인하고 사용자가 이해할 수 있게 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 코드 변경 없음.
+- 확인 근거: firebase-auth-follow-up-implementation-order.md의 Stage 11, GuestAuthService, GuestRegistrationTransactionService, GuestAuthRequest 및 프론트 연동 가이드의 Guest 최초 이용 계약을 정적 확인했다.
+- 현재 문제: Guest User와 최초 RefreshSession 저장은 Transaction이지만 HTTP 성공 응답 유실 후 같은 installationId 재요청은 GUEST_ALREADY_EXISTS다. 앱은 Token을 받지 못해 기존 Guest에 접근할 수 없고 새 installationId 우회는 중복 Guest를 만든다.
+- 설명·제안: installationId는 credential이 아니므로 단독 복구에 사용하지 않는다. 요청별 Idempotency-Key와 별도 고엔트로피 client 복구 증명을 준비한 뒤 Guest/User/RefreshSession/암호화 응답 receipt를 같은 Transaction으로 확정하고, 동일 요청만 단기간 exact replay하는 구조를 우선 검토한다. commit 불명에서는 새 발급 없이 조회/replay만 허용한다.
+- Stage 9와 차이: 기존 Refresh Token이 있는 rotation 복구가 아니라 공개 endpoint에서 최초 User·Session을 만드는 bootstrap 문제이므로 복구 증명의 소유권과 만료 후 정책을 새로 정해야 한다. 기본 설계에는 background worker가 필요하지 않다.
+- 사용자 결정 후보: 별도 복구 secret 여부, replay window, window 이후 장기 device recovery 확장 여부, consent payload 충돌, upgrade/merge/withdrawal/logout 시 receipt 무효화 및 암호화 키 관리.
+- 검증: 관련 코드·계약 정적 확인 및 git diff --check. 설명·기록만 변경해 Gradle 테스트 미실행. 직전 Stage 10의 886개 테스트 수치를 이번 검증으로 재사용하지 않는다.
+- 유지 계약·위험: installationId를 credential로 승격하지 않음, 자동 새 Guest 생성 금지, Token 평문 DB 저장 금지, User/userId·RefreshSession·동의 계약 유지. 계획/Jira/구현/feature flag 활성화는 아직 하지 않았다.
+- 다음 작업: 사용자 이해 확인 후 결정사항의 선택지·장단점 확정, Stage 11 계획서 작성, 승인 후 Jira 생성과 구현. 기존 변경 보존, 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-14 — Stage 11 설명 현재 turn 기록 보완
+
+<!-- codex-turn:01a09d9b-4959-7100-9ff5-dc15481f3409 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira 키 없음.
+- 작업 목표: Guest 생성 응답 유실 복구 설명을 종료 훅이 요구한 현재 turn 식별자로 추가 기록한다. 과거 WORKLOG는 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 설명 내용: Guest/User/최초 Session이 저장된 뒤 HTTP 응답만 유실되면 동일 installationId 재요청이 GUEST_ALREADY_EXISTS가 되어 Token 없는 기존 Guest에 접근할 수 없는 문제를 설명했다. 새 installationId 우회는 중복 Guest를 만들므로 금지한다.
+- 제안 내용: installationId를 credential로 사용하지 않고 요청별 멱등 키와 별도 복구 증명, 같은 Transaction의 암호화 응답 receipt로 동일 요청만 exact replay하는 방향을 제시했다. Stage 9와 달리 기존 Refresh Token이 없는 bootstrap 문제이며 기본적으로 worker는 필요하지 않다.
+- 미확정 사항: 복구 증명 형태, replay 기간, 기간 이후 장기 device recovery 범위, account lifecycle에 따른 receipt 폐기 규칙은 사용자 결정과 계획서 작성이 필요하다.
+- 검증: 관련 코드·계약 정적 확인 및 git diff --check. 설명·기록 작업으로 Gradle 테스트 미실행.
+- 유지 계약·위험: 자동 새 Guest 생성 금지, Token 평문 저장 금지, 설치 식별자와 credential 구분, 기능 기본 OFF. 실제 모바일·Mongo·키 관리 검증은 후속이다.
+- 다음 작업: 선택지와 장단점 확정 후 Stage 11 계획서·Jira·구현 순서로 진행. 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-14 — Stage 11 구현 전 확정사항 선택지·장단점 정리
+
+<!-- codex-turn:01a09dad-768e-7d10-9078-d533182b50f9 -->
+
+- 날짜·브랜치: 2026-09-14, develop. Jira 키 없음.
+- 작업 목표: Guest 생성 응답 유실 복구 구현 전에 사용자가 확정할 정책·보안 선택지와 장단점을 정리한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계약 코드 변경 없음.
+- 확인 근거: GuestAuthService/GuestRegistrationTransactionService, installationId 비credential 계약, Stage 9 ReissueRecoveryService/AES-GCM 응답 복구·PT2M 설정을 정적 대조했다.
+- 권장안: 앱 선생성 별도 고엔트로피 recovery secret과 Idempotency-Key를 함께 사용하고 secret은 secure storage, 서버는 hash만 조회키로 저장한다. Guest/User/Session/별도 암호화 receipt를 같은 Transaction에 저장하며 동일 normalized payload만 exact replay한다.
+- 기간·복구 선택지: exact replay는 Stage 9와 같은 PT2M을 우선 권장하되 PT5M은 앱 재시작 UX가 나은 대신 암호문·복구 권한 노출 시간이 늘어난다. 만료 후 자동 새 Guest는 금지한다. 최소 만료 오류 또는 제한된 bootstrap 기간의 same-Guest one-time replacement Session 중 제품 범위를 확정해야 한다.
+- 호환·무효화: 기존 Guest 앱을 고려해 두 신규 값을 모두 보내는 앱에만 복구를 제공하는 단계 적용을 권장한다. replay Transaction에서 ACTIVE GUEST, exact Session/epoch, logout/upgrade/merge/withdrawal 여부를 재검증하고 TTL 삭제가 아니라 논리 기한을 직접 검사한다.
+- 키 관리: 평문 Token 저장은 제외. Stage 9 keyring을 재사용하되 별도 collection과 cryptographic purpose/AAD로 교차 대체를 차단하는 MVP와 별도 keyring 격리안의 운영 비용을 비교했다. 실제 key는 저장소에 기록하지 않는다.
+- 고정 안전 조건: UnknownTransactionCommitResult에서는 새 User/Session/Token을 발급하지 않고 lookup/replay만 수행, 다른 requestId·secret·consent payload는 충돌, 서버가 응답에서 처음 recovery secret을 발급하는 방식은 응답 유실을 복구할 수 없어 제외한다.
+- 검증: 관련 코드·설정·문서 정적 확인 및 git diff --check. 분석·기록 작업으로 Gradle 테스트 미실행.
+- 유지 계약·위험: installationId를 credential로 승격하지 않음, 자동 중복 Guest 생성 금지, BaseResponse·User/userId·동의·Session 경계 유지. exact replay 이후 정책과 신규 앱 rollout은 아직 사용자 미확정이다.
+- 다음 작업: 사용자 선택을 계획서에 고정한 후 Jira 생성·구현. 기존 변경 보존, 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-16 — Stage 11 만료 정책·Transaction 재검증·keyring 분리 설명
+
+<!-- codex-turn:01a0a7c3-74c6-7e71-859d-5a07b952b076 -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 키 없음.
+- 작업 목표: Guest 생성 응답 복구의 4-A 적용 조건과 7-A lifecycle 재검증, 8-A Stage 9 keyring 재사용·목적 분리를 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계약 코드 변경 없음.
+- 4-A 방향: exact replay 기한이 지나면 전용 복구 만료 오류를 반환하고 새 Guest·replacement Session을 자동 발급하지 않는 방향을 사용자 의견으로 확인했다. 새 앱이 SNS 로그인으로 전환하며 Guest 계속 이용을 요구하지 않을 때 적합하다. SNS MEMBER는 Guest 복구가 필요 없지만 별도 orphan Guest의 userId·데이터가 자동 병합·이전되는 것은 아니다.
+- 4-A 제약: 기존 Guest-only 앱이나 복구 만료 뒤에도 Guest 모드를 제공하면 같은 installationId가 GUEST_ALREADY_EXISTS로 막힐 수 있다. 서버는 응답 수신 여부나 downstream Access Token 사용 여부를 증명할 수 없으므로 orphan Guest를 자동 삭제하면 안 된다. 프론트는 만료 후 Guest 재생성 loop 대신 SNS 흐름을 사용해야 한다.
+- 7-A 설명: receipt/TTL만 신뢰하지 않고 replay Transaction에서 ACTIVE GUEST, exact user/session/epoch, Session 활성, request/payload/proof, 논리 만료, logout/rotation/upgrade/merge/withdrawal을 재검증한다. lifecycle과 optimistic/CAS 경합을 통해 완료된 계정 변경 뒤 과거 Guest Token이 부활하지 않게 한다.
+- 8-A 설명: Stage 9 keyring·AES-GCM 공급 구조를 재사용하되 별도 Guest response collection/schema 및 고정 purpose/AAD에 environment·receiptId·userId·sessionId·request hash 등을 결합한다. 암호문 교차 복사는 인증 실패한다. shared key 실제 유출의 blast radius는 분리되지 않으며 필요 시 전용 keyring을 후속 선택한다.
+- 키 운영: 저장소에는 설정명·경로만 두고 실제 key/Token 원문을 기록하지 않는다. 구 key는 최대 논리 복구 기간과 안전 여유 동안 읽기 가능해야 하고 신규 암호화는 active key만 사용한다. TTL 지연과 backup ciphertext도 운영 보존 정책에 포함한다.
+- 검증: 현재 상태·관련 구현 계약 정적 확인 및 git diff --check. 설명·기록 작업이므로 Gradle 테스트 미실행.
+- 유지 계약·위험: installationId 비credential, 자동 Guest 삭제/재생성·자동 merge 금지, 기능 기본 OFF. 별도 SNS 로그인만으로 서버의 orphan Guest receipt가 자동 무효화되는 매핑은 현재 없으므로 앱의 흐름 제어 또는 후속 취소 계약 검토가 필요하다.
+- 다음 작업: 4-A 전제와 7-A·8-A를 계획서에 고정하기 전에 나머지 선택사항 확정. 계획/Jira/구현·feature flag 활성화는 아직 하지 않음. 예상 밖 변경·Secret 기록·Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-16 — AES-GCM 키 관리 구조 설명
+
+<!-- codex-turn:01a0a7c9-9db0-7831-b408-91af6fc3f439 -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 없음.
+- 작업 목표: 응답 복구용 AES-GCM과 keyring 공급·사용·교체 구조를 사용자에게 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 기존 문서 변경 보존.
+- 확인 내용: MountedReissueEncryptionKeys는 읽기 전용 mount에서 시작 시 최대 8개 32-byte 키를 로드한다. AesGcmReissueResponseCipher는 active key로 암호화하고 문서의 key ID로 복호화하며 12-byte 난수 nonce, 128-bit tag, 환경·사용자·Session 등 AAD를 사용한다.
+- 결정·설명: AES key는 AWS API credential 및 JWT RSA 서명 key와 별개다. AWS Secrets Manager 공급은 인프라 선택이며 현재 adapter의 직접 AWS 호출·자동 reload/회전 기능은 없다. 모든 instance에 신·구 키 공급 후 active 전환, 구 키 발급 instance·진행 요청·복구 기간 소진 확인 후 제거해야 한다.
+- 유지 계약: API 복구 기한과 key 수명 구분, Token 평문 DB 저장 금지, key는 Mongo 응답 문서와 분리, 기능 기본 OFF. Stage 11 재사용은 아직 계획 방향이다.
+- 검증: 코드·설정·계약 정적 조회 및 git diff --check. 애플리케이션 변경이 없어 Gradle 미실행.
+- 위험 요소: shared key 유출은 두 복구 목적에 영향을 줄 수 있다. TTL 삭제와 백업 암호문의 복호화 가능성은 API 기한과 별개다. 실제 운영 secret mount·교체 검증은 수행하지 않았다.
+- 다음 작업: 확정된 Stage 11 정책을 계획서로 구체화. 이번 변경은 기록 두 파일뿐이며 예상 밖 코드 변경·Jira 변경·commit·push 없음.
+
+## 2026-09-16 — Stage 11 정책 승인 확정
+
+<!-- codex-turn:01a0a7cc-e2a7-7d12-a940-4cc3e6be1ff8 -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 없음.
+- 작업 목표: 사용자의 “4번만 A, 나머지는 권장안” 승인을 Stage 11 정책 기준으로 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 기존 미커밋 기록 보존.
+- 결정사항: 앱 선생성 Idempotency-Key와 별도 보안 저장 recovery secret, 암호화 exact response와 Guest/User/Session의 동일 Transaction 저장, PT2M 복구 기간, 신규 값을 모두 보내는 앱부터 단계 적용, normalized payload hash 검증을 확정했다.
+- 4-A 승인: 기한 이후 전용 복구 만료 오류와 SNS 로그인/회원 흐름 전환. 자동 새 Guest·replacement Session 발급 및 orphan Guest 자동 삭제·병합·기록 이전은 하지 않는다.
+- 7-A·8-A 승인: 매 replay Transaction에서 현재 User/Session/epoch/lifecycle·요청 증명·기한 재검증, Stage 9 keyring 재사용과 Guest 전용 purpose/AAD·collection/schema 분리를 적용한다.
+- 구현 내용: 정책 기록만 갱신. 계획서·API·애플리케이션·Jira 변경 없음.
+- 유지한 계약: installationId 비credential, Token 평문 DB 저장 금지, commit 결과 불명 시 lookup/replay만 수행, 기능 기본 OFF.
+- 검증: 승인 내용과 기존 정책 기록 대조, git diff --check. 문서만 변경하여 Gradle 테스트 미실행.
+- 위험 요소: 구버전 앱에는 기존 응답 유실 문제가 남는다. 실제 모바일 보안 저장·Mongo Transaction·키 공급/회전은 후속 검증 대상이며 shared key 유출 영향은 목적 분리만으로 격리되지 않는다.
+- 다음 작업: 승인 정책으로 Stage 11 구현 계획서 작성. 예상 밖 변경·외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — Stage 11 Guest 생성 응답 유실 복구 계획서 작성
+
+<!-- codex-turn:01a0a7cc-e2a7-7d12-a940-4cc3e6be1ff8 -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 미생성.
+- 작업 목표: 승인된 4-A 및 나머지 권장안을 실제 구현 가능한 Stage 11 계획으로 작성한다.
+- 변경 파일: docs/contracts/guest-creation-response-recovery-stage-11-plan.md 신규, docs/contracts/firebase-auth-follow-up-implementation-order.md 링크 갱신, docs/codex/CURRENT_STATE.md 갱신, WORKLOG 끝 append.
+- 구현 내용: 코드 구현 없이 계획서 작성. 5줄 결론·필독·확정사항·위험·직접 설명·부록 계층으로 API 헤더/오류/응답·데이터·Transaction·암호화·모바일·배포·18개 검증 항목을 정리했다.
+- 확인 근거: 현재 GuestAuthService/GuestRegistrationTransactionService, User 승격의 설치 hash 제거, Stage 9 ReissueRecoveryService와 key provider 조건, SessionSecurityService, no-store filter를 정적 대조했다.
+- 결정사항: User 내장 최소 요청 기록으로 암호문 TTL 및 승격 이후 중복 생성 방지, 기존 Guest result 유지와 절대 만료 헤더 추가, Stage 9 동작 활성화와 공용 key 공급의 분리, replay의 control/최초 Session 쓰기 경합을 신규 설계로 명시했다.
+- 유지한 계약: installationId 비credential, 사용자 UUID와 account_type=GUEST, RS256/JWKS·Refresh hash, 기존 BaseResponse·Body·URL, 자동 Guest 재생성·자동 SNS 병합 없음, Learning Core/Billing 변경 없음, feature flag 기본 OFF.
+- 검증: 신규 문서 링크 16개 존재 확인, git diff --check와 신규 파일 whitespace 검사 통과. 문서만 변경하여 Gradle 테스트 미실행. 신규 파일의 git diff --no-index 종료 1은 내용 추가에 따른 정상 diff 결과이며 whitespace 진단은 없었다.
+- 위험 요소: User 최소 기록 보존과 추후 hard delete 정책, 실제 replica set 경합/결과 불명, 앱 보안 저장·늦은 응답 처리, secret 공급·회전·백업 보존은 구현/운영 검증 대상이다. 전체 로그아웃 후 모든 downstream Access Token 즉시 차단을 이번 범위로 약속하지 않는다.
+- 다음 작업: 계획 검토 후 Jira 내용 제시·승인·생성, 이후 구현 요청에 따라 개발. 기존 미커밋 기록 보존, 계획/순서/작업 기록 네 파일 외 예상 밖 변경 없음. Jira 쓰기·commit·push·배포 없음.
+
+## 2026-09-16 — Stage 11 계획서 작성 turn 기록 보완
+
+<!-- codex-turn:01a0a7cd-e2bf-7460-9ad4-959a88b740af -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 없음.
+- 작업 목표: Stage 11 구현 계획서 작성 결과를 현재 turn 식별자로 기록한다. 과거 WORKLOG는 수정하지 않는다.
+- 변경 파일: 이번 작업 전체는 guest-creation-response-recovery-stage-11-plan.md 신규, firebase-auth-follow-up-implementation-order.md 링크, CURRENT_STATE.md, WORKLOG.md다. 종료 기록 보완에서는 작업 기록 두 파일만 수정했다.
+- 구현 내용·결정사항: 승인한 4-A와 나머지 권장안을 PT2M 복구·암호화 응답·최소 요청 기록·Transaction 경합·API/모바일·18개 검증 항목으로 구체화했다. 애플리케이션 구현은 아직 없다.
+- 유지한 계약: 기존 Guest URL/Body/성공 result, installationId 비credential, 자동 Guest 재생성·자동 SNS 병합 금지, 기능 기본 OFF.
+- 검증: 계획서 상대 링크 16개 존재 확인 및 whitespace 검사 완료. 기록 보완 후 git diff --check 통과. 문서 작업이므로 Gradle 미실행.
+- 위험 요소: 실제 Mongo 경합·모바일·키 공급 및 회전 검증은 후속이며 User 최소 기록 보존과 rollback 호환을 구현 시 확인해야 한다.
+- 다음 작업: 계획 검토 후 Jira 생성 절차. 기존 미커밋 변경 보존, 예상 밖 범위 변경·외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — Stage 11 계획서 사용자 설명
+
+<!-- codex-turn:01a0a7d9-6c03-7282-9803-03e06dd71dfc -->
+
+- 날짜·브랜치: 2026-09-16, develop. Jira 없음.
+- 작업 목표: 작성한 Stage 11 계획을 Guest 생성 응답 유실 사례와 앱·서버 역할 중심으로 이해하기 쉽게 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 계획·코드 수정 없음.
+- 설명 내용: 앱이 선생성한 요청 ID와 별도 복구 증명, 서버의 암호화 exact response 보관, User/Session/응답의 원자 저장, 최대 2분 복구 및 이후 SNS 전환, logout/rotation/회원 전환 후 과거 응답 반환 차단을 설명했다.
+- 결정사항: 추가 정책 변경 없음. 2분은 Guest 로그인 수명이 아닌 응답 복구 기간이고, User에 남기는 요청 digest/연결 기록은 단기 암호문과 별개이며 AES 키는 앱에 제공하지 않는다는 점을 명확히 했다.
+- 유지 계약: 기존 API와 성공 필드, 암호화 보관 승인, 자동 새 Guest·세션 생성 및 자동 SNS 병합 금지, Stage 9 keyring 재사용·목적 분리, 구버전 단계 적용 및 기본 OFF.
+- 검증: 계획서 내용 재확인, git diff --check. 설명·기록 작업으로 Gradle 미실행.
+- 위험 요소: 실제 앱·Mongo Transaction·키 공급 검증은 구현/운영 후속이다. 최소 기록의 장기 보존과 User 삭제 정책, 이미 발급된 Access Token의 downstream 유효성은 별도 계약을 따른다.
+- 다음 작업: 계획 검토 후 Jira 생성 절차. 기존 변경 보존, 이번 기록 외 예상 밖 변경·Jira 쓰기·commit·push 없음.
+
+## 2026-09-16 — Stage 11 Jira 생성안 준비 및 조회
+
+<!-- codex-turn:01a0a868-b476-7eb3-aa62-c397d9fed174 -->
+
+- 날짜·브랜치: 2026-09-16, develop.
+- Jira: TMI-131 (선행 이슈 읽기 전용 조회). Stage 11 신규 키 없음.
+- 작업 목표: Stage 11 계획 기반 Jira 생성 내용을 구체화하고 생성 전 사용자에게 제시한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계획서 변경 없음.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 연결 리소스·TMI 작업 유형·TMI-131 완료를 확인했다. Rovo 중복 검색은 권한 오류로 실패했다. 신규 이슈 생성·댓글·상태 전환은 수행하지 않았다.
+- 생성안: TMI/작업, 제목 `[Identity][Stage 11] Guest 생성 응답 유실 복구 구현`. PT2M 동일 응답 복구, 요청/proof·암호화 Transaction·최소 기록·lifecycle 경합·keyring 목적 분리·구버전 호환과 계획서 T01~T18 및 운영 gate를 범위/완료 조건으로 준비했다.
+- 승인 여부: 정책·계획 승인과 별도로 AGENTS.md의 Jira 쓰기 전 내용 제시·승인 절차를 적용하여 생성안 승인 대기.
+- 유지한 계약·결정사항: 기존 Guest URL/Body/result, 설치 ID 비credential, 자동 재생성·자동 병합 금지, 기능 기본 OFF. 담당자·우선순위·상태를 임의 변경하지 않는다.
+- 검증: 계획서 대조, Jira 읽기 응답, git diff --check. 문서 기록 작업으로 Gradle 미실행.
+- 위험 요소: 검색 권한 제한으로 중복 없음은 확인하지 못했다. 실제 생성은 아직 시도하지 않았다.
+- 다음 작업: 생성안 승인 후 공식 MCP로 이슈 생성·결과 조회 및 계획서/상태/작업 기록에 실제 키 반영. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-16 — TMI-133 Stage 11 Jira 생성 완료
+
+<!-- codex-turn:01a0a868-b476-7eb3-aa62-c397d9fed174 -->
+
+- 날짜·브랜치: 2026-09-16, develop.
+- Jira: TMI-133
+- 작업 목표: 사용자 승인한 Stage 11 Jira 생성안을 등록하고 저장소 문서에 실제 이슈 키를 반영한다.
+- 승인 여부: 사전 제목·본문·완료 조건 제시 후 사용자의 “어 생성해줘” 명시 승인에 따라 실행했다.
+- 수행한 Jira 작업: 공식 Atlassian MCP로 TMI/작업 유형의 `[Identity][Stage 11] Guest 생성 응답 유실 복구 구현` 이슈 생성, getJiraIssue로 제목·본문·상태 재확인. 생성 상태는 해야 할 일. 담당자 지정·별도 상태 전환·댓글 등록 없음.
+- 변경 파일: docs/contracts/guest-creation-response-recovery-stage-11-plan.md, docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용·결정사항: 계획서와 순서 문서에 TMI-133 링크/상태를 반영했다. 애플리케이션 구현은 시작하지 않았다. Jira 본문 전체는 WORKLOG에 복사하지 않았다.
+- 유지한 계약: 승인된 PT2M 응답 복구·암호화 Transaction·최소 기록·현재 상태 검증·기능 기본 OFF·구버전 호환. 기존 API·코드 변경 없음.
+- 검증: Jira 생성 응답 및 재조회로 실제 저장 확인, git diff --check 통과. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: 사전 Rovo 검색 권한 오류로 중복 검색은 완료하지 못했지만 이번 생성 자체와 본문 저장은 확인했다. 운영·모바일·Mongo·키 공급 검증은 구현 후속이다.
+- 다음 작업: TMI-133 구현 요청에 따라 개발. 구현 브랜치는 아직 생성하지 않았고 commit/push 없음. 기존 미커밋 문서 보존, 관련 네 문서 외 예상 밖 변경 없음. Jira 생성 결과 외 별도 댓글 초안은 필요하지 않아 등록하지 않았다.
+
+## 2026-09-16 — TMI-133 생성 turn 기록 보완
+
+<!-- codex-turn:01a0a869-f7e3-7713-b74a-ca5017e6cab1 -->
+
+- 날짜·브랜치: 2026-09-16, develop.
+- Jira: TMI-133
+- 작업 목표: 이번 Jira 생성 작업을 현재 turn 식별자로 추가 기록한다. 과거 기록은 보존한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 앞선 생성 작업에서 계획서와 구현 순서에 실제 Jira 키를 반영했다.
+- 수행 내용·승인: 사전 생성안 제시 후 사용자 명시 승인으로 공식 Atlassian MCP에서 TMI-133을 생성하고 제목·본문·해야 할 일 상태를 재조회했다. 추가 이슈 생성·댓글·상태 전환 없음.
+- 결정사항·유지 계약: 승인된 Stage 11 범위 그대로 등록. 애플리케이션·API·기능 flag 변경 없음, 구현 전 상태 유지.
+- 검증: 생성 및 재조회 결과 확인 완료, 기록 보완 후 git diff --check 통과. 문서 작업이므로 Gradle 미실행.
+- 위험 요소: 사전 중복 검색은 Rovo 권한 오류로 미완료. 생성 성공은 확인했으며 실제 모바일·Mongo·키 검증은 후속이다.
+- 다음 작업: TMI-133 구현 요청에 따른 개발. 기존 변경 보존, 이번 보완 두 파일 외 예상 밖 변경·commit·push 없음.
+
+## 2026-09-16 — Guest 로그인 종료 방침에 따른 TMI-133 필요성 재검토
+
+<!-- codex-turn:01a0a86e-a577-7c72-a973-d1178f4e0060 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133
+- 작업 목표: 다음 업데이트에서 Guest 로그인을 제공하지 않는다는 사용자 설명에 따라 Stage 11 구현 필요성을 평가한다. 직전 구현 요청은 사용자 중지 지시에 따라 진행하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 최신 방침 반영. 기존 문서 변경 보존.
+- 분석 내용: Stage 11은 신규 앱이 Guest 생성 요청에 복구 proof를 미리 제공할 때만 최초 응답을 복구한다. 신규 Guest 생성이 사라지면 신규 앱의 사용 대상이 없어지고, 구버전 및 과거 Guest의 장기 세션 유실도 자동 해결하지 않는다.
+- 결정·권고: 이번 구현은 보류하고 취소 여부를 검토하는 것이 적절하다. 신규 Guest 생성 종료·구버전 지원/업데이트 정책과 기존 Guest의 인증 유지 및 SNS 승격/병합 흐름을 우선 확인한다. Jira 취소는 아직 승인/수행하지 않았다.
+- 유지 계약: 기존 Guest 세션·데이터를 일괄 폐기하거나 SNS로 자동 이전하지 않는다. 설치 ID 단독 복구 금지, 기존 회원 SNS 인증과 Stage 9 재발급 복구는 별개로 유지한다.
+- 검증: git status로 문서 변경만 확인, 현재 브랜치 확인, Guest API 정적 조회, git diff --check. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: 화면에서 Guest 진입 제거만으로 구버전의 서버 호출이 차단되지는 않는다. 신규 SNS 가입 과정에서 임시 Guest 생성에 의존하는지와 기존 Guest 전환 UX는 별도 확인 필요하다.
+- 다음 작업: 사용자 방향 확정 후 Jira 처리 또는 Guest 종료/회원 전환 범위 구체화. Jira 생성·수정·댓글·상태 변경 없음, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-16 — SNS 신규 가입의 Guest 생성 의존성 확인
+
+<!-- codex-turn:01a0a86e-a577-7c72-a973-d1178f4e0060 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133
+- 작업 목표: 신규 SNS 가입이 임시 Guest 생성에 의존하는지 확인하고 구버전 업데이트 정책을 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 코드·계획 변경 없음.
+- 확인 근거: FirebaseExchangeService의 DIRECT_SIGNUP/null owner enrollment, FirebaseSignupService의 createFederatedMember 및 DIRECT_SIGNUP/null boundUserId 검사, SecurityConfig의 exchange/signup 공개 진입점, UserFactory/User의 MEMBER 생성, 프론트 가이드 신규 가입 절차 및 관련 테스트 소스를 정적 확인했다.
+- 분석 결과: 서버와 연동 계약상 신규 SNS 가입은 Guest 생성·Guest Token을 요구하지 않는다. signup은 새 MEMBER를 직접 생성한다. 모바일 구현 소스는 확인 범위에 없으므로 앱의 실제 API 호출 순서까지 입증하지 않는다.
+- 결정사항: 기존 Guest SNS 전환은 사용자 설명상 구현됨. 구버전은 업데이트하도록 하는 정책을 선택했으며 실제 버전 gate 구현/차단 시점 확정과 구분한다. Stage 11 구현 보류/취소 권고 유지.
+- 유지 계약: 기존 Guest 승격/병합 유지, 자동 Guest 생성/자동 기록 이전 없음, Firebase proof 검증과 phone link 등 신규 가입 요건 유지.
+- 검증: 코드·테스트·가이드 정적 대조, git diff --check. 분석 작업으로 Gradle 미실행.
+- 위험 요소: 실제 모바일의 사전 Guest 호출 여부 및 강제 업데이트 정책 배포는 미확인. Jira 상태 변경·Guest API 차단은 수행하지 않았다.
+- 다음 작업: 사용자 승인에 따른 TMI-133 처리와 구버전 업데이트 적용 범위 확정. 기존 변경 보존, 예상 밖 변경·Jira 쓰기·commit·push 없음.
+
+## 2026-09-16 — SNS 신규 가입 의존성 확인 turn 기록 보완
+
+<!-- codex-turn:01a0a870-8721-7853-89ad-9e38addd3b70 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133
+- 작업 목표: SNS 신규 가입의 Guest 비의존성 확인 결과를 현재 turn 식별자로 기록한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 과거 기록 보존.
+- 분석 결과: exchange의 DIRECT_SIGNUP/null owner enrollment와 signup의 MEMBER 직접 생성, 보안 설정·프론트 연동 계약을 확인했다. 서버는 임시 Guest 생성 및 Guest Token을 요구하지 않는다.
+- 결정사항: 기존 Guest 전환은 사용자 설명상 구현됨, 구버전은 업데이트하도록 하는 정책 선택. TMI-133 구현 보류/취소 권고 유지. 실제 모바일 호출 순서는 미확인이다.
+- 유지 계약: Firebase 인증·전화번호 연결·기존 Guest 승격/병합 유지. 코드·API·Jira 상태 변경 없음.
+- 검증: 앞선 코드·문서 정적 대조 결과 유지, 기록 보완 후 git diff --check 통과. 문서 작업으로 Gradle 미실행.
+- 위험 요소: 모바일의 불필요한 사전 Guest 호출과 업데이트 정책의 실제 적용은 별도 확인 대상이다.
+- 다음 작업: 승인에 따른 TMI-133 처리 및 구버전 업데이트 범위 확정. 기존 변경 보존, 추가 외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — TMI-133 삭제 요청 확인 및 도구 제한 안내
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133
+- 작업 목표: 사용자 요청한 이번 Stage 11 이슈 삭제 가능 여부를 확인한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 기존 기록·계획서 보존.
+- 수행 내용: 공식 Atlassian MCP 도구 목록에서 Jira 삭제 기능이 없음을 확인했다. TMI-133 직접 조회로 정확한 제목과 해야 할 일 상태를 확인했다. 삭제 요청은 실행하지 못했으며 다른 경로로 우회하지 않았다.
+- 승인·결정사항: 사용자는 삭제를 명시 요청했다. 도구 미지원으로 Jira 화면에서 삭제하도록 안내한다. 완료 전환·댓글·본문 수정으로 대체하지 않는다.
+- 유지 계약: 애플리케이션·API·계획 내용 변경 없음. TMI-133 구현 미진행.
+- 검증: 도구 목록·Jira 직접 조회, git diff --check. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: 이슈는 삭제되지 않고 남아 있다. Jira 삭제 권한과 실제 화면 작업은 확인하지 않았다.
+- 다음 작업: 사용자 Jira 화면에서 삭제 후 필요 시 결과 확인. 기존 변경 보존, 외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — TMI-133 삭제 요청 turn 기록 보완
+
+<!-- codex-turn:01a0a871-bec7-7cd1-926e-d9c67d3f66f9 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133
+- 작업 목표: 삭제 요청 처리 결과를 현재 turn 식별자로 기록한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 과거 기록 보존.
+- 수행 내용·승인: 사용자의 명시적 삭제 요청을 받았으나 공식 Atlassian MCP에 삭제 기능이 없어 실행하지 못했다. 마지막 직접 조회는 해야 할 일 상태이며 사용자에게 화면 삭제 경로를 안내했다. 댓글·상태 변경도 없다.
+- 결정사항·유지 계약: Stage 11 구현 미진행, 코드·API·계획서 보존. 삭제 완료로 표시하지 않는다.
+- 검증: 앞선 도구 목록·이슈 조회 결과 유지, 기록 보완 후 git diff --check. 문서 작업으로 Gradle 미실행.
+- 위험 요소: TMI-133은 마지막 확인 시 존재하며 실제 삭제 여부는 후속 확인이 필요하다.
+- 다음 작업: 사용자의 화면 삭제 후 필요 시 결과 확인. 기존 변경 보존, 외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — Stage 11 제외 및 Stage 12 후속 작업 설명
+
+<!-- codex-turn:01a0a874-c8e9-7502-81b9-004ed980e53b -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery.
+- Jira: TMI-133 (사용자 직접 삭제 보고, 원격 재확인 없음). 신규 진행 이슈 없음.
+- 작업 목표: 삭제된 Stage 11 작업을 개발 순서에서 제외하고 다음 Stage 12의 목적과 필요 범위를 설명한다.
+- 변경 파일: docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/contracts/guest-creation-response-recovery-stage-11-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: Stage 11을 미구현 취소·이력 보존으로 표시하고 다음 검토를 ACTIVE 회원 Firebase rebind로 갱신했다. 애플리케이션 구현 없음.
+- 조사 근거: 순서 문서 12번, 프론트 가이드 LOCAL migration 별도 정책, FirebaseExchangeService의 UID 매핑 조회/owner 충돌, FirebaseSignupService의 기존 social/phone owner 충돌 처리를 확인했다.
+- 설명·권고: rebind는 동일 내부 userId의 Firebase 연결 추가/교체 정책이며 Guest 승격·탈퇴 재가입·동일 UID SNS 연결과 다르다. 기존 서비스가 Guest-only라면 LOCAL 회원 migration 대상부터 확인하고 대상 부재 시 예외 복구 API를 즉시 개발하지 말고 초기 미지원·자동 연결 금지 정책과 통합 검증을 우선한다.
+- 유지 계약: phone/email 일치만으로 자동 연결/계정 이전 금지, 기존 Guest 전환 유지, 사용자 UUID 및 도메인 소유권 유지.
+- 검증: 코드·계약 정적 대조, git diff --check. 문서 변경만 있어 Gradle 미실행.
+- 위험 요소: 실제 운영 MEMBER 구성과 Firebase 연결 손실 사례, 모바일 업데이트 정책 적용은 미확인이다. 기능 코드 완료와 production 활성화 검증은 별개다.
+- 다음 작업: Stage 12 적용 대상·허용 범위 결정 및 기존 기능 통합 검증 준비. Jira 생성·수정·댓글·상태 변경 없음, 기존 변경 보존, 관련 문서 외 예상 밖 변경·commit·push 없음.
+
+## 2026-09-16 — 기존 이메일 회원 부재 확인 및 migration 제외
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 신규 Jira 없음.
+- 작업 목표: 기존 이메일 회원이 없다는 사용자 확인을 Stage 12 범위에 반영한다.
+- 변경 파일: docs/contracts/firebase-auth-follow-up-implementation-order.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 결정사항: 기존 LOCAL 회원의 Firebase migration은 대상 없음으로 제외한다. 사용자 확인에 근거하며 운영 DB 검증을 수행했다고 주장하지 않는다.
+- 설명 내용: 향후 ACTIVE 회원의 Firebase UID 변경/연결 손실 예외는 별개다. 초기 자동 rebind 금지를 유지하며 별도 복구 API보다 기존 인증 기능의 통합 검증·운영 설정을 우선할 것을 권고한다.
+- 유지 계약: Guest 승격/병합 및 신규 MEMBER 가입 유지, 자동 phone/email 기반 연결 금지. 기존 코드·API·Jira 상태 변경 없음.
+- 검증: 구현 순서/상태 문서 대조, git diff --check. 문서 작업으로 Gradle 미실행.
+- 위험 요소: Stage 12 전체 완료나 실제 운영 인증 준비 완료를 의미하지 않는다. 예외 복구 지원 정책과 모바일·Provider·Mongo·키 설정 검증은 후속이다.
+- 다음 작업: 통합 검증 범위·운영 설정 준비, 예외 rebind 정책 정리. 기존 변경 보존, 외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — 이메일 회원 부재 확인 turn 기록 보완
+
+<!-- codex-turn:01a0a876-5525-7013-8dd6-1f18ae31bba9 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 신규 Jira 없음.
+- 작업 목표: 기존 이메일 회원 migration 제외 결과를 현재 turn 식별자로 기록한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 과거 기록 보존.
+- 결정·설명: 사용자가 기존 이메일 회원 부재를 확인하여 LOCAL migration을 제외했다. 신규 기능보다 기존 SNS/Guest 전환/세션/탈퇴 통합 검증과 운영 설정 확인을 우선할 것을 권고했다.
+- 유지 계약: 자동 rebind 금지 유지, UID 변경·연결 손실 예외 정책은 별도 검토. 운영 DB 조회나 인증 기능 운영 완료로 해석하지 않는다.
+- 검증: 기록 보완 후 git diff --check. 문서만 변경하여 Gradle 미실행.
+- 위험 요소: 실제 모바일·Provider·Mongo·키 관리 검증과 예외 복구 정책이 남아 있다.
+- 다음 작업: 통합 검증 범위와 운영 설정 준비. 코드·Jira·외부 시스템 변경 및 commit·push 없음.
+
+## 2026-09-16 — Firebase 통합 검증 시작 순서 안내
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 신규 Jira 없음.
+- 작업 목표: 실제 SNS 인증 검증을 위해 Firebase 등록부터 어떤 순서로 준비할지 설명한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 조사 내용: application.yml Firebase/Provider 기본 OFF 설정, Admin ADC 공급 구현, frontend 인증 가이드와 Firebase broker PoC의 실제 Provider 미검증 항목을 확인했다.
+- 권고: 운영과 분리된 테스트 Firebase 프로젝트 확인/생성, 플랫폼 앱 등록·SDK 설정, Google 활성화와 테스트 전화번호 준비, 서버 ADC·동일 project ID·JWT/phone/Mongo 설정, Google→same-UID phone link→Identity 가입/로그인 순으로 검증한다. Apple/Kakao·실제 SMS·고위험 lifecycle은 순차 확장한다.
+- 유지 계약: Kakao Identity Platform/Billing 준비 전 OFF, Emulator 성공과 실제 Provider 검증 구분, Firebase ID Token은 Identity에서 교환하고 내부 Access Token을 서비스에 전달. 실제 키를 앱/문서/로그에 기록하지 않는다.
+- 검증: 저장소 코드·설정·문서 정적 조회 및 git diff --check. 문서 안내 작업으로 Gradle 미실행. 추가 config 경로 glob 조회는 대상 경로가 없어 실패했으나 ADC 구현 경로는 실제 검색 결과로 확인했다.
+- 위험 요소: Firebase 콘솔·모바일 SDK·배포 환경 상태는 직접 조회하지 않았다. 실제 SMS·Kakao 과금 준비와 replica set·전체 기능 활성화 gate는 후속 확인이 필요하다.
+- 다음 작업: 테스트 Firebase 프로젝트와 Android/iOS 앱 등록 상태 확인 후 첫 Google 인증 smoke 검증 준비. 외부 프로젝트 생성·과금 변경·Jira 변경·commit·push 없음.
+
+## 2026-09-16 — Firebase 검증 준비 안내 turn 기록 보완
+
+<!-- codex-turn:01a0a878-7ffa-7da2-aa0c-8e03fc20e21b -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 신규 Jira 없음.
+- 작업 목표: Firebase 등록부터 통합 검증까지의 안내 결과를 현재 turn 식별자로 기록한다.
+- 변경 파일: WORKLOG.md 끝 append, CURRENT_STATE.md 갱신. 과거 기록 보존.
+- 설명·결정사항: 테스트 Firebase 프로젝트·앱 등록, Google 로그인, 테스트 전화번호의 same-UID link, 서버 ADC/프로젝트/JWT/phone/Mongo 설정, exchange/signup 및 프로필 조회 순서를 권고했다. Apple/Kakao·실제 SMS·lifecycle 검증은 후속이다.
+- 유지 계약: Firebase ID Token과 자체 Token 구분, 서버 자격증명 앱 제공 금지, 기능 기본 OFF 및 실제 환경 검증 후 활성화. 외부 콘솔·과금 설정 변경 없음.
+- 검증: 앞선 저장소 설정·문서 정적 확인 결과 유지, 기록 보완 후 git diff --check. 문서만 변경하여 Gradle 미실행.
+- 위험 요소: 프로젝트·모바일·서버 배포 상태와 실제 인증 성공 여부는 아직 확인하지 않았다.
+- 다음 작업: 테스트 프로젝트/앱 연결 상태 확인 후 첫 가입 경로 검증 준비. 기존 변경 보존, 외부 쓰기·commit·push 없음.
+
+## 2026-09-16 — 현재 구현 기준 프론트 Firebase·SNS API 인계 명세 갱신
+
+<!-- codex-turn:01a0a87a-e676-78b2-8f9a-42f30c0cb3e0 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. Jira: TMI-133은 사용자 삭제 보고된 과거 브랜치 키이며 현재 진행 이슈 없음. Jira 조회·변경 없음.
+- 작업 목표: 기존 프론트 인증 API 명세를 현재 서버 구현과 신규 Guest 종료 정책 기준으로 다시 전달할 수 있도록 갱신한다.
+- 변경 파일: docs/contracts/frontend-firebase-auth-integration-guide.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 과거 WORKLOG는 수정하지 않았다.
+- 구현 내용: 문서만 수정했다. SNS 공통 link prepare/start/complete/status와 unlink/status, 정책 동의 GET/PUT의 요청·결과 예시를 추가했다. 재인증, Idempotency-Key, 응답 유실, 현재 코드의 오류/상태, 밀리초·초 단위, 기능 활성화와 QA 조건을 정리했다.
+- 결정사항: 신규 앱 Guest 생성 제외·기존 Guest Token 보존·직접 SNS 가입의 Guest 비의존성을 반영했다. 취소된 Stage 11 응답 복구와 공개 정책/capability API를 존재하는 기능으로 설명하지 않는다. ALREADY_LINKED는 로그인 성공이 아니며 자동 복구 미구현 경계를 명시했다. 기존 LOCAL 회원 이전은 대상 없음이다.
+- 유지한 계약: URL·DTO·BaseResponse·JWT·RefreshSession·보안 정책·기능 기본값 변경 없음. workload Token과 사용자 Token 구분, same-UID phone link 및 개인정보·credential 로그 비노출 유지. 실제 Token 대신 placeholder만 사용했다.
+- 검증: Node 정적 검사로 JSON 블록 40개 파싱, 상대 링크 대상 19개 존재, HTTP/오류 code 표기 56건 소스 대조 통과. 초기 검사기의 enum 이름 기준 및 filter 직접 정의 오류 누락을 보완해 재검증했다. git diff --check 통과. 문서만 변경하여 Gradle 미실행; 실제 앱·Provider·인프라 E2E는 수행하지 않았다.
+- 위험 요소: Firebase 설정·실제 모바일 연동·키/Transaction·비동기 consumer 운영 검증 미확인. base URL·활성 Provider·현재 약관 URL/버전·최소 지원 앱 버전의 프론트 공급 방식 확정 필요. 링크 대상 존재 검사이며 Markdown anchor 자동 검증은 수행하지 않았다.
+- 범위 확인: 작업 시작 전 CURRENT_STATE/WORKLOG/구현 순서 문서 변경과 미추적 Stage 11 계획서를 보존했다. 이번 작업의 예상 밖 파일 변경은 없으며 애플리케이션 변경·commit·push·외부 쓰기 없음.
+- 다음 작업: 프론트 인계 설정값 확정 후 테스트 Firebase 프로젝트에서 Google → same-UID phone link → exchange/signup 첫 성공 경로를 검증한다.
+
+## 2026-09-16 — 프론트 인증 명세 분량 증가 이유 설명
+
+<!-- codex-turn:01a0a889-876a-71f1-8dac-eebad13aaa8b -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 프론트 명세가 길어진 원인을 이전 버전 diff 기준으로 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 명세와 애플리케이션은 변경하지 않았다.
+- 확인 내용: HEAD 대비 402줄 추가·52줄 삭제, 785줄에서 1,135줄로 약 45% 증가했다. SNS 연결/해제 6개 API 및 동의 조회/갱신 2개 API의 상세 예시, 오류·응답 유실 설명, 활성화·QA 체크리스트가 주요 증가 요인이다.
+- 결정사항: 프론트 실행 명세와 백엔드 배포/검증 설명을 한 문서에 담아 분량이 증가했음을 설명한다. 본문은 앱 구현에 필요한 계약 위주로, 배포·QA 및 과거 경로는 부록으로 분리하는 구성을 권고하되 이번에는 실제 재편집하지 않는다.
+- 유지 계약: API·DTO·보안·출시 정책 변경 없음. 이전 미커밋 변경 보존.
+- 검증: git diff --numstat·heading diff·wc 정적 확인 및 git diff --check. 설명/기록만 변경하여 Gradle 미실행.
+- 위험 요소: 줄 수는 JSON 예시와 Markdown 여백도 포함하므로 기능량 증가와 동일하지 않다. 외부 배포 상태는 이번에 검증하지 않았다.
+- 다음 작업: 사용자가 문서 축약/분리를 요청하면 상세 계약을 보존하면서 프론트 필수 내용과 참고 자료를 재구성한다.
+
+## 2026-09-16 — 프론트 API 본문과 배포·QA·구버전 부록 분리
+
+<!-- codex-turn:01a0a889-876a-71f1-8dac-eebad13aaa8b -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 사용자 승인에 따라 프론트 필수 API 명세와 배포·QA·구버전 참고 자료를 분리한다.
+- 변경 파일: docs/contracts/frontend-firebase-auth-integration-guide.md, 신규 docs/contracts/frontend-firebase-auth-integration-appendix.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 본문은 현재 API 요청·응답, 인증·재인증·오류·응답 유실 처리와 사용자 흐름을 유지했다. 기능 활성화 표·통합 검증·실패 QA·구버전 Guest 예시·이메일 호환 경로·소스 근거·기존 추가 연동 요약을 부록으로 옮겼다. 본문 상하단에 부록 링크를 추가하고 기존 API 절 번호는 보존했다.
+- 결정사항: 상세 계약을 삭제하지 않고 독자별로 재배치한다. 본문 1,135줄에서 985줄, 부록 204줄. 예시를 줄여 API 계약을 생략하는 방식은 사용하지 않았다.
+- 유지 계약: 모든 JSON 예시 40개의 원문 동일성 확인. 서버 URL·DTO·오류 코드·인증·출시 정책 변경 없음. 신규 앱의 Guest 생성 금지와 기능별 활성화 전 검증 조건 유지.
+- 검증: JSON 40개 파싱 및 분리 전후 원문 집합 동일성, 상대 링크 대상 29개 존재, 신규 부록 anchor 링크 8개 통과. 옮긴 주요 절의 이전 본문 anchor를 참조하는 저장소 문서 검색은 결과 없음. git diff --check 통과. 문서 재배치 작업으로 Gradle 미실행.
+- 위험 요소: 외부에 공유된 기존 배포/QA 절의 직접 anchor 링크는 부록 링크로 교체가 필요할 수 있다. 기존 외부 Provider 및 운영 환경 검증 여부는 변하지 않았다.
+- 범위 확인: 기존 미커밋 변경 보존. 예상 밖 변경·애플리케이션 변경·Jira 작업·commit·push 없음.
+- 다음 작업: 프론트에는 본문을 우선 전달하고 배포 담당자·QA에게 부록을 함께 전달한다. 환경별 인계 설정 확정 후 통합 검증 진행.
+
+## 2026-09-16 — 프론트 명세·부록 분리 현재 작업 기록 보완
+
+<!-- codex-turn:01a0a88b-166c-7253-bd72-5bacaed5433b -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 완료한 프론트 API 본문/부록 분리 결과를 현재 작업 식별자로 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 과거 기록은 보존했다.
+- 구현 내용·결정사항: 프론트 API 명세 본문은 985줄로 정리하고 배포·QA·구버전 참고는 204줄의 별도 부록으로 분리했다. 상세 API 계약과 앱 처리 규칙은 본문에 유지한다. 이번 기록 보완에서 명세를 추가 변경하지 않았다.
+- 유지 계약: API·DTO·보안·출시 정책 변경 없음. 분리 전후 JSON 예시 40개 원문 보존, 기존 미커밋 변경 보존.
+- 검증: 앞선 JSON 40개 파싱/동일성·상대 링크 29개·신규 부록 anchor 링크 8개 검증 결과 유지. 기록 보완 후 git diff --check 통과. 문서 작업으로 Gradle 미실행.
+- 위험 요소: 실제 Provider·모바일·배포 E2E는 미수행이며 외부 공유된 옛 절 anchor는 교체가 필요할 수 있다. 예상 밖 변경·외부 쓰기·commit·push 없음.
+- 다음 작업: 프론트에 본문, 배포 담당자·QA에 부록을 함께 전달하고 환경별 설정 확정 후 통합 검증한다.
+
+## 2026-09-16 — 실제 Firebase·Cloud 설정 현황 조회 시도
+
+<!-- codex-turn:01a0a894-f625-7901-8645-660f39bac0ba -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 사용자가 중단했던 Firebase·Cloud Billing 설정의 실제 진행 상태를 읽기 전용으로 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 조사 결과: 전용 Firebase/Cloud 조회 도구는 발견하지 못했다. UI 도구의 표면 목록 확인 후 Chrome 접근을 시도했으나 승인되지 않아 콘솔 내용에 접근하지 못했다. 빈 인앱 브라우저만 확인됐으며 다른 경로로 접근 제한을 우회하지 않았다.
+- 결정사항: 프로젝트·앱 등록·Provider·결제 연결 상태를 추정하지 않는다. 사용자에게 Chrome 접근 허용 또는 직접 제공한 콘솔 화면을 요청한다. 서버 로직 테스트와 실제 모바일 인증 E2E를 구분해 안내한다.
+- 유지 계약: 읽기 전용 진단 범위 유지. 외부 설정·결제·계정·권한 변경 및 credential 조회/저장 없음. 과거 기록과 기존 미커밋 변경 보존.
+- 검증: 도구 접근 결과 확인, 기록 변경 후 git diff --check. 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: 실제 콘솔 상태를 전혀 확인하지 못했으므로 설정 완료나 결제 미연결을 단정할 수 없다.
+- 다음 작업: 접근 승인 또는 화면 제공 후 Firebase 프로젝트/플랫폼 앱/Auth 공급업체/Identity Platform/Cloud Billing 연결 상태를 확인한다.
+
+## 2026-09-16 — Firebase·Google Cloud 실제 설정 현황 확인
+
+<!-- codex-turn:01a0a8b0-9daf-79a1-bdd3-c6b1b24ad9ac -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 사용자가 연 콘솔에서 중단된 Firebase/Cloud 설정이 어디까지 진행됐는지 읽기 전용으로 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·계약 문서 변경 없음.
+- 확인 내용: Firebase 프로젝트 및 Android/iOS 앱 2개 등록 존재. 양 플랫폼 패키지/번들 ID com.toteacher.app. Android SHA 인증서 표는 비어 있고 iOS 팀 ID/App Store ID는 미입력. Authentication은 첫 로그인 공급업체 추가 단계이며 Google/Apple/Phone/Kakao 활성화 없음. OIDC는 Identity Platform 업그레이드 전 안내 상태. Spark 무료 요금제를 확인했다.
+- 결제 확인: Google Cloud의 프로젝트 연결 계정 화면에서 결제 계정 미연결을 명시 확인했다. 결제 계정 관리의 활성 목록은 비어 있고, 상태 필터 제거 후 기존 계정 1개가 종료됨으로 표시됐다. 결제 식별자·계정 이메일·실제 키 등은 기록하지 않았다.
+- 결정사항: 앱 등록은 완료됐지만 인증 공급업체/플랫폼 설정과 유효 결제 연결은 준비 전이다. Google·SDK/서명 설정은 결제와 별도로 먼저 준비 가능하며 실제 SMS/Kakao는 결제 및 추가 설정 검증이 필요하다. 등록만으로 앱 SDK 연동 완료를 추정하지 않는다.
+- 유지 계약: 진단/조회만 수행했다. UI 목록 필터 외 설정 변경·Provider 활성화·SDK 다운로드·결제 연결/계정 재개·생성·약관 동의·credential 생성/저장 없음.
+- 검증: Firebase 개요/일반 설정/로그인 방법/사용량·결제 및 Cloud Billing 연결·계정 목록의 UI 표시를 직접 확인했다. Cloud 화면 최초 로딩 지연 후 정상 조회했다. 문서 기록 후 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 위험 요소: 결제 계정 종료 사유·무료 크레딧 상태·다른 계정 권한·실제 모바일 SDK 설정·서버 배포 자격증명·실제 인증 E2E는 미확인이다. iOS App Store ID 미입력을 모든 개발 테스트의 필수 차단 조건으로 보지는 않는다.
+- 범위 확인: 기존 변경과 과거 기록 보존, 예상 밖 파일 변경 없음. Jira·commit·push 없음. 결제 화면은 다음 사용자 확인을 위해 유지했다.
+- 다음 작업: Google 활성화 및 Android SHA/iOS SDK·팀 설정 준비 범위를 정하고, 결제 계정 종료 원인과 사용할 유효 계정은 사용자와 확인 후 별도 승인/직접 작업으로 진행한다.
+
+## 2026-09-16 — 결제 전 Google 로그인·모바일 SDK 준비 방법 안내
+
+<!-- codex-turn:01a0a90c-268e-7091-b065-48d68262b506 -->
+
+- 날짜·브랜치: 2026-09-16, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 사용자에게 Google 활성화, Android 서명 지문 등록, 플랫폼 SDK 설정 확인 방법을 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션·인계 명세 변경 없음.
+- 안내 내용: Firebase Authentication 로그인 방법에서 Google 활성화/지원 이메일/저장, 모바일 Android Gradle 프로젝트에서 signingReport로 debug SHA-1/SHA-256 확인 및 콘솔 등록, 최신 google-services.json/GoogleService-Info.plist 적용과 SDK 초기화/플랫폼 로그인 연결을 설명한다. Android applicationId/iOS bundle ID 일치와 Google iOS URL scheme 설정을 포함한다.
+- 결정사항: 모바일 프레임워크/저장소가 미확인이므로 특정 SDK 패키지 버전이나 실행 경로를 단정하지 않는다. 개발 머신별 debug 서명 차이와 배포 시 Play App Signing 지문 추가 필요를 구분한다. iOS App Store ID 미입력만으로 Google 개발 테스트가 막히지는 않는다.
+- 유지 계약: Firebase Google 인증과 Identity 회원가입 완료를 구분한다. 이후 가입 phone credential은 같은 Firebase User에 link하며 Firebase ID Token은 Identity에서 교환한다. 서버 Admin 자격증명을 모바일에 넣지 않고 원문 인증정보를 로그로 확인하지 않는다.
+- 검증: 이전 실제 콘솔 조회 결과와 현재 작업 기록을 확인했으며 이번에는 외부 설정을 재조회/변경하지 않았다. git diff --check 통과. 안내 작업으로 Gradle/signingReport/앱 테스트는 실행하지 않았다.
+- 위험 요소: 실제 앱 SDK·빌드 프레임워크·서명 키·배포 환경 설정은 미확인이다. Google 로그인 활성화만으로 전체 SNS 가입 E2E가 완료되지 않는다.
+- 다음 작업: 사용자 또는 프론트 담당자가 콘솔·앱 설정을 준비한 뒤 Google Firebase 로그인 smoke 테스트, 이후 same-UID phone link와 Identity 가입 연동을 검증한다. 설정 자동 변경·과금 작업·Jira·commit·push 없음. 기존 변경 보존.
+
+## 2026-09-18 — 기존 앱 Guest 인증 409 원인 후보 확인
+
+<!-- codex-turn:01a0b344-9570-7c72-a9af-3e0483b61767 -->
+
+- 날짜·브랜치: 2026-09-18, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 기존 앱 Guest 인증에서 보고된 409의 의미와 현재 구현상 발생 조건을 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 갱신. 애플리케이션 변경 없음.
+- 조사 내용: GuestAuthService의 installationId 해시 존재 검사 및 DuplicateKeyException 후 재조회, AuthErrorStatus의 GUEST_ALREADY_EXISTS HTTP 409, AuthController와 GuestAuthServiceTests의 최초 응답 유실/중복 생성 사례를 정적 확인했다. 초기 guest 폴더 검색은 경로 부재로 실패했고 rg --files로 registration/application 실제 경로를 확인했다.
+- 분석·결정사항: 요청이 현재 Identity Guest 생성 경로이고 응답 code가 GUEST_ALREADY_EXISTS라면 이미 등록된 설치 식별자의 중복 생성 거절이다. 앱 재실행 시 생성 호출, 최초 성공 응답/저장 유실, 동시 요청은 원인 후보이며 실제 사례는 미확정이다. Firebase/결제 미설정 오류로 단정하지 않는다.
+- 유지 계약: 설치 식별자만으로 기존 사용자 인증을 허용하지 않는다. 기존 세션 재발급과 신규 Guest 생성을 구분하며 식별자 변경·DB 삭제를 해결책으로 실행하지 않는다. 코드·인프라·Jira·Git 이력 변경 없음.
+- 검증: 소스/테스트 정적 조회 및 git diff --check. 진단 설명만 수행하여 Gradle 미실행. 앱 요청/운영 배포/로그를 조회하지 않아 발생 원인을 확정하지 않았다.
+- 위험 요소: 기존 앱이 다른 서비스나 다른 배포 버전을 호출할 수 있다. 실제 요청 URL과 응답 code/message 확인이 필요하며 인증정보 원문은 요청하지 않는다.
+- 다음 작업: 사용자에게 민감정보를 제외한 요청 경로·응답 code/message를 받아 생성 충돌인지 재발급 등 다른 409인지 구분한다. 기존 미커밋 변경 보존, 예상 밖 변경 없음.
+
+## 2026-09-18 — 1차 출시 main 기준 Guest 409 재확인
+
+<!-- codex-turn:01a0b344-9570-7c72-a9af-3e0483b61767 -->
+
+- 날짜·브랜치: 2026-09-18, feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자가 지정한 GitHub main의 1차 출시 코드로 Guest 409 의미를 다시 확인한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 코드·브랜치 변경 없음.
+- 조사·결과: git ls-remote로 원격 main 3894627aa4d77740fe1e20ea882e349a48c738ab를 확인했고 로컬 origin/main과 일치했다. main의 auth/application/GuestAuthService, AuthErrorStatus, AuthController에서 동일 installationId 해시 존재 또는 중복 insert 재조회 시 GUEST_ALREADY_EXISTS 409를 확인했다.
+- 결정·유지 계약: 1차 출시 코드에도 있는 중복 생성 거절이며 현재 개발 중 Firebase 기능과 구분한다. 앱 재실행/동시 호출/최초 응답 유실은 후보이지 확정 사실은 아니다. 설치 ID만으로 기존 사용자 인증을 복구하거나 DB 삭제로 우회하지 않는다.
+- 검증: 최초 원격 조회 DNS 실패 후 사용자 승인된 네트워크 조회 성공. git show 정적 확인, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 위험: 실제 운영 배포 SHA·응답 body·모바일 호출은 미확인이다. GitHub main 일치만으로 운영 배포 버전 일치를 보장하지 않는다.
+- 다음: 기존 앱의 요청 경로와 code/message, 발생 시점을 확인하여 중복 생성 호출 원인을 추적한다. 외부 쓰기·commit·push 없음, 기존 변경 보존.
+
+## 2026-09-18 — main Guest 409 조사 작업 식별자 보완
+
+<!-- codex-turn:01a0b345-f28c-78a1-8ee3-b7b796c4d232 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표·결과: 1차 출시 기준 GitHub main 조사 결과를 현재 작업 식별자로 기록한다. 원격 main과 로컬 origin/main은 3894627로 일치하며 동일 설치 해시 중복에 GUEST_ALREADY_EXISTS 409를 반환하는 것을 확인했다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 과거 기록·기존 변경 보존, 애플리케이션 변경 없음.
+- 유지 계약·결정: 설치 식별자만으로 인증 복구하지 않으며 운영 DB 삭제나 앱 초기화를 수행하지 않는다. 실제 발생 원인은 요청/응답 확인 전 확정하지 않는다.
+- 검증: 앞선 원격 SHA 조회·main 소스 정적 확인 결과 유지. 기록 보완 후 git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 위험·다음 작업: 실제 배포 SHA, 응답 code 및 최초 설치/앱 재실행 여부를 확인해야 한다. 외부 쓰기·commit·push 없음.
+
+## 2026-09-18 — 기존 앱 재실행 시 Guest 409 원인 후보 구체화
+
+<!-- codex-turn:01a0b345-f28c-78a1-8ee3-b7b796c4d232 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자가 기존 앱 재실행 시 발생했다고 밝힌 Guest 409의 선행 인증 실패 후보를 main 코드로 확인한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 조사: main TokenReissueService에서 세션 미존재/폐기/만료/회전 재사용 및 동시 회전 거절을 확인했다. application.yml 기본 Refresh TTL은 P14D, Access TTL은 PT30M이며 운영 설정은 미확인이다.
+- 분석·결정: 재발급 실패/저장값 누락 후 Guest 신규 생성으로 fallback하거나 앱 초기화 중 중복 생성했을 가능성이 있다. 실제 요청 경로/code와 직전 reissue 응답을 확인하기 전 확정하지 않는다. 장기간 미사용 시 Refresh 만료도 후보지만 실제 기간/설정 확인이 필요하다.
+- 유지 계약: 단순 설치 ID로 계정 복구하지 않는다. 앱 데이터 삭제·ID 변경·DB 삭제를 하지 않는다. 원문 인증정보를 수집하지 않는다.
+- 검증: main 소스와 기본 설정 정적 조회, git diff --check. 코드 변경이 없어 Gradle 미실행. 앱/운영 상태 미조회.
+- 위험·다음: 최초 409가 아닌 그 이전 세션 복구 요청의 실패 이유를 확인한다. 기존 변경 보존, 예상 밖 변경·Jira·외부 쓰기·commit·push 없음.
+
+## 2026-09-18 — 사용자 제공 Sentry Guest 오류 이슈 조회 시도
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: Sentry 이슈 7667848977에서 실제 요청 경로/오류/선행 인증 흐름을 확인한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 결과: 전용 Sentry 도구가 없어 인앱 브라우저로 링크를 열었다. 조직 로그인 화면으로 이동해 실제 이슈 내용은 확인하지 못했다. 후속 로그인을 위해 탭을 유지했다.
+- 결정·유지 계약: 사용자에게 직접 로그인을 요청한다. 오류 원인을 확정하지 않으며 로그인 정보·민감정보를 기록하지 않는다. Sentry 상태·설정·외부 데이터 변경 없음.
+- 검증: 로그인 화면 UI 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 위험·다음 작업: 로그인 후 이슈 본문·요청 경로·응답 code·breadcrumbs를 확인한다. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — Sentry 조회 작업 식별자 보완
+
+<!-- codex-turn:01a0b349-11ac-7f90-a97a-2ef3c73ed8a4 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표·결과: Sentry 이슈 7667848977 조회 시도를 현재 작업 식별자로 기록한다. 조직 로그인 화면에 도달했으며 이슈 내용은 아직 미확인이다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록·기존 변경 보존.
+- 결정·유지 계약: 사용자 로그인 후 요청 경로/오류/선행 인증 흔적을 조회한다. 원인 확정·코드 변경·외부 설정 변경·민감정보 기록 없음.
+- 검증: 앞선 로그인 화면 확인 결과 유지, 기록 보완 후 git diff --check. 문서 작업으로 Gradle 미실행.
+- 위험·다음: 인증 전 이슈 상세를 확인할 수 없다. 유지한 브라우저 탭에서 로그인 완료 후 조사를 이어간다. commit·push 없음.
+
+## 2026-09-18 — Sentry Guest startup 409 상세 확인
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 로그인 후 이슈 7667848977의 실제 오류 code와 선행 인증 흐름 확인.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 애플리케이션 변경 없음.
+- 확인 사실: TOSUNSAENG-APP-3 대표 이벤트 production/앱 1.0.0(5), AUTH_BOOTSTRAP_FAILED, operation guest, source startup, attempt retry, httpStatus 409, serverCode GUEST_ALREADY_EXISTS. recoverGuest와 setRetry 스택 확인.
+- 시간 순서: 2026-09-18 06:22:56.093 UTC POST 401, 06:22:56.133 POST 409, 06:22:57.644 POST 409. 그 사이 다른 200 요청도 있으나 URL이 Filtered라 의미를 지정하지 않는다.
+- 분석·결정: 기존 앱 시작 중 Guest 복구 경로가 중복 생성 거절을 받았음은 확인했다. 앞선 401을 /reissue 실패로 보는 것은 추론이며 상세 코드가 없어 만료/회전 재사용/폐기 중 어떤 원인인지 확정하지 않는다.
+- 유지 계약: Sentry 이슈 상태·댓글·설정 변경 없음. 개인정보/기기 식별자/원문 인증정보 저장 없음. 설치 ID로 인증 복구나 DB 삭제 실행 없음.
+- 검증: Sentry UI tags/context/stack 및 전체 breadcrumbs 직접 조회, git diff --check. 코드 변경 없어서 Gradle 미실행.
+- 위험·다음: 앱 recoverGuest 진입 조건·토큰 저장/초기화 처리와 동일 시각 서버 로그의 route/errorCode 확인 필요. 서버 배포 SHA와 실제 401 원인 미확인. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — 사용자 지정 AWS 로그 접근 포털 조회
+
+<!-- codex-turn:01a0b34c-391b-7481-b6ad-27751f6b4cc8 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: Sentry의 Guest startup 401/409 원인을 AWS Identity 로그로 확인한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 결과: 사용자 지정 포털을 인앱 브라우저에서 열었으며 AWS 로그인 암호 입력 화면으로 이동했다. 실제 콘솔/CloudWatch 로그에는 아직 접근하지 못했다. 사용자 로그인을 위해 탭을 유지했다.
+- 결정·유지 계약: 인증정보를 요청/기록하지 않고 사용자가 직접 로그인하도록 안내한다. 읽기 전용 진단 범위 유지, 설정·계정·권한·배포 변경 없음.
+- 검증: 로그인 화면 UI 확인 및 git diff --check. 첫 기록 패치의 문맥 불일치를 수정했다. 코드 변경 없어 Gradle 미실행.
+- 위험·다음: 사용자 로그인 후 2026-09-18 06:22:56 UTC 전후 Identity 요청 경로·401 오류 code 확인. 로그 미조회로 원인 추가 확정 없음. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — AWS CloudWatch Identity 실제 로그 조회
+
+<!-- codex-turn:01a0b34c-391b-7481-b6ad-27751f6b4cc8 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: Sentry 401→Guest 409의 선행 서버 오류를 실제 AWS 로그에서 확인한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 확인 사실: 서울 리전 /ecs/tosunsaeng-identity 전체 스트림 검색, 2026-09-18 06:20~06:25 UTC 이벤트 0건. 범위를 06:00~06:30으로 넓혀 06:17:33 identity.guest.registered/created와 06:18:20 auth.refresh.reissued/rotated를 확인했다. 해당 성공 이벤트와 Sentry 오류의 사용자 연계는 미확인이다.
+- 코드 대조: main GlobalExceptionHandler는 errorCode를 RequestLogContext에 기록하고 RequestLoggingFilter는 quiet 성공 경로 외 4xx 포함 요청 완료를 INFO로 남긴다. 관측된 구간에 해당 요청 로그가 없어 배포 버전/로그 레벨/수집 경계 차이 가능성을 남긴다. 실제 원인으로 확정하지 않는다.
+- 결정·유지 계약: AWS 콘솔 조회와 시간 필터만 사용했다. 설정·배포·권한 변경 없음. 실제 사용자/계정 식별자·credential·원문 로그는 문서에 저장하지 않았다.
+- 검증: CloudWatch UI 조회 및 main 코드 정적 확인, git diff --check. 코드 변경 없어 Gradle 미실행. 보조 rg 검색의 결과 없음 exit1은 오류 원인 확인과 구분한다.
+- 위험·다음: 최초 401의 만료/폐기/재사용 원인은 아직 알 수 없다. 앱 recoverGuest의 선행 오류 code 및 실제 배포 이미지/요청 로그 설정 확인 필요. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — 장기 미사용 Guest의 Refresh 만료 가설 설명
+
+<!-- codex-turn:01a0b351-157a-73c2-9a5e-074548292243 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자가 제시한 장기 미사용 후 재발급 실패 가설을 출시 main 코드와 대조한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 애플리케이션 변경 없음.
+- 조사·결과: main RefreshSessionIssuer의 prepare/issueRotated는 createdAt+properties.ttl로 만료를 계산한다. 기본 TTL P14D이며 최초 생성일에 고정된 14일이 아니라 각 발급 시각 기준이다. 운영 override와 문제 세션 만료시각은 미확인이다.
+- 분석·결정: 장기 미사용으로 Refresh가 만료됐다면 재발급 401 및 Guest 신규 생성 409와 일관된다. 최초 401의 실제 code가 가려져 있어 확정하지 않는다. SNS 없는 Guest의 만료 후 재인증 경로 부재가 제품상 복구 공백이며, 설치 식별자만으로 기존 계정 인증을 허용하지 않는다.
+- 유지 계약: TTL 증가가 기존 세션의 저장된 만료를 자동 연장하지 않는다는 점을 안내한다. 세션 부활·식별자 변경·DB 삭제·운영 설정 변경 없음.
+- 검증: main 코드/설정 정적 조회, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 위험·다음: 운영 TTL/해당 요청 오류 code를 확인한 뒤 기존 Guest 장기 미사용 대응과 앱 fallback 정책을 결정해야 한다. 현재 401 원인 확정 없음. 기존 변경 보존, 예상 밖 변경·외부 쓰기·commit·push 없음.
+
+## 2026-09-18 — 장기 미사용 Guest 설명 작업 기록 보완
+
+<!-- codex-turn:01a0b351-5769-7801-8703-31e9933965f8 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표·결과: 장기 미사용 후 Refresh 만료 가설 설명을 현재 작업 식별자로 기록한다. main의 최초/회전 발급 시각+TTL 및 기본 P14D를 확인했으며 실제 운영 TTL과 최초 401 원인은 미확인이다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록·기존 변경 보존.
+- 결정·유지 계약: 만료 후 재발급 거절과 Guest 생성 충돌의 연결은 가설로 유지한다. 재인증 수단 없는 기존 Guest의 복구 정책 필요성을 설명했고 세션 부활·운영 설정·애플리케이션 변경은 하지 않았다.
+- 검증: 앞선 main 정적 조회 결과 유지, git diff --check. 기록만 변경하여 Gradle 미실행.
+- 위험·다음: 운영 TTL과 해당 401의 오류 code를 확인하고 기존 Guest 복구 정책을 검토한다. 외부 쓰기·commit·push 없음.
+
+## 2026-09-18 — SNS 업데이트 전 기존 Guest 긴급 접속 복구 범위 검토
+
+<!-- codex-turn:01a0b354-ba9d-73a0-8af1-fd63e6aad9b3 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자의 기존 사용자 긴급 접속 복구 의도에 대해 안전한 구현 조건과 추가 확인 항목을 설명한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드·운영 변경 없음.
+- 확인: main RefreshSession.expiresAt에 expireAfter=0s TTL 인덱스 선언이 있다. 운영에 적용됐다면 만료 시 검증용 tokenHash를 포함한 세션이 삭제됐을 수 있으나 실제 DB 상태는 조회하지 않았다.
+- 결정: SNS 전체 develop 배포와 구분하여 main 기반 긴급 hotfix로 검토한다. 앱 credential 보존/선행 오류 처리와 서버 검증 기록 존재를 먼저 확인한다. 기존 계정 보존 복구와 새 Guest 생성은 다른 결과이므로 동일하게 취급하지 않는다.
+- 유지 계약: 설치 ID만으로 기존 계정 접근 허용, 409 검사 무조건 제거, 만료/폐기 세션 일괄 부활, DB 삭제를 하지 않는다. 검증 자료가 없는 사용자의 기존 계정 복구는 보장하지 않는다.
+- 검증: main RefreshSession·TokenReissueService 정적 조회, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 위험·다음: 실제 TTL 인덱스와 만료 세션 존재, 앱에 남은 인증정보, 출시 앱 recoverGuest 분기 미확인. 사용자에게 모바일 저장소 위치를 요청하고 긴급 복구 가능한 범위를 확인한다. 외부 쓰기·commit·push 없음, 기존 변경 보존.
+
+## 2026-09-18 — 출시 프론트 main Guest 재발급 실패 fallback 조사
+
+<!-- codex-turn:01a0b356-3ff8-7913-b4e6-d134eabf5baa -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음(TMI-133 취소).
+- 목표: 사용자 제공 프론트 저장소 main에서 기존 Guest의 접속 실패와 안전한 긴급 복구 가능성을 확인한다.
+- 변경 파일: Identity WORKLOG append, CURRENT_STATE 갱신. 프론트 및 서버 애플리케이션 변경 없음.
+- 확인: 원격 프론트 main 99fd20b29a84eea735166597700c9bd1bdac22a4를 임시 shallow clone하고 root AGENTS 및 auth-controller/auth-session-storage/reissue-tokens/create-guest/installation-id를 조사했다. 재발급의 세 종류 확정적 401(INVALID_REFRESH_TOKEN, REFRESH_TOKEN_EXPIRED, REFRESH_TOKEN_REUSE_DETECTED)에서 동일 설치 ID의 Guest 생성으로 fallback한다. 409 뒤 retry는 Guest 생성을 반복한다.
+- 확인: fallback은 기존 SecureStore 세션을 삭제하지 않으며 reissueSession도 남긴다. 재시작하면 저장된 Refresh로 재발급을 다시 시도한다. clearAuthSession 호출은 서버 탈퇴 성공 경로다. package version은 1.0.0이나 실제 build 5와 main의 동일성은 확정하지 않았다.
+- 결정·유지 계약: Sentry 흐름과 코드가 일관되지만 최초 401 원인은 여전히 미확인이다. 서버에 검증 자료가 남았는지 먼저 확인하고 만료·폐기·재사용을 구분한다. installationId 단독 인증, 중복 guard 제거, 세션 일괄 부활, 신규 사용자로의 무단 전환은 하지 않는다.
+- 검증: 원격 SHA 조회·정적 코드 확인 및 git diff --check. 네트워크 sandbox 실패 후 승인된 escalation으로 clone 성공. 코드 변경 없어 Gradle 및 프론트 빌드/테스트 미실행.
+- 위험·다음: 운영 TTL 인덱스에 의해 Refresh 검증용 세션이 이미 삭제됐다면 토큰이 앱에 남아 있어도 기존 재발급 검증은 불가능하다. 실제 운영 TTL/세션 잔존·배포 SHA 확인 후 main 기반 긴급 복구 정책 결정. 기존 dirty 변경 보존, 예상 밖 변경·운영 변경·commit·push 없음.
+
+## 2026-09-18 — Atlas Refresh 세션 TTL 및 만료 잔존 실조회
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 기존 Guest 긴급 복구를 위해 실제 DB TTL 인덱스와 만료 세션 잔존 여부를 읽기 전용 확인한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 애플리케이션 변경 없음.
+- 결과: Atlas 기존 로그인에서 Cluster0/to-teacher-identity/refresh_sessions 조회. ttl_refresh_sessions_expires_at 인덱스는 expiresAt 대상 TTL/READY. UI에서 expireAfterSeconds 수치는 미확인(main 선언은 0s). 전체 $group 집계 total=532, expired=0, minTtlMs=maxTtlMs=1209600000(14일). expired는 expiresAt<=서버 $$NOW 조건이다.
+- 조회 방식: Data Explorer 인덱스와 읽기 전용 집계만 사용. 자동 원문 preview를 끄고 합계만 산출했다. UI 기본 preview에 나타난 식별자/검증용 해시는 문서에 복사하지 않았다. 데이터·인덱스·권한·설정 변경 및 저장된 pipeline 생성 없음.
+- 결정·유지 계약: 만료 세션이 현재 남아 있지 않아 단순 TTL 연장으로 삭제 세션을 복구할 수 없다. 특정 장애 사용자의 세션이 TTL로 삭제됐다는 개별 이력까지 확정하지 않는다. 설치 ID 단독 인증이나 세션 일괄 부활 없음.
+- 검증: Atlas 실조회, main 설정/엔티티 대조, git diff --check. 코드 변경 없어 Gradle 미실행. 브라우저 최초 API 문서 미노출은 세션 재초기화 후 해결했다.
+- 위험·다음: AWS 실행 task와 조회 DB 연결의 일치, 최초 401 원인, 장애 사용자별 세션 및 백업 잔존 여부는 미확인. 기존 기록을 보존하는 복구 방법은 별도 검증/정책 결정이 필요하다. 기존 dirty 변경 보존, 이번 문서 외 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — Atlas 실조회 작업 식별자 기록 보완
+
+<!-- codex-turn:01a0b35a-b7c0-7681-b10d-32954707691f -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: 이번 turn의 Atlas TTL 및 만료 세션 실조회 결과를 작업 식별자와 함께 기록한다.
+- 변경 파일: docs/codex/WORKLOG.md 끝 append, docs/codex/CURRENT_STATE.md 갱신. 과거 기록과 기존 변경 보존.
+- 구현·조사 결과: 애플리케이션 변경 없음. Atlas refresh_sessions의 expiresAt TTL 인덱스 READY 확인. 읽기 전용 집계 total=532, expired=0, 잔존 세션의 최소·최대 유효기간 모두 14일.
+- 실행한 검증: Atlas UI 실조회와 main 코드 대조 결과 유지, git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지 계약·결정사항: 인증정보/사용자 식별자 기록 없음. 데이터·인덱스·권한·운영 설정 변경 없음. TTL 연장만으로 삭제 세션 복구를 보장하지 않으며 설치 ID 단독 인증은 허용하지 않는다.
+- 위험 요소: 최초 401 원인, 특정 사용자의 세션 삭제 이력, 운영 task의 DB 연결 일치와 백업 잔존 여부는 미확인.
+- 다음 작업: 운영 DB 연결과 백업 등 검증 자료 존재 여부를 확인한 뒤 기존 기록 보존 복구 정책을 결정한다. 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — installationId 기반 기존 Guest 토큰 발급 제안 검토
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 신규 설치는 Guest 생성, 기존 설치는 Refresh 발급하는 제안의 효과와 위험을 설명한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 구현 및 운영 변경 없음.
+- 분석: 동일 userId로 신규 세션을 발급하면 기존 기록 연결을 유지할 수 있으나 installationId가 사실상 장기 bearer credential이 된다. UUID 난수성과 SecureStore 보관은 추측 위험을 줄여도 유출 후 재사용·폐기 문제를 해소하지 않는다. 기존 ID만으로 로그인하면 Refresh 만료/로그아웃 폐기를 우회할 수 있다.
+- 결정·유지 계약: 일반 Guest 생성 API에서 설치 ID만으로 기존 계정 토큰 발급하는 변경은 권장하지 않는다. 별도 소유 증명 또는 엄격한 한시적 복구 정책 검토가 필요하며, 탈퇴/병합/보안상 폐기 상태를 우회하지 않는다. 이번 질문은 설명 요청으로 취급하고 구현하지 않는다.
+- 검증: 앞선 frontend/main·DB 조사 결과 기반 분석 및 git diff --check. 코드 변경 없어 테스트 미실행.
+- 위험·다음: 삭제된 세션의 폐기 사유까지 검증할 수 없을 수 있어 만료 사용자만 선별 복구를 보장하지 않는다. 복구 자료와 사용자 증명 가능성을 확인한다. 개인정보/credential 기록, 예상 밖 변경, commit·push 없음.
+
+## 2026-09-18 — 설치 ID 복구 제안 검토 작업 기록 보완
+
+<!-- codex-turn:01a0b35e-f2f6-7e00-bacd-c131151eb082 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 작업 목표: installationId 기반 기존 Guest 토큰 발급 제안 검토를 이번 turn 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록과 기존 변경 보존.
+- 분석 내용: 기존 userId에 세션 발급 시 기록 연결은 유지되지만 설치 ID가 장기 bearer credential이 되어 세션 만료/폐기의 효과를 약화할 수 있다. UUID/SecureStore는 추측 위험을 줄여도 소유 증명을 대체하지 않는다.
+- 결정사항·유지 계약: 일반 Guest API의 영구 복구 동작으로 권장하지 않았다. 한시적 복구의 계정 상태·기간·횟수 제한도 별도 소유 증명 문제를 해결하지 못함을 안내했다. 구현·운영·데이터 변경 없음.
+- 검증: 앞선 조사 근거로 분석, git diff --check 통과. 문서만 변경하여 테스트 미실행.
+- 위험·다음 작업: 삭제 세션의 폐기 사유와 기존 계정 소유 증명 가능성을 확인한 뒤 복구 정책을 결정한다. Secret/개인정보 기록, 예상 밖 변경, commit·push 없음.
+
+## 2026-09-18 — 긴급 Guest 복구 한시 허용 및 SNS 전환 종료 조건 검토
+
+<!-- codex-turn:01a0b362-7a26-7801-b46b-2f7714a94310 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자가 제안한 긴급 installationId 복구 후 SNS 업데이트 시 차단하는 운영 방향을 검토한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 구현·배포 없음.
+- 분석·결정: 설치 ID 보유자를 기존 Guest로 신뢰하는 잔여 위험을 한시 수용하는 정책은 가능하다. main 기반 별도 hotfix에서 기존 ACTIVE Guest로 대상을 제한하고 동일 userId를 유지하는 방향을 제안했다. Member/탈퇴/병합은 제외, 알려진 보안 폐기 우회 금지, 서버 feature flag와 명시적 종료 시각, rate limit·민감정보 없는 감사 기록이 필요하다. 삭제된 세션의 과거 폐기 사유는 검증할 수 없을 수 있음을 유지한다.
+- 종료 조건: 앱 버튼 제거가 아니라 서버에서 복구 경로와 구버전 신규 Guest 생성을 차단한다. SNS 승격·병합 시 설치 ID 복구 대상에서 즉시 제외하고 임시 발급 세션의 폐기/전환 정책도 정해야 한다. 기능 OFF만으로 이미 발급된 세션이 폐기되지는 않는다.
+- 유지 계약: 기존 기록은 동일 userId로 보존. 설치 ID의 소유 증명 한계는 기간 제한으로 해소되지 않는다. 질문을 정책 논의로 취급하여 코드·운영·DB 변경 없음.
+- 검증: 앞선 코드/DB 조사에 기반한 정책 분석, git diff --check. 코드 변경 없어 테스트 미실행.
+- 위험·다음: 허용 종료 시각과 발급 세션 처리 및 실제 운영 main 일치 확인 후 구현 범위를 확정한다. 기존 변경 보존, 예상 밖 변경·Secret 기록·commit·push 없음.
+
+## 2026-09-18 — 긴급 Guest 복구 및 전환 종료 후 세션 유지 정책 정리
+
+<!-- codex-turn:01a0b365-e5de-7663-a1fc-5bdf42ef40c8 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 사용자 승인한 전환 종료 후 기존 세션 유지 정책을 포함해 긴급 복구 범위를 정리한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 애플리케이션 구현·배포 없음.
+- 결정사항: 임시 복구 종료만을 이유로 발급 세션을 일괄 폐기하지 않는다. 유효 Refresh의 정상 회전은 유지하며 기존 만료·로그아웃·탈퇴·재사용 감지 처리는 유지한다. 정상 회전을 지속하면 Guest 세션이 전환 종료 뒤에도 계속 사용될 수 있음을 안내한다.
+- 제안 범위: 출시 main 기반 별도 hotfix, 미등록 설치는 기존 Guest 생성, 등록 설치는 ACTIVE Guest에 한해 동일 userId로 새 세션 발급. 외부 API URL/요청/응답 형태 보존. Member/탈퇴/병합 제외, 서버 flag/종료 시각/빈도 제한/민감정보 없는 감사 기록, 사용자 상태와 발급 경쟁 검증. 기존 세션 일괄 폐기·새 사용자 생성·DB 만료값 수정 없음.
+- 종료 정책: SNS 전환 계정은 즉시 설치 ID 복구 제외. 종료 후 설치 ID 복구 및 구버전 신규 Guest 생성은 서버에서 차단하고 업데이트 안내 계약을 적용한다. 유효 세션 유지와 구버전 앱 전체 차단은 별개 정책이다.
+- 유지 계약·위험: installationId만으로 소유자를 신뢰하는 한시적 위험은 남고, 삭제 세션의 과거 보안 폐기 사유는 검증 불가능할 수 있다. 정확한 종료 시각·빈도 제한 값과 구버전 안내 UI 지원은 구현 전 확인 대상이다.
+- 검증: 기존 조사 근거 기반 정책 정리, git diff --check. 코드 변경 없어 테스트 미실행.
+- 다음 작업: main 배포 기준 확인 후 hotfix 계획/구현 및 신규·복구·거절·종료·기존 refresh 유지 회귀 테스트. 기존 변경 보존, 예상 밖 변경·Secret 기록·commit·push 없음.
+
+## 2026-09-18 — Refresh 만료와 재발급 거절 관계 설명
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: 만료된 Refresh Token으로 재발급할 수 없는 이유와 이번 장애 근거를 설명한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 분석: Access 만료 시 유효한 Refresh로 재발급한다. Refresh 자체가 만료되면 재인증이 필요하다. main에서는 만료 세션 잔존 시 REFRESH_TOKEN_EXPIRED, TTL 삭제 후 조회 불가 시 INVALID_REFRESH_TOKEN이 될 수 있다. 둘 다 앱의 Guest 생성 fallback 조건에 포함된다.
+- 확인/미확인: 조회 DB 잔존 세션 유효기간은 모두 14일이고 만료 세션 0건, TTL 인덱스 READY였다. 장기 미사용 가설과 부합하지만 특정 요청의 최초 401 code 및 운영 DB 연결 일치는 미확인이다.
+- 결정·유지 계약: 만료 토큰을 단순 갱신하는 것과 설치 ID 기반 한시적 신규 세션 발급을 구분한다. 원인 확정이나 구현·운영 변경 없음.
+- 검증: 앞선 main/프론트/Atlas 조사 근거 재사용 및 git diff --check. 설명과 기록만 수행하여 테스트 미실행.
+- 위험·다음: Guest의 재인증 수단 부재와 생성 API 409로 복구가 막히는 공백을 별도 hotfix로 처리해야 한다. 기존 변경 보존, 예상 밖 변경·Secret 기록·commit·push 없음.
+
+## 2026-09-18 — Refresh 만료 설명 작업 식별자 보완
+
+<!-- codex-turn:01a0b367-4bf2-7471-aa0d-ea91b2e67df3 -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: Refresh 만료 및 재발급 거절 설명을 이번 작업 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록 보존, 코드 변경 없음.
+- 내용·결정: Access 만료와 Refresh 자체 만료를 구분했다. 만료 Refresh는 재발급 불가하며 TTL 삭제 뒤에는 INVALID_REFRESH_TOKEN이 될 수 있다. 설치 ID 긴급 복구는 만료 연장이 아닌 별도 신규 세션 발급이다.
+- 유지 계약·위험: 특정 장애 요청 최초 401 원인은 미확정이며 기존 Atlas 집계만으로 개별 원인을 단정하지 않는다. 인증정보/개인정보 기록 및 운영 변경 없음.
+- 검증: git diff --check 통과. 기록만 변경하여 테스트 미실행.
+- 다음 작업: 승인된 한시적 Guest 복구 범위의 hotfix 검토. 기존 변경 보존, 예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — main 기반 긴급 hotfix 배포 방향 확인
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: develop이 아닌 출시 main에서 분기하여 Guest 복구만 긴급 배포하는 방향을 확인한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 코드·브랜치·운영 변경 없음.
+- 결정: 실제 운영 이미지 커밋과 원격 main 일치를 먼저 확인하고 별도 worktree/브랜치에서 작업하여 현재 미커밋 변경을 보존한다. main에서 분기한 한시적 ACTIVE Guest 복구만 구현·테스트하고 사용자 commit/push/PR·배포 절차를 따른다. main 병합 후 develop에도 수정 또는 동등한 안전장치를 반영하여 차기 배포 회귀를 방지한다.
+- 유지 계약: 기존 API 형태·userId·기록 및 임시 복구 종료 후 유효 세션 유지. SNS 전체 develop 배포, 세션 일괄 폐기, DB 변경 없음.
+- 검증: 정책 정리 및 git diff --check. 코드 변경 없어 테스트 미실행.
+- 위험·다음: 운영 배포 SHA 일치 및 복구 종료 시각/요청 제한 값 확인 후 구현 착수. 기존 dirty 변경 보존, 예상 밖 변경·Secret 기록·commit·push 없음.
+
+## 2026-09-18 — main hotfix 방향 확인 작업 식별자 보완
+
+<!-- codex-turn:01a0b368-b0a5-7b02-8a73-a226981c83bd -->
+
+- 브랜치: feat/TMI-133-guest-creation-response-recovery. 현재 진행 Jira 없음.
+- 목표: main 기반 Guest 긴급 복구 방향 확인을 이번 작업 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록과 기존 변경 보존.
+- 내용·결정: 운영 배포 커밋과 main 일치 확인 후 별도 작업 공간에서 한시적 Guest 복구를 구현·검증하는 순서를 안내했다. 사용자 commit/push 및 PR·배포 뒤 develop에도 변경 또는 동등한 안전장치를 반영한다.
+- 유지 계약: 기존 API/userId/기록과 복구 종료 후 유효 세션 유지. 브랜치 생성·코드 수정·배포·DB 변경 없음.
+- 검증: git diff --check 통과. 기록만 변경하여 테스트 미실행.
+- 위험·다음: 운영 SHA·복구 종료 시각·요청 제한 확인 후 구현 범위를 확정한다. Secret 기록·예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — 동일 작업 공간 hotfix 준비 및 논의 인계
+
+- 브랜치: develop(git branch --show-current로 확인). 현재 진행 Jira 없음.
+- 목표: 사용자의 별도 작업 공간 불필요 의견에 따라 변경 범위를 확인하고 긴급 복구 논의를 다음 작업으로 보존한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE에 인계 요약 추가. 기존 문서 변경 보존.
+- 확인: git status 기준 코드 변경 없음. 문서 6개가 변경/미추적이며 기록 외에 프론트 가이드/부록/후속 작업 순서/Stage 11 계획도 포함된다.
+- 결정: 별도 worktree 없이 같은 공간에서 진행. main/운영 배포 일치 확인은 다음 단계로 유지. 현재 브랜치 전환·구현·배포하지 않음. 문서는 삭제하지 않고 전환 충돌 시 강제 처리하지 않는다.
+- 유지 계약: 동일 ACTIVE Guest userId 복구, Member/탈퇴/병합 제외, 한시 서버 gate, SNS 전환 후 복구 종료와 기존 세션/정상 회전 유지 정책을 인계했다. 설치 ID 신뢰의 잔여 위험 유지.
+- 검증: git status/branch/diff stat 및 git diff --check. 문서만 변경하여 테스트 미실행.
+- 위험·다음: main과 운영 배포 SHA, 종료 시각·rate limit·구버전 안내 지원 확인 후 hotfix 구현. Secret 기록·예상 밖 변경·commit·push 없음.
+
+## 2026-09-18 — 동일 작업 공간 인계 기록 식별자 보완
+
+<!-- codex-turn:01a0b36b-78bb-71c1-a0d2-f244519c9818 -->
+
+- 브랜치: develop. 현재 진행 Jira 없음.
+- 목표: 동일 작업 공간에서 hotfix를 준비한다는 논의 결과를 이번 작업 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록과 기존 문서 변경 보존.
+- 확인·결정: 현재 변경은 문서 6개이며 코드 변경은 없다. 별도 worktree 없이 진행하고 main/운영 배포 커밋 확인 후 hotfix 브랜치 전환을 검토한다. 아직 전환·구현·배포하지 않았다.
+- 유지 계약: 기존 ACTIVE Guest의 동일 userId 복구, 대상 외 계정 거절, 한시 복구 종료 후 기존 세션 및 정상 Refresh 유지 정책을 인계했다.
+- 검증: git diff --check 통과. 기록만 변경하여 테스트 미실행.
+- 위험·다음: 원격 main과 운영 SHA 및 복구 종료/요청 제한 값을 확인한다. Secret 기록·예상 밖 변경·commit·push 없음.
