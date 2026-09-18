@@ -1498,3 +1498,62 @@
 - 결정사항: 커밋 가능한 상태다. 커밋 전 사용자가 전체 파일을 stage하고 staged name-only·stat·diff check를 확인한 뒤 quality review hotfix 단일 commit으로 남긴다.
 - 위험 요소: 현재 상태는 모두 unstaged이므로 일부 파일만 stage하면 코드·테스트·설정·문서 계약이 분리될 수 있다. production 배포 전 `QUALITY_REVIEW_CONSENT_VERSION` 주입과 외부 데이터 철회 연동 부재를 별도로 확인해야 한다.
 - 다음 작업: 사용자가 모든 의도된 변경을 stage하고 staged diff를 확인한 뒤 commit·push한다. PR base는 `main`으로 지정하고 `origin/main...HEAD`에 quality review 관련 변경만 있는지 다시 확인한다.
+
+## 2026-09-18 — TMI-134 main 기반 hotfix 브랜치 생성
+
+- 브랜치: codex/TMI-134-guest-session-recovery-hotfix. Jira: TMI-134.
+- 목표: 사용자 요청대로 동일 작업 공간에서 main 기반 hotfix 브랜치 생성.
+- 변경 파일: WORKLOG append, CURRENT_STATE 인계. 애플리케이션 변경 없음.
+- 수행: main/origin/main 3894627aa4d77740fe1e20ea882e349a48c738ab 확인. 승인된 Git 쓰기로 전환 시도 후 기록 파일 충돌로 중단되어 두 파일만 stash 보존한 뒤 생성·전환 성공. HEAD는 main과 동일.
+- 보존: stash 메시지 'TMI-134 preserve develop work records before main hotfix'. 기존 main 과거 기록 보존, hotfix 논의만 인계. 기존 로컬 poc/는 전환 후 미추적 표시되며 삭제/수정하지 않았다.
+- 유지 계약·결정: 동일 ACTIVE Guest userId 복구, 대상 외 거절, API/기록 유지, 기본 OFF flag/수동 종료, 자동 종료·별도 횟수 제한 제외, 기존 유효 세션/정상 Refresh 유지.
+- 검증: branch/HEAD/stash/status 확인 및 git diff --check. 기록 패치 문맥 불일치를 수정했다. 코드 변경 없어 테스트 미실행.
+- 위험·다음: poc/와 develop 보관 기록은 hotfix 커밋 제외. 구현 전 Jira 및 main 모델 확인. 운영 변경·Secret 기록·commit·push 없음.
+
+## 2026-09-18 — TMI-134 hotfix 브랜치 생성 기록 보완
+
+<!-- codex-turn:01a0b374-3825-74b3-ac79-fd02d7a27ec2 -->
+
+- 브랜치: codex/TMI-134-guest-session-recovery-hotfix. Jira: TMI-134.
+- 목표: main 기반 브랜치 생성 결과를 이번 작업 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 과거 기록 보존.
+- 수행 결과: main 3894627에서 브랜치 생성·전환 완료. develop의 기록 두 파일은 명명된 Git stash에 보존하고 확정된 hotfix 정책만 인계했다.
+- 유지 계약·결정: API/userId/기록 유지, 한시적 Guest 복구 및 종료 후 유효 세션 유지 정책 보존. 코드·운영 변경이나 commit·push 없음.
+- 검증: git diff --check 통과. 기록만 변경하여 테스트 미실행.
+- 위험·다음: 기존 로컬 poc/는 변경 없이 보존하며 hotfix 커밋에서 제외한다. 구현 전 TMI-134와 main 코드 확인. Secret 기록·예상 밖 코드 변경 없음.
+
+## 2026-09-18 — TMI-134 기존 Guest 긴급 복구 구현
+
+- 브랜치: codex/TMI-134-guest-session-recovery-hotfix. Jira: TMI-134.
+- 목표: main 기반으로 installationId의 기존 ACTIVE Guest에 동일 userId 새 세션을 발급하는 기본 OFF 긴급 복구를 구현한다.
+- Jira: 구현 전 공식 MCP로 설명/완료 조건 조회. 댓글/상태 변경 없음. 댓글 초안은 runbook에 작성, 자동 등록하지 않음.
+- 변경 파일: GuestAuthService, 신규 GuestRecoveryTransactionService, AuthController OpenAPI, application.yml, README, 신규 docs/contracts/guest-session-recovery-hotfix-TMI-134.md, WORKLOG/CURRENT_STATE. 테스트는 GuestAuthServiceTests, 신규 GuestRecoveryTransactionServiceTests, UserWithdrawalLifecycleTests 및 IdentityApplicationTests/SecurityIntegrationTests/DisabledSwaggerIntegrationTests/SentryCaptureIntegrationTests의 외부 DB 대체 Mock을 수정했다.
+- 구현: 기존 설치 및 신규 등록 unique 충돌 후 별도 recovery transaction 호출. 기본 OFF GUEST_RECOVERY_ENABLED. hash/provider=GUEST/status=ACTIVE 조건 findAndModify(upsert=false)로 guestRecoveryFence 증가 후 동일 transaction에서 JWT 발급/Refresh 저장/응답 생성. 실제 사용자 쓰기로 탈퇴와 충돌을 유발하며 프로필/동의/기존 세션은 덮어쓰지 않는다. 성공 감사 이벤트는 proxy commit 이후 민감 값 없이 기록한다.
+- 계약: 기존 URL/Request/Response/RS256/kid/userId/Refresh 해시 저장/TTL 유지. 자동 종료·별도 횟수 제한 제외. OFF만으로 기존 세션 폐기하지 않으며 정상 회전 유지. main에는 accountType/병합 모델이 없어 엄격한 GUEST+ACTIVE DB 조건을 적용한다. develop 포팅 시 병합/승격 모델 추가 확인 필요.
+- 테스트: 최초 전체 실행은 신규 MongoTemplate 테스트 의존성 및 Mockito restubbing 준비 오류 등으로 실패, 이후 누락 matcher import를 수정했다. 최종 ./gradlew clean test 성공: 43 suites / 329 tests, failures=0/errors=0/skipped=0. git diff --check 통과. Gradle 캐시 sandbox 제한은 승인된 실행으로 해결.
+- 검증 범위: 기본 OFF, 동일 userId/조건부 쓰기, 기존 동의 보존, 미대상/상태 변경 거절, 쓰기 충돌 시 토큰 미발급, Spring transaction commit/rollback 경계, 중복 등록 loser 복구, 민감정보 로그 비노출, Mock 기반 병렬 별도 세션 발급, 복구 OFF 후 발급 세션 정상 회전 및 기존 회귀 테스트. 실제 DB write conflict/rollback은 로컬 Mock 테스트로 입증하지 않으며 배포 전 runbook 확인 대상이다.
+- 위험·배포 전: 설치 ID 신뢰/수동 OFF 누락/반복 발급 위험 유지. replica set 검증 후 운영자가 true 환경변수를 주입해 재배포해야 활성화됨. false 종료도 전 태스크 재배포 필요. SNS 및 구버전 생성 차단은 후속 인계. 운영 복구 완료는 아직 확인하지 않음.
+- diff 점검: 예상 밖 애플리케이션 변경 없음. 기존 사용자 기록 변경은 보존했고 기존 로컬 poc/는 수정/삭제하지 않았다. commit/push/배포 없음.
+- 다음: 변경 검토, 사용자 commit/push 및 main PR, 실제 replica set/운영 배포 검증, main 병합 후 develop 포팅. 과거 기록/Secret 보존 규칙 준수.
+
+## 2026-09-18 — TMI-134 구현 작업 식별자 보완
+
+<!-- codex-turn:01a0b376-60f8-7b60-872e-8256489c0173 -->
+
+- 브랜치: codex/TMI-134-guest-session-recovery-hotfix. Jira: TMI-134.
+- 목표: Guest 긴급 복구 구현 결과를 이번 작업 식별자로 기록한다.
+- 변경 파일: WORKLOG 끝 append, CURRENT_STATE 갱신. 구현 변경 파일과 상세 근거는 바로 앞 구현 항목에 기록했으며 과거 기록은 보존한다.
+- 구현·결정: 기존 GUEST+ACTIVE 계정의 동일 userId 세션 복구, 조건부 사용자 쓰기와 세션 저장의 Mongo transaction, 기본 OFF 설정 및 민감정보 없는 감사 이벤트를 추가했다. 자동 종료/추가 횟수 제한은 제외했다.
+- 유지 계약: 기존 API/프로필/동의/기록 및 복구 OFF 이후 유효 세션/정상 Refresh 유지. 기존 토큰 만료·폐기 정책은 변경하지 않았다.
+- 검증: 최종 전체 테스트 43 suites/329 tests, 실패·오류·skip 0. git diff --check 통과. 이번 보완은 기록만 변경하여 테스트 재실행하지 않았다.
+- 위험·다음: 실제 replica set 경쟁/rollback 및 운영 true 설정 배포 검증은 남아 있다. 설치 ID 신뢰 위험 유지. 기존 poc/는 보존·커밋 제외. commit/push/배포/Jira 상태 변경·Secret 기록 없음.
+
+## 2026-09-18 — TMI-134 사용자 커밋·push 명령 안내
+
+- 브랜치: codex/TMI-134-guest-session-recovery-hotfix. Jira: TMI-134.
+- 목표: 현재 변경만 커밋하고 기존 poc/를 제외하는 사용자 실행 명령을 제공한다.
+- 변경 파일: WORKLOG append, CURRENT_STATE 갱신. 코드 변경 없음.
+- 확인·결정: git status로 tracked 변경이 TMI-134 범위임을 확인했다. git add -u와 신규 구현/테스트/runbook 세 파일의 명시적 추가, staged diff 검사, TMI-134 커밋 메시지 및 현재 브랜치 push를 안내한다. git add . 사용은 피한다.
+- 유지 계약: commit/push는 사용자가 수행한다. poc/와 보관된 develop stash는 포함하지 않는다. PR base는 main이다.
+- 검증: branch/status 및 git diff --check. 문서만 변경하여 테스트 재실행 없음; 직전 329개 통과 결과 유지.
+- 위험·다음: stage 후 사용자가 diff를 검토하고 commit/push한다. 명령 안내는 실제 배포/활성화와 별개다. 실제 Git 쓰기·Jira 변경·Secret 기록 없음.

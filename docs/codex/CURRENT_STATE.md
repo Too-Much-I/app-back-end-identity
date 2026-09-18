@@ -8,6 +8,28 @@
 - 현재 단계: `hotfix/quality-review-consent`에 Guest 생성과 인증된 동의 PUT·GET의 Quality review 선택 동의·철회, 구버전 client·기존 Mongo 문서 호환, OpenAPI·README·설정·테스트를 구현했으며 전체 42개 suite·319개 테스트 성공
 - 상태 기준일: 2026-08-15
 
+## 현재 작업 — TMI-134
+
+- 사용자에게 현재 hotfix 브랜치의 커밋/push 명령을 안내했다. tracked 변경과 신규 세 파일만 stage하고 poc/는 제외하도록 했다. 직접 stage/commit/push하지 않았으며 PR base는 main이다.
+
+<!-- codex-turn:01a0b376-60f8-7b60-872e-8256489c0173 -->
+
+- 구현 완료 작업의 현재 식별자를 보완했다. 전체 테스트 329개 통과 결과 유지, 실제 replica set 검증과 운영 활성화 배포는 미수행이다. 이번 보완은 기록만 변경했다.
+
+- 최신 상태(2026-09-18): TMI-134 main 기반 구현 완료, 아직 commit/push/배포 없음. GuestAuthService가 기존 설치 및 등록 unique 충돌 뒤 GuestRecoveryTransactionService를 호출한다. GUEST_RECOVERY_ENABLED 기본 false, GUEST+ACTIVE+hash 조건 실제 사용자 쓰기와 세션 저장을 동일 Mongo transaction에 묶는다. 감사 이벤트 identity.guest.recovered에는 원문/해시/사용자 식별자를 넣지 않는다.
+- 검증: ./gradlew clean test 43 suites/329 tests, 실패·오류·skip 0. diff check 통과. OFF 후 발급 세션 정상 Refresh 회전 및 병렬 복구/충돌/transaction 경계는 Mock 기반 검증. 실제 replica set 충돌/rollback은 배포 전 확인 필요. 절차와 Jira 댓글 초안: docs/contracts/guest-session-recovery-hotfix-TMI-134.md.
+- 현재 변경 범위: 복구 서비스/호출부, 설정/OpenAPI/README/runbook, 회귀 테스트 및 기록. 기존 poc/ 보존·커밋 제외. 자동 종료/추가 횟수 제한 없음, 운영 true 명시와 수동 false 종료 절차 필요. 아래 미구현 상태 문구는 이전 시점 기록이다.
+
+<!-- codex-turn:01a0b374-3825-74b3-ac79-fd02d7a27ec2 -->
+
+- 브랜치 생성 작업 식별자를 보완했다. main 기반 hotfix 브랜치 전환 완료, 기존 기록 stash 보존 및 정책 인계 완료. 아직 구현·배포하지 않았다.
+
+- 2026-09-18: main 3894627aa4d77740fe1e20ea882e349a48c738ab에서 codex/TMI-134-guest-session-recovery-hotfix 생성·전환 완료. 아직 구현·배포 없음. 위 quality review 내역은 기존 main 상태다.
+- Jira TMI-134 구현 전 이슈 재조회. 정상 기존 Guest는 동일 userId에 새 Access/Refresh 발급, 미등록 설치는 기존 생성. Member/탈퇴/병합 제외를 main 모델에 맞게 검증. API/기록 보존.
+- 기본 OFF 복구 flag/민감정보 없는 감사 기록. 자동 종료 시각·별도 요청 횟수 제한은 제외. SNS 전환 후 서버 수동 OFF. 기존 유효 세션과 정상 Refresh 회전 유지, 만료/로그아웃/탈퇴/보안 폐기는 유지. 설치 ID 신뢰 위험 수용, 삭제 세션의 과거 폐기 사유 확인 한계 존재.
+- main과 실행 이미지 태그 일치 확인 완료. 앱은 특정 Refresh 401 이후 Guest 생성 409를 반복한다. Atlas TTL READY/잔존 532건/만료 0건/유효기간 14일 확인, 특정 장애 최초 401 원인은 미확정.
+- develop 미커밋 기록 두 파일은 'TMI-134 preserve develop work records before main hotfix'라는 Git stash로 보존했다. 전환 후 기존 로컬 poc/가 미추적으로 표시되며 수정/삭제하지 않았다. hotfix에 포함하지 않는다. commit/push는 사용자 수행.
+
 ## 완료
 
 - Spring Boot 프로젝트 및 Identity용 의존성 구성

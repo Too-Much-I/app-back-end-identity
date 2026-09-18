@@ -75,6 +75,7 @@ class GuestAuthServiceTests {
 	private ConsentPolicy consentPolicy;
 	private UserFactory userFactory;
 	private GuestAuthService guestAuthService;
+	private GuestRecoveryTransactionService recoveryTransactionService;
 	private ExecutorService executor;
 
 	@BeforeEach
@@ -94,6 +95,10 @@ class GuestAuthServiceTests {
 				new BCryptPasswordEncoder(4),
 				consentPolicy
 		);
+		recoveryTransactionService = mock(GuestRecoveryTransactionService.class);
+		when(recoveryTransactionService.recover(anyString())).thenThrow(
+				new web.tosunsaeng.identity.domain.auth.exception.AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS)
+		);
 		guestAuthService = new GuestAuthService(
 				userRepository,
 				userFactory,
@@ -102,6 +107,7 @@ class GuestAuthServiceTests {
 				accessTokenIssuer,
 				refreshSessionIssuer,
 				registrationTransactionService,
+				recoveryTransactionService,
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 
@@ -121,6 +127,36 @@ class GuestAuthServiceTests {
 	@AfterEach
 	void tearDown() {
 		executor.shutdownNow();
+	}
+
+	@Test
+	void existingGuestUsesRecoveryAndLogsNoCredentials() {
+		String hash = installationIdHasher.hash(INSTALLATION_ID);
+		when(userRepository.existsByGuestInstallationIdHash(hash)).thenReturn(true);
+		GuestAuthResponse expected = response(issuedAccessToken(), preparedRefreshSession(
+				"550e8400-e29b-41d4-a716-446655440099"));
+		org.mockito.Mockito.doReturn(expected).when(recoveryTransactionService).recover(hash);
+		try (LogCapture logs = LogCapture.forClass(GuestAuthService.class)) {
+			assertThat(guestAuthService.authenticate(validRequest(INSTALLATION_ID))).isEqualTo(expected);
+			assertThat(logs.events("identity.guest.recovered")).singleElement().satisfies(event ->
+					assertThat(LogCapture.rendered(event)).doesNotContain(
+							INSTALLATION_ID, hash, expected.accessToken(), expected.refreshToken()));
+		}
+		verify(registrationTransactionService, never()).register(any(), any(), any());
+		verify(accessTokenIssuer, never()).issue(anyString(), any());
+	}
+
+	@Test
+	void concurrentRegistrationLoserRecoversAfterRollback() {
+		String hash = installationIdHasher.hash(INSTALLATION_ID);
+		when(userRepository.existsByGuestInstallationIdHash(hash)).thenReturn(false, true);
+		doThrow(new DuplicateKeyException("test collision"))
+				.when(registrationTransactionService).register(any(), any(), any());
+		GuestAuthResponse expected = response(issuedAccessToken(), preparedRefreshSession(
+				"550e8400-e29b-41d4-a716-446655440099"));
+		org.mockito.Mockito.doReturn(expected).when(recoveryTransactionService).recover(hash);
+		assertThat(guestAuthService.authenticate(validRequest(INSTALLATION_ID))).isEqualTo(expected);
+		verify(recoveryTransactionService).recover(hash);
 	}
 
 	@Test
