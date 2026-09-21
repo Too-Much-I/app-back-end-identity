@@ -209,6 +209,12 @@ class FirebaseExchangeControllerTests {
 		when(firebaseGuestPrepareUseCase.prepare(request)).thenReturn(
 				FirebaseGuestPrepareResponse.enrollmentRequired(
 						"550e8400-e29b-41d4-a716-446655440000",
+						Set.of(
+								FirebaseEnrollmentRequirement.PHONE_VERIFICATION,
+								FirebaseEnrollmentRequirement.PROFILE
+						),
+						"privacy-v1",
+						"term-v1",
 						600_000
 				)
 		);
@@ -220,13 +226,43 @@ class FirebaseExchangeControllerTests {
 				.andExpect(jsonPath("$.result.type").value("ENROLLMENT_REQUIRED"))
 				.andExpect(jsonPath("$.result.enrollmentId")
 						.value("550e8400-e29b-41d4-a716-446655440000"))
+				.andExpect(jsonPath("$.result.missingRequirements", hasItems(
+						"PHONE_VERIFICATION",
+						"PROFILE"
+				)))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
 				.andExpect(jsonPath("$.result.expiresIn").value(600_000))
 				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.firebaseIdToken").doesNotExist())
+				.andExpect(jsonPath("$.result.phone").doesNotExist())
 				.andReturn();
 
 		assertThat(result.getResponse().getContentAsString())
 				.doesNotContain("guest-prepare-credential");
 		assertThat(request.toString()).doesNotContain("guest-prepare-credential");
+	}
+
+	@Test
+	void guestPrepareIdentityStateConflictReturnsStableConflictCode() throws Exception {
+		FirebaseGuestPrepareRequest request = new FirebaseGuestPrepareRequest(
+				"guest-prepare-credential"
+		);
+		when(firebaseGuestPrepareUseCase.prepare(request)).thenThrow(
+				new AuthException(AuthErrorStatus.IDENTITY_STATE_CONFLICT)
+		);
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/prepare")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"guest-prepare-credential\"}"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.isSuccess").value(false))
+				.andExpect(jsonPath("$.code").value("IDENTITY_STATE_CONFLICT"))
+				.andExpect(jsonPath("$.result").doesNotExist())
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsString())
+				.doesNotContain("guest-prepare-credential");
 	}
 
 	@Test

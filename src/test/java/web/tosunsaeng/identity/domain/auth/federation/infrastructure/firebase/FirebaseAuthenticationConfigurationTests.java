@@ -9,6 +9,8 @@ import java.util.Date;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -92,6 +94,7 @@ class FirebaseAuthenticationConfigurationTests {
 						"app.guest-merge.enabled=true"
 				)
 				.withBean(Clock.class, Clock::systemUTC)
+				.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
 				.withBean(
 						FirebaseEnrollmentAttemptRepository.class,
 						() -> mock(FirebaseEnrollmentAttemptRepository.class)

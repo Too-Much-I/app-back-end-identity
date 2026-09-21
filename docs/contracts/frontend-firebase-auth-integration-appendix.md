@@ -73,7 +73,8 @@ Emulator/테스트 번호 통과는 실제 OAuth redirect·국내 SMS·과금/�
 | Firebase 기능 OFF | 503을 신규 회원 없음으로 오해하지 않음 |
 | phone link 중 UID 변경 | 가입 중단, 다른 Firebase 계정에 signup하지 않음 |
 | signup/upgrade/merge 응답 유실 | 현재 Firebase/Identity 상태 조회, 임의 새 계정 생성 금지 |
-| Guest prepare ALREADY_LINKED + 여전히 GUEST | 완료 표시 금지, 미구현 복구 API 호출 금지, 지원 안내 |
+| Guest prepare에서 `IDENTITY_STATE_CONFLICT` | 자동 승격·merge 금지, 재인증 후 반복되면 지원 안내 |
+| Guest enrollment 만료 | 기존 ID 폐기 후 `/guest/prepare`에서 새 ID와 requirements 수신 |
 | 같은 refresh 요청 응답 유실 | Stage 9 활성 환경에서 같은 요청 ID+원 Token으로만 재시도 |
 | link start 응답 유실 | SDK link 실행 허가가 없으면 실행하지 않음 |
 | SDK link 후 complete 유실 | 같은 linkAttemptId로 완료 확인, 새 prepare 금지 |
@@ -96,7 +97,8 @@ Emulator/테스트 번호 통과는 실제 OAuth redirect·국내 SMS·과금/�
 - [ ] `missingRequirements`와 `linkedProviders` 배열 순서에 의존하지 않는다.
 - [ ] 신규 signup enrollment는 `/exchange`, 기존 Guest 전환 enrollment는 `/guest/prepare`에서 얻는다. 두 binding을 혼용하지 않는다.
 - [ ] Guest `MERGE_REQUIRED`에서 사용자 확인을 받는다.
-- [ ] Guest `ALREADY_LINKED`를 MEMBER 로그인 성공으로 취급하지 않는다.
+- [ ] Guest prepare의 `missingRequirements`와 privacy/terms version으로 재개 화면을 구성한다.
+- [ ] Guest `IDENTITY_STATE_CONFLICT`를 성공으로 취급하거나 자동 복구하지 않는다.
 - [ ] logout·withdrawal terminal 처리에서 Firebase signOut 실패와 로컬 Token 삭제를 분리한다.
 - [ ] Token·OTP·비밀번호·phone을 log, analytics, crash report에서 제거한다.
 - [ ] 신규 가입의 현재 약관 URL/버전 공급을 배포 담당자와 확정한다. 인증 후 동의 조회는 `/users/me/consents`를 사용한다.
@@ -196,9 +198,9 @@ SNS 해제·재연결은 [전용 API/응답·모바일 흐름·오류 계약](fi
 
 - [SNS 연결 Controller](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderLinkController.java), [해제 Controller](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderChangeController.java)
 - [연결 상태·허가](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderLinkService.java), [해제 상태·멱등 키](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderChangeService.java)
-- [Guest prepare ALREADY_LINKED](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestPrepareService.java)
+- [Guest prepare 재개·충돌 처리](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestPrepareService.java)
 - [정책 상태 DTO](../../src/main/java/web/tosunsaeng/identity/domain/user/dto/response/UserConsentStatusResponse.java), [개별 정책 DTO](../../src/main/java/web/tosunsaeng/identity/domain/user/dto/response/ConsentPolicyStatusResponse.java), [동의 변경 DTO](../../src/main/java/web/tosunsaeng/identity/domain/user/dto/request/UserConsentUpdateRequest.java)
 - [재발급 기능 분기](../../src/main/java/web/tosunsaeng/identity/domain/auth/session/application/TokenReissueService.java), [탈퇴 cleanup enum](../../src/main/java/web/tosunsaeng/identity/domain/user/domain/enums/UserWithdrawalCleanupStatus.java)
 - [보호/공개 route 설정](../../src/main/java/web/tosunsaeng/identity/global/config/SecurityConfig.java)
 
-이 명세 갱신에서는 서버 코드를 변경하지 않았다. 예시 값은 가짜 데이터·placeholder이며 실제 Token·credential을 문서에 붙여 넣지 않는다. 무료 사용권 조회·시험·결과 API는 해당 서비스의 별도 명세를 따른다.
+예시 값은 가짜 데이터·placeholder이며 실제 Token·credential을 문서에 붙여 넣지 않는다. 무료 사용권 조회·시험·결과 API는 해당 서비스의 별도 명세를 따른다.
