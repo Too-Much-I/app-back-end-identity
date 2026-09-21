@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +25,10 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt;
 import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindingType;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestPrepareRequest;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseEnrollmentRequirement;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResultType;
+import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
@@ -42,6 +45,8 @@ class FirebaseGuestPrepareServiceTests {
 	private FirebaseAuthenticationVerifier verifier;
 	private FirebaseIdentityOwnershipService ownershipService;
 	private FirebaseEnrollmentAttemptService enrollmentAttemptService;
+	private ConsentPolicy consentPolicy;
+	private SimpleMeterRegistry meterRegistry;
 	private FirebaseGuestPrepareService service;
 	private User guest;
 	private VerifiedFirebasePrincipal principal;
@@ -53,12 +58,17 @@ class FirebaseGuestPrepareServiceTests {
 		verifier = mock(FirebaseAuthenticationVerifier.class);
 		ownershipService = mock(FirebaseIdentityOwnershipService.class);
 		enrollmentAttemptService = mock(FirebaseEnrollmentAttemptService.class);
+		consentPolicy = new ConsentPolicy("privacy-v1", "term-v1", "quality-v1");
+		meterRegistry = new SimpleMeterRegistry();
 		service = new FirebaseGuestPrepareService(
 				currentUserProvider,
 				userRepository,
 				verifier,
 				ownershipService,
 				enrollmentAttemptService,
+				new FirebaseEnrollmentRequirementResolver(),
+				consentPolicy,
+				meterRegistry,
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 		guest = User.createGuest(
@@ -104,7 +114,29 @@ class FirebaseGuestPrepareServiceTests {
 
 		assertThat(response.type()).isEqualTo(FirebaseGuestPrepareResultType.ENROLLMENT_REQUIRED);
 		assertThat(response.enrollmentId()).isEqualTo(attempt.getEnrollmentId());
+		assertThat(response.missingRequirements()).containsExactlyInAnyOrder(
+				FirebaseEnrollmentRequirement.PHONE_VERIFICATION,
+				FirebaseEnrollmentRequirement.PROFILE
+		);
+		assertThat(response.privacyConsentVersion()).isEqualTo("privacy-v1");
+		assertThat(response.termConsentVersion()).isEqualTo("term-v1");
 		assertThat(response.expiresIn()).isEqualTo(Duration.ofMinutes(10).toMillis());
+		assertThat(outcomeCount("ENROLLMENT_REQUIRED")).isEqualTo(1);
+	}
+
+	@Test
+	void rejectsGuestOwnedIdentityAsStateConflictWithoutCreatingEnrollment() {
+		when(ownershipService.resolve(principal, guest.getUserId()))
+				.thenReturn(FirebaseOwnershipOutcome.OWNED_BY_CURRENT_USER);
+
+		assertThatThrownBy(() -> service.prepare(
+				new FirebaseGuestPrepareRequest("prepare-credential")
+		))
+				.isInstanceOf(AuthException.class)
+				.satisfies(exception -> assertThat(((AuthException) exception).getErrorCode())
+						.isEqualTo(AuthErrorStatus.IDENTITY_STATE_CONFLICT));
+		verify(enrollmentAttemptService, never()).startOrReuse(any(), any(), any(), any(), any());
+		assertThat(outcomeCount("IDENTITY_STATE_CONFLICT")).isEqualTo(1);
 	}
 
 	@Test
@@ -117,7 +149,13 @@ class FirebaseGuestPrepareServiceTests {
 		);
 
 		assertThat(response.type()).isEqualTo(FirebaseGuestPrepareResultType.MERGE_REQUIRED);
+		assertThat(response.enrollmentId()).isNull();
+		assertThat(response.missingRequirements()).isNull();
+		assertThat(response.privacyConsentVersion()).isNull();
+		assertThat(response.termConsentVersion()).isNull();
+		assertThat(response.expiresIn()).isNull();
 		verify(enrollmentAttemptService, never()).startOrReuse(any(), any(), any(), any(), any());
+		assertThat(outcomeCount("MERGE_REQUIRED")).isEqualTo(1);
 	}
 
 	@Test
@@ -153,5 +191,12 @@ class FirebaseGuestPrepareServiceTests {
 				Set.of(FirebaseAuthenticationMethod.GOOGLE),
 				List.of()
 		);
+	}
+
+	private double outcomeCount(String outcome) {
+		return meterRegistry.get("identity.firebase.guest.prepare")
+				.tag("outcome", outcome)
+				.counter()
+				.count();
 	}
 }

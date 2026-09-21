@@ -2,6 +2,7 @@ package web.tosunsaeng.identity.domain.auth.federation.infrastructure.firebase;
 
 import java.time.Clock;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthen
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentAttemptService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentCoordinationTransactionService;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentLifecycleService;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseEnrollmentRequirementResolver;
 import web.tosunsaeng.identity.domain.auth.federation.application.AbandonedFirebaseEnrollmentTargetGuard;
 import web.tosunsaeng.identity.domain.auth.federation.application.AbandonedFirebaseUserCleanupPort;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseExchangeService;
@@ -278,6 +280,11 @@ public class FirebaseAuthenticationConfiguration {
 		}
 
 		@Bean
+		FirebaseEnrollmentRequirementResolver firebaseEnrollmentRequirementResolver() {
+			return new FirebaseEnrollmentRequirementResolver();
+		}
+
+		@Bean
 		FirebaseExchangeUseCase firebaseExchangeUseCase(
 				FirebaseAuthenticationVerifier authenticationVerifier,
 				FirebaseIdentityRepository firebaseIdentityRepository,
@@ -286,6 +293,7 @@ public class FirebaseAuthenticationConfiguration {
 				AccessTokenIssuer accessTokenIssuer,
 				RefreshSessionIssuer refreshSessionIssuer,
 				FirebaseEnrollmentAttemptService enrollmentAttemptService,
+				FirebaseEnrollmentRequirementResolver requirementResolver,
 				Clock clock,
 				@Nullable UserWithdrawalLifecycleRepository withdrawalLifecycleRepository
 		) {
@@ -298,7 +306,8 @@ public class FirebaseAuthenticationConfiguration {
 					refreshSessionIssuer,
 					enrollmentAttemptService,
 					clock,
-					withdrawalLifecycleRepository
+					withdrawalLifecycleRepository,
+					requirementResolver
 			);
 		}
 
@@ -374,15 +383,21 @@ public class FirebaseAuthenticationConfiguration {
 				UserRepository userRepository,
 				FirebaseAuthenticationVerifier authenticationVerifier,
 				FirebaseIdentityOwnershipService ownershipService,
-				FirebaseEnrollmentAttemptService enrollmentAttemptService,
-				Clock clock
-		) {
+			FirebaseEnrollmentAttemptService enrollmentAttemptService,
+			FirebaseEnrollmentRequirementResolver requirementResolver,
+			ConsentPolicy consentPolicy,
+			MeterRegistry meterRegistry,
+			Clock clock
+	) {
 			return new FirebaseGuestPrepareService(
 					currentUserProvider,
 					userRepository,
 					authenticationVerifier,
 					ownershipService,
 					enrollmentAttemptService,
+					requirementResolver,
+					consentPolicy,
+					meterRegistry,
 					clock
 			);
 		}

@@ -2,7 +2,6 @@ package web.tosunsaeng.identity.domain.auth.federation.application;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -16,7 +15,6 @@ import web.tosunsaeng.identity.domain.auth.domain.enums.FirebaseEnrollmentBindin
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseExchangeRequest;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthenticatedResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseEnrollmentRequiredResponse;
-import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseEnrollmentRequirement;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseExchangeResponse;
 import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
@@ -40,6 +38,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final FirebaseEnrollmentAttemptService enrollmentAttemptService;
+	private final FirebaseEnrollmentRequirementResolver requirementResolver;
 	private final Clock clock;
 	private final UserWithdrawalLifecycleRepository withdrawalLifecycleRepository;
 	private final WithdrawalEnrollmentGate withdrawalEnrollmentGate;
@@ -56,7 +55,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 	) {
 		this(authenticationVerifier, firebaseIdentityRepository, socialIdentityRepository,
 				userRepository, accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService,
-				clock, null);
+				clock, null, new FirebaseEnrollmentRequirementResolver());
 	}
 
 	public FirebaseExchangeService(
@@ -69,6 +68,23 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			FirebaseEnrollmentAttemptService enrollmentAttemptService,
 			Clock clock,
 			UserWithdrawalLifecycleRepository withdrawalLifecycleRepository
+	) {
+		this(authenticationVerifier, firebaseIdentityRepository, socialIdentityRepository,
+				userRepository, accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService,
+				clock, withdrawalLifecycleRepository, new FirebaseEnrollmentRequirementResolver());
+	}
+
+	public FirebaseExchangeService(
+			FirebaseAuthenticationVerifier authenticationVerifier,
+			FirebaseIdentityRepository firebaseIdentityRepository,
+			SocialIdentityRepository socialIdentityRepository,
+			UserRepository userRepository,
+			AccessTokenIssuer accessTokenIssuer,
+			RefreshSessionIssuer refreshSessionIssuer,
+			FirebaseEnrollmentAttemptService enrollmentAttemptService,
+			Clock clock,
+			UserWithdrawalLifecycleRepository withdrawalLifecycleRepository,
+			FirebaseEnrollmentRequirementResolver requirementResolver
 	) {
 		this.authenticationVerifier = Objects.requireNonNull(
 				authenticationVerifier,
@@ -97,6 +113,10 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		this.enrollmentAttemptService = Objects.requireNonNull(
 				enrollmentAttemptService,
 				"enrollmentAttemptService must not be null"
+		);
+		this.requirementResolver = Objects.requireNonNull(
+				requirementResolver,
+				"requirementResolver must not be null"
 		);
 		this.clock = Objects.requireNonNull(clock, "clock must not be null");
 		this.withdrawalLifecycleRepository = withdrawalLifecycleRepository;
@@ -135,7 +155,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		);
 		return new FirebaseEnrollmentRequiredResponse(
 				attempt.getEnrollmentId(),
-				missingRequirements(principal),
+				requirementResolver.resolveDirectSignup(principal),
 				remainingMillis(attempt)
 		);
 	}
@@ -205,25 +225,6 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		if (withdrawalEnrollmentGate != null) {
 			withdrawalEnrollmentGate.checkExistingOwner(ownerUserId);
 		}
-	}
-
-	private Set<FirebaseEnrollmentRequirement> missingRequirements(
-			VerifiedFirebasePrincipal principal
-	) {
-		EnumSet<FirebaseEnrollmentRequirement> requirements = EnumSet.noneOf(
-				FirebaseEnrollmentRequirement.class
-		);
-		if (principal.linkedMethods().contains(FirebaseAuthenticationMethod.PASSWORD)
-				&& !principal.emailVerified()) {
-			requirements.add(FirebaseEnrollmentRequirement.EMAIL_VERIFICATION);
-		}
-		if (!principal.linkedMethods().contains(FirebaseAuthenticationMethod.PHONE)
-				|| !principal.phoneVerified()) {
-			requirements.add(FirebaseEnrollmentRequirement.PHONE_VERIFICATION);
-		}
-		requirements.add(FirebaseEnrollmentRequirement.PROFILE);
-		requirements.add(FirebaseEnrollmentRequirement.CONSENTS);
-		return Set.copyOf(requirements);
 	}
 
 	private long remainingMillis(FirebaseEnrollmentAttempt attempt) {

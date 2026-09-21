@@ -134,9 +134,43 @@ public class FirebaseExchangeController {
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "ENROLLMENT_REQUIRED, ALREADY_LINKED 또는 MERGE_REQUIRED"),
+			@ApiResponse(
+					responseCode = "200",
+					description = "ENROLLMENT_REQUIRED 또는 MERGE_REQUIRED",
+					content = @Content(
+							schema = @Schema(implementation = BaseResponse.class),
+							examples = {
+							@ExampleObject(name = "ENROLLMENT_REQUIRED", value = """
+									{
+									  "isSuccess": true,
+									  "code": "SUCCESS",
+									  "message": "요청에 성공했습니다.",
+									  "result": {
+									    "type": "ENROLLMENT_REQUIRED",
+									    "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+									    "missingRequirements": ["PHONE_VERIFICATION", "PROFILE"],
+									    "privacyConsentVersion": "privacy-v1",
+									    "termConsentVersion": "term-v1",
+									    "expiresIn": 600000
+									  }
+									}
+									"""),
+							@ExampleObject(name = "MERGE_REQUIRED", value = """
+									{
+									  "isSuccess": true,
+									  "code": "SUCCESS",
+									  "message": "요청에 성공했습니다.",
+									  "result": {
+									    "type": "MERGE_REQUIRED"
+									  }
+									}
+									""")
+							}
+					)
+			),
 			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아니거나 Provider 정책 위반", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "identity 상태 충돌 또는 enrollment 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})

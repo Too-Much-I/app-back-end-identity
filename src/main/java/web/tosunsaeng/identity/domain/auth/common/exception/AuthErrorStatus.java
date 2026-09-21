@@ -127,6 +127,11 @@ public enum AuthErrorStatus implements ErrorCode {
 			"SOCIAL_IDENTITY_CONFLICT",
 			"소셜 계정 연결이 충돌했습니다. 다시 시도해 주세요."
 	),
+	IDENTITY_STATE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"IDENTITY_STATE_CONFLICT",
+			"계정 연결 상태를 확인할 수 없습니다. 다시 로그인한 뒤에도 계속되면 고객 지원에 문의해 주세요."
+	),
 	FIREBASE_ENROLLMENT_CONFLICT(
 			HttpStatus.CONFLICT,
 			"FIREBASE_ENROLLMENT_CONFLICT",

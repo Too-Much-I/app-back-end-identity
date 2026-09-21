@@ -106,6 +106,38 @@ class FirebaseEnrollmentAttemptServiceTests {
 	}
 
 	@Test
+	void expiresStaleGuestAttemptBeforeCreatingGuestBoundReplacement() {
+		FirebaseEnrollmentAttemptRepository repository = mock(
+				FirebaseEnrollmentAttemptRepository.class
+		);
+		FirebaseEnrollmentAttempt expired = guestAttempt(NOW.minus(ENROLLMENT_TTL));
+		when(repository.findPendingByBinding(
+				PROJECT_ID,
+				FIREBASE_UID,
+				FirebaseEnrollmentBindingType.GUEST_USER,
+				GUEST_USER_ID
+		)).thenReturn(Optional.of(expired), Optional.empty());
+		when(repository.expireIfPendingAndExpired(expired.getEnrollmentId(), NOW))
+				.thenReturn(true);
+		when(repository.save(any(FirebaseEnrollmentAttempt.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		FirebaseEnrollmentAttempt result = service(repository).startOrReuse(
+				PROJECT_ID,
+				FIREBASE_UID,
+				FirebaseEnrollmentBindingType.GUEST_USER,
+				GUEST_USER_ID,
+				FirebaseAuthenticationMethod.GOOGLE
+		);
+
+		assertThat(result.getEnrollmentId()).isNotEqualTo(expired.getEnrollmentId());
+		assertThat(result.getBindingType()).isEqualTo(FirebaseEnrollmentBindingType.GUEST_USER);
+		assertThat(result.getBoundUserId()).isEqualTo(GUEST_USER_ID);
+		assertThat(result.getExpiresAt()).isEqualTo(NOW.plus(ENROLLMENT_TTL));
+		verify(repository).expireIfPendingAndExpired(expired.getEnrollmentId(), NOW);
+	}
+
+	@Test
 	void duplicateInsertLoserReusesWinnerCreatedByConcurrentRequest() {
 		FirebaseEnrollmentAttemptRepository repository = mock(
 				FirebaseEnrollmentAttemptRepository.class

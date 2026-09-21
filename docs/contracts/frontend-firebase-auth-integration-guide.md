@@ -38,18 +38,15 @@ Google·Apple뿐 아니라 Kakao도 승인된 Firebase Generic OIDC provider를 
 
 Kakao는 Firebase 기본 provider가 아니다. Kakao Developers, Identity Platform Generic OIDC, Billing, 모바일 redirect/deep-link 설정과 실제 검증이 필요하다. 이 문서는 완료를 보증하지 않는다. 준비 전에는 Kakao 버튼을 숨기고 Google부터 테스트한다.
 
-### 2.2 `ALREADY_LINKED`는 Token 발급 성공이 아니다
+### 2.2 Guest 가입 재개 상태는 prepare 응답을 따른다
 
-Guest prepare의 `ALREADY_LINKED`만 보고 정상 앱 화면으로 진입하면 안 된다. 이 응답에는 Identity Token이나 enrollmentId가 없으며, 호출 시점의 서버 User는 여전히 Guest다.
+Guest 승격은 `/users/me`의 nickname·동의 값만으로 phone proof나 enrollment 상태를 추정하지 않는다. Guest Identity Access Token과 fresh Firebase ID Token을 함께 검증하는 `/firebase/guest/prepare`가 현재 유효한 enrollment와 미충족 요건을 반환한다.
 
-프론트는 다음처럼 처리한다.
+- owner가 없으면 활성 enrollment를 재사용하거나 만료·부재 시 새로 만들어 `ENROLLMENT_REQUIRED`를 반환한다.
+- 다른 ACTIVE MEMBER owner면 mutation 없이 `MERGE_REQUIRED`를 반환한다.
+- 현재 Guest가 identity owner인 불가능 상태는 `409 IDENTITY_STATE_CONFLICT`이며 자동 승격·merge하지 않는다.
 
-1. `/api/v1/users/me`로 현재 계정 상태를 다시 확인한다.
-2. 여전히 `accountType=GUEST`이면 `/guest/upgrade`나 `/guest/merge`를 임의 호출하지 않는다.
-3. 프로필이 MEMBER라면 해당 Firebase 사용자로 `/firebase/exchange`를 호출해 MEMBER Token을 받는다. 이때 Firebase UID가 실제로 같은 계정인지 확인한다.
-4. 계속 GUEST이거나 조회가 실패하면 자동 승격·새 signup·새 Guest 생성을 하지 않고 상태 확인/지원 안내로 멈춘다. 제공되는 복구 API가 없다.
-
-현재 `FirebaseGuestPrepareService`는 ACTIVE GUEST의 소유권이 현재 User로 판정되면 이 값을 반환할 수 있다. 항상 자동 복구된다는 기존 문서의 가정은 제거한다. 취소된 Stage 11은 Guest 최초 생성 응답 복구 설계였으며 이 prepare 예외를 해결하는 기능도 아니다.
+Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는다. 이미 MEMBER인 사용자의 `/providers/link/prepare`가 반환하는 별도 `ALREADY_LINKED`는 완료된 SNS 연결의 멱등 상태이므로 그대로 유지한다.
 
 ### 2.3 `ACCOUNT_MERGED_TOKEN_REJECTED`는 `/reissue`의 대표 오류가 아니다
 
@@ -65,7 +62,7 @@ Stage 8 기능을 활성화한 서버는 기존 자체 세션을 무효화하고
 
 ### 2.6 회원가입 정책 버전은 서버 기준으로 공급한다
 
-`/firebase/signup`, `/guest/upgrade`는 개인정보 처리방침·이용약관 version을 요구한다. 현재 정책 조회는 인증 후 `GET /api/v1/users/me/consents`만 제공한다. 신규 가입에 사용할 공개 정책 metadata API는 없으므로 배포 담당자와 합의한 설정 공급이 필요하다. 임의 version이나 구버전으로 가입을 우회하지 않는다.
+`/firebase/signup`, `/guest/upgrade`는 개인정보 처리방침·이용약관 version을 요구한다. Guest 승격에는 `/firebase/guest/prepare`가 현재 두 정책 version을 공급한다. direct 신규 가입에 사용할 공개 정책 metadata API는 아직 없으므로 배포 담당자와 합의한 설정 공급이 필요하다. 임의 version이나 구버전으로 가입을 우회하지 않는다.
 
 ### 2.7 문서에 없는 변경 API를 추정하지 않는다
 
@@ -180,9 +177,14 @@ Guest Identity Access Token 유지
 
 | prepare 결과 | 프론트 동작 |
 | --- | --- |
-| `ENROLLMENT_REQUIRED` | 같은 Firebase User에 phone을 link하고 강제 갱신 Token으로 `/guest/upgrade` 호출 |
-| `ALREADY_LINKED` | 정상 완료로 간주하지 말고 2.2의 상태 재확인·reconciliation 처리 |
+| `ENROLLMENT_REQUIRED` | `missingRequirements`에 필요한 단계만 수행하고 같은 Firebase User의 강제 갱신 Token으로 `/guest/upgrade` 호출 |
 | `MERGE_REQUIRED` | 신규 승격을 중단하고 사용자 확인 후 기존 MEMBER merge 흐름으로 이동 |
+
+- `PHONE_VERIFICATION`은 같은 Firebase User에 phone credential을 link해 충족한다.
+- `EMAIL_VERIFICATION`은 password 계정의 email 인증을 완료한 뒤 Token을 갱신한다.
+- `PROFILE`은 MEMBER nickname 입력·확정을 뜻한다.
+- `CONSENTS`는 응답의 현재 privacy/terms version으로 필수 동의를 다시 받아야 한다는 뜻이다.
+- phone·email 상태가 바뀐 뒤 prepare를 다시 호출하면 활성 enrollmentId는 유지되고 requirements는 fresh proof 기준으로 다시 계산된다.
 
 `/guest/upgrade` 성공 시:
 
@@ -305,8 +307,9 @@ Stage 9 활성 환경의 `/reissue` 응답 유실 계약:
 | `403 FIREBASE_PHONE_VERIFICATION_REQUIRED` | signup/upgrade에 same-UID verified phone 없음 | 현재 Firebase User에 phone link 후 Token 강제 갱신 |
 | `409 PHONE_ALREADY_LINKED` | 번호가 다른 User/Firebase User 소유 | 자동 merge 금지, 기존 계정 로그인·복구 안내 |
 | `409 MERGE_REQUIRED` | Guest upgrade 대상 identity가 기존 MEMBER 소유 | 명시적 확인 후 Guest merge 흐름 |
-| `409 FIREBASE_ENROLLMENT_CONFLICT` | attempt 없음·만료·소비·UID 불일치 | enrollment 폐기 후 Firebase 로그인과 `/exchange`부터 재시작 |
-| `409 FIREBASE_ENROLLMENT_RESTART_REQUIRED` | lifecycle상 가입 재시작 필요 | 로컬 enrollment 폐기 후 처음부터 재시작 |
+| `409 FIREBASE_ENROLLMENT_CONFLICT` | attempt 없음·만료·소비·UID 불일치 | enrollment 폐기. Guest 승격은 `/guest/prepare`, direct 가입은 `/exchange`부터 재시작 |
+| `409 FIREBASE_ENROLLMENT_RESTART_REQUIRED` | lifecycle상 가입 재시작 필요 | enrollment 폐기. 현재 진입점의 prepare/exchange부터 재시작 |
+| `409 IDENTITY_STATE_CONFLICT` | Guest인데 현재 identity owner로 판정된 불가능 상태 | 자동 승격·merge 금지, 재인증 후 반복되면 지원 안내 |
 | `409 FIREBASE_IDENTITY_CONFLICT` | Firebase owner 불일치 | 로컬 추정 복구 금지, 재로그인 후 반복 시 지원 |
 | `409 SOCIAL_IDENTITY_CONFLICT` | Provider subject owner 불일치 | 자동 연결 금지, 재로그인 후 반복 시 지원 |
 | `403 GUEST_UPGRADE_NOT_ALLOWED` | 현재 User가 ACTIVE GUEST가 아님 | 프로필·Token 상태 재조회 후 로그인 초기화 |
@@ -342,7 +345,7 @@ Provider 연결/해제 전용 오류는 8.19를 따른다. `401 ACCOUNT_WITHDRAW
 | `POST /api/v1/auth/firebase/exchange` | 공개 + Firebase ID Token body | `AUTHENTICATED` 또는 `ENROLLMENT_REQUIRED` | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/signup` | 공개 + Firebase ID Token body | Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/guest` | 공개, 구버전 참고 전용 | 신규 앱 호출 금지 | 400, 409 |
-| `POST /api/v1/auth/firebase/guest/prepare` | Guest Identity Bearer + Firebase ID Token body | `ENROLLMENT_REQUIRED`, `ALREADY_LINKED`, `MERGE_REQUIRED` | 401, 403, 409, 429, 503 |
+| `POST /api/v1/auth/firebase/guest/prepare` | Guest Identity Bearer + Firebase ID Token body | `ENROLLMENT_REQUIRED` 또는 `MERGE_REQUIRED` | 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/guest/upgrade` | Guest Identity Bearer + Firebase ID Token body | Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/guest/merge` | Guest Identity Bearer + Firebase ID Token body | target MEMBER Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/auth-methods/sync` | MEMBER Identity Bearer + Firebase ID Token body | 기존 승인된 `linkedProviders` 검증만 | 400, 401, 403, 409, 429, 503 |
@@ -477,23 +480,15 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
   "result": {
     "type": "ENROLLMENT_REQUIRED",
     "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+    "missingRequirements": ["PHONE_VERIFICATION", "PROFILE"],
+    "privacyConsentVersion": "privacy-v1",
+    "termConsentVersion": "term-v1",
     "expiresIn": 600000
   }
 }
 ```
 
-이미 현재 User 소유로 판정된 상태:
-
-```json
-{
-  "isSuccess": true,
-  "code": "SUCCESS",
-  "message": "요청에 성공했습니다.",
-  "result": {
-    "type": "ALREADY_LINKED"
-  }
-}
-```
+`missingRequirements`의 가능한 값은 `EMAIL_VERIFICATION`, `PHONE_VERIFICATION`, `PROFILE`, `CONSENTS`이며 배열 순서는 계약이 아니다. 활성 enrollment가 있으면 같은 ID를 재사용하고, 만료됐으면 기존 attempt를 `EXPIRED`로 전환한 뒤 새 ID를 반환한다.
 
 기존 MEMBER merge 필요:
 
@@ -508,7 +503,7 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
 }
 ```
 
-`ALREADY_LINKED`, `MERGE_REQUIRED`에는 `enrollmentId`, `expiresIn` 필드가 JSON에 포함되지 않는다.
+`MERGE_REQUIRED`에는 enrollmentId, requirements, 정책 version, expiresIn이 포함되지 않는다. 현재 Guest가 identity owner인 비정상 상태는 성공 result가 아니라 `409 IDENTITY_STATE_CONFLICT`다.
 
 ### 8.5 `POST /api/v1/auth/firebase/guest/upgrade`
 
