@@ -46,9 +46,18 @@ class ProviderChangeHttpTests {
 	}
 	@Test void offIsSafeUnavailable() throws Exception {
 		when(provider.getIfAvailable()).thenReturn(null);
-		mvc.perform(post("/api/v1/auth/firebase/providers/relink/prepare").contentType("application/json")
+		mvc.perform(post("/api/v1/auth/firebase/providers/unlink").contentType("application/json")
 				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"proof\"}"))
 				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"));
+	}
+	@Test void retiredRelinkRouteHasNoHandler() throws Exception {
+		var result = mvc.perform(post("/api/v1/auth/firebase/providers/relink/prepare").contentType("application/json")
+				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"test-proof\"}"))
+				.andReturn();
+		// standalone에는 정적 리소스 핸들러가 없다. 전체 앱의 404는 SecurityIntegrationTests에서 검증한다.
+		assertThat(result.getHandler()).isNull();
+		assertThat(result.getResolvedException()).isInstanceOf(org.springframework.web.servlet.NoHandlerFoundException.class);
+		verifyNoInteractions(service, current);
 	}
 	@Test void oversizedAndChunkedBodiesAreBounded() throws Exception {
 		mvc.perform(post("/api/v1/auth/firebase/providers/unlink").header("Transfer-Encoding", "chunked")

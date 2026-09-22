@@ -11,12 +11,22 @@ public final class RequestLogContext {
 
 	private static final String ATTRIBUTE_PREFIX = RequestLogContext.class.getName() + ".";
 	private static final String ERROR_CODE_ATTRIBUTE = ATTRIBUTE_PREFIX + "errorCode";
+	private static final String DIAGNOSTIC_ATTRIBUTE = ATTRIBUTE_PREFIX + "diagnostic";
 	private static final String FAILURE_ATTRIBUTE = ATTRIBUTE_PREFIX + "unexpectedFailure";
 	private static final String ERROR_LOGGED_ATTRIBUTE = ATTRIBUTE_PREFIX + "errorLogged";
 	private static final int MAX_STACK_FRAMES = 24;
 	private static final int MAX_CAUSE_TYPES = 5;
 
 	private RequestLogContext() {
+	}
+
+	public static void recordDiagnostic(HttpServletRequest request, FailureDiagnostic diagnostic) {
+		if (diagnostic != null) request.setAttribute(DIAGNOSTIC_ATTRIBUTE, diagnostic);
+	}
+
+	static FailureDiagnostic getDiagnostic(HttpServletRequest request) {
+		Object diagnostic = request.getAttribute(DIAGNOSTIC_ATTRIBUTE);
+		return diagnostic instanceof FailureDiagnostic value ? value : null;
 	}
 
 	public static void recordErrorCode(HttpServletRequest request, String errorCode) {

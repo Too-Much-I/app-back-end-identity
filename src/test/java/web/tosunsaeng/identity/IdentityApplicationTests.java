@@ -221,7 +221,7 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.maxLength")
 						.value(36))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']"
-						+ ".content['application/json'].example.result.refreshTokenExpiresIn")
+						+ ".content['application/json'].examples.GUEST_CREATED.value.result.refreshTokenExpiresIn")
 						.value(1_209_600_000));
 	}
 

@@ -12,6 +12,8 @@ import java.util.ArrayList;
 
 import java.util.Objects;
 import java.util.function.Supplier;
+import web.tosunsaeng.identity.global.observability.FailureDiagnostic;
+import static web.tosunsaeng.identity.global.observability.FailureDiagnostic.Operation.*;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -54,18 +56,18 @@ public class SessionSecurityService {
 
 	public <T> T transaction(Supplier<T> work) {
 		try { return transactions.execute(status -> work.get()); }
-		catch (DataAccessException | TransactionException exception) { throw unavailable(); }
+		catch (DataAccessException | TransactionException exception) { throw unavailable(exception, SESSION_TRANSACTION); }
 	}
 
 	public <T> T transactionKeepingUniqueConflicts(Supplier<T> work) {
 		try { return transactions.execute(status -> work.get()); }
 		catch (org.springframework.dao.DuplicateKeyException exception) { throw exception; }
-		catch (DataAccessException | TransactionException exception) { throw unavailable(); }
+		catch (DataAccessException | TransactionException exception) { throw unavailable(exception, SESSION_TRANSACTION); }
 	}
 
 	public long captureEpoch(String userId) {
 		try { return control(userId).getSessionEpoch(); }
-		catch (DataAccessException exception) { throw unavailable(); }
+		catch (DataAccessException exception) { throw unavailable(exception, SESSION_EPOCH_READ); }
 	}
 
 	public UserSessionControl control(String userId) {
@@ -213,4 +215,8 @@ public class SessionSecurityService {
 	}
 
 	public static AuthException unavailable() { return new AuthException(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE); }
+
+	private static AuthException unavailable(Throwable error, FailureDiagnostic.Operation operation) {
+		return new AuthException(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE, FailureDiagnostic.from(error, operation));
+	}
 }

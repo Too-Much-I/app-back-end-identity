@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.session.infrastructure;
 
+import web.tosunsaeng.identity.global.observability.FailureDiagnostic;
+
 import java.io.IOException;
 import java.time.Clock;
 
@@ -73,7 +75,9 @@ public class SessionRevocationConfiguration {
 		public void run() {
 			try { worker.runBatch(); }
 			catch (RuntimeException exception) {
-				org.slf4j.LoggerFactory.getLogger(Scheduler.class).warn("Session revocation batch could not be completed.");
+				FailureDiagnostic.from(exception, FailureDiagnostic.Operation.SESSION_REVOCATION_BATCH)
+						.attachTo(org.slf4j.LoggerFactory.getLogger(Scheduler.class).atWarn())
+						.log("Session revocation batch could not be completed.");
 			}
 		}
 	}

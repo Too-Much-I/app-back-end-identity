@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>토선생 Identity API · 프론트 공유본</title>
+  <link rel="stylesheet" href="swagger-ui.css">
+  <style>
+    body { margin: 0; background: #fafafa; }
+    .handoff { max-width: 1380px; margin: 20px auto; padding: 0 24px; font: 16px/1.6 system-ui, sans-serif; color: #253044; }
+    .handoff h1 { font-size: 24px; margin-bottom: 8px; }
+    .handoff p { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <section class="handoff">
+    <h1>Identity API · 프론트 공유본</h1>
+    <p>현재 소스에서 생성한 읽기 전용 Swagger입니다. 배포·기능 활성화 여부는 별도 확인이 필요합니다.</p>
+    <p>Guest 가입 재개, 로그아웃, 회원 탈퇴를 포함합니다. 학습 기록만 삭제하는 API는 미확정이며 포함하지 않습니다.</p>
+    <p>Identity Controller 전체 23개 경로·24개 작업을 포함합니다. 폐기된 relink/prepare는 제거했으며 providers/link/prepare → start → complete를 사용합니다.</p>
+    <p>Responses의 Example Value 선택 목록에서 정상·재개·상태별·주요 오류 응답을 확인하세요. 값은 가상 예시이며 실제 응답을 우선합니다.</p>
+    <p>도구로 가져오려면 <a href="identity-openapi.json" download>OpenAPI JSON</a>을 사용하세요. 실제 호출은 전달받은 서버의 Swagger에서 수행하세요.</p>
+  </section>
+  <div id="swagger-ui"></div>
+  <script src="swagger-ui-bundle.js"></script>
+  <script src="openapi.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      spec: window.IDENTITY_OPENAPI,
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      validatorUrl: null,
+      supportedSubmitMethods: [],
+      persistAuthorization: false,
+      docExpansion: 'list',
+      presets: [SwaggerUIBundle.presets.apis],
+      layout: 'BaseLayout'
+    });
+  </script>
+</body>
+</html>

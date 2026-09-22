@@ -23,6 +23,7 @@ public class ProviderLinkService {
 	private web.tosunsaeng.identity.domain.auth.federation.application.WithdrawalEnrollmentGate withdrawalGate;
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	public void setWithdrawalGate(web.tosunsaeng.identity.domain.auth.federation.application.WithdrawalEnrollmentGate gate) { withdrawalGate = gate; }
+	@io.swagger.v3.oas.annotations.media.Schema(name = "ProviderLinkStatus")
 	public record Status(String linkAttemptId, SocialProvider provider, String status, Instant expiresAt,
 			boolean linkAllowed) { }
 	private final ProviderChangeService changes;

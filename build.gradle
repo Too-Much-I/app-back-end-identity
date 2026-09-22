@@ -79,3 +79,43 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 실제 DB/Provider 없이 Controller에서 프론트 공유용 OpenAPI를 생성한다.
+def openApiOutput = layout.buildDirectory.dir('generated/openapi')
+tasks.register('exportOpenApi', Test) {
+	group = 'documentation'
+	description = 'Export the current Identity OpenAPI using the isolated test context.'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter { includeTestsMatching 'web.tosunsaeng.identity.OpenApiSharingTests' }
+	systemProperty 'identity.openapi.output-dir', openApiOutput.get().asFile.absolutePath
+	outputs.dir(openApiOutput)
+}
+
+tasks.register('prepareSwaggerBundle', Sync) {
+	group = 'documentation'
+	dependsOn tasks.named('exportOpenApi')
+	into layout.buildDirectory.dir('frontend-swagger')
+	from(openApiOutput)
+	from('docs/swagger')
+	from({
+		def swaggerJar = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.find {
+			it.moduleVersion.id.group == 'org.webjars' && it.name == 'swagger-ui'
+		}.file
+		zipTree(swaggerJar)
+	}) {
+		include '**/swagger-ui-bundle.js', '**/swagger-ui.css'
+		eachFile { path = name }
+		includeEmptyDirs = false
+	}
+}
+
+tasks.register('shareSwagger', Zip) {
+	group = 'documentation'
+	description = 'Build a read-only offline Swagger UI and OpenAPI JSON ZIP for frontend handoff.'
+	dependsOn tasks.named('prepareSwaggerBundle')
+	from layout.buildDirectory.dir('frontend-swagger')
+	archiveFileName = 'identity-swagger.zip'
+	destinationDirectory = layout.buildDirectory.dir('distributions')
+}

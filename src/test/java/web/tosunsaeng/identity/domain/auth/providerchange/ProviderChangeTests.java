@@ -435,7 +435,6 @@ class ProviderChangeTests {
 		mongo.insert(ProviderRelinkAttempt.create(USER, binding.getFirebaseIdentityId(), SocialProvider.GOOGLE, 0, NOW.minusSeconds(900), NOW.minusSeconds(600)));
 		assertThat(security.hasUnresolvedLogout(USER)).isTrue();
 		assertThatThrownBy(() -> links.prepare(USER, SocialProvider.GOOGLE, "proof", List.of(KEY))).isInstanceOf(AuthException.class);
-		assertThatThrownBy(() -> service.prepare(USER, SocialProvider.GOOGLE, "proof")).isInstanceOf(AuthException.class);
 	}
 	@Test void startedLinkRemainsWithdrawalReleaseBarrier() {
 		var p = firstPrepare(SocialProvider.GOOGLE); links.start(USER, p.linkAttemptId(), "proof");

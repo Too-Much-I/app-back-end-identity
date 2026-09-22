@@ -166,6 +166,23 @@ class SentryCaptureIntegrationTests {
 		assertThat(applicationContext.containsBean("sentryLogbackInitializer")).isFalse();
 	}
 
+	@Test
+	void diagnosedBusiness503StaysInConsoleAndDoesNotCreateSentryEvent() throws Exception {
+		try (LogCapture logs = LogCapture.forClass(RequestLoggingFilter.class)) {
+			var result = mockMvc.perform(post("/test/sentry/database-unavailable")
+					.with(jwt().jwt(token -> token.subject(SENSITIVE_SENTINEL))))
+					.andExpect(status().isServiceUnavailable()).andReturn();
+			assertThat(result.getResponse().getContentAsString()).doesNotContain(SENSITIVE_SENTINEL, "DB_TIMEOUT", "diagnostic");
+			assertThat(logs.events("http.request.failed")).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "failureKind")).isEqualTo("DB_TIMEOUT");
+				assertThat(LogCapture.rendered(event)).doesNotContain(SENSITIVE_SENTINEL);
+				assertThat(event.getThrowableProxy()).isNull();
+			});
+		}
+		Sentry.flush(1_000);
+		assertThat(transportFactory.eventPayloads()).isEmpty();
+	}
+
 	private void assertSanitizedFinalEvent(String payload) {
 		assertThat(payload).doesNotContain(SENSITIVE_SENTINEL);
 
@@ -222,6 +239,14 @@ class SentryCaptureIntegrationTests {
 
 	@RestController
 	static class SentryTestController {
+
+		@PostMapping("/test/sentry/database-unavailable")
+		void unavailable() {
+			var source = new org.springframework.dao.QueryTimeoutException(SENSITIVE_SENTINEL);
+			throw new web.tosunsaeng.identity.domain.auth.common.exception.AuthException(
+					web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE,
+					FailureDiagnostic.from(source, FailureDiagnostic.Operation.SESSION_TRANSACTION));
+		}
 
 		@PostMapping("/test/sentry/business")
 		void business(@RequestBody Map<String, Object> ignored) {

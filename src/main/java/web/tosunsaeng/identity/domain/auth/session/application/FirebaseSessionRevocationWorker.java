@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.session.application;
 
+import web.tosunsaeng.identity.global.observability.FailureDiagnostic;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -57,9 +59,11 @@ public class FirebaseSessionRevocationWorker {
 				.with(Sort.by("requestedAt", "epoch")).limit(properties.getBatchSize()), LogoutAllOperation.class);
 		for (var candidate : candidates) {
 			try { process(candidate.getLogoutId()); }
-			catch (RuntimeException ignored) {
+			catch (RuntimeException exception) {
 				// Persisted lease/mutation evidence is authoritative. Never log provider payloads.
-				org.slf4j.LoggerFactory.getLogger(getClass()).warn("Session revocation worker requires retry or reconciliation.");
+				FailureDiagnostic.from(exception, FailureDiagnostic.Operation.SESSION_REVOCATION_BATCH)
+						.attachTo(org.slf4j.LoggerFactory.getLogger(getClass()).atWarn())
+						.log("Session revocation worker requires retry or reconciliation.");
 			}
 		}
 	}

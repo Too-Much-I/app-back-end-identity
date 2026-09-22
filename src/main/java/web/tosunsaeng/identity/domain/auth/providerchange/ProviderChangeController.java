@@ -32,6 +32,7 @@ public class ProviderChangeController {
 		this.service = service; this.currentUser = currentUser;
 	}
 	@Operation(summary = "SNS 연결 해제 접수", description = "남는 수단의 최근 Firebase 인증 및 사용자 JWT가 필요합니다. 202는 접수이며 모든 자체 세션을 종료합니다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "해제 접수 (완료 아님)", useReturnTypeSchema = true)
 	@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 	@PostMapping(value = "/unlink", consumes = "application/json", produces = "application/json")
 	public ResponseEntity<BaseResponse<ProviderChangeService.Status>> unlink(@Valid @RequestBody ChangeRequest request,
@@ -42,12 +43,6 @@ public class ProviderChangeController {
 	@PostMapping(value = "/unlink/status", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderChangeService.Status> status(@Valid @RequestBody StatusRequest request) {
 		return BaseResponse.success(required().status(request.requestId(), request.firebaseIdToken()));
-	}
-	@Operation(summary = "폐기된 재연결 준비", deprecated = true, description = "항상 503을 반환합니다. 공통 providers/link/prepare → start → complete로 전환해야 합니다.")
-	@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
-	@PostMapping(value = "/relink/prepare", consumes = "application/json", produces = "application/json")
-	public BaseResponse<ProviderChangeService.Permit> prepare(@Valid @RequestBody ChangeRequest request) {
-		return BaseResponse.success(required().prepare(currentUser.getCurrentUserId(), request.provider(), request.firebaseIdToken()));
 	}
 	private ProviderChangeService required() {
 		var value = service.getIfAvailable();

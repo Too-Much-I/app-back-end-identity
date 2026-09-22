@@ -70,7 +70,8 @@ class JwtDecoderTests {
 		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
 		encoder = encoder(keyPair, KEY_ID);
 		decoder = configuration.jwtDecoder(
-				publicKey,
+				new JwksPublicKeySet(new com.nimbusds.jose.jwk.JWKSet(
+						new RSAKey.Builder(publicKey).keyID(KEY_ID).build())),
 				properties,
 				Clock.fixed(NOW, ZoneOffset.UTC)
 		);

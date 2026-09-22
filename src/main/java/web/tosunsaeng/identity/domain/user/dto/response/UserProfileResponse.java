@@ -27,7 +27,7 @@ public record UserProfileResponse(
 		@Schema(
 				description = "하위 호환용 기존 가입 유형. accountType을 사용하세요.",
 				example = "LOCAL",
-				allowableValues = {"LOCAL", "GUEST"},
+				allowableValues = {"LOCAL", "GUEST", "FEDERATED"},
 				deprecated = true
 		)
 		UserProvider provider,

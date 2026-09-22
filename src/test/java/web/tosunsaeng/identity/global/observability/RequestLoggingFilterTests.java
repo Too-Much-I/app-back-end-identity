@@ -61,7 +61,7 @@ class RequestLoggingFilterTests {
 						assertThat(event.getFormattedMessage())
 								.isEqualTo("HTTP 요청 처리가 완료되었습니다");
 						assertThat(LogCapture.value(event, "outcome")).isEqualTo("success");
-						assertThat(LogCapture.value(event, "requestId"))
+						assertThat(event.getMDCPropertyMap().get("requestId"))
 								.isEqualTo(SAFE_REQUEST_ID);
 						assertThat(LogCapture.value(event, "route"))
 								.isEqualTo("/api/v1/users/me");
@@ -87,7 +87,7 @@ class RequestLoggingFilterTests {
 			String generated = response.getHeader(RequestLoggingFilter.REQUEST_ID_HEADER);
 			assertThat(UUID.fromString(generated).toString()).isEqualTo(generated);
 			assertThat(logs.events()).singleElement().satisfies(event ->
-					assertThat(LogCapture.value(event, "requestId")).isEqualTo(generated)
+					assertThat(event.getMDCPropertyMap().get("requestId")).isEqualTo(generated)
 			);
 		}
 	}

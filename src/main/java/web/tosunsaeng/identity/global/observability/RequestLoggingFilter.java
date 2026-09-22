@@ -75,7 +75,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 			throw exception;
 		} finally {
 			try {
-				emitRequestEvent(request, response, requestId, startedAt);
+				emitRequestEvent(request, response, startedAt);
 			} finally {
 				restoreRequestId(previousRequestId);
 			}
@@ -95,7 +95,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 	private void emitRequestEvent(
 			HttpServletRequest request,
 			HttpServletResponse response,
-			String requestId,
 			long startedAt
 	) {
 		RequestLogContext.SafeFailure failure = RequestLogContext.getUnexpectedFailure(request);
@@ -103,7 +102,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 		long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
 
 		if (failure != null || status >= 500) {
-			emitUnexpectedFailure(request, requestId, status, durationMs, failure);
+			emitUnexpectedFailure(request, status, durationMs, failure);
 			return;
 		}
 		if (status < 400 && isQuietSuccessPath(request.getRequestURI())) {
@@ -113,7 +112,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 		LoggingEventBuilder event = log.atInfo()
 				.addKeyValue("event", "http.request.completed")
 				.addKeyValue("outcome", status < 400 ? "success" : "rejected")
-				.addKeyValue("requestId", requestId)
 				.addKeyValue("method", request.getMethod())
 				.addKeyValue("route", resolveRoute(request))
 				.addKeyValue("status", status)
@@ -124,7 +122,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
 	private void emitUnexpectedFailure(
 			HttpServletRequest request,
-			String requestId,
 			int status,
 			long durationMs,
 			RequestLogContext.SafeFailure failure
@@ -136,13 +133,15 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 		LoggingEventBuilder event = log.atError()
 				.addKeyValue("event", "http.request.failed")
 				.addKeyValue("outcome", "unexpected_failure")
-				.addKeyValue("requestId", requestId)
 				.addKeyValue("method", request.getMethod())
 				.addKeyValue("route", resolveRoute(request))
 				.addKeyValue("status", status)
 				.addKeyValue("durationMs", durationMs);
 		addErrorCode(event, request);
-		if (failure != null) {
+		FailureDiagnostic diagnostic = RequestLogContext.getDiagnostic(request);
+		if (diagnostic != null) {
+			diagnostic.attachTo(event);
+		} else if (failure != null) {
 			event.addKeyValue("exceptionType", failure.exceptionType())
 					.addKeyValue("causeTypes", failure.causeTypes())
 					.addKeyValue("stackTrace", failure.stackTrace());

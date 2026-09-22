@@ -92,7 +92,9 @@ class JwtWorkloadIdentityCredentialProviderTests {
 		for (WorkloadIdentityPurpose purpose : WorkloadIdentityPurpose.values()) {
 			String workloadValue = provider.issue(purpose).tokenValue();
 			assertThatThrownBy(() -> configuration.jwtDecoder(
-					(RSAPublicKey) keyPair.getPublic(), jwtProperties, Clock.fixed(NOW, ZoneOffset.UTC)
+					new JwksPublicKeySet(new com.nimbusds.jose.jwk.JWKSet(
+							new com.nimbusds.jose.jwk.RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+									.keyID(jwtProperties.keyId()).build())), jwtProperties, Clock.fixed(NOW, ZoneOffset.UTC)
 			).decode(workloadValue)).isInstanceOf(JwtException.class);
 			// 소비자 계약 fixture: 같은 서명 키라도 사용자 issuer/audience는 workload가 아니다.
 			String workloadAudience = decoder.decode(workloadValue).getAudience().getFirst();

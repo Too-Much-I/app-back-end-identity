@@ -47,7 +47,9 @@ public final class SignedUserTokenFixture {
 		RSAPublicKey publicKey = (RSAPublicKey) pair.getPublic();
 		issuer = new JwtAccessTokenIssuer(configuration.jwtEncoder(configuration.jwkSource(
 				configuration.rsaKey(publicKey, (RSAPrivateKey) pair.getPrivate(), properties))), properties, clock);
-		decoder = configuration.jwtDecoder(publicKey, properties, clock);
+		decoder = configuration.jwtDecoder(new web.tosunsaeng.identity.global.security.jwt.JwksPublicKeySet(
+				new com.nimbusds.jose.jwk.JWKSet(new com.nimbusds.jose.jwk.RSAKey.Builder(publicKey)
+						.keyID(properties.keyId()).build())), properties, clock);
 	}
 
 	public void delegate(AccessTokenIssuer mockIssuer) {

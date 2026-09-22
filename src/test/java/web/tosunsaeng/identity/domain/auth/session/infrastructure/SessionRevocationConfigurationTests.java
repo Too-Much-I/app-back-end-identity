@@ -18,6 +18,25 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.global.security.refresh.*;
 
 class SessionRevocationConfigurationTests {
+	@Test void schedulerPreservesSafeDiagnosticWithoutRawException() {
+		var worker = mock(FirebaseSessionRevocationWorker.class);
+		var source = new org.springframework.dao.QueryTimeoutException("test-sensitive-sentinel");
+		var error = new web.tosunsaeng.identity.domain.auth.common.exception.AuthException(
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE,
+				web.tosunsaeng.identity.global.observability.FailureDiagnostic.from(source,
+						web.tosunsaeng.identity.global.observability.FailureDiagnostic.Operation.SESSION_TRANSACTION));
+		org.mockito.Mockito.doThrow(error).when(worker).runBatch();
+		try (var logs = web.tosunsaeng.identity.support.LogCapture.forClass(SessionRevocationConfiguration.Scheduler.class)) {
+			new SessionRevocationConfiguration.Scheduler(worker).run();
+			assertThat(logs.events()).singleElement().satisfies(event -> {
+				assertThat(event.getLevel()).isEqualTo(ch.qos.logback.classic.Level.WARN);
+				assertThat(web.tosunsaeng.identity.support.LogCapture.value(event, "failureKind")).isEqualTo("DB_TIMEOUT");
+				assertThat(web.tosunsaeng.identity.support.LogCapture.value(event, "operation")).isEqualTo("SESSION_TRANSACTION");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(web.tosunsaeng.identity.support.LogCapture.rendered(event)).doesNotContain("test-sensitive-sentinel");
+			});
+		}
+	}
 	private final ApplicationContextRunner runner = new ApplicationContextRunner()
 			.withUserConfiguration(SessionRevocationConfiguration.class);
 

@@ -1,7 +1,7 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
 - 문서 성격: 현재 저장소 Controller·DTO·Service 기준 프론트 인계 명세. 구현 사실과 출시 정책, 미검증 설정을 구분한다.
-- 기준일: 2026-09-16 (신규 Guest 종료·기존 Guest 전환·SNS 공통 연결·Stage 9 재발급 반영)
+- 기준일: 2026-09-21 (TMI-169 Guest 가입 재개·미충족 요건·enrollment 만료 계약 반영)
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자
 - 적용 조건: 환경별 backend base URL, 활성 기능, Firebase project와 Provider 설정을 백엔드/모바일 담당자가 함께 확인한다. 코드 존재가 배포·활성화 완료를 뜻하지 않는다.
 
@@ -9,13 +9,15 @@
 
 읽는 순서: 앱 구현은 이 문서의 흐름·오류 처리·API 카탈로그를 따른다. 배포 담당자와 QA는 [별도 부록](frontend-firebase-auth-integration-appendix.md)을 함께 확인한다.
 
+Swagger 공유: 배포 서버의 `/swagger-ui.html` 또는 `/v3/api-docs`를 사용한다. 서버 없이 공유하려면 저장소에서 `./gradlew shareSwagger`를 실행해 `build/distributions/identity-swagger.zip`을 전달한다. 압축을 풀고 `index.html`을 열면 읽기 전용 Swagger를 볼 수 있다. [공유본 사용법](../swagger/README.md)을 참고한다. 생성 명세에 학습 기록 삭제처럼 미확정인 API는 포함하지 않는다.
+
 ## 1. 5줄 결론
 
 1. 앱은 Google·Apple·Kakao 인증을 Firebase Auth로 수행하고, Firebase ID Token을 Identity API에 교환한 뒤 Identity Access Token만 Learning Core에 보낸다.
 2. 기존 MEMBER는 `Firebase 로그인 → /firebase/exchange → AUTHENTICATED`, 신규 사용자는 `ENROLLMENT_REQUIRED → 같은 Firebase User에 phone link → /firebase/signup` 순서다.
 3. phone credential은 별도 로그인으로 사용하지 않고 현재 Firebase User에 `linkWithCredential`해야 하며, link 후 강제 갱신한 ID Token을 제출해야 한다.
 4. Identity Refresh Token은 rotation되므로 재발급을 single-flight로 처리하고, 성공 시 Access/Refresh Token을 함께 교체해야 한다.
-5. 신규 Guest 생성은 호출하지 않고 기존 Guest만 전환한다. 로그인 버튼은 확인된 환경 설정으로 노출한다. 현재 공개 capability 조회 API는 없으며 기능 ON만으로 종단 검증 완료를 추정하지 않는다.
+5. 기존 Guest는 `/firebase/guest/prepare`의 유효한 enrollmentId·미충족 요건·정책 버전으로 가입을 재개하고, 만료되면 prepare를 재호출한다. 신규 Guest 생성은 호출하지 않는다. [재개 계약과 근거](#guest-resume)를 따른다.
 
 ## 2. 반드시 읽어야 할 앱 처리 규칙
 
@@ -38,7 +40,9 @@ Google·Apple뿐 아니라 Kakao도 승인된 Firebase Generic OIDC provider를 
 
 Kakao는 Firebase 기본 provider가 아니다. Kakao Developers, Identity Platform Generic OIDC, Billing, 모바일 redirect/deep-link 설정과 실제 검증이 필요하다. 이 문서는 완료를 보증하지 않는다. 준비 전에는 Kakao 버튼을 숨기고 Google부터 테스트한다.
 
-### 2.2 Guest 가입 재개 상태는 prepare 응답을 따른다
+<a id="guest-resume"></a>
+
+### 2.2 Guest 가입 재개 상태는 prepare 응답을 따른다 — TMI-169
 
 Guest 승격은 `/users/me`의 nickname·동의 값만으로 phone proof나 enrollment 상태를 추정하지 않는다. Guest Identity Access Token과 fresh Firebase ID Token을 함께 검증하는 `/firebase/guest/prepare`가 현재 유효한 enrollment와 미충족 요건을 반환한다.
 
@@ -47,6 +51,12 @@ Guest 승격은 `/users/me`의 nickname·동의 값만으로 phone proof나 enro
 - 현재 Guest가 identity owner인 불가능 상태는 `409 IDENTITY_STATE_CONFLICT`이며 자동 승격·merge하지 않는다.
 
 Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는다. 이미 MEMBER인 사용자의 `/providers/link/prepare`가 반환하는 별도 `ALREADY_LINKED`는 완료된 SNS 연결의 멱등 상태이므로 그대로 유지한다.
+
+프론트 변경 필수 사항: Guest prepare의 결과 타입은 `ENROLLMENT_REQUIRED | MERGE_REQUIRED`로 갱신하고, 409 `IDENTITY_STATE_CONFLICT`를 별도 오류로 처리한다. 신규 응답 필드가 없는 구 서버 응답을 받으면 빈 requirements나 임의 정책 버전으로 보완하지 말고 해당 배포의 API 계약을 확인한다.
+
+`missingRequirements`는 서버에 저장된 화면 진행 번호가 아니라 **지금 충족해야 하는 요건의 집합**이다. `ENROLLMENT_REQUIRED`는 가입 절차를 계속할 수 있다는 뜻이며 최종 승격 성공을 보증하지 않는다. upgrade 시 proof·동의·소유권·enrollment를 다시 검증한다.
+
+확인된 구현 근거: [prepare 분기](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestPrepareService.java), [요건 판정](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseEnrollmentRequirementResolver.java), [응답 필드](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/dto/response/FirebaseGuestPrepareResponse.java). 전체 판정표·테스트 근거는 [TMI-169 부록](frontend-firebase-auth-integration-appendix.md#guest-resume-qa)에 있다.
 
 ### 2.3 `ACCOUNT_MERGED_TOKEN_REJECTED`는 `/reissue`의 대표 오류가 아니다
 
@@ -67,6 +77,16 @@ Stage 8 기능을 활성화한 서버는 기존 자체 세션을 무효화하고
 ### 2.7 문서에 없는 변경 API를 추정하지 않는다
 
 Provider 연결/해제는 이 문서 8.13~8.18을 사용한다. 전화번호 변경 API와 공개 rebind API는 제공하지 않는다. `/auth-methods/sync`를 추가 연결·unlink·phone 변경에 사용하거나 프론트에서 Firebase 상태만 임의 변경하면 안 된다.
+
+### 2.8 출시 담당자가 결정·전달할 사항
+
+새 prepare 계약을 제공하는 backend 배포 버전·base URL과 프론트 적용 일정을 확정한다. Guest용 약관 version은 prepare 응답을 사용하되 해당 버전의 약관 본문·URL 공급 방식, 충돌 반복 시 지원 안내, 최소 지원 앱 버전은 담당자 합의가 필요하다. 상세 목록은 [출시 전 확인사항](frontend-firebase-auth-integration-appendix.md#deployment)을 따른다.
+
+프론트 추가 요구사항인 **학습 기록만 삭제**는 계정·로그인 상태를 유지하는 별도 기능으로 검토한다. 삭제할 데이터 범위와 Learning Core의 API·완료 확인 계약을 먼저 확정한다. [기능 구분과 앱 흐름](#learning-history-delete), [결정할 범위와 인계 항목](frontend-firebase-auth-integration-appendix.md#learning-history-delete-scope)을 참고한다.
+
+### 2.9 주요 위험과 미확인 사항
+
+이 문서는 저장소에서 확인한 구현을 설명한다. 대상 환경 배포 여부, 실제 SNS·SMS와 Mongo Transaction, Guest-owned identity가 없다는 전제는 별도 검증이 필요하다. prepare 이후에도 정책·소유권·인증 상태가 바뀔 수 있으므로 최종 API 오류를 처리해야 한다. [QA 표](frontend-firebase-auth-integration-appendix.md#guest-resume-qa)의 기대 결과는 배포 환경 테스트 완료 기록이 아니다.
 
 ## 3. 프론트가 반드시 지켜야 하는 인증 경계
 
@@ -186,6 +206,21 @@ Guest Identity Access Token 유지
 - `CONSENTS`는 응답의 현재 privacy/terms version으로 필수 동의를 다시 받아야 한다는 뜻이다.
 - phone·email 상태가 바뀐 뒤 prepare를 다시 호출하면 활성 enrollmentId는 유지되고 requirements는 fresh proof 기준으로 다시 계산된다.
 
+`PROFILE`은 Guest 승격에서 항상 반환된다. 사용자가 닉네임을 입력·확정했으면 앱에서 충족한 것으로 판단해 최종 요청에 포함한다. prepare에 닉네임을 저장하는 단계는 없으므로 requirements가 빈 배열이 될 때까지 반복 조회하지 않는다. nickname 초안 보존은 앱의 UX 선택이며 서버 재개 응답은 초안을 복원하지 않는다.
+
+`CONSENTS`가 없으면 서버에 현재 필수 동의가 유효하게 저장돼 있어 재동의 화면을 생략할 수 있다. 그래도 `/guest/upgrade`에는 `isPrivacyConsented=true`, `isTermConsented=true`와 prepare의 두 version을 모두 보낸다. `CONSENTS`가 있으면 현재 버전의 필수 동의를 사용자에게 받은 뒤 전송한다. 화면 생략 여부와 요청 필드 필수 여부는 구분한다. 품질 검토 선택 동의는 이 requirements 판정에 포함되지 않는다.
+
+앱 종료 후 재개하는 순서:
+
+1. 기존 Guest 인증을 유지하고 같은 Firebase 계정으로 인증한다. 필요한 Identity 재발급은 기존 single-flight 규칙을 따른다.
+2. 새 Firebase ID Token으로 `/guest/prepare`를 호출해 enrollmentId, requirements, 정책 버전, expiresIn을 함께 갱신한다. `/users/me`만 보고 마지막 가입 화면을 추정하지 않는다.
+3. `PHONE_VERIFICATION`이 없으면 phone OTP를 다시 요구하지 않는다. 있으면 같은 Firebase User에 phone link 후 ID Token을 강제 갱신한다. email 요건도 같은 방식으로 현재 proof를 반영한다.
+4. 닉네임 확정과 필요한 동의를 마치면 [8.5의 필수 필드](#guest-upgrade-request)로 upgrade를 호출한다. `MERGE_REQUIRED`이면 4.5의 사용자 확인 흐름으로 이동한다.
+
+만료 복구는 `expiresIn`이 소진됐거나 upgrade가 `409 FIREBASE_ENROLLMENT_CONFLICT` / `FIREBASE_ENROLLMENT_RESTART_REQUIRED`를 반환할 때 수행한다. 기존 enrollmentId를 폐기하고 현재 Guest 인증과 fresh Firebase proof로 prepare를 다시 호출해 받은 결과로 분기한다. 같은 만료 ID로 무한 재시도하거나 direct signup으로 바꾸지 않는다. `FIREBASE_RECENT_AUTH_REQUIRED`이면 먼저 2.4의 Provider 재인증을 수행한다. 재시작 오류가 계속되면 자동 반복을 멈추고 상태 확인·지원 안내로 연결한다.
+
+활성 enrollment 재조회는 유효시간을 연장하지 않는다. 기본 10분은 서버 설정이며 `expiresIn` 단위는 밀리초다. 앱의 카운트다운은 안내용이고 실제 만료 판정은 서버가 수행한다. 만료는 Firebase phone 인증의 자동 취소나 attempt의 즉시 물리 삭제를 뜻하지 않는다. 다시 받은 requirements에 따라 필요한 인증만 진행한다. 서버의 abandoned cleanup 상태에 따라 재인증·재시작이 필요할 수 있다.
+
 `/guest/upgrade` 성공 시:
 
 - Guest의 canonical userId는 유지된다.
@@ -273,6 +308,26 @@ Stage 9 활성 환경의 `/reissue` 응답 유실 계약:
 - `503 SESSION_SECURITY_UNAVAILABLE`은 접수/인증 처리를 확정할 수 없는 일시 오류다. logout 성공을 단정하지 않고 제한 재시도한다.
 
 서버 구현·활성화 조건은 [Stage 8 계획서](firebase-logout-all-revoke-stage-8-plan.md)와 [운영 검증](firebase-logout-all-revoke-stage-8-runbook.md)을 따른다. Stage 8 코드의 기본 feature flag는 OFF다.
+
+<a id="learning-history-delete"></a>
+
+### 5.4 학습 기록만 삭제 — 추가 요구사항, API 미확정
+
+프론트 요청: 사용자가 로그인 상태와 계정을 유지하면서 본인의 학습 기록만 삭제할 수 있어야 한다. 이 항목은 신규 기능 요구사항이며 현재 호출 가능한 API 명세가 아니다. Learning Core 저장소·배포 상태는 이번 작업에서 확인하지 않았다.
+
+| 기능 | 처리 대상 | 계정·세션 | 학습 기록 |
+| --- | --- | --- | --- |
+| 로그아웃 | 현재 기기 또는 모든 기기의 인증 세션 | 계정 유지, 해당 세션 종료 | 서버 학습 기록 삭제를 요청하지 않음 |
+| 회원 탈퇴 | 계정 탈퇴와 관련 정리 | 계정 탈퇴, 세션 폐기 | 서비스별 탈퇴 정리 계약을 따르며 이 문서만으로 삭제 범위·완료를 보장하지 않음 |
+| 학습 기록만 삭제 (요구사항) | 사용자가 확인한 본인의 학습 데이터 범위 | 계정·로그인 상태 유지 | Learning Core가 확정한 대상만 삭제 |
+
+소유 서비스는 Learning Core다. Identity에는 학습 데이터 삭제 로직을 추가하지 않고, 프론트는 확정된 Learning Core API에 기존 Identity Access Token을 사용한다. 대상 사용자는 검증된 JWT `sub`로 식별하며 클라이언트가 별도 userId를 보내지 않는다. 인증 방식은 [Identity–Learning Core JWT 계약](identity-learning-jwt.md)을 따른다. 삭제 권한·추가 재인증 필요 여부는 Learning Core 계약에서 확정한다.
+
+제안하는 프론트 흐름은 설정의 독립된 “학습 기록 삭제” 메뉴 → 확정된 삭제 대상·보존 항목·복구 가능 여부 안내 → 사용자 확인 → 삭제 요청 → 완료 확인 → 해당 학습 캐시 무효화와 화면 재조회다. 비동기 접수 응답이라면 접수와 완료를 구분하고 Learning Core가 제공하는 완료 확인 방법을 따른다. API URL, HTTP method, 응답·오류 코드, 상태 조회와 재시도 방식은 아직 정하지 않았다.
+
+이 기능의 정상 처리에서는 로그아웃·회원 탈퇴 API 호출, Firebase signOut, 계정 생성, 사용자 인증정보 삭제를 수행하지 않는다. 계정 UUID·SNS 연결·프로필·동의는 유지하는 요구사항이다. 구매·이용권·무료 체험 자격과 사용 횟수 초기화는 포함하지 않는 방향을 제안하며 제품/Billing 담당자와 확인한다.
+
+로컬 캐시 삭제만으로 서버 기록 삭제 완료를 표시하지 않는다. 요청 유실·실패 시 완료 여부를 확인할 수 있어야 하며 재시도는 최종 API의 멱등 계약을 따른다. 서버 구현·배포와 삭제 범위 확정 전에는 실제 삭제 동작을 활성화하지 않는다. 상세 범위·경합·QA는 [부록](frontend-firebase-auth-integration-appendix.md#learning-history-delete-scope)에 인계한다.
 
 ## 6. 회원탈퇴 관련 프론트 계약
 
@@ -470,7 +525,7 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
 }
 ```
 
-신규 승격 준비:
+최초 진입·중단 후 재개·만료 후 재발급 공통 성공 응답:
 
 ```json
 {
@@ -505,11 +560,29 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
 
 `MERGE_REQUIRED`에는 enrollmentId, requirements, 정책 version, expiresIn이 포함되지 않는다. 현재 Guest가 identity owner인 비정상 상태는 성공 result가 아니라 `409 IDENTITY_STATE_CONFLICT`다.
 
+<a id="guest-upgrade-request"></a>
+
 ### 8.5 `POST /api/v1/auth/firebase/guest/upgrade`
 
 인증: `Authorization: Bearer <guest-identity-access-token>`
 
 요청은 `/firebase/signup`과 같은 필드를 사용한다. 성공 응답도 `/firebase/signup`의 Token 응답과 같다. 성공 즉시 응답 Token으로 기존 Guest Token을 전부 교체한다.
+
+```json
+{
+  "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+  "firebaseIdToken": "<force-refreshed-firebase-id-token>",
+  "nickname": "토스마스터",
+  "isPrivacyConsented": true,
+  "privacyConsentVersion": "privacy-v1",
+  "isTermConsented": true,
+  "termConsentVersion": "term-v1"
+}
+```
+
+일곱 필드 모두 필수다. enrollmentId는 해당 Guest와 Firebase UID에 대해 prepare에서 받은 값, 두 version은 최신 prepare 응답값으로 대체한다. 닉네임은 trim 후 2~20자다. phone 번호·인증 boolean·userId·missingRequirements는 요청에 추가하지 않는다. phone/email 검증은 서버가 Firebase proof로 확인한다. [Request validation 원문](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/dto/request/FirebaseGuestUpgradeRequest.java)과 [최종 검증](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestUpgradeService.java)을 따른다.
+
+prepare 뒤 정책이 바뀌어 `PRIVACY_CONSENT_VERSION_MISMATCH` 또는 `TERM_CONSENT_VERSION_MISMATCH`를 받으면 prepare에서 현재 요건과 version을 다시 받고 필요한 재동의를 진행한다. 동의 화면을 생략했다고 동의 필드를 누락하면 validation 오류가 발생한다.
 
 ### 8.6 `POST /api/v1/auth/firebase/guest/merge`
 
@@ -887,7 +960,7 @@ prepare 전에 대상 SDK link를 실행하지 않는다. 이미 서버/Firebase
 - `firebaseIdToken` 필수, 최대 16,384자. requestId/linkAttemptId는 소문자 UUID v4, 길이 36자다.
 - Provider API 요청 Body는 최대 24,576바이트다. 초과 시 `413 PROVIDER_REQUEST_TOO_LARGE`이며 같은 Body를 그대로 재시도하지 않는다.
 - recent-auth와 prepare/start 허용 기간 기본 최대 5분. 실제 반환 `expiresAt`을 우선한다.
-- `/providers/relink/prepare`는 폐기 경로다. 정상 입력/인증이어도 unavailable이며 호출하지 않는다.
+- `/providers/relink/prepare`는 서버 라우트와 Swagger에서 제거했다. `/providers/link/prepare → start → complete`를 사용한다. 제거된 경로에 유효한 사용자 인증으로 요청하면 404이며, 인증 없는 요청은 기존 Security 정책에 따라 먼저 401이 될 수 있다.
 - 원격 Firebase 상태가 바뀌어도 서버 완료 전에는 연결/해제 완료로 표시하지 않는다.
 
 | HTTP/code | 처리 |

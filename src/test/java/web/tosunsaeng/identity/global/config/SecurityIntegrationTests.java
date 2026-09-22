@@ -85,7 +85,7 @@ class SecurityIntegrationTests {
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
 
 	@ParameterizedTest
-	@ValueSource(strings = {"/api/v1/auth/firebase/providers/unlink", "/api/v1/auth/firebase/providers/relink/prepare",
+	@ValueSource(strings = {"/api/v1/auth/firebase/providers/unlink",
 			"/api/v1/auth/firebase/providers/link/prepare", "/api/v1/auth/firebase/providers/link/start",
 			"/api/v1/auth/firebase/providers/link/complete", "/api/v1/auth/firebase/providers/link/status"})
 	void providerChangesRequireUserJwtAndRejectWorkloadJwt(String path) throws Exception {
@@ -96,6 +96,15 @@ class SecurityIntegrationTests {
 		mockMvc.perform(post(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + workload)
 				.contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test void retiredRelinkApiReturnsNotFoundWithValidUserAuthentication() throws Exception {
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/relink/prepare")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"test-only-proof\"}"))
+				.andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND"));
 	}
 
 	@Test void providerStatusReachesProofValidationWithoutUserJwt() throws Exception {
@@ -111,7 +120,7 @@ class SecurityIntegrationTests {
 	@Test void providerOpenApiSeparatesUserBearerFromStatusProof() throws Exception {
 		mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/unlink'].post.security[0].bearerAuth").isArray())
-				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/relink/prepare'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/relink/prepare']").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/prepare'].post.security[0].bearerAuth").isArray())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/start'].post.security[0].bearerAuth").isArray())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/complete'].post.security[0].bearerAuth").isArray())

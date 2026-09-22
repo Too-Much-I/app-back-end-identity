@@ -21,7 +21,13 @@ public final class LogCapture implements AutoCloseable {
 		logger = (Logger) LoggerFactory.getLogger(loggerType);
 		previousLevel = logger.getLevel();
 		previousAdditive = logger.isAdditive();
-		appender = new ListAppender<>();
+		appender = new ListAppender<>() {
+			@Override
+			protected void append(ILoggingEvent event) {
+				event.prepareForDeferredProcessing();
+				super.append(event);
+			}
+		};
 		appender.start();
 		logger.setLevel(Level.TRACE);
 		logger.setAdditive(false);

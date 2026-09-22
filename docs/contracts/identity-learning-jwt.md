@@ -112,7 +112,9 @@ JWT에는 검증과 인가에 필요한 최소 Claim만 포함한다. 이메일,
 - Learning Core는 매 요청마다 Identity Service의 토큰 확인 API를 호출하지 않고 JWKS 기반으로 토큰을 검증한다.
 - RSA Private Key는 Identity Service 밖으로 공유하지 않는다.
 
-현재 JWKS는 Active Key와 `JwksRotationProperties`로 설정한 이전 Public Key를 함께 제공할 수 있다. 실제 배포에서 이전 키가 설정됐는지는 별도 확인해야 한다. Key Rotation 시에는 새 Active Key로 발급을 전환한 뒤에도 이미 발급된 Access Token의 최대 유효 기간과 verifier skew·캐시 정책을 고려해 이전 Public Key를 유지해야 한다. 이 작업은 기존 키 로딩·회전 구현을 변경하지 않는다.
+TMI-176에서 JWKS와 Identity 자체 JWT 검증기는 동일한 로컬 공개키 집합을 사용하도록 보완했다. Active Key와 `JwksRotationProperties`로 명시한 보존 Public Key의 `kid`를 정확히 선택하며 RS256만 허용한다. 누락/공백/미등록 `kid`는 거절하고 토큰의 `jku`/`x5u` URL을 조회하지 않는다. 서명은 기존처럼 Active Private Key 하나로만 수행한다. 실제 배포에서 보존 키가 설정됐는지는 별도 확인해야 한다.
+
+키 교체 전 모든 Identity 인스턴스와 소비자가 신키를 신뢰하도록 공개키를 사전 게시한다. `JWT_PREVIOUS_KEY_IDS`/`JWT_PREVIOUS_PUBLIC_KEY_LOCATIONS`는 이름과 달리 이 사전 게시 단계에도 사용할 수 있는 보존 키 목록이다. 발급을 신키로 전환한 후에는 마지막 구키 발급 인스턴스 종료 시점부터 실제 최대 사용자/workload Token TTL과 verifier skew·캐시 정책을 충족할 때까지 이전 Public Key를 유지한다. 기본 TTL을 운영 실측값으로 대신하지 않는다. [TMI-176 검증·키 전환 runbook](identity-operability-runbook.md)의 단계와 롤백 제약을 따른다.
 
 JWKS endpoint의 배포 호스트와 허용할 `issuer` 값은 환경별 설정으로 관리하며, 실제 Key나 Secret을 이 문서에 기록하지 않는다.
 

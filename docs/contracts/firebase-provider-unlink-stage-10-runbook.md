@@ -68,8 +68,9 @@ Google 해제의 경우 Apple 또는 Kakao로 같은 Firebase 사용자에게 �
 | `POST /link/start` | 사용자 Bearer JWT + 남는 SNS Firebase 증거 | 200 STARTED; 최초 전환만 linkAllowed=true |
 | `POST /link/complete` | 사용자 Bearer JWT + 대상 SNS post-start Firebase 증거 | 200 COMPLETED |
 | `POST /link/status` | 사용자 Bearer JWT + 동일 owner의 최근 SNS Firebase 증거 | 200 상태; linkAllowed=false |
-| 기존 `POST /relink/prepare` | 기존 보호 유지 | 폐기됨, 503 PROVIDER_CHANGE_UNAVAILABLE |
 | 기존 `POST /api/v1/auth/firebase/auth-methods/sync` | 사용자 Bearer JWT + Firebase 증거 | 기존 승인 목록 검증만 수행. 신규 저장/permit 소비 금지 |
+
+기존 `POST /relink/prepare`는 서버 라우트와 Swagger에서 제거했다. 유효한 사용자 인증 요청은 404이며 미인증 요청은 Security에서 먼저 거절할 수 있다. `/link/prepare → start → complete`를 사용한다. 기존 미해결 시도에 대한 보안 차단·정리 로직은 유지한다.
 
 접수 및 prepare body:
 

@@ -23,10 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
@@ -35,7 +32,7 @@ import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({JwtProperties.class, JwksRotationProperties.class})
@@ -123,16 +120,16 @@ public class JwtConfiguration {
 
 	@Bean
 	public JwtDecoder jwtDecoder(
-			RSAPublicKey publicKey,
+			JwksPublicKeySet publicKeys,
 			JwtProperties properties,
 			Clock clock
 	) {
-		NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey)
-				.signatureAlgorithm(SignatureAlgorithm.RS256)
-				.jwtProcessorCustomizer(processor -> processor.setJWSTypeVerifier(
-						new DefaultJOSEObjectTypeVerifier<>(JOSEObjectType.JWT)
-				))
-				.build();
+		DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+		processor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(JOSEObjectType.JWT));
+		processor.setJWSKeySelector((header, context) -> publicKeys.verificationKeys(header));
+		// Spring validators below own claims validation, including the injected clock.
+		processor.setJWTClaimsSetVerifier((claims, context) -> { });
+		NimbusJwtDecoder decoder = new NimbusJwtDecoder(processor);
 
 		JwtTimestampValidator timestampValidator = new JwtTimestampValidator(Duration.ZERO);
 		timestampValidator.setClock(clock);
@@ -148,30 +145,16 @@ public class JwtConfiguration {
 				"exp",
 				expiresAt -> expiresAt != null
 		);
-		OAuth2TokenValidator<Jwt> keyIdValidator = keyIdValidator(properties.keyId());
 
-		// 서명 검증 후 시간, 발급자, 대상, 사용자, 만료, 키 식별자를 모두 검증한다.
+		// kid는 위의 로컬 key selector에서 검증하고, 서명 검증 후 claim 계약을 검증한다.
 		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
 				timestampValidator,
 				issuerValidator,
 				audienceValidator,
 				subjectValidator,
-				expirationValidator,
-				keyIdValidator
+				expirationValidator
 		));
 		return decoder;
 	}
 
-	private OAuth2TokenValidator<Jwt> keyIdValidator(String expectedKeyId) {
-		return jwt -> {
-			if (expectedKeyId.equals(jwt.getHeaders().get("kid"))) {
-				return OAuth2TokenValidatorResult.success();
-			}
-			return OAuth2TokenValidatorResult.failure(new OAuth2Error(
-					OAuth2ErrorCodes.INVALID_TOKEN,
-					"The JWT key identifier is not valid.",
-					null
-			));
-		};
-	}
 }

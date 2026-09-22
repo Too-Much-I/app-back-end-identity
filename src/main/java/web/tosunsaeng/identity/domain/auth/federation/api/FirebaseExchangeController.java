@@ -32,6 +32,7 @@ import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseAuthM
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseExchangeResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseExchangeResponseEnvelope;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponse;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponseEnvelope;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
 import web.tosunsaeng.identity.global.config.OpenApiConfig;
 import web.tosunsaeng.identity.global.response.BaseResponse;
@@ -130,7 +131,11 @@ public class FirebaseExchangeController {
 	@Operation(
 			summary = "Guest Firebase 승격 준비",
 			description = "인증된 Guest JWT의 subject와 Firebase UID를 묶은 단기 enrollment를 "
-					+ "생성·재사용하고 기존 MEMBER owner 발견 시 mutation 없이 MERGE_REQUIRED를 반환합니다."
+					+ "생성·재사용하고 기존 MEMBER owner 발견 시 mutation 없이 MERGE_REQUIRED를 반환합니다. "
+					+ "활성 enrollment 재조회는 유효시간을 연장하지 않으며 만료되면 새 ID를 반환합니다. "
+					+ "missingRequirements는 현재 미충족 요건이며 PROFILE은 항상 포함됩니다. "
+					+ "CONSENTS가 없어도 upgrade 요청에는 필수 동의 boolean과 현재 정책 버전을 모두 보내야 합니다. "
+					+ "Guest가 identity owner인 비정상 상태는 409 IDENTITY_STATE_CONFLICT로 거절합니다."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({
@@ -138,7 +143,7 @@ public class FirebaseExchangeController {
 					responseCode = "200",
 					description = "ENROLLMENT_REQUIRED 또는 MERGE_REQUIRED",
 					content = @Content(
-							schema = @Schema(implementation = BaseResponse.class),
+							schema = @Schema(implementation = FirebaseGuestPrepareResponseEnvelope.class),
 							examples = {
 							@ExampleObject(name = "ENROLLMENT_REQUIRED", value = """
 									{
@@ -170,7 +175,7 @@ public class FirebaseExchangeController {
 			),
 			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아니거나 Provider 정책 위반", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "409", description = "identity 상태 충돌 또는 enrollment 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "IDENTITY_STATE_CONFLICT 또는 enrollment 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})

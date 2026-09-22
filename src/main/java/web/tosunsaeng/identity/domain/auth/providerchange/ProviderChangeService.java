@@ -41,9 +41,9 @@ public class ProviderChangeService {
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	public void setMetrics(ProviderChangeMetrics metrics) { this.metrics = metrics; }
 	private void record(ProviderChangeMetrics.Outcome outcome) { if (metrics != null) metrics.record(outcome); }
+	@io.swagger.v3.oas.annotations.media.Schema(name = "ProviderUnlinkStatus")
 	public record Status(String operationId, SocialProvider provider, String status, Instant acceptedAt,
 			Instant completedAt, Integer nextPollAfterSeconds) { }
-	public record Permit(String linkAttemptId, Instant expiresAt) { }
 	private final MongoTemplate mongo;
 	private final TransactionTemplate transactions;
 	private final SessionSecurityService security;
@@ -133,12 +133,6 @@ public class ProviderChangeService {
 			c.validate(c.getSessionEpoch(), security.firebase(binding.getUserId(), c.getSessionEpoch(), proof), true);
 			return view(op);
 		});
-	}
-
-	/** Retired protocol: legacy attempts are retained as unresolved, never upgraded implicitly. */
-	@Deprecated
-	public Permit prepare(String userId, SocialProvider provider, String token) {
-		throw error(AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
 	}
 
 	public long captureRevision(String userId) {

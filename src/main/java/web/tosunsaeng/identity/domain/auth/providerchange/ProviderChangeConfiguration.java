@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.providerchange;
 
+import web.tosunsaeng.identity.global.observability.FailureDiagnostic;
+
 import java.io.IOException;
 import java.time.Clock;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,7 +65,11 @@ public class ProviderChangeConfiguration {
 		@Scheduled(fixedDelayString = "${app.provider-change.poll-delay:PT5S}")
 		public void run() {
 			try { worker.runBatch(); }
-			catch (RuntimeException exception) { org.slf4j.LoggerFactory.getLogger(getClass()).warn("Provider change scheduler unavailable."); }
+			catch (RuntimeException exception) {
+				FailureDiagnostic.from(exception, FailureDiagnostic.Operation.PROVIDER_CHANGE_BATCH)
+						.attachTo(org.slf4j.LoggerFactory.getLogger(getClass()).atWarn())
+						.log("Provider change scheduler unavailable.");
+			}
 		}
 	}
 }

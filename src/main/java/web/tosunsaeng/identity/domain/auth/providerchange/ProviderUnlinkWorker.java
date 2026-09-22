@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.providerchange;
 
+import web.tosunsaeng.identity.global.observability.FailureDiagnostic;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -47,7 +49,7 @@ public class ProviderUnlinkWorker {
 			if (metrics != null) metrics.pendingAge(java.time.Duration.between(op.getAcceptedAt(), clock.instant()));
 			try { process(op.getOperationId()); }
 			catch (RuntimeException exception) {
-				org.slf4j.LoggerFactory.getLogger(getClass()).warn("Provider change batch requires retry or reconciliation.");
+				warnFailure(exception);
 			}
 		}
 	}
@@ -117,8 +119,14 @@ public class ProviderUnlinkWorker {
 			else unknown(id, owner, failure.kind().name());
 		} catch (RuntimeException exception) {
 			// Includes a lost local commit acknowledgement. No remote replay is inferred from this exception.
+			warnFailure(exception);
 			unknown(id, owner, "LOCAL_RESULT_UNRESOLVED");
 		}
+	}
+	private void warnFailure(RuntimeException exception) {
+		FailureDiagnostic.from(exception, FailureDiagnostic.Operation.PROVIDER_CHANGE_BATCH)
+				.attachTo(org.slf4j.LoggerFactory.getLogger(getClass()).atWarn())
+				.log("Provider change batch requires retry or reconciliation.");
 	}
 	private ProviderUnlinkOperation start(ProviderUnlinkOperation op, String owner, ProviderUnlinkOperation.State phase, Instant created) {
 		return security.transaction(() -> {
