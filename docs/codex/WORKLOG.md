@@ -2434,3 +2434,411 @@
 - 결정사항: 안내 유예 방식은 진행 가능하나 boolean 자체가 강제 업데이트 수단은 아님.
 - 위험 요소: 기존 Guest 전환·구 회전 응답 유실·신앱 Stage 9 대응 미검증 유지.
 - 다음 작업: LC 응답 필드와 웹뷰 안내 구현, 신앱/전환 검증 후 배포. Jira 변경 없음.
+
+## 2026-09-22 — 테스트 배포와 앱 업데이트 전환 작업 순서 확인
+
+<!-- codex-turn:01a0c7e0-658a-7753-b50a-0512c96c992b -->
+
+- 브랜치: fix/TMI-176-identity-operability. Jira: TMI-176 (브랜치 맥락).
+- 작업 목표: 테스트 배포를 우선하고 운영 전환 작업을 앱 업데이트 전에 수행할 수 있는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 운영과 격리된 테스트 배포 및 기능 검증 선행 가능, 기존 Guest 세션 전환 및 업데이트 안내는 출시 전 필수 작업으로 구분.
+- 테스트와 결과: 설명/기록만 변경하여 테스트 미실행. 기존 조사 결과 기반 순서 안내.
+- 유지한 계약: 제품 코드/API/운영 DB/기능 flag 변경 없음. 기존 미커밋 변경 보존, 예상 밖 제품 변경 없음.
+- 결정사항: 테스트 배포 → 인증/챌린지 검증 → 업데이트 안내·전환 구현/검증 → 앱 출시 순서. 테스트 배포는 운영 전환 승인이나 실제 배포 수행을 뜻하지 않음.
+- 위험 요소: 테스트가 운영 저장소·키·이벤트 목적지를 사용하면 선행 배포의 격리 전제가 깨짐. Stage 9 ON 테스트는 지원 클라이언트 필요. 구 회전 응답 유실 검증은 미완료.
+- 다음 작업: 테스트 인프라 준비 상태 확인 후 별도 테스트 배포 진행. 앱 출시 전에 전환 검증 완료. Jira 변경 없음.
+
+## 2026-09-22 — 테스트 인증서 DNS 검증 단계 확인
+
+<!-- codex-turn:01a0c824-820a-7552-89e7-d07cb6586ae1 -->
+
+- 브랜치: fix/TMI-176-identity-operability. Jira: TMI-176 (브랜치 맥락).
+- 작업 목표: 현재 ACM 인증서 등록 필요 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 열린 AWS ACM 화면에서 identity-test.to-teacher.com 인증서가 DNS 검증 대기 중/사용 중 아님을 확인. 가비아 검증 CNAME 등록 후 발급 및 ALB 연결 순서 안내.
+- 테스트와 결과: 브라우저 읽기 전용 확인. 문서 기록만 변경하여 Gradle 미실행. DNS 실제 전파 상태는 이번에 별도 조회하지 않음.
+- 유지한 계약: 제품 코드/인증서/DNS/ALB 변경 없음. 기존 미커밋 변경 보존, 예상 밖 변경 없음. 탭 유지.
+- 결정사항: 새 인증서 재요청보다 현재 인증서 DNS 검증 완료가 우선.
+- 위험 요소: 가비아 호스트 입력에 도메인 중복 추가 주의. ACM 발급만으로 API 라우팅이 완성되지는 않음.
+- 다음 작업: 검증 CNAME 등록 및 발급 확인 후 ALB HTTPS listener 인증서와 테스트 라우팅 연결. Jira 변경 없음.
+
+## 2026-09-23 — 인증서 검증 DNS 등록 확인
+
+<!-- codex-turn:01a0cd4d-6c1e-7e11-a5d5-73866f13e334 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 CNAME 등록 후 반영 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: dig CNAME 조회 결과가 기존 ACM 화면의 검증 대상과 일치. ACM 확인 시 로그인 세션 만료로 ISB 재로그인 페이지를 열고 유지.
+- 테스트와 결과: DNS 조회 성공. 문서 기록만 변경하여 Gradle 미실행. ACM 발급 상태는 확인하지 못함.
+- 유지한 계약: 제품 코드/외부 설정 변경 없음. 기존 변경 보존, 예상 밖 제품 변경 없음.
+- 결정사항: DNS 등록 확인과 인증서 발급 완료는 구분하여 보고.
+- 위험 요소: AWS 재로그인 전 발급 여부 및 ALB 연결 상태 미확인.
+- 다음 작업: 사용자 로그인 후 ACM 발급 확인, ALB 인증서 추가 단계 진행. Jira 작업 없음.
+
+## 2026-09-23 — 재로그인 후 테스트 인증서 발급 확인
+
+- 브랜치: develop.
+- 작업 목표: ACM 발급 완료 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 현재 AWS 탭에서 인증서 상세 조회. identity-test.to-teacher.com 발급됨/도메인 검증 성공/사용 중 아니요 확인. 발급 시각 2026-09-22 17:14:54 KST.
+- 테스트와 결과: ACM 화면 직접 확인. 제품 변경이 없어 Gradle 미실행.
+- 유지한 계약: 제품 코드/ALB/DNS/인증서 설정 불변. 기존 변경 보존, 예상 밖 제품 변경 없음.
+- 결정사항: 새 발급 불필요, 다음은 ALB HTTPS 443 인증서 목록 추가. 기존 인증서 교체 아님.
+- 위험 요소: 인증서 발급만으로 테스트 서버 라우팅과 배포가 완료되지는 않음.
+- 다음 작업: ALB listener 현황 확인 후 승인된 범위에서 테스트 인증서 연결. Jira 변경 없음, AWS 탭 유지.
+
+## 2026-09-23 — 인증서 발급 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd51-d10b-7e50-9788-13a034c1d8bc -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 작업 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: ACM 발급됨/도메인 검증 성공/미사용 확인 결과를 현재 작업과 연결. 과거 기록 유지.
+- 테스트와 결과: 기록만 보완하여 테스트 미실행. 직전 ACM 화면 확인 결과 유지.
+- 유지한 계약: 제품 코드 및 외부 설정 변경 없음. 민감정보 미기록.
+- 결정사항: 인증서 발급 완료, ALB 연결은 미수행.
+- 위험 요소: 테스트 HTTPS 라우팅/서버 배포는 별도 필요.
+- 다음 작업: ALB listener 현황 확인 및 테스트 인증서 추가.
+
+## 2026-09-23 — 테스트 TLS 인증서 ALB 연결 완료
+
+- 브랜치: develop.
+- 작업 목표: 사용자 승인한 테스트 인증서를 기존 ALB HTTPS:443에 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 변경: tosunsaeng-staging-alb HTTPS:443 SNI 인증서 목록에 identity-test.to-teacher.com 추가.
+- 수행 내용: 기존 기본 인증서와 규칙 확인 후 테스트 인증서 1개만 선택하여 저장. AWS 추가 성공 메시지 및 기존/테스트 인증서 2개 목록 확인.
+- 테스트와 결과: 콘솔 저장 결과 확인. 코드 변경 없어 Gradle 미실행. 실제 TLS 접속/E2E는 미검증.
+- 유지한 계약: 기존 identity-staging 기본 인증서 유지. DNS/보안 정책/라우팅 규칙/대상 그룹/서비스 불변. 예상 밖 변경 없음.
+- 결정사항: 테스트 인증서는 SNI 추가로 연결하며 기본 인증서를 교체하지 않음.
+- 위험 요소: 현재 규칙은 identity-staging/api-staging/기본404로, 인증서 추가만으로 테스트 API 사용 가능하지 않음.
+- 다음 작업: 테스트 대상 그룹 및 ECS 서비스 준비 상태 확인, 테스트 호스트 규칙과 DNS 연결 후 HTTPS 검증. Jira 변경 없음, 브라우저 탭 유지.
+
+## 2026-09-23 — ALB 인증서 연결 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd53-2f36-70b1-9b6a-1743151c5642 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 ALB 인증서 연결 결과와 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 승인으로 수행한 테스트 인증서 SNI 추가 성공을 현재 작업에 연결. 과거 기록 보존.
+- 테스트와 결과: AWS 성공 메시지 및 인증서 목록 확인 결과 유지. 기록 보완만 수행하여 추가 테스트 없음.
+- 유지한 계약: 기존 기본 인증서/라우팅/서비스 유지. 이번 보완 중 추가 외부 변경 없음.
+- 결정사항: HTTPS:443 테스트 인증서 연결 완료.
+- 위험 요소: 실제 테스트 API 가용성과 TLS 접속은 아직 미검증.
+- 다음 작업: 테스트 대상 그룹/ECS/호스트 라우팅/DNS 준비 확인 및 HTTPS 검증.
+
+## 2026-09-23 — 테스트 대상 그룹 생성 및 배포 이미지 선행 조건 확인
+
+- 브랜치: develop, HEAD bd337be4baf7055bfd7f541d424b06585b09c2a3.
+- 작업 목표: 운영과 분리된 테스트 서버 준비 진행.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 생성: tosunsaeng-identity-test-tg.
+- 수행 내용: 클러스터의 기존 Identity/LC/AI 서비스와 기존 대상 그룹 2개 확인. 신규 IP 대상 그룹 HTTP:8081, HTTP1, IPv4, staging VPC, health /actuator/health 생성. 기본 상태 검사 30초/timeout5초/정상5회/비정상2회/200 유지. 대상은 ECS 자동 등록 예정으로 0개 유지, 기존 운영 IP 미등록. AWS 생성 성공 확인.
+- 테스트와 결과: 콘솔 생성 성공 및 대상0/ALB 미연결 확인. ECR 목록 28개 확인, 최신 이미지 main 7f2188df(9월18일), develop bd337be4 이미지 부재. 로컬 aws sts 조회는 NoCredentials. 제품 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영 서비스/기본 인증서/ALB 규칙/보안그룹/IAM/DNS 변경 없음. Git commit/push 및 workflow 추가/실행 없음. 예상 밖 변경 없음.
+- 결정사항: 기존 deploy-staging workflow는 ECS_SERVICE=tosunsaeng-identity-service이므로 테스트 이미지 생성 수단으로 실행하지 않는다. develop 고정 commit 이미지를 별도로 빌드/업로드한 뒤 테스트 Task Definition 구성 필요.
+- 위험 요소: 테스트 이미지와 실행 설정/최소권한/격리 검증 미완료. 빈 대상 그룹은 서버 배포 완료가 아니며 아직 외부 라우팅 안 됨.
+- 다음 작업: 로컬 AWS 사용자 인증 또는 승인된 별도 이미지 빌드 경로 확보, develop 이미지 업로드, 테스트 전용 실행 설정/Secret 참조/IAM 확인 후 ECS 서비스 구성. 권한 확대 및 외부 노출 시 구체적 확인 필요. Jira 변경 없음, 브라우저 탭 유지.
+
+## 2026-09-23 — 테스트 서버 준비 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd55-55fd-7db1-be8c-6efb91efdc5c -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 인프라 준비 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 대상 그룹 생성 완료와 develop 이미지 부재/로컬 AWS 인증 부재 확인 결과를 현재 작업에 연결. 과거 기록 보존.
+- 테스트와 결과: 기존 콘솔 검증 결과 유지. 기록 보완만 수행하여 추가 테스트 없음.
+- 유지한 계약: 추가 외부 변경 및 제품 코드 변경 없음. 운영 리소스 유지, 민감정보 미기록.
+- 결정사항: 기존 운영 배포 workflow 미실행 유지.
+- 위험 요소: 테스트 서비스는 미배포이며 이미지/실행 설정/격리 검증 필요.
+- 다음 작업: 사용자 AWS 인증 준비 후 운영 배포와 분리된 develop 이미지 빌드 및 업로드.
+
+## 2026-09-23 — 기존 workflow main/develop 배포 분리 구현
+
+- 브랜치: develop. 이번 요청의 Jira 이슈 미지정.
+- 작업 목표: main 기존 서비스 유지, develop 테스트 서버 배포로 기존 workflow 수정.
+- 변경 파일: .github/workflows/deploy-staging.yml, src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java, docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: push main/develop, 수동 다른 ref 거절. 브랜치별 서비스/task family/health/이미지 별칭/배포 role 선택. main AWS_ROLE_ARN 유지, develop AWS_TEST_ROLE_ARN 필수. ACTIVE 서비스·family/container 검사 후 이미지 업로드/동일 서비스 배포. SENTRY_RELEASE 유지 및 브랜치별 실행 잠금. 새 workflow 추가 없음.
+- 테스트와 결과: ./gradlew clean test --no-daemon 성공, 147 suites/957 tests/실패0/오류0. 최초 sandbox Gradle 캐시 접근 차단 후 승인된 권한으로 재실행. 분기 shell 실제 실행 테스트 및 YAML 정적 계약 검사, git diff --check 통과. 실제 Actions/AWS 실행은 미검증.
+- 유지한 계약: main 기존 배포 목적지/기존 컨테이너명/API/JWT/기능 flag 유지. DB/Secret/키 값을 workflow에 넣지 않음. 기존 사용자 기록 변경 보존. 예상 밖 변경 없음.
+- 결정사항: devlop는 실제 develop 브랜치로 반영. 누락한 테스트 설정은 운영으로 fallback하지 않음. 새 test task/service는 사전 구성하며 workflow는 인프라 생성 도구가 아님.
+- 위험 요소: 테스트 role/서비스 미준비 시 이미지 업로드 전 실패. 최초 이미지 빌드/업로드 경로와 task/service 초기 구성 필요. IAM trust/최소권한과 DB/키/이벤트 격리는 별도 검증. SHA 태그 불변 설정이나 digest pinning은 추가하지 않음.
+- 다음 작업: 사용자 diff 검토/commit/push, 테스트 IAM/variables/task/service 및 ALB/DNS 설정 승인·구성 후 develop 배포 검증. 이번 commit/push/배포/IAM 변경 없음.
+- Jira 댓글 초안(미등록): 기존 workflow에 main/develop 배포 대상 분리 및 fail-closed 검사 추가, 전체957 tests 성공, 실제 IAM/초기 서비스 준비와 Actions 검증은 남음.
+
+## 2026-09-23 — 배포 workflow 분리 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd58-b624-7302-bc90-eaa3b78ea5d8 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 workflow 분리 구현 결과의 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 workflow의 main/develop 분리, 테스트 role 필수 및 대상 검증 결과를 현재 작업과 연결. 과거 기록 보존.
+- 테스트와 결과: 직전 전체 147 suites/957 tests 성공 결과 유지. 기록 보완만 하여 추가 실행 없음.
+- 유지한 계약: 추가 제품 코드/외부 설정 변경 없음. 민감정보 미기록.
+- 결정사항: 로컬 구현 완료, commit/push/배포 미수행.
+- 위험 요소: 실제 Actions 실행, IAM/최초 테스트 서비스 및 격리 검증은 남음.
+- 다음 작업: 테스트 배포 사전 리소스 준비 및 사용자 commit/push 후 실행 검증.
+
+## 2026-09-23 — 테스트 배포 IAM 정책 준비 및 승인 요청
+
+<!-- codex-turn:01a0cd67-8814-7460-83fc-bc6cb5d1fef7 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 배포 역할과 GitHub 변수 사전 준비.
+- 변경 파일: docs/contracts/identity-test-deploy-trust.json, identity-test-deploy-policy.json, identity-branch-deployment.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: IAM 기존 Identity 배포 role 정책과 trust 읽기 전용 확인. GitHub API에서 immutable OIDC subject prefix 조회하여 develop exact trust 작성. 테스트 ECS service 갱신, 테스트 execution role PassRole, 기존 ECR build 권한과 task definition API 초안 작성. IAM 생성 직전 사용자 확인 요청.
+- 테스트와 결과: JSON 두 파일 jq 구문 검사 및 git diff --check 성공. 제품 변경 없이 정책 초안만 작성하여 Gradle 재실행 없음. 실제 role assumption/Actions 미검증.
+- 유지한 계약: 기존 workflow 미커밋 변경 보존. IAM/GitHub 변수/Secret/서비스/라우팅 변경 없음. 장기 credential 생성 및 민감정보 열람/기록 없음. 예상 밖 변경 없음.
+- 결정사항: 새 role tosunsaeng-github-identity-test-deploy-role 제안. AWS_TEST_ROLE_ARN 등록 예정이나 아직 미수행. Secret 읽기는 CI role이 아니라 별도 테스트 execution role에 한정할 계획이며 세부 권한은 아직 미확정.
+- 위험 요소: 기존 운영 trust는 repo wildcard이므로 develop에서도 운영 role 수임 가능 조건 존재. 공유 ECR 권한은 tag 쓰기까지 격리하지 않음. TaskDefinition API Resource=* 범위 명시. 기존 운영 role은 임의 변경하지 않음.
+- 다음 작업: 사용자 권한 생성 승인 후 테스트 CI role 적용, GitHub 변수 등록, execution role/정확한 Secret ARN 확인과 별도 승인, 테스트 초기 task/service 및 DNS/라우팅 준비. Jira 변경 없음.
+
+## 2026-09-23 — 승인된 테스트 CI 역할 생성 및 GitHub 변수 등록
+
+<!-- codex-turn:01a0cd6f-0d88-7c52-af7f-ccc9b1ac7f06 -->
+
+- 브랜치: develop. Jira 이슈 미지정.
+- 작업 목표: 승인된 테스트 GitHub 배포 역할 및 AWS_TEST_ROLE_ARN 등록 완료.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 기존 미커밋 workflow/테스트/정책 초안은 보존.
+- 수행 내용: AWS에서 tosunsaeng-github-identity-test-deploy-role 및 IdentityTestDeploy 인라인 정책 생성. 저장된 ARN, develop exact immutable OIDC subject, sts audience 및 정책 내용을 확인. GitHub 변수 목록에서 기존 AWS_ROLE_ARN만 존재함을 확인한 뒤 AWS_TEST_ROLE_ARN 생성 및 GET 일치 검증.
+- 테스트와 결과: AWS 생성 성공/상세 UI 확인, GitHub POST 성공/GET 확인, git diff --check 수행. 제품 코드 변경 없어 Gradle 재실행 없음. 직전 957 tests 성공 결과는 이전 구현 검증이며 실제 OIDC/Actions 실행은 미검증.
+- 유지한 계약: 기존 운영 role/AWS_ROLE_ARN/서비스/Secret 값/라우팅 미변경. 장기 credential 생성 없음. API/JWT/기능 flag 유지. commit/push/배포/Jira 변경 없음. 예상 밖 변경 없음.
+- 결정사항: 사용자가 확인한 CI 역할 및 변수 범위만 적용. execution role/Secret 접근은 별도 승인 후 구성.
+- 위험 요소: 공유 ECR 쓰기는 tag별 격리 아님. TaskDefinition API Resource=* 유지. 기존 운영 role wildcard 신뢰는 이번에 축소하지 않음. execution role/task/service 미준비로 현재 자동 배포 성공을 보장하지 않음.
+- 다음 작업: 테스트 execution role의 정확한 Secret ARN 및 최소권한 확정·승인, 초기 task/service/이미지 및 DNS/ALB 라우팅 준비 후 실제 배포 검증.
+- Jira 댓글 초안(미등록): 테스트 CI 역할 및 GitHub 변수 등록·조회 검증 완료. 제품 코드 변경 없음. 실제 배포 및 실행 역할/초기 서비스 준비는 남음.
+
+## 2026-09-23 — 테스트 ECS 실행 역할 최소권한 준비
+
+<!-- codex-turn:01a0cd77-0b9b-7433-a4ca-fb6294c8ca19 -->
+
+- 브랜치: develop. Jira 이슈 미지정.
+- 작업 목표: 테스트 서버의 Secret 주입·이미지 pull·로그 전송용 실행 역할 준비.
+- 변경 파일: docs/contracts/identity-test-execution-trust.json, identity-test-execution-policy.json, identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: AWS 콘솔에서 테스트 Secret 6개 이름/정확한 ARN 확인, 비밀값 미조회. 동일 계정 서울 ECS task 신뢰, 6개 GetSecretValue, 기존 Identity ECR pull, 제안 테스트 로그 그룹 스트림 쓰기만 포함한 정책 작성. 보안 권한 부여 직전 사용자 확인 요청.
+- 테스트와 결과: JSON jq 구문 검사 및 git diff --check 수행. 제품 변경 없어 Gradle 재실행 없음. 실제 IAM 수임/Secret 주입/로그 전송은 미검증.
+- 유지한 계약: 기존 운영 및 CI 역할, GitHub 변수, 서비스/Secret 값 미변경. 기존 미커밋 변경 보존. 예상 밖 변경 없음. 민감정보 미기록.
+- 결정사항: 실행 역할 생성은 아직 미수행. taskRole이 아닌 executionRole로 사용. logs CreateLogGroup 및 광범위한 KMS 권한 부여 안 함.
+- 위험 요소: 로그 그룹 생성 여부/보존 기간 미확인, task/service 준비 필요. ECS 신뢰는 특정 task family까지 제한하지 않으므로 PassRole 통제가 중요. 실제 권한 동작은 배포에서 검증 필요.
+- 다음 작업: 정확한 권한 범위 사용자 승인 후 실행 역할 생성·검증, 로그 그룹 및 초기 task/service 준비. commit/push/배포/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 테스트 실행 역할 정책 준비 완료, Secret 메타데이터 확인 및 JSON 검사. 실제 생성과 배포 검증은 승인 후 진행.
+
+## 2026-09-23 — 승인된 테스트 ECS 실행 역할 생성 완료
+
+<!-- codex-turn:01a0cd77-0b9b-7433-a4ca-fb6294c8ca19 -->
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 사용자 승인한 테스트 실행 역할과 최소권한 적용.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: 기존 동일 역할 부재 확인 후 tosunsaeng-identity-test-execution-role 생성. IdentityTestExecution 인라인 정책 연결. 콘솔의 성공 메시지 및 역할 ARN, 저장 정책 전문과 동일 계정 서울 ECS 신뢰 조건 확인. 테스트 Secret 6개 읽기, Identity 이미지 pull, 테스트 로그 스트림 쓰기 범위만 적용.
+- 테스트와 결과: AWS 생성 및 저장 정책 UI 검증 성공. git diff --check 수행. 제품 코드 변경 없어 Gradle 재실행 없음. 실제 ECS 수임/Secret 주입/로그 전송은 미검증.
+- 유지한 계약: 운영 역할/서비스/Secret 값/GitHub 변수 미변경, 비밀값 미조회. 기존 미커밋 파일 보존. 예상 밖 변경 없음.
+- 결정사항: 실행 역할에만 승인된 권한 적용, taskRole 연결 및 로그 그룹 생성/배포는 미수행.
+- 위험 요소: 로그 그룹 및 초기 task/service 미준비. SourceArn은 family 단위 제한이 아니며 PassRole 통제가 필요. 실제 기동 검증은 별도 수행.
+- 다음 작업: 테스트 로그 그룹과 보존 정책, task definition 및 서비스, 초기 이미지/DNS/라우팅 준비. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 테스트 실행 역할 생성과 저장 정책 검증 완료, 운영 변경 없음. 실제 ECS 기동·Secret 주입·로그 전송 검증은 후속.
+
+## 2026-09-23 — 실행 역할 생성 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd7a-0363-7810-b0c2-41eee45d0375 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 실행 역할 생성 결과에 정확한 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 승인된 테스트 실행 역할 생성 및 저장 정책 검증 완료 상태 기록 보완. 과거 기록 유지.
+- 테스트와 결과: 문서만 수정하여 Gradle 미실행. git diff --check 확인.
+- 유지한 계약: 추가 AWS 변경 없음, 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: 역할 생성 완료, 서버 배포 미수행.
+- 위험 요소: 실제 ECS 수임/Secret 주입/로그 전송 미검증. 예상 밖 변경 없음.
+- 다음 작업: 테스트 로그 그룹, task definition 및 ECS 서비스 준비.
+
+## 2026-09-23 — 테스트 로그 그룹 생성 및 ECS 주입 계약 준비
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 테스트 로그 그룹 준비 및 ECS 실행 설정 확인.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: 동일 이름 로그 그룹 부재 확인 후 서울 /ecs/tosunsaeng-identity-test 생성(표준, 30일 보존). AWS 성공 메시지·목록 확인. application.yml과 entrypoint 기준 6개 Secret 주입 변수 매핑 문서화.
+- 테스트와 결과: CloudWatch 저장 결과 확인 및 git diff --check. 제품 변경 없어 Gradle 재실행 없음. 실제 task 기동·로그 수집은 미검증.
+- 유지한 계약: 운영 로그/역할/서비스 미변경, Secret 원문 미조회·미기록. 기존 미커밋 변경 보존. 예상 밖 변경 없음.
+- 결정사항: 신규 테스트 로그는 30일 보존. ECS secrets.valueFrom의 전체 ARN/JSON key selector 선택은 사용자 저장 형식 확인 후 확정. task/service는 아직 등록하지 않음.
+- 위험 요소: Secret 형식과 테스트 DB/동의 버전/기능 설정 미확정, develop 초기 이미지 및 네트워크 준비 필요.
+- 다음 작업: 비밀값 없이 저장 형식 확인, 초기 task/service 구성 및 실제 배포·health·로그 검증. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 테스트 로그 그룹 생성 및 보존 설정 확인, Secret 변수 매핑 준비. ECS 등록과 실제 수집 검증은 후속.
+
+## 2026-09-23 — 테스트 로그 그룹 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd7c-a139-7671-a9c7-6c89a0e1fe68 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 로그 그룹 생성 결과의 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 로그 그룹 생성(30일 보존) 및 ECS Secret 주입 방식 확인 대기 상태를 현재 작업에 연결. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 기록만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음. 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: 로그 그룹 생성 완료, task/service 미생성.
+- 위험 요소: Secret 저장 형식 및 실제 기동·로그 전송 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자에게 비밀값 없이 저장 형식 확인 후 ECS 설정 확정.
+
+## 2026-09-23 — 테스트 Secret 저장 형식 확인 및 ECS 연결 배열 작성
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 혼합 저장 형식에 맞는 ECS secrets 매핑 확정.
+- 변경 파일: docs/contracts/identity-test-container-secrets.json, docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: 사용자 요청으로 6개 Secret 조회 UI에서 저장 형식/키 이름을 확인. 결과는 메타데이터만 출력. MongoDB/fingerprint key selector 및 Firebase JSON/JWT PEM/keyring 전체 주입 배열 작성. 확인 후 비밀값 화면에서 목록으로 이동.
+- 테스트와 결과: jq JSON 검사, 6개 고유 name 및 selector 구성 검사, git diff --check. 제품 변경 없어 Gradle 미실행. 실제 컨테이너 연결은 미검증.
+- 유지한 계약: 비밀값 파일/로그/문서 저장 없음. Secret 값/권한/운영 서비스 변경 없음. 기존 미커밋 변경 보존. 예상 밖 변경 없음.
+- 결정사항: 혼합 저장은 정상이며 Secret을 재작성하지 않음. Linux Fargate JSON selector 지원 버전 1.4.0 이상 필요.
+- 위험 요소: 저장 형식 확인은 실제 값 유효성이나 연결 성공 검증이 아님. DB/약관/flag/초기 이미지 및 네트워크 검증 필요.
+- 다음 작업: 준비한 secrets 배열을 사용해 초기 task definition/service 설정 확정 및 배포 검증. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): Secret 저장 형식 확인 및 ECS secrets 매핑 준비 완료. 원문 미기록, 외부 설정 미변경. 실제 task 기동 검증은 후속.
+
+## 2026-09-23 — Secret 형식 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd7f-9fb8-7201-bfdb-61742a426b9d -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 저장 형식 확인 및 ECS 매핑 준비 결과의 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 형식 확인 완료와 ECS secrets 배열 준비 상태를 현재 작업에 연결. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 변경 보존.
+- 결정사항: 저장 형식 확인 완료, task 등록/기동 미수행.
+- 위험 요소: 실제 값 유효성 및 컨테이너 연결 미검증. 예상 밖 변경 없음.
+- 다음 작업: 테스트 task definition/service 구성 및 배포 검증.
+
+## 2026-09-23 — 초기 테스트 Task Definition 준비
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 운영과 분리된 초기 ECS task/service 설정 준비.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: 운영 서비스 configuration 및 revision23 실행 사양 읽기 전용 확인. 테스트 실행 역할/5개 필요한 Secret/로그/issuer/kid/DB 및 기능 flag 초안 구성. Stage9 OFF이므로 recovery keyring 미주입. 초기 desired=0 서비스와 첫 이미지 배포/기동 순서 문서화.
+- 테스트와 결과: JSON jq 구문 및 task family/Secret 개수/role/flag 검사, git diff --check. 제품 코드 변경 없어 Gradle 재실행 없음. AWS 등록/실행 미검증.
+- 유지한 계약: 기존 운영 role/서비스/Secret/라우팅 미변경. 비밀값 미기록. 미커밋 기존 변경 보존. API 계약 변경 및 예상 밖 변경 없음.
+- 결정사항: 사양 0.5vCPU/1GB, Google/phone ON 및 Stage9/외부 발행 OFF를 초기 설정으로 제안. AWS 등록 전에 DB 권한과 약관 버전 등 사용자 확인 필요.
+- 위험 요소: 현재 develop SHA 이미지 존재 미확인, task/service 미등록. 초기 desired=0이면 workflow health 단계 성공 불가. 네트워크/ALB/DB 권한 검증 필요.
+- 다음 작업: 구체적 초기 설정 승인 및 DB명 확인 후 task 등록, 테스트 SG/ALB/service 준비 및 기동 검증. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 초기 테스트 task 설정 준비 및 JSON 검사, 운영 변경 없음. 실제 등록/배포와 연결 검증은 후속.
+
+## 2026-09-23 — 초기 테스트 Task Definition 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd84-68a9-7f42-aa4e-5d6c03b09e5a -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 task 초안 준비 결과에 현재 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 초기 task 초안 및 JSON 검사 완료, DB명/권한과 등록 승인 확인 대기 상태 기록 보완. 과거 기록 유지.
+- 테스트와 결과: git diff --check 수행. 문서만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: AWS task/service 미등록, 서버 미기동.
+- 위험 요소: 실제 이미지/네트워크/DB 권한 및 기동 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 설정 승인과 DB 확인 후 task/service 등록 준비.
+
+## 2026-09-23 — 승인된 테스트 Task Definition 등록
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 승인된 테스트 실행 설정을 AWS ECS에 등록.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: 활성 family 목록에 테스트 family 부재 확인 후 JSON 생성 UI로 승인된 입력 등록. tosunsaeng-identity-test:1 생성 성공 및 저장된 execution role/사양/DB/issuer/이미지 참조/기능 flag 확인. DB 이름 사용 승인은 받았으며 실제 Atlas 권한 확인과는 구분.
+- 테스트와 결과: AWS JSON 편집기 오류0/경고0, 생성 성공 메시지 및 저장 화면 검증. git diff --check 수행. 제품 코드 변경 없어 Gradle 재실행 없음. 실제 task 실행/연결/이미지 pull 미검증.
+- 유지한 계약: 운영 family/service/Secret 값/권한/라우팅 미변경. 비밀값 주입 대신 ARN 참조만 등록. 기존 미커밋 변경 보존, 예상 밖 변경 없음.
+- 결정사항: Task Definition만 등록. 서비스 생성과 desired=0 설정은 아직 미수행이며 task 실행 안 함.
+- 위험 요소: 이미지 존재, Atlas readWrite 권한, 실제 Secret 주입 및 인증 기동 미검증. SG/ALB 연결과 초기 서비스 준비 필요.
+- 다음 작업: 테스트 네트워크/ALB/SG 확인 및 필요한 접근 변경 승인 후 desired=0 서비스 생성, develop 이미지 배포와 기동 검증. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 테스트 Task Definition revision1 등록 및 저장 설정 확인 완료, 운영 변경 없음. 서비스 생성 및 실제 기동/연결 검증은 남음.
+
+## 2026-09-23 — 테스트 Task Definition 등록 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd87-fb5b-70b3-8aa0-27a1763424cd -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Task Definition 등록 결과의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: tosunsaeng-identity-test:1 등록 및 저장 설정 확인 완료 상태를 현재 작업에 연결. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: Task Definition 등록 완료, 테스트 서비스 생성/기동 미수행.
+- 위험 요소: 실제 이미지 pull/DB 권한/Secret 주입/네트워크 연결 미검증. 예상 밖 변경 없음.
+- 다음 작업: 테스트 네트워크와 ALB 연결 확인 후 desired=0 ECS 서비스 준비.
+
+## 2026-09-23 — 테스트 서비스 네트워크 확인 및 변경 승인 준비
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 테스트 ECS 서비스의 SG/ALB 연결 확인 및 안전한 생성 범위 확정.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: ALB SG와 인바운드80/443·모든 송신 규칙 조회, HTTPS 규칙10 identity-staging/20 api-staging/default404 확인. 신규 test SG, exact test host 우선순위30, 사설 subnet/desired0 서비스 설정안 작성 및 보안 변경 직전 확인 요청.
+- 테스트와 결과: AWS 콘솔 읽기 전용 검증, git diff --check 수행. 제품 변경 없어 Gradle 미실행. 실제 네트워크/기동 테스트 미수행.
+- 유지한 계약: 기존 SG/ALB/서비스/Secret 변경 없음. 비밀값 미기록, 기존 미커밋 변경 보존. 예상 밖 변경 없음.
+- 결정사항: 운영 SG 수정 대신 test SG 분리 제안. 새 ALB 경로 공개와 SG 접근 허용은 사용자 최종 확인 후 적용. 서비스 생성은 아직 미수행.
+- 위험 요소: 포트 제한 송신은 목적지별 격리가 아님. NAT/라우트/endpoint/Atlas allowlist/DB 권한 및 이미지 준비 확인 필요. 빈 test TG는503 응답 가능.
+- 다음 작업: 승인 후 SG/ALB 규칙 생성 및 desired0 테스트 서비스 구성, 이후 배포/기동 검증. commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 테스트 네트워크 조사 및 접근 변경안 준비. AWS 변경 없음. SG/ALB/service 생성과 실제 통신 검증은 승인 후 진행.
+
+## 2026-09-23 — 테스트 네트워크 조사 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd8b-c543-7640-93f7-9b966322cf9b -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 네트워크 조사 및 승인 요청 결과에 현재 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: ALB/SG 읽기 전용 확인과 신규 테스트 접근 범위 승인 대기 상태 기록 보완. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서만 수정하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: 테스트 SG/ALB 규칙/service는 아직 생성하지 않음.
+- 위험 요소: 실제 네트워크·이미지·Atlas 연결 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 승인 후 테스트 SG/ALB 규칙 및 desired0 서비스 구성.
+
+## 2026-09-23 — 프론트의 테스트 서버 접근 조건 안내
+
+- 브랜치: develop.
+- 작업 목표: 사설 ECS와 공인 ALB 구성에서 프론트 접근 가능 여부 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 현재 준비 상태 확인 및 Java 소스 CORS 설정 검색. 공인 HTTPS ALB 경유 접근과 DNS/이미지/desired1/health 선행 조건, WebView JS CORS 추가 검증 필요 안내.
+- 테스트와 결과: 읽기 전용 코드 검색 및 git diff --check. 설명/기록만 변경하여 Gradle 미실행. 실제 외부 연결 테스트 미수행.
+- 유지한 계약: AWS/코드/API/보안 설정 변경 없음. 비밀값 미기록. 예상 밖 변경 없음.
+- 결정사항: desired0 서비스는 실제 API 사용 가능 상태가 아님. 테스트 네트워크 변경 승인은 여전히 대기.
+- 위험 요소: DNS/기동 및 브라우저 CORS 미검증. 챌린지 E2E는 LC/AI 준비도 별도 필요.
+- 다음 작업: 사용자 승인 후 테스트 네트워크와 서비스 구성, 실제 기동 및 프론트 호출 검증.
+
+## 2026-09-23 — 프론트 접근 조건 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd8e-0183-7a71-b125-f58325824bdb -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 프론트 접근 조건 안내에 현재 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: ALB 경유 접근 가능 구조와 DNS/서버 기동/health/CORS 확인 필요 상태 기록 보완. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 변경 보존.
+- 결정사항: desired0은 실제 API 사용 가능 상태가 아니며 네트워크 변경 승인 대기 유지.
+- 위험 요소: 실제 프론트 호출 및 서버 연결 미검증. 예상 밖 변경 없음.
+- 다음 작업: 승인 후 테스트 네트워크/서비스 구성 및 기동 검증.
+
+## 2026-09-23 — 테스트 SG·ALB 규칙·ECS 서비스 생성 완료
+
+- 브랜치: develop. Jira 미지정.
+- 작업 목표: 승인된 테스트 네트워크 및 서비스 구성 후 기동 준비 확인.
+- 변경 파일: docs/contracts/identity-branch-deployment.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 수행 내용: test SG sg-03c6bd60c4026a227 생성(ALB만8081 수신, IPv4 443/27017 송신), priority30 exact test host→test TG 규칙 생성. 테스트 ECS service 생성 성공/ACTIVE 및 desired0/running0 확인. 사설 subnet 2개, test SG만 연결, public IP/Exec/Auto Scaling OFF, Fargate1.4.0, health grace300초 저장 확인.
+- 테스트와 결과: AWS 성공 메시지/저장 설정 확인. GitHub API 원격 develop workflow 읽기 결과 운영 대상 그대로임 확인, dig DNS NXDOMAIN 확인. git diff --check 수행. 제품 변경 없어 Gradle 미실행, 실제 기동/E2E 미검증.
+- 유지한 계약: 기존 운영 service/SG/IAM/Secret 값 미변경. 공유 ALB에는 승인된 별도 규칙만 추가, 기존10/20/default 유지. 비밀값 미기록. 기존 로컬 변경 보존. 예상 밖 변경 없음.
+- 결정사항: 아직 task 기동 안 함. 원격 기존 workflow는 실행 금지, 사용자 commit/push 후 새 테스트 이미지 사용. 가비아 test CNAME 연결 필요.
+- 위험 요소: 실제 이미지 pull/Atlas 권한/Secret 주입/네트워크 송수신 미검증. 초기 desired0 및 DNS 미연결로 API 사용 불가, 기존 원격 workflow 실행 시 운영 변경 위험.
+- 다음 작업: 사용자 workflow commit/push 및 DNS 연결, 테스트 revision/이미지 확인 후 desired1 기동 및 health/JWKS/로그/가입 검증. 이번 commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 승인된 테스트 SG/ALB 규칙/ECS service 생성 완료, desired0 유지. 원격 workflow 반영·DNS 연결 후 실제 기동 검증 필요. 운영 service 변경 없음.
+
+## 2026-09-23 — 테스트 인프라 생성 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd90-1e27-76f1-a7fb-81e2903fa55f -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 SG·ALB 규칙·ECS 서비스 생성 결과에 현재 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 인프라 생성 완료 및 desired0 유지, 원격 workflow 반영/DNS 연결 대기 상태 기록 보완. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 기록만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 미커밋 변경 보존.
+- 결정사항: 실제 테스트 서버 기동은 아직 미수행.
+- 위험 요소: 원격 workflow는 운영 대상이며 test DNS는 NXDOMAIN. 실제 연결 및 인증 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 commit/push 및 DNS 연결 후 테스트 이미지 배포와 기동 검증.

@@ -1,5 +1,101 @@
 # Codex Current State
 
+<!-- codex-turn:01a0cd90-1e27-76f1-a7fb-81e2903fa55f -->
+
+- 테스트 인프라 생성 작업의 현재 식별 기록 보완 완료. 테스트 SG/ALB 규칙/ECS 서비스 생성 완료 및 desired0 상태 유지. 추가 외부 변경 없음. 원격 workflow 사용자 반영과 DNS 연결 후 실제 서버 기동 검증 필요.
+
+- 2026-09-23 승인된 테스트 네트워크/service 생성 완료: test SG sg-03c6bd60c4026a227(ALB→8081, 송신443/27017), ALB priority30 exact test host→test TG, ECS tosunsaeng-identity-test-service ACTIVE/task test:1/desired0/running0 확인. private subnet 2개/public IP·Exec·AutoScaling OFF. 실제 기동 전 차단: 원격 develop workflow는 여전히 운영 대상으로 로컬 변경의 사용자 commit/push 필요. DNS test 호스트 NXDOMAIN으로 가비아 CNAME 연결 필요. 기존 운영 service/role/Secret은 변경하지 않음. 이번 실제 task 실행 없음.
+
+<!-- codex-turn:01a0cd8e-0183-7a71-b125-f58325824bdb -->
+
+- 프론트 접근 조건 안내의 현재 작업 식별 기록 보완 완료. ALB 경유 접근 구조 설명 완료, DNS/서버 기동/health 및 필요 시 CORS 검증은 남아 있다. 추가 외부 변경 없음.
+
+- 2026-09-23 프론트 접근 조건 설명: 공인 ALB HTTPS를 통해 사설 테스트 ECS로 접근 가능하나 현재 desired0 생성 계획은 준비 단계다. DNS 연결, 승인된 SG/ALB/service 구성, 이미지 배포 및 desired1 기동/health 정상 확인 필요. Android 네이티브 HTTP와 달리 브라우저/WebView JS 요청은 CORS 별도 검증 필요(현재 Java 소스 검색에서 명시적 CORS 설정 없음). 이번 외부 변경 없음.
+
+<!-- codex-turn:01a0cd8b-c543-7640-93f7-9b966322cf9b -->
+
+- 테스트 네트워크 조사 작업 식별 기록 보완 완료. ALB/SG 확인 및 접근 변경안 작성 완료, 사용자 최종 승인 대기. 추가 외부 변경 없이 테스트 SG/ALB 규칙/service 미생성 상태 유지.
+
+- 2026-09-23 테스트 서비스 네트워크 확인: ALB SG 식별 및 HTTPS 규칙10/20/default404 확인, 테스트 호스트 규칙 없음. 신규 test SG(ALB에서만8081, 송신443/27017), host exact 우선순위30→test TG, private subnet/desired0 테스트 service 구성안 작성. 접근 범위 변경 직전 사용자 승인 대기, AWS 변경 없음. NAT/endpoint/Atlas 및 실제 통신 검증은 남음.
+
+<!-- codex-turn:01a0cd87-fb5b-70b3-8aa0-27a1763424cd -->
+
+- 테스트 Task Definition 등록 작업의 현재 식별 기록 보완 완료. tosunsaeng-identity-test:1 등록 및 저장 설정 확인 완료 상태 유지. 추가 외부 변경 없이 서비스 생성 및 실제 기동 검증이 남아 있다.
+
+- 2026-09-23 승인된 테스트 Task Definition tosunsaeng-identity-test:1 등록 완료. AWS 성공 메시지 및 컨테이너/JSON 저장 설정 확인(테스트 execution role, 0.5vCPU/1GiB, 테스트 DB/issuer, Google/phone ON, Stage9 및 외부 발행 OFF). Task Definition만 등록했으며 service/실행 수 설정/task 기동/라우팅 변경 없음. Atlas DB 권한·이미지 pull·실제 연결 검증은 남음. 초기 desired=0 service는 후속 구성 대상.
+
+<!-- codex-turn:01a0cd84-68a9-7f42-aa4e-5d6c03b09e5a -->
+
+- 초기 테스트 Task Definition 준비 작업 식별 기록 보완 완료. 초안과 JSON 검사 완료, DB명/권한 및 AWS 등록 승인 확인 대기. 추가 외부 변경 없이 task/service 미등록 상태 유지.
+
+- 2026-09-23 테스트 task definition 초안 작성: 기존 운영 service/revision23 사양 조회(0.5vCPU/1GiB/Linux X86_64/private network), 운영 값 복사 없이 테스트 issuer/kid/DB/Secret/log 구성. Google/phone/fingerprint ON, Stage9 및 외부 publish OFF 제안. 미사용 recovery keyring 미주입. DB 권한/약관 버전/설정 승인, 이미지/네트워크/ALB 준비 후 등록 필요. AWS task/service 미생성, 실제 배포 미수행. JSON/diff 검사만 수행.
+
+<!-- codex-turn:01a0cd7f-9fb8-7201-bfdb-61742a426b9d -->
+
+- Secret 형식 확인 작업의 현재 식별 기록 보완 완료. 혼합 저장 형식에 맞는 ECS secrets 배열 준비 및 검사 완료 상태 유지. 추가 외부 변경 없이 task 등록/기동 검증이 남아 있다.
+
+- 2026-09-23 테스트 Secret 저장 형식 확인 완료: MongoDB/fingerprint는 JSON key selector, Firebase 서비스 계정은 JSON 전체, JWT PEM 2개와 재발급 keyring은 일반 텍스트 전체. docs/contracts/identity-test-container-secrets.json 준비 및 JSON 검사 완료. 키 이름/형식만 출력·기록, 원문 파일 저장 없음. AWS 값/정책 미변경. task 등록 및 실제 연결 검증은 아직 미수행.
+
+<!-- codex-turn:01a0cd7c-a139-7671-a9c7-6c89a0e1fe68 -->
+
+- 테스트 로그 그룹 생성 작업 식별 기록 보완 완료. 30일 보존 설정 확인, ECS Secret 저장 형식에 대한 사용자 확인 대기. 추가 외부 변경 및 서버 기동 없음.
+
+- 2026-09-23 테스트 로그 그룹 /ecs/tosunsaeng-identity-test 생성 완료(서울/표준/30일 보존). 성공 메시지·목록 확인. ECS Secret 주입 변수와 entrypoint 계약 검토 및 문서화. Secret 저장 형식(전체 원문 vs 상위 JSON 키) 확인 필요로 task/service 등록 전 중단. Secret 원문 미조회, 운영 변경 없음. 실제 서버/로그 전송 미검증.
+
+<!-- codex-turn:01a0cd7a-0363-7810-b0c2-41eee45d0375 -->
+
+- 테스트 실행 역할 생성 작업의 현재 식별 기록 보완 완료. 역할 및 저장 권한 검증 완료 상태 유지. 추가 외부 변경 없이 로그 그룹/task/service 준비와 실제 기동 검증이 남아 있다.
+
+- 2026-09-23 실행 역할 생성 완료: 사용자 승인 후 tosunsaeng-identity-test-execution-role 및 IdentityTestExecution 정책 생성. AWS 성공 메시지, ARN, 저장된 정확한 6개 Secret 읽기/ECR pull/테스트 로그 스트림 쓰기 및 동일 계정 서울 ECS 신뢰 확인. 운영 role/Secret/GitHub 변수 미변경. 실제 ECS 실행 및 로그 그룹/task/service 구성은 미완료. 제품 변경 없음, 문서 갱신 및 diff 검사만 수행.
+
+<!-- codex-turn:01a0cd77-0b9b-7433-a4ca-fb6294c8ca19 -->
+
+- 2026-09-23 테스트 execution role 준비: Secrets Manager에서 테스트 Identity Secret 6개 ARN 확인(원문 미조회). 동일 계정/서울 ECS task 신뢰, 정확한 6개 Secret 읽기, Identity ECR pull, 제안 로그 그룹 /ecs/tosunsaeng-identity-test 스트림 쓰기 정책 JSON 작성. 역할 생성·권한 부여 직전 승인 대기, 외부 변경 없음. 로그 그룹 생성/보존 기간 및 task/service 준비는 후속. JSON/diff 검증, 제품 변경 없어 Gradle 미실행.
+
+<!-- codex-turn:01a0cd6f-0d88-7c52-af7f-ccc9b1ac7f06 -->
+
+- 2026-09-23 사용자 승인 후 테스트 CI 역할 tosunsaeng-github-identity-test-deploy-role 생성 및 IdentityTestDeploy 인라인 정책 적용 완료. AWS 저장 화면에서 develop exact immutable subject, sts audience, 정책 및 ARN 확인. GitHub AWS_TEST_ROLE_ARN repository variable 생성 후 GET 일치 확인. 기존 운영 role/AWS_ROLE_ARN/서비스는 변경하지 않음. 실제 OIDC 수임/배포 미실행. 테스트 execution role 및 Secret 최소권한은 별도 승인·구성이 필요하며 초기 task/service/이미지/DNS·라우팅도 남음. 공유 ECR 및 운영 role wildcard 신뢰 위험 유지. 이번은 외부 설정 및 문서만 변경, Gradle 재실행 없음.
+
+<!-- codex-turn:01a0cd67-8814-7460-83fc-bc6cb5d1fef7 -->
+
+- 2026-09-23 테스트 IAM 준비: 기존 운영 역할의 repo wildcard OIDC 신뢰 확인(운영 main 전용 아님). GitHub OIDC use_immutable_subject=true 및 실제 sub prefix 조회 후 develop exact 신뢰/권한 JSON 초안 작성. 새 테스트 배포 역할 및 AWS_TEST_ROLE_ARN 등록은 권한 생성 승인 대기, AWS/GitHub 변경 미수행. 공유 ECR 쓰기 및 기존 운영 역할 wildcard 위험 명시. execution role/Secret 권한/task/service는 별도 준비 필요. JSON jq 검사/diff check 통과.
+
+<!-- codex-turn:01a0cd58-b624-7302-bc90-eaa3b78ea5d8 -->
+
+- main/develop workflow 분리 구현의 현재 작업 식별 기록 보완. 전체 957 tests 통과, 실제 배포 미수행. 테스트 IAM 및 최초 ECS 서비스 준비 필요 상태 유지.
+
+- 2026-09-23 기존 deploy-staging.yml 수정 완료: main 기존 서비스/staging 태그, develop 테스트 서비스/test 태그로 분기. 테스트 전용 AWS_TEST_ROLE_ARN 필수, 기타 ref 거절, ACTIVE 서비스 및 task family/container 선행 검사, 운영 fallback 없음. [배포 준비 문서](../contracts/identity-branch-deployment.md). 전체 clean test 147 suites/957 tests 성공, diff check 통과. commit/push/workflow 실행/AWS 변경 없음. 테스트 IAM/최초 task/service/DNS·라우팅 준비 후 적용 필요.
+
+<!-- codex-turn:01a0cd55-55fd-7db1-be8c-6efb91efdc5c -->
+
+- 테스트 대상 그룹 생성 및 이미지 선행 조건 확인 작업 식별 기록 보완. 대상 그룹 생성 완료, develop 이미지 업로드와 로컬 AWS 인증 준비는 미완료. 운영 배포/라우팅 변경 없음.
+
+- 2026-09-23 테스트 인프라 준비: tosunsaeng-identity-test-tg 생성 완료(IP/HTTP:8081/동일 staging VPC/health /actuator/health, 대상0, ALB 미연결). 기존 서비스 3개만 존재. ECR Identity 28개 이미지 목록 최신은 main 7f2188df/staging이며 현재 develop bd337be4 이미지는 없음. 기존 workflow는 운영 서비스 갱신 대상이므로 실행하지 않음. 로컬 AWS CLI 자격증명이 없어 이미지 업로드 전 사용자 인증 또는 별도 승인된 빌드 경로 필요. ECS 서비스/Task Definition/권한/라우팅/DNS 미변경.
+
+<!-- codex-turn:01a0cd53-2f36-70b1-9b6a-1743151c5642 -->
+
+- ALB 테스트 인증서 추가 작업 식별 기록 보완. HTTPS:443 SNI 추가 성공 및 기존 기본 인증서 유지 확인 완료. 테스트 서비스/호스트 라우팅/DNS 연결 작업은 별도로 남아 있다.
+
+- 2026-09-23 사용자 승인으로 tosunsaeng-staging-alb HTTPS:443에 identity-test.to-teacher.com 인증서를 SNI 추가 완료. AWS 성공 메시지와 인증서 2개 목록 확인. 기존 identity-staging 기본 인증서 유지. DNS/리스너 규칙/보안 정책/대상 그룹/서비스 변경 없음. 테스트 호스트 라우팅은 미구성 상태로 관측했으며 테스트 배포 및 도메인 연결은 별도 남음.
+
+<!-- codex-turn:01a0cd51-d10b-7e50-9788-13a034c1d8bc -->
+
+- 인증서 발급 확인 작업 식별 기록 보완 완료. ACM 발급됨/도메인 검증 성공/미사용 확인 결과 유지. ALB 연결은 아직 수행하지 않았다.
+
+- 2026-09-23 재로그인 후 ACM 확인: identity-test.to-teacher.com 인증서 발급됨, 도메인 검증 성공, 사용 중 아니요. 발급 시각 2026-09-22 17:14:54 KST. 다음은 기존 인증서를 유지하면서 ALB HTTPS 443 인증서 목록에 추가하는 단계. 이번은 조회만 수행, ALB 변경 없음.
+
+<!-- codex-turn:01a0cd4d-6c1e-7e11-a5d5-73866f13e334 -->
+
+- 2026-09-23 테스트 인증서 검증 CNAME의 DNS 응답이 ACM 안내 값과 일치함을 확인. ACM 발급 여부는 AWS 세션 만료로 미확인. 사용자 재로그인용 ISB 페이지를 열고 탭 유지. DNS/ALB/인증서 설정 변경 없음. 현재 브랜치 develop.
+
+<!-- codex-turn:01a0c824-820a-7552-89e7-d07cb6586ae1 -->
+
+- 2026-09-22 ACM 현재 인증서 확인: identity-test.to-teacher.com 인증서는 DNS 검증 대기 중이며 사용 중 아님. 현재 화면의 검증 CNAME을 가비아 DNS에 등록하고 발급 후 ALB HTTPS listener에 추가하는 순서 안내. DNS/인증서/ALB 변경 및 탭 종료 없음.
+
+<!-- codex-turn:01a0c7e0-658a-7753-b50a-0512c96c992b -->
+
+- 2026-09-22 작업 순서 확인: 운영과 분리된 테스트 배포 및 SNS 인증/챌린지 검증을 먼저 진행할 수 있다. 구·신 주소 전환, 피드백 업데이트 안내, 기존 Guest 계승·재발급 응답 유실 검증은 실제 앱 업데이트 전 완료한다. 테스트는 운영 DB/키/이벤트 목적지와 격리하며 이번에 배포나 flag 변경을 수행한 것은 아니다.
+
 <!-- codex-turn:01a0c7d6-ee64-73a3-ac1b-abdc66b23e35 -->
 
 - 2026-09-22 전환 방안 가능 여부 재확인: 구/신 주소 분리와 피드백 result.updateRequired 기반 웹뷰 안내는 구현 가능하다. 구현·배포 완료 또는 세션 전환 안전성 검증 완료를 뜻하지 않는다. 기존 Guest 보존·진행 중 회전 응답 유실·신앱 Stage 9 지원 검증은 선행 과제로 유지. 이번은 설명/기록만 변경.

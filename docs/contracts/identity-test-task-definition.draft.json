@@ -1,0 +1,203 @@
+{
+  "family": "tosunsaeng-identity-test",
+  "executionRoleArn": "arn:aws:iam::889384901776:role/tosunsaeng-identity-test-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "tosunsaeng-identity",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-identity:bd337be4baf7055bfd7f541d424b06585b09c2a3",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8081,
+          "hostPort": 8081,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SERVER_PORT",
+          "value": "8081"
+        },
+        {
+          "name": "MONGODB_DATABASE",
+          "value": "to-teacher-identity-test"
+        },
+        {
+          "name": "JWT_ISSUER",
+          "value": "https://identity-test.to-teacher.com"
+        },
+        {
+          "name": "JWT_AUDIENCE",
+          "value": "tosunsaeng-learning-core"
+        },
+        {
+          "name": "JWT_KEY_ID",
+          "value": "tosunsaeng-identity-test-rsa-1"
+        },
+        {
+          "name": "JWT_ACCESS_TOKEN_TTL",
+          "value": "PT30M"
+        },
+        {
+          "name": "REFRESH_TOKEN_TTL",
+          "value": "P14D"
+        },
+        {
+          "name": "PRIVACY_CONSENT_VERSION",
+          "value": "privacy-v1"
+        },
+        {
+          "name": "TERM_CONSENT_VERSION",
+          "value": "term-v1"
+        },
+        {
+          "name": "QUALITY_REVIEW_CONSENT_VERSION",
+          "value": "quality-review-v1"
+        },
+        {
+          "name": "FIREBASE_AUTH_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "FIREBASE_PROJECT_ID",
+          "value": "to-teacher-firebase"
+        },
+        {
+          "name": "FIREBASE_GOOGLE_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "FIREBASE_PHONE_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "FIREBASE_APPLE_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "FIREBASE_KAKAO_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "PHONE_IDENTITY_FINGERPRINT_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "PHONE_ELIGIBILITY_BINDING_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "PHONE_ELIGIBILITY_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "AUTH_REISSUE_RECOVERY_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "AUTH_SESSION_FENCE_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "GUEST_MERGE_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "WORKLOAD_JWT_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "USER_MERGED_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "USER_WITHDRAWN_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "SENTRY_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "SENTRY_ENVIRONMENT",
+          "value": "test"
+        },
+        {
+          "name": "SWAGGER_ENABLED",
+          "value": "false"
+        },
+        {
+          "name": "LOGGING_STRUCTURED_FORMAT_CONSOLE",
+          "value": "ecs"
+        },
+        {
+          "name": "LOGGING_LEVEL_ORG_MONGODB_DRIVER",
+          "value": "WARN"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MONGODB_URI",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/mongodb-1sFgT4:MONGODB_URI::"
+        },
+        {
+          "name": "FIREBASE_SERVICE_ACCOUNT_JSON",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/firebase-SljVoK"
+        },
+        {
+          "name": "JWT_PRIVATE_KEY_PEM",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/jwt-private-key-OfpFd5"
+        },
+        {
+          "name": "JWT_PUBLIC_KEY_PEM",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/jwt-public-key-U633eD"
+        },
+        {
+          "name": "PHONE_IDENTITY_FINGERPRINT_KEY_RING",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/phone-fingerprint-0PUfQU:PHONE_IDENTITY_FINGERPRINT_KEY_RING::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/tosunsaeng-identity-test",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "mode": "non-blocking",
+          "max-buffer-size": "10m"
+        }
+      },
+      "stopTimeout": 30
+    }
+  ]
+}
