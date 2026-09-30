@@ -1,5 +1,601 @@
 # Codex Current State
 
+- 2026-09-30 TMI-188 구현 완료(로컬): feat/TMI-188-quality-review-consent. Firebase signup/Guest upgrade에 isQualityReviewConsented·qualityReviewConsentVersion 추가, signup 누락/null=false, upgrade 누락/null=기존 상태 유지, 명시 false 철회, true 현재 버전 검증/서버 시각 저장. GET /api/v1/policies/consents 공개 조회·no-store 및 Swagger/프론트 계약 갱신. ./gradlew clean test 최종 983개 통과(실패/오류 0), git diff --check 통과. 개인정보/약관 필수·개인 API 인증·enrollment/userId 계약 유지, 새 환경변수/엔티티 없음. 배포·모바일 E2E 미수행, 커밋/push/PR 및 Jira 상태·댓글 변경 없음. 기존 배포 문서/DeploymentTargetTests·docs/postman·tools 변경은 작업 시작 전 dirty 상태로 보존. 후속: diff 확인 후 사용자 커밋·배포 및 실제 정책 본문/버전 대응 검증.
+
+- 2026-09-30 TMI-188 생성 완료 turn 기록 보완. 사용자 승인에 따라 생성했으며 부모 TMI-136 연결 확인 완료. 구현은 아직 시작하지 않았고 추가 Jira 변경 없음.
+
+- 2026-09-30 TMI-188 생성 완료: [Identity] SNS 가입·Guest 승격 선택 동의 및 공개 정책 버전 조회. 사용자 초안 승인 후 공식 Atlassian 도구로 작업 생성, 부모 TMI-136 및 해야 할 일 상태 재조회 확인. 구현 미시작, 댓글/상태 전환 없음. 이전 생성 승인 대기 기록은 생성 완료로 대체됨.
+
+- 2026-09-30 TMI-136 하위 Jira 초안 검토 turn 기록 완료. 제시한 신규 작업 내용의 사용자 승인 대기이며 Jira 생성·댓글·상태 변경 없음.
+
+- 2026-09-30 TMI-136(sns 로그인) 하위 작업 생성 준비: 에픽/작업 유형 및 기존 자식 이슈 확인. SNS signup·Guest upgrade 선택 동의 및 공개 정책 조회를 묶은 작업 초안 준비, AGENTS.md의 Jira 사전 내용 공개·승인 규칙에 따라 생성 승인 대기. Jira 생성·댓글·상태 변경 및 구현 없음.
+
+- 2026-09-30 Guest 승격에도 동일한 enrollment 만료·정리 흐름 적용 확인. 승격 트랜잭션에서 소비 처리 후 공통 finalizeEnrollment 호출, enrollment 삭제 이후 MEMBER와 Firebase 연결 유지. 코드 변경 없음.
+
+- 2026-09-30 enrollment TTL 설명 turn 기록 완료. 사용 만료와 DB 삭제 시점을 구분했으며 기본 10분 유효기간·가입 완료 후 기본 24시간 보관은 코드 기본값임을 안내. 실제 배포 설정·TTL 인덱스는 미조회, 코드 변경 없음.
+
+- 2026-09-30 enrollment 만료와 삭제 구분 확인: 기본 유효기간 10분(expiresAt) 이후 사용할 수 없으나 즉시 DB 삭제되지는 않는다. 생성 시 cleanupAt=null, 가입 완료 lifecycle에서 기본 24시간 보관 뒤 cleanupAt TTL 삭제 예약. 미완료 만료 건은 별도 정리 절차/설정에 의존하며 만료만으로 삭제 예약되지 않음. DB TTL 인덱스·실배포 설정 미조회, 코드 설명만 수행.
+
+- 2026-09-30 신규 signup Firebase 연결 시점 설명의 turn 기록 보완 완료. 가입 전 enrollment의 Firebase 연결과 가입 완료 후 MEMBER의 FirebaseIdentity 매핑을 구분해 설명했으며 코드 변경 없음.
+
+- 2026-09-30 신규 signup Firebase 연결 시점 확인: DIRECT_SIGNUP enrollment는 가입 전부터 Firebase 계정에 연결되며 boundUserId는 null. signup 성공 시 새 MEMBER와 FirebaseIdentity 매핑을 동일 트랜잭션에서 저장. Guest 승격은 기존 Guest userId를 유지하는 차이. 설명만 수행, 코드 변경 없음.
+
+- 2026-09-30 Guest upgrade enrollment 설명의 turn 기록 보완 완료. prepare 발급 ID를 upgrade에 제출하며 Guest·Firebase 계정·유효성 검증을 수행하는 현재 구현 확인. 코드 변경 없음.
+
+- 2026-09-30 Guest upgrade enrollment 사용 확인: guest/prepare가 GUEST_USER 타입으로 현재 Guest와 Firebase 계정에 연결된 enrollment를 발급/재사용하고 guest/upgrade가 ID·미만료 PENDING·Guest 소유권·Firebase 일치를 검증한다. 신규 signup enrollment와 구조는 같지만 용도/소유자 경계로 서로 대체 불가. 설명만 수행, 코드 변경 없음.
+
+- Guest upgrade 선택 동의 확장 검토의 turn 기록 보완 완료(2026-09-30). signup·upgrade 선택 동의 및 공개 정책 조회를 구현 예정 범위로 정리, 실제 API 변경 없음.
+
+- 2026-09-30 Guest upgrade 선택 동의 확장 범위 추가: FirebaseGuestUpgradeRequest에 isQualityReviewConsented/qualityReviewConsentVersion 없음 확인. 기존 승격은 renewRequiredConsents로 선택 동의를 보존함. 신규 signup 확장·공개 정책 GET와 함께 upgrade DTO/검증/저장 확장 계획에 포함. upgrade 필드 누락은 기존 동의 보존, 명시 false는 미동의, 명시 true는 현재 버전 검증 후 반영 권장. 구현 전 검토/방향 정리만 수행.
+
+- signup 선택 동의·공개 정책 조회 설명 기록 완료(2026-09-30). 구현 전 계약 제안 상태이며 이번 turn 기록 식별자 보완, 애플리케이션 변경 없음.
+
+- 2026-09-30 Firebase signup 선택 품질 검토 동의 및 공개 정책 조회 수정 방향: 기존 isQualityReviewConsented/qualityReviewConsentVersion 이름으로 signup DTO 확장, 누락·null은 false, true일 때 현재 버전 검증 및 UserConsents 저장 제안. 공개 GET /api/v1/policies/consents는 ConsentPolicy의 세 버전만 반환하고 해당 GET만 permitAll. 기존 개인정보/약관 필수 및 개인 동의 API 인증 유지. 구현 전 설명 단계이며 Guest upgrade 확장은 별도 범위로 구분.
+
+- 2026-09-30 신규 가입 폼 보관 책임 확인: 전화번호는 Firebase에서 따로 인증하고, 닉네임·필수 동의·버전은 signup에 필수로 제출한다. 프론트가 자동으로 값을 아는 것은 아니며 입력 화면에서 받은 값을 제출/재시도까지 보관해야 한다. 일반 신규 가입 기준이며 Guest 기존 동의 예외 유지. 코드 변경 없음.
+
+- 2026-09-30 가입 입력과 Firebase 인증 시점 설명: 닉네임·동의는 signup 전까지 프론트 폼에만 있고 서버는 PROFILE·CONSENTS를 계속 요구한다. 전화번호 인증은 signup 전에 Firebase에 완료 상태가 저장되어 갱신된 인증 정보 확인 시 PHONE_VERIFICATION이 빠질 수 있다. PASSWORD 이메일 인증도 동일한 사전 인증 예외이며 Guest 기존 동의는 별도 경로. 이번 설명/기록만 수행, 코드 변경 없음.
+
+- 2026-09-30 missingRequirements와 가입 필수 입력 검토: 일반 신규 가입 resolveDirectSignup은 PROFILE·CONSENTS를 항상 포함하며 enrollment에는 닉네임/동의 초안이 저장되지 않는다. signup 입력 선택화나 enrollment 초안 조회 API는 이 문제에 필요 없음. Guest 승격은 기존 최신 동의가 있으면 CONSENTS를 생략할 수 있지만 upgrade DTO는 동의 필드 필수이므로 기존 GET /users/me/consents로 실제 동의 상태를 확인하여 제출하는 프론트 구분 필요. 가입 폼은 클라이언트에서 최종 제출/재시도까지 보존. 공개 정책 버전 조회 필요성은 별도 유지. 이번 코드·계약 변경 없음.
+
+- 2026-09-30 가입 전 정책 버전 조회 공백 확인: GET /api/v1/users/me/consents는 현재 사용자 조회와 JWT 인증이 필요하며 공개 정책 조회 API는 현재 없음. GET /api/v1/policies/consents(제안)에서 ConsentPolicy의 세 버전을 공개하고 가입 제출 시 기존 버전 검증을 유지하는 방향 권장. 조회 후 정책 변경 시 재조회·내용 재표시·재동의 필요. 이번에는 분석/기록만 수행, API 미구현.
+
+- 2026-09-30 EMAIL_VERIFICATION 의미 확인: Firebase PASSWORD 방식이 연결되어 있고 emailVerified=false인 경우 가입/Guest 승격의 missingRequirements에 포함한다. 순수 SNS 계정에는 이 조건으로 별도 이메일 인증을 요구하지 않지만, PASSWORD가 함께 연결된 미인증 계정에는 요구할 수 있다. 기존 로컬 이메일 가입용 잔재가 아닌 현재 Firebase 경로의 실제 조건. 코드·외부 계약 변경 없음, 소스 확인으로 설명.
+
+<!-- codex-turn:01a0f17b-6860-7ae0-97d1-3a57b7e70929 -->
+
+- Apple/Google 연결 복구 검토 turn 기록 완료. 기존 제공자 재인증·명시 연결 동의 기반 복구를 제안했으며 구현·배포·계정 변경 없음.
+
+- 2026-09-30 동일 이메일 Apple/Google 후속 수정 방향: ProviderChangeGuard의 기존 Firebase UID 내 미등록 SocialIdentity 거절 및 ProviderLinkService의 원격 선연결 거절 재확인. 이메일 자체를 기준으로 자동 승인하지 않고 기존 등록 제공자 재인증·명시 연결 동의를 통한 사후 연결 복구 경로 보완 제안. 이번 코드 수정 없음, 상세 계약/구현 승인 전 단계.
+
+<!-- codex-turn:01a0f17a-1321-7121-9953-f75a4c519fa7 -->
+
+- 기록 있는 Guest 병합 검증 turn 기록 완료. 이전 Guest 양 서비스 차단 및 MEMBER에서 시험 1건 이전 조회 성공, 추가 외부 변경 없음.
+
+- 2026-09-30 기록 있는 Guest 병합 검증 성공: 사용자 병합 후 Chrome 읽기 검증을 재실행하여 Identity/LC source의 ACCOUNT_MERGED_TOKEN_REJECTED, MEMBER 완료 이력 조회 성공, 병합 전 시험 ID 1건 중 1건 포함 확인. 이전 0건 미검증과 달리 이번에는 합성 완료 이력의 실제 이전 조회 검증 완료. summary/문항별 결과 소유권 DB 재조회·이벤트204/중복/장애 재시도는 이번 범위에서 미검증. 추가 병합·데이터 변경 없음.
+
+<!-- codex-turn:01a0f172-7184-7dd2-9075-746ef07a8df3 -->
+
+- Guest 더미 생성 turn 기록 완료. 테스트 LC에 합성 완료 모의고사 1건 준비 및 현재 Guest 조회 성공. 실제 병합·이전 검증 대기.
+
+- 2026-09-30 Guest 더미 삽입 완료: 사용자 승인한 최신 생성 기준으로 테스트 Identity 최신 GUEST의 ACTIVE 상태·생성 시각 확인(이전 2개 MERGED). 테스트 LC에 비활성 더미 카탈로그 1건, 해당 Guest 소유 완료 exam_session 1건·합성 exam_summary 1건 추가. Chrome 현재 Guest의 완료 시험 조회 1건 및 비교 준비 확인. 실채점/문항별 결과 아님, 병합은 미실행. 운영·기존 계정·guard 불변.
+
+<!-- codex-turn:01a0f16f-fcea-7f02-b7b6-8781010b68a7 -->
+
+- Guest 더미 데이터 준비 turn 기록 보완 완료. 정확한 Guest UUID 확인 대기이며 데이터 삽입·삭제·병합 미실행 상태 유지.
+
+- 2026-09-30 Guest 더미 삽입 준비: 로컬 app-back-end-learning-core 저장소 발견, 완료 이력은 exam_sessions.userId/completedAt 기준이며 exam_summaries가 점수·요약 제공함을 확인. 현재 도구는 Guest UUID를 표시하지 않으므로 방금 생성한 정확한 소유자 확인 필요. 최신 Guest 추정 삽입은 하지 않음. DB 삽입·기존 데이터 삭제 미실행.
+
+<!-- codex-turn:01a0f16e-72f5-7373-9b33-e76496c0159c -->
+
+- 정책 버전 재입력 turn 기록 완료. Chrome에 privacy-v1/term-v1 표시 확인, 동의·가입은 실행하지 않음.
+
+- 2026-09-30 정책 버전 재입력: 앞서 테스트 task revision 6에서 확인한 privacy-v1 및 term-v1을 Chrome 테스트 화면에 다시 입력하고 표시 확인. 이번에는 AWS 설정 재조회 없이 이전 확인값 사용. 동의·가입·서버 설정 변경 없음.
+
+<!-- codex-turn:01a0f16c-c46e-76a2-ad7a-c1a57e771cc4 -->
+
+- Apple 로그인 팝업 진단 turn 기록 보완 완료. Apple 자체 인증 오류의 상세 원인은 미확정이며 사용자 재인증 대기. 외부 상태 변경 없음.
+
+- 2026-09-30 Apple 로그인 팝업 오류 확인: Apple 자체 계정 로그인 폼에서 일반 오류 문구 표시, localhost는 팝업 응답 대기로 로그인/교환 비활성. 이번 오류는 앞선 Identity 403/409와 다른 Apple 인증 단계이며 상세 원인은 일반 문구만으로 미확정. 팝업만 닫고 새 로그인 또는 사용자 패스키 시도 안내. 세션 초기화·설정 변경·인증정보 입력 없음.
+
+<!-- codex-turn:01a0f16a-4741-70b0-9a6e-579e498bae50 -->
+
+- Guest 생성 잠금 진단 turn 기록 완료. 서버 문제가 아닌 테스트 도구의 병합 상태 잠금 확인. MEMBER 유지형 Guest 초기화 개선 여부를 사용자에게 질문한 상태이며 코드·계정·로컬 세션 변경 없음.
+
+- 2026-09-30 새 Guest 버튼 비활성 원인 확인: Chrome 버튼 disabled, 테스트 도구 controls에서 guest/oldGuest/mergeUncertain 존재 시 생성 차단. 병합 후 oldGuest 보존으로 재생성 잠금 유지. 서버 생성 오류가 아님. 현재 clear는 로그인·Guest·녹음/응시 등 전체 로컬 상태 초기화이므로 자동 실행하지 않음. 사용자 전체 초기화 후 재로그인 또는 Guest 테스트 상태만 초기화하는 도구 개선 선택 가능.
+
+<!-- codex-turn:01a0f167-97be-7490-8a52-f32ed56a3dce -->
+
+- 기록 있는 Guest 재검증 준비 turn 기록 완료. LC 저장소 위치 확인 대기이며 기존 Guest 삭제·새 계정 생성·임시 데이터 삽입·병합은 수행하지 않음.
+
+- 2026-09-30 기록 있는 Guest 병합 재검증 요청: 기존 Guest는 이미 MERGED 상태이므로 삭제 범위 확정 전 변경하지 않음. 신규 Guest+LC 테스트 완료 모의고사 1건으로 검증 제안. 모의고사는 LC 소유이며 Identity에 seed 구현을 추가하지 않음. LC 저장소 위치/테스트 fixture 경로 확인 필요, 삭제·생성·병합 미실행.
+
+<!-- codex-turn:01a0f166-2c49-7ef0-a54d-ae1cca42c1bc -->
+
+- Google 검증 범위 확인 turn 기록 보완 완료. 이전 Google AI 채점 성공은 확인된 사실이며, Apple 이번 시도와 실제 기록 이전은 미확인으로 구분.
+
+- 2026-09-30 Google/Apple 검증 범위 정정: 이전 Google 테스트에서는 S3 CORS 수정 후 업로드·제출·AI completed 및 결과 재조회까지 검증된 기록 확인. 최근 미확인 안내는 새 Apple 계정의 이번 시도에 한정하며 채점 시스템 전체 미검증/장애 의미가 아님. 실제 시험 기록 이전은 Google 당시에도 0건으로 미검증.
+
+<!-- codex-turn:01a0f163-6859-73f0-8185-9d56dd1949c7 -->
+
+- 후속 기능 검증 turn 기록 보완 완료. 기본 인증 및 병합 후 차단 검증 성공, 실제 기록 이전·AI 채점 미검증 상태 유지. 추가 외부 변경 없음.
+
+- 2026-09-30 Apple 후속 기능 확인: 화면에서 Apple 재인증·MEMBER 가입·프로필·재발급·LC 인증·Guest 생성·Identity 병합·응시 준비·S3 업로드 성공 확인. 병합 후 읽기 검증 직접 실행하여 Identity/LC 이전 Guest 전용 거절 코드 및 MEMBER 이력 조회 성공 확인. 이전 기록 0건으로 기록 이전 미검증. 챌린지 결과 solvedQuestionCount=0/question=null, 제출·AI 채점 성공은 미확인. 추가 제출/병합/재발급 실행 없음.
+
+<!-- codex-turn:01a0f161-0128-7b92-b88f-57124fe10a98 -->
+
+- 제공자 거절 진단의 현재 turn 기록 보완 완료. 사용자 동일 Apple 재인증 대기, 추가 계정 변경 없음.
+
+- 2026-09-30 후속 exchange 403 확인: 전화 연결 후 가입 준비 갱신에서 FIREBASE_PROVIDER_NOT_ALLOWED. 서버는 LOGIN_EXCHANGE의 PHONE sign-in을 명시적으로 거절하며 Apple/Phone 활성은 앞선 revision 6에서 확인. 현재 토큰 claim 직접 확인은 하지 않아 PHONE 전환은 유력 가설로 구분. 같은 Apple 재인증→exchange→가입 순서 안내. 설정·코드 변경 없음.
+
+<!-- codex-turn:01a0f15f-3567-7f61-83c8-5570e01ed056 -->
+
+- 가입 오류 진단 작업 식별 기록 보완 완료. RESTART_EXCHANGE 확인 및 가입 준비 갱신 안내 상태이며 추가 계정 변경은 수행하지 않음.
+
+- 2026-09-30 가입 실패 진단: Chrome 결과는 signup RESTART_EXCHANGE. 로컬 도구가 enrollment 존재·동일 UID·만료 전 조건에서 signup 전 차단하는 오류이며 서버 409와 다름. 이전 전화 연결 및 경과 시간을 고려하면 가입 준비 만료가 유력(기본 10분). Identity exchange로 가입 준비 갱신 후 사용자 최종 가입 필요. 이번에는 조회만 수행, 가입/동의/재인증 미실행.
+
+<!-- codex-turn:01a0f15a-e8a5-77e3-8b23-e88ece58b884 -->
+
+- 2026-09-30 정책 버전 입력 완료: AWS 테스트 서비스가 사용하는 task revision 6의 PRIVACY_CONSENT_VERSION=privacy-v1, TERM_CONSENT_VERSION=term-v1을 확인하고 Chrome 가입 화면 두 필드에 입력·표시 검증. 동의 체크는 조회 당시 이미 선택되어 있었으며 조작하지 않음. 최종 가입 미실행, 사용자 약관 확인 후 진행 대기. 코드·배포·서버 설정 변경 없음.
+
+<!-- codex-turn:01a0f157-dcb6-77f3-92fa-aee455c04396 -->
+
+- 2026-09-30 신규 Apple 계정 전화 연결 완료: 사용자 등록한 두 번째 가상 번호가 Firebase에 저장된 것을 확인. 기존 Apple 세션에서 exchange 가입 준비 재확인 후 가상 번호 인증 및 연결 실행, 같은 Firebase UID 유지 성공 표시 확인. 실제 SMS 발송 없음. 약관/정책 버전 입력·동의·최종 signup은 미실행. 서버 현재 정책 버전은 이번 작업에서 live 재확인하지 않았으며 기존 draft 값과 구분해야 함.
+
+<!-- codex-turn:01a0f153-b853-7d73-addf-8c5d552adbf6 -->
+
+- 신규 Apple 전화 인증 준비의 작업 식별 기록 보완 완료. 기존 테스트 번호는 사용 중이므로 별도 가상 번호의 사용자 등록 대기. 전화 연결·가입·설정 변경은 수행하지 않음.
+
+- 2026-09-30 신규 Apple 전화 인증 준비: Chrome 신규 가입 준비 상태 확인. Firebase 전화 provider 테스트 번호 목록 실조회 결과 등록된 가상 번호 1개뿐이며 기존 Google 회원에 이미 연결된 번호임. 기존 번호 재사용/해제하지 않음. 별도 가상 번호와 고정 코드 등록을 위해 콘솔 입력 화면 열어 사용자 직접 설정 대기. 전화 연결·약관 동의·최종 가입 미실행.
+
+<!-- codex-turn:01a0f152-ed12-7800-936d-e5e4dcd2227e -->
+
+- 2026-09-30 후속 검증 순서 안내: 신규 Apple 계정은 enrollment까지만 검증됨. 미사용 테스트 전화번호 연결·사용자 약관 동의·MEMBER 가입→프로필→Apple 재로그인→재발급→LC 접근/챌린지 순으로 진행 권장. 기존 UID 자동 연결 409는 별도 출시 전 해결 항목. 사용자 요청은 순서 상담으로 해석하여 실제 가입·동의·병합·채점 미실행.
+
+<!-- codex-turn:01a0f14f-ab03-7770-88dd-7c286941d9fe -->
+
+- 다른 Apple 계정 비교 검증의 정확한 작업 식별 기록 보완 완료. 다른 Firebase UID로 인증 후 Identity 신규 가입 준비 응답을 확인했고 409는 재발하지 않음. 전화 연결·최종 가입은 미실행.
+
+- 2026-09-30 다른 Apple 계정 비교 검증 완료: 재현 화면에서 동일 UID=false/Apple 연결=true 확인 후 Identity exchange 실행, 신규 가입 준비 완료 안내와 전화 인증 시작 버튼 활성 확인(ENROLLMENT_REQUIRED 처리 경로). 이번에는 PROVIDER_RELINK_REQUIRED 재발하지 않음. 기존 로그인 수단 유지=false는 다른 Firebase 사용자에 Google/전화가 없다는 비교값이며 기존 계정 삭제를 뜻하지 않음. 신규 전화번호 연결·동의·signup 미실행, 기존 계정 Apple 연결은 앞선 요청대로 해제 상태.
+
+<!-- codex-turn:01a0f14c-14b3-7c60-bbfb-0531777241b7 -->
+
+- 다른 Apple 계정 비교 실험 작업 식별 기록 보완 완료. 기존 Apple 단독 해제 및 Google/전화번호 보존 확인, 다른 Apple 인증 대기. 실제 UID 비교와 Identity 응답 검증은 아직 미완료.
+
+- 2026-09-30 다른 Apple 계정 비교 실험 준비: 로컬 UI의 다른 UID 중단 조건을 제거하고 비교 결과만 표시하도록 변경, Mock 다른 UID 케이스 추가 및 테스트 5개 통과. 기존 Google→Identity 로그인 성공 후 요청대로 Apple만 다시 해제, UID·Google/전화 유지·Apple 없음 실확인. 다른 Apple 로그인 창에서 사용자 이중 인증 대기. 새 계정 여부 및 exchange 응답 미확인, signup/전화 연결은 실행하지 않음.
+
+<!-- codex-turn:01a0f14a-183f-7042-9d8f-de39617a950d -->
+
+- 2026-09-30 Apple 자동 연결/409 실제 재현 완료: 사용자 Apple 인증 후 기존 테스트 탭의 비교 결과에서 동일 UID=true, Apple 연결=true, 기존 로그인 수단 유지=true 확인. 앞선 Apple 해제 성공(Apple 없음) 상태에서 일반 Apple 로그인만으로 재연결됨. 이어 Identity exchange를 실행하여 HTTP 409 PROVIDER_RELINK_REQUIRED 재발 확인. 이 재현에서는 자동 재연결 경로가 직접 관측됨. 최초 사건의 과거 로그와는 구분. 현재 Apple은 다시 연결된 상태이고 Google/전화번호 유지, 서버 수정·배포 없음.
+
+<!-- codex-turn:01a0f13f-c70e-7da3-9ab4-eb80e23fcf6f -->
+
+- Apple 재현 작업 식별 기록 보완 완료. 승인된 Apple 단독 해제 성공 및 동일 UID·Google/전화번호 보존 확인. 사용자 Apple 재로그인 대기 중으로 자동 재연결과 409 재발은 아직 미검증. 현재 테스트 페이지를 새로고침하지 않아야 비교 상태 유지됨.
+
+- 2026-09-30 승인된 Apple 재현 실험 진행: 별도 로컬 UI app.js/index.html/apple.test.mjs/README.md에 테스트 Apple 단독 unlink 및 UID/나머지 provider 비교 추가. Google 인증→Identity MEMBER 토큰 발급 성공 후 확인창 승인, 실제 Firebase Apple 연결만 해제 완료. SDK reload 검증으로 동일 UID·Google/전화번호 유지·Apple 부재 확인, 로컬 로그아웃. Apple 재로그인 창을 열어 사용자 직접 인증 대기, 409 재발 여부 아직 미검증. Node Mock 테스트 5개 통과. 기존 오류 탭 새로고침 후 공개 웹 설정 재적용했으며 비교용 메모리는 현재 유지. 서버 코드·배포·Identity DB 직접 변경 없음.
+
+<!-- codex-turn:01a0f13e-1388-7711-bdc3-0df9a4049ed8 -->
+
+- Apple 재현 실험 준비 작업 식별 기록 보완 완료. Firebase 콘솔에 Apple 단독 해제 메뉴가 없어 SDK 기반 경로가 필요하며, Google·전화번호·회원 기록을 유지하는 Apple 단독 해제의 적용 승인 대기. 계정 변경이나 재현 실행은 아직 없음.
+
+- 2026-09-30 Apple 재현 목적 확인: 사용자는 수정이 아닌 해제 후 동일 오류 재발 여부 검증을 요청. Firebase 사용자 메뉴 실조회 결과 비밀번호 재설정/계정 사용 중지/계정 삭제만 있으며 Apple 단독 해제 메뉴 없음. 전체 사용자 삭제하지 않음. 테스트 UI의 Firebase SDK를 통한 Apple 단독 unlink 후 같은 계정 재로그인/UID·provider·exchange 비교 방향 제시, 실제 변경 직전 범위 확인 필요.
+
+- 2026-09-30 사용자 Apple 연결 해제 후 재현 요청: 전체 Firebase 사용자 삭제가 아닌 해당 테스트 계정의 Apple provider 연결만 해제하는 범위를 제안하고 적용 전 확인 대기. Google/전화번호/UID/Identity 회원/기록 유지가 전제이며 현재 아무 변경 없음. 재로그인 시 자동 재연결 및 동일 409 재발 가능, 해결과 원인 재현을 구분.
+
+<!-- codex-turn:01a0f13c-7853-7823-af05-3a9850b7edc2 -->
+
+- Firebase 자동 연결 정책 조사 작업 식별 기록 보완 완료. 동일 이메일의 신뢰된 제공업체 자동 연결은 공식 지원 동작이며 현재 불일치의 유력한 생성 경로. 당시 이벤트 로그가 없어 개별 연결 순간은 미확정. 서버 코드·계정·설정 변경 없음.
+
+- 2026-09-30 Firebase 자동 연결 공식 정책 확인: https://firebase.google.com/docs/auth/users#verified_email_addresses 에서 동일 이메일의 신뢰된 IdP 간 로그인은 오류 없이 자동 연결될 수 있고 Apple은 신뢰된 IdP, Google은 Gmail 주소일 때 신뢰됨을 확인. 테스트 UI는 SNS signIn/reauth만 호출하므로 자동 연결은 현재 단일 UID의 Google/Apple 연결 상태를 설명하는 가장 유력한 경로. Identity exchange는 누락된 SocialIdentity를 자동 저장하지 않고 409 반환하며 기존 sync도 검증 전용. 정확한 이번 연결 이벤트 로그/이전 provider snapshot은 없어 생성 순간을 확정한 것은 아님. 사용자 실수/화면 연결 버튼 누락만으로 단정했던 설명 정정. 수정·외부 데이터 변경 없음.
+
+<!-- codex-turn:01a0f13a-3ebc-7d83-b109-a9008978d8d2 -->
+
+- Apple 로그인 차단 조건 설명의 작업 식별 기록 보완 완료. Identity의 APPLE 승인 레코드 부재가 직접 거절 조건이며, Firebase/Identity 불일치 생성 경위는 미확정. 계정·코드·설정 변경 없음.
+
+- 2026-09-30 차단 조건 설명 보완: ProviderChangeGuard는 기존 Firebase 바인딩이 있을 때 현재 SNS의 userId/provider/providerSubject에 일치하는 SocialIdentity가 없으면 409를 반환함. 현재는 APPLE 승인 레코드 부재가 직접 원인이고 과거 계정 정지나 Apple 기능 OFF를 의미하지 않음. Firebase 연결만으로 서비스의 해제/승인 절차를 우회하지 않도록 하는 검사로 설명하며, 실제 원격 연결 생성 경위는 미확정.
+
+<!-- codex-turn:01a0f138-9261-75c3-9c98-e9fadd0c0848 -->
+
+- 다중 SNS 지원 설명 작업의 정확한 식별 기록 보완 완료. 복수 SNS 연결 모델은 유지되며 현재 오류는 Firebase와 Identity 사이 Apple 연결 정보 불일치. 추가 코드·계정 변경 없음.
+
+- 2026-09-30 다중 SNS 지원 설명 보완: 한 회원에 Google과 Apple을 함께 연결하는 모델은 유지됨. ProviderLinkService.complete는 대상 provider의 SocialIdentity를 추가하며 다른 provider 보유 자체를 거절하지 않음. 현재 409는 다중 SNS 간 충돌이 아니라 Firebase에만 있는 Apple 연결의 Identity 승인 누락. 최초 설계 전체 변경 이력 및 원격 연결 생성 경위는 미확정. 코드/데이터 변경 없음.
+
+<!-- codex-turn:01a0f136-c432-7520-bb9f-0d575ca063ca -->
+
+- 기존 Firebase Apple 연결 복구 조사 작업 식별 기록 보완 완료. 현재 서버의 prepare도 로컬 승인 정보가 없는 원격 연결을 거절하므로 UI 버튼 추가만으로 복구 불가. 안전한 불일치 복구 절차 검토가 다음 단계이며 계정·코드는 변경하지 않음.
+
+- 2026-09-30 정식 연결 복구 코드 조사: ProviderLinkService.prepare는 Firebase에 대상 provider가 이미 있으면 ownedSocial을 요구하므로 현재 APPLE 승인 레코드 누락 상태도 SOCIAL_IDENTITY_CONFLICT로 거절함(link 활성화 전제). 단순 UI 연결 버튼 추가만으로 복구되지 않음. 해당 파일은 이전 확인 배포 commit 88ff5bed와 차이 없음. 로컬 UI는 Apple signIn/reauth만 호출, SNS link 호출 없음(전화번호 linkWithCredential만 존재). Firebase 연결 생성 경위는 자동 연결 가능성 포함 미확정. 기존 설명의 UI만 보완하면 된다는 인상 정정, 안전한 불일치 복구 설계 검토 필요. 코드/외부 데이터 변경 없음.
+
+<!-- codex-turn:01a0f135-a035-71a1-97e4-8737e1098e06 -->
+
+- 2026-09-30 Apple 전역 활성화와 계정별 연결 검증 차이 설명: FIREBASE_APPLE_ENABLED는 Apple 인증 기능 사용 허용이며 기존 회원의 social_identities를 자동 추가하지 않음. FirebaseAdminAuthenticationVerifier는 provider 정책 확인 후 별도 ProviderChangeGuard를 실행. 앞서 확인된 APPLE 승인 레코드 누락이 409 원인이며 전역 플래그 OFF 문제가 아님. 서버 설정 재변경 없이 설명 보완.
+
+<!-- codex-turn:01a0f131-7898-7bf2-8879-4fbe3ec015e4 -->
+
+- Apple 인증과 Identity 연결 승인 차이 설명의 현재 작업 식별자를 보완함. 현재 계정 사용 의도는 추가 확인 필요하며, 신규 계정 생성이나 기존 계정 연결 변경을 실행하지 않음.
+
+- 2026-09-30 사용자 설명 보완: Firebase의 Apple 본인 인증 성공과 Identity의 기존 회원 로그인 수단 승인을 구분. 두 시스템의 등록 상태 차이로 409가 발생함을 쉽게 설명. 연결 생성 경위는 미확정이며 새 계정 생성/기존 계정 삭제가 필수는 아님. 추가 외부 조회·수정 없음.
+
+<!-- codex-turn:01a0f12e-6c76-7680-9a3c-d53f892f18cd -->
+
+- 2026-09-30 Apple exchange 409 원인 실확인: Firebase 사용자 목록 1건에 Google/Apple/Phone 연결, 같은 UID의 테스트 Identity firebase_identities 1건 확인. social_identities 전체 1건은 동일 userId의 GOOGLE이며 APPLE 승인 레코드 없음. 테스트 DB 전체 21개 컬렉션에 auth_method_change_controls 없음. 이전 확인 배포 commit 88ff5bed의 ProviderChangeGuard도 승인된 provider/subject가 없으면 PROVIDER_RELINK_REQUIRED 반환. 신규 계정 문제가 아니라 기존 계정의 Firebase/Identity 제공자 연결 불일치. 생성 경위(자동 연결/기존 작업)는 미확정. DB/계정/세션/설정 수정 없이 조회만 수행. 정식 provider link 흐름으로 복구 필요, 이미 Firebase에 Apple이 연결된 상태의 처리 조건은 구현 전 추가 확인.
+
+<!-- codex-turn:01a0f129-008d-79c1-bbd4-07ae4be59530 -->
+
+- Chrome 실조회 작업 식별 기록 보완: Apple Firebase 인증 성공 후 Identity exchange의 409에서 중단됨을 확인. 계정별 승인 누락/차단 원인 확인은 남아 있으며 탭과 계정 상태는 유지함.
+
+- 2026-09-30 Chrome 기존 localhost 테스트 탭 실조회: 단계별 검증표에 Apple Firebase 인증 성공, exchange HTTP 409 PROVIDER_RELINK_REQUIRED 표시 확인. 전화번호/가입/프로필/재발급/LC 버튼 비활성. app.js exchange가 Identity POST /api/v1/auth/firebase/exchange를 호출함을 확인. 신규 enrollment 또는 Identity 토큰 발급 전 단계에서 차단됨. 계정별 차단/승인 누락의 실제 원인은 DB/로그 미조회로 미확정. 새로고침·로그아웃·요청 재실행 없음.
+
+<!-- codex-turn:01a0f128-0010-7923-bda5-c647bc222d71 -->
+
+- 현재 Apple 계정 유지 안내의 작업 식별 기록 보완 완료. 계정 교체는 필수가 아니며 실제 연결 상태 확인 후 정식 승인 절차 결정 필요. 외부 계정·세션 변경 없음.
+
+- 2026-09-30 현재 Apple 계정 사용 가능 여부 설명 보완: 다른 Apple 계정은 신규 가입 테스트용 선택지일 뿐 필수가 아님. Firebase 로그인 성공과 Identity 로그인 승인은 별개. 현재 409의 실제 계정 원인 미확인 상태이므로 기존 연결/차단 상태를 확인해야 하며 계정 삭제·자동 연결하지 않음.
+
+<!-- codex-turn:01a0f127-1fa0-7473-a14d-016fb48cb2e1 -->
+
+- 신규 Apple 가입 안내의 현재 작업 식별 기록 보완 완료. 별도 미연결 Apple 계정 및 미사용 테스트 전화번호로 가입을 안내했으며 실제 계정·설정 변경은 수행하지 않음.
+
+- 2026-09-30 신규 Apple 계정 테스트 안내: 로컬 인증정보 초기화는 서버 계정 삭제가 아님. 기존 Firebase/Identity에 연결되지 않은 별도 Apple 계정으로 로그인 후 exchange의 ENROLLMENT_REQUIRED를 확인하고, 미사용 테스트 전화번호 연결·약관 동의·가입 진행. 동일 Apple 계정 재로그인은 새 계정 생성이 아니며 기존 provider 승인 오류는 해결하지 않음. 이번 작업은 안내만 수행.
+
+<!-- codex-turn:01a0f125-d451-7be2-becd-0b382bed97af -->
+
+- 2026-09-30 Apple 테스트 HTTP 409 PROVIDER_RELINK_REQUIRED 코드 조사: 기존 Firebase 바인딩에 현재 SNS의 승인된 SocialIdentity가 없거나 해당 제공자가 차단된 경우 발생. 실제 계정 DB/배포 로그 미조회로 두 원인 중 확정은 불가. 로컬 테스트 UI는 Apple 로그인/재인증만 구현되어 기존 계정의 provider link prepare/start/complete 기능은 없음. 계정 삭제·DB 우회·보호 해제 없이 기존 승인 SNS 인증 후 정식 연결 흐름이 필요. 분석 및 기록만 변경, 테스트 미실행.
+
+<!-- codex-turn:01a0f119-e71e-7620-b3ef-121870f401e5 -->
+
+- 2026-09-30 로컬 통합 테스트 화면 Apple 로그인/동일 계정 재인증 추가 완료. 별도 프로젝트 `/Users/msde76/tosunsaeng-integration-test`의 app.js, index.html, apple.test.mjs, README.md 변경. 기존 Google·Guest 병합·챌린지 유지, 제공자 전환은 명시적 로컬 초기화 필요. Node Mock/로컬 프록시 테스트 7개 및 Identity `./gradlew clean test` 통과. 로컬 서버 4173 실행 확인. 새 Chrome 탭 검증은 ERR_BLOCKED_BY_CLIENT로 미완료, 기존 로그인 탭은 새로고침하지 않음. 실제 Apple 인증·Identity 교환 E2E 및 네이티브 앱 검증은 남아 있음. 서버 코드·배포·외부 계약 미변경.
+
+<!-- codex-turn:01a0f10f-31d8-7c73-be2e-e6c742812e36 -->
+
+- 테스트 Apple 활성화 배포의 현재 작업 식별 기록 보완 완료. revision6 배포 성공 및 정상 기동 확인, 실제 Apple 인증 E2E는 미검증. 이번 기록 보완에서 추가 외부 변경 없음.
+
+- 2026-09-30 테스트 Apple 활성화 배포 완료: 사용자 승인 후 FIREBASE_APPLE_ENABLED만 true로 변경한 tosunsaeng-identity-test:6 생성·테스트 서비스 배포. ECS 성공/running1/pending0, 신규 태스크 Started IdentityApplication 로그(06:48:35Z) 및 ALB 비정상0 확인. 운영·이미지·Secret·다른 플래그 유지. HTTPS health 직접 조회는 브라우저 클라이언트 차단으로 미완료. 다음 자동 배포는 현재 서비스 task definition을 사용; 초기 초안 재적용 주의. 실제 Apple 로그인→Identity 토큰 발급 E2E는 다음 단계.
+
+<!-- codex-turn:01a0f10d-5828-7030-8ee9-c3e92c22eba7 -->
+
+- 테스트 Apple 플래그 조회의 현재 작업 식별 기록 보완 완료. Apple 비활성 확인, 적용 직전 사용자 승인 대기. 실제 설정 변경 및 배포 없음.
+
+- 2026-09-30 AWS 실조회: 테스트 Identity 서비스의 task definition test:5에서 FIREBASE_APPLE_ENABLED=false 확인. Apple만 true로 변경한 개정 배포를 위한 적용 직전 승인 대기. 운영·이미지·Secret·다른 설정 변경 없음. 실제 배포 및 Apple 로그인 검증 미완료.
+
+<!-- codex-turn:01a0f10b-51f2-7352-a6be-256d9c0119dc -->
+
+- 2026-09-30 Firebase Apple provider 재조회: 활성 상태, 서비스 식별자 일치, 팀/키 식별자 및 비공개 키 입력 존재 확인. 원문 비출력, 설정 변경 없음. 서버 Apple 기본 OFF이며 현재 배포 플래그 확인 및 실제 Apple 로그인·Identity 교환 검증 필요.
+
+<!-- codex-turn:01a0f107-f2b2-7e33-bf9b-02b2eff722a5 -->
+
+- Firebase Apple 연결 안내의 정확한 현재 작업 식별 기록 보완 완료. 사용자 Firebase 입력·저장 대기, 파일 열람 및 외부 변경 없음.
+
+<!-- codex-turn:01a0f107-a3fc-7dd3-b6e0-a66557eb9cce -->
+
+- 2026-09-30 사용자 Apple 키 다운로드 완료 보고. Firebase Apple provider의 서비스/팀/키 식별자 및 비공개 키 사용자 직접 입력 안내. 파일 열람·원문 수집·외부 변경 없음. Firebase 저장 및 Identity 활성화·로그인 검증은 남아 있음.
+
+<!-- codex-turn:01a0f106-82c6-7590-8c0f-4d1253eeda65 -->
+
+- Apple 키 등록 전 구성 확인의 현재 작업 식별 기록 보완 완료. 구성은 정상이며 사용자 키 발급과 Firebase 연결 대기. 외부 변경 없음.
+
+- 2026-09-30 Apple 키 등록 전 설정 확인: Sign in with Apple만 선택, Primary App ID와 Firebase Services ID 그룹 연결 정상. Edit 조회 후 Back 복귀, 키 생성·설정 변경 없음. 사용자 등록 및 안전한 다운로드 후 Firebase 연결 필요.
+
+<!-- codex-turn:01a0f103-c0cf-7913-918a-32eb41e94a8c -->
+
+- Apple 웹 인증 저장 확인의 현재 작업 식별 기록 보완 완료. Primary App ID 및 Firebase 반환 주소 등록 확인됨. 키 준비와 Firebase 연결·실로그인 검증은 남아 있으며 외부 설정 변경 없음.
+
+- 2026-09-30 Apple Services ID 저장 상태 재조회 성공: Sign In with Apple 활성, Primary App ID com.toteacher.app 선택, Firebase 기본 도메인 및 auth handler 반환 주소 등록 확인. Primary 부재 문제 해소. 외부 변경 없이 조회 후 모달 닫음. 다음은 Apple 로그인 키 준비·Firebase 연결·Identity 활성화 및 실검증.
+
+<!-- codex-turn:01a0f100-fed9-77c2-8c77-41f6dc7f8124 -->
+
+- Apple Next 비활성 진단의 현재 작업 식별 기록 보완 완료. Primary App ID 가용성 재확인 대기, 외부 변경 없음.
+
+- 2026-09-30 Apple Next 차단 원인 실조회: Firebase 도메인/반환 URL은 올바르게 입력됐으나 No App ID is available 표시로 Primary App ID 선택 불가. App ID의 Sign In with Apple primary 설정 최종 저장 및 같은 팀 여부 확인 필요. 저장 누락은 추정이며 미확정. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0ff-50d2-7750-9df0-efcbfefaf975 -->
+
+- Services ID 생성 확인의 현재 작업 식별 기록 보완 완료. 웹 인증 구성은 사용자 진행 단계이며 외부 설정은 변경하지 않음.
+
+- 2026-09-30 Services ID com.toteacher.app.firebase 생성 확인 완료. 편집 화면에서 Sign In with Apple은 아직 OFF, Configure 비활성. 사용자에게 웹 인증 설정 입력 안내, 외부 설정 저장 없음.
+
+<!-- codex-turn:01a0f0fe-6365-7df2-98cf-1d1b032a2823 -->
+
+- Services ID 입력 안내의 정확한 작업 식별 기록 보완 완료. 사용자 등록 후 반환 주소 구성 확인 대기, 외부 변경 없음.
+
+<!-- codex-turn:01a0f0fe-747f-79b0-a496-56eec2e1ba9f -->
+
+- Services ID 제안값 그대로 입력 가능하되 Apple 중복 검증 필요, Firebase 서비스 ID는 생성한 Identifier와 일치하도록 재안내. Bundle ID와 구분. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0fd-0000-70b1-9a00-64653be875c5 -->
+
+- 2026-09-30 올바른 Register a Services ID 화면 확인. Description/Identifier 입력 전이며 Firebase용 서비스 식별자 예시 안내. 등록 후 Sign in with Apple 웹 인증 구성 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0f9-895a-7952-807c-a92a330f3042 -->
+
+- 2026-09-30 현재 Apple 화면은 이메일 릴레이 Email Sources 등록 모달로 확인. OAuth Services ID 웹 인증 설정이 아니므로 입력하지 않도록 안내. Identifiers 목록의 Services IDs로 이동 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0f5-7222-75b1-bcb2-7e6dd5c5a242 -->
+
+- 2026-09-30 Apple Edit 모달 실조회: 현재는 App ID의 Server-to-Server Notification Endpoint이며 OAuth Return URL 칸이 아님. 해당 칸은 입력하지 않고 Services ID 웹 인증 구성으로 이동하도록 안내. Firebase 기본 auth 도메인 및 /__/auth/handler 사용 예정. 외부 입력·저장 없음; App ID 저장 여부와 Services ID 생성 상태 미확인.
+
+<!-- codex-turn:01a0f0f0-ef5d-7870-9435-55bd9f5a61b8 -->
+
+- 2026-09-30 Apple Identifiers 접근 안내: App Store Connect가 아닌 Apple Developer 직접 링크 제공. 앱 등록 팀 및 접근 권한은 아직 확인하지 않음. 외부 변경 없이 사용자 접근 후 App ID 확인 예정.
+
+<!-- codex-turn:01a0f0ea-be30-7211-bdd5-a2eafe81f76f -->
+
+- 2026-09-30 Google 지문 등록 확인: Firebase 새 SHA-1/SHA-256 한 쌍이 Play 현재 앱 서명의 기존 방식 인증서와 모두 일치. 외부 설정 변경 없음. Play 실로그인·이전 배포 키 범위는 미검증. 다음은 Apple Developer App ID 로그인 capability와 Services ID/반환 주소, 전용 키의 Firebase 연결 준비; 비밀키는 채팅·저장소에 남기지 않음.
+
+<!-- codex-turn:01a0f0e5-8efd-7fc0-8c64-21897c97fb2b -->
+
+- 기존 키/양자 내성 키 안내의 현재 작업 식별 기록 보완 완료. 외부 변경 없음. 실제 배포 인증서와 Firebase 등록 목록 대조 및 양자 내성 지원 조건 확인은 남아 있음.
+
+- 2026-09-30 기존 키/양자 내성 키 구분 안내: 현재 앱 서명 키의 기존 키 지문부터 Firebase와 대조. 별도의 이전 앱 서명 키도 배포 범위에 따라 필요. 양자 내성 키 연동 지원·필요성은 미검증이며 키 자체 변경 없음.
+
+<!-- codex-turn:01a0f0e2-71ca-79b1-af41-7595febcc93a -->
+
+- 최신 Play 메뉴 실조회의 작업 식별 기록 보완 완료. 인증서 조회 화면까지 이동했으며 외부 등록·설정 변경은 하지 않음. 현재·이전 배포 서명과 Firebase 대조가 다음 단계.
+
+- 2026-09-30 Play 메뉴 실조회 정정: 현재 경로는 Google Play로 보호됨→Play 스토어 보호 펼치기→Play 앱 서명 관리. Chrome 사용자 탭을 앱 서명 화면에 둠. 사용 중/이전 앱 서명 키 존재, 기존 Firebase 등록 한 쌍은 업로드 인증서와 일치. 실제 배포 서명 대조 필요. 설정 변경 없음.
+
+<!-- codex-turn:01a0f0e0-5d2a-7ba2-ad15-d8907cf2168b -->
+
+- 2026-09-30 Play 앱 서명 인증서 위치 안내: Play Console 앱 무결성→앱 서명의 앱 서명 키 인증서 SHA-1/SHA-256을 Firebase Android 지문과 대조 예정. 업로드 키와 구분하고 기존 개발용 지문 유지. 이번에는 안내만 수행, Play 실조회·설정 변경 없음.
+
+<!-- codex-turn:01a0f0da-5a97-71a2-91b8-9d2abc0cc7f2 -->
+
+- 2026-09-30 소셜 제공자 읽기 점검: Firebase Google·Apple·전화 활성, Kakao 미등록. Android에 전달받은 SHA 두 쌍 등록 확인(Play 앱 서명과 일치 여부 미확인). Apple Service ID 및 코드 흐름 설정란은 빈 상태. 서버 코드 Apple/Kakao 기본 OFF, Kakao는 Generic OIDC oidc.kakao 계약. Play 인증서 대조·Apple 개발자 설정·Kakao OIDC/Identity Platform 준비 후 Android 실검증 필요. 외부 설정/배포 변경 없음; 배포 중 플래그는 이번에 재조회하지 않음.
+
+<!-- codex-turn:01a0f0d6-dc0e-7643-bc0f-aa6c386ca867 -->
+
+- 전체 검증 범위 재점검의 현재 turn 식별 기록 보완. 기본 정상 흐름 및 현재 병합 차단·채점 완료 재조회 성공. 기록 이전·장애/중복 처리·Android 앱 및 출시 준비 검증은 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 전체 검증 범위 재점검: Chrome에서 병합 후 읽기 검증과 1번 상세 결과를 직접 재호출. Identity/LC source 차단 및 LC target 인증 성공, 챌린지 solved1/completed/발화·피드백 존재 재확인. 기존 로그인/프로필/재발급/Guest 생성/업로드/제출의 성공 기록도 확인. 정상 기본 흐름은 통과했으나 기록 보유 Guest 이전, 204/이벤트 중복·재시도·장애복구, 신규 가입/전화 연결 재검증, 챌린지 나머지 문항·실패/만료, Android 앱 연동 및 운영 전환은 별도 검증 필요. 추가 쓰기/실제 병합/음성 제출 없음.
+
+<!-- codex-turn:01a0f0d5-a5a6-7ad1-906b-614aeab7aad3 -->
+
+- 병합 후 검증표 조회의 현재 turn 기록 보완 완료. 화면상 병합·양 서비스 source 차단·target 인증 성공, 이전 대상 기록0건으로 기록 이전은 미검증. 추가 API 호출이나 외부 변경 없음.
+
+- 2026-09-30 사용자 병합 후 Chrome 검증표 실조회: Identity 병합 성공, Identity/LC source의 병합 전용 거절 코드 확인 성공, LC target MEMBER 이력 조회 성공 표시. 병합 전 완료 시험0건이므로 실제 시험 기록 이전은 미검증. 하단 문구는 공통 안내이지 오류/대기 확정이 아님. 과거 실패 행이 이후 성공 행과 함께 남아 혼동 가능. 이번은 화면 읽기만 수행; 이벤트204/중복 재전송 로그 미조회.
+
+<!-- codex-turn:01a0f0ce-0fc0-7af1-baad-490e85aff2b7 -->
+
+- 현재 turn 식별 기록 보완: 테스트 S3 CORS 수정 후 실제 업로드·채점 완료, 사용자 Google 재인증 후 exchange·Guest prepare 성공 확인. 최종 병합은 미실행. 독립 도구 재인증 UX 수정은 다음 로딩부터 적용하며 현재 Guest 보존을 위해 새로고침하지 않은 상태.
+
+- 후속 실검증: 사용자 Google 재인증 완료 후 Chrome에서 Identity exchange 성공 및 Guest prepare 재실행 성공(MERGE_REQUIRED에 해당하는 화면/병합 버튼 활성 확인). recent-auth 거절은 실제 재인증으로 해소됨. Guest 생성 단계도 현재 인증된 Guest가 prepare에 성공한 것으로 확인. 실제 병합은 실행하지 않았으며 최종 사용자 확인 단계 유지.
+
+- 2026-09-30 통합 테스트 문제 수정: 테스트 S3 버킷에 사용자 action-time 승인 후 localhost:4173/PUT/Content-Type/MaxAge300 CORS만 설정. OPTIONS200 및 실제 기존 녹음 PUT·LC answer 성공, 1번 결과 completed/solved1/발화·피드백 존재 확인(내용 비기록). recent-auth는 기본5분 auth_time 검사이며 getIdToken(true)로 해결되지 않음. 독립 도구 app.js의 같은 UID 재인증 상태 보존·전용 오류 안내와 challenge.mjs의 S3 네트워크/CORS 오류 분리 수정, Mock6/Gradle 성공. 현재 Chrome은 메모리 Guest 유지를 위해 새로고침하지 않았고 기존 버전의 Google 재인증 popup을 열어 사용자 인증 대기. 서버 보안 기준·운영·IAM/공개 접근은 미변경. 새 도구 코드는 다음 로딩부터 적용. 실제 merge는 미수행.
+
+- 2026-09-30 업로드 차단 원인 확인: 사용자 승인 후 Chrome 업로드 재시도 동일 실패. AWS LC test:11의 테스트 버킷에 Origin localhost:4173 / PUT / content-type OPTIONS 진단 수행, S3 403 AccessForbidden 및 `CORS is not enabled for this bucket` 확인. 브라우저 직접 PUT 선행 요청이 차단되므로 제출·AI 채점 이전 문제. CORS 수정은 미수행이며 localhost 한정 PUT/content-type 허용 승인 필요. Identity test:5의 privacy-v1/term-v1을 실조회해 Chrome 입력란에 채움; 약관 체크는 사용자에게 남김. Guest 생성/병합 및 음성 제출 미완료.
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 2026-09-30 Chrome 추가 실진단: 사용자 녹음/attempt 준비 후 upload 오류, 제출 버튼 비활성, solvedQuestionCount=0 및 question=null 관측. 1번 결과 GET을 직접 재실행해 같은 상태 확인. AI 채점 실패가 아니라 제출 전 업로드 단계 실패로 범위 축소; CORS/네트워크 원인은 아직 미확정, 수집된 브라우저 error/warn 로그 없음. Guest 생성은 CONSENT_REQUIRED, 정책 입력/필수 동의 비어 있음. 현재 음성의 테스트 S3 업로드·LC 제출 승인과 사용자 직접 약관 입력/동의를 요청. 녹음/업로드/제출/Guest 생성/병합/설정 변경 미수행.
+
+<!-- codex-turn:01a0f0c1-b738-7be1-9bee-47f9b41bf1f8 -->
+
+- Chrome 진행 결과 확인의 현재 turn 식별 기록 보완 완료. 화면상 로그인·MEMBER 인증·재발급·LC today 성공, Guest 생성은 동의 누락으로 미완료이며 병합/음성/AI 검증은 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 Chrome 통합 테스트 화면 실조회: Google 인증·Identity 로그인·서버 MEMBER 프로필·재발급·LC today 인증 성공 표시 확인. today는 3문제 모두 not_started/not_requested, nextQuestionNumber=1. guestCreate는 CONSENT_REQUIRED, 정책 버전 입력 비어 있고 필수 동의 미선택으로 Guest 준비/병합 미수행. 기존 MEMBER 로그인에서 전화/signup 재실행 불필요하나 신규 테스트 Guest 생성에는 해당 Guest 약관 동의 필요. 화면 읽기만 수행, 새로고침/추가 API/동의/병합/녹음 실행 없음.
+
+- 기존 테스트 Google/MEMBER 재사용 안내: 동일 Firebase 프로젝트·Identity 테스트 DB에서 가입했던 계정은 Google 인증→Identity exchange로 로그인하고 전화 연결/신규 가입 생략 가능. 병합은 별도 테스트 Guest를 source로 사용하며, 챌린지의 당일 기존 제출/응시 제한은 유지. 새 Google 계정은 신규 가입 자체를 별도 검증할 때만 필요.
+
+<!-- codex-turn:01a0f0b2-c659-78a2-9787-ecd2246ed647 -->
+
+- 독립 통합 테스트 화면 구현 turn 식별 기록 보완 완료. 영구 프로젝트 `/Users/msde76/tosunsaeng-integration-test`의 localhost:4173 서버 실행 및 화면 QA 완료, Mock6/Gradle 통과. 실제 인증·병합·음성 제출 E2E는 사용자 실행 단계로 남아 있음.
+
+- 2026-09-30 별도 통합 테스트 화면 구현 완료: `/Users/msde76/tosunsaeng-integration-test`에 독립 클라이언트 생성, `node server.mjs`로 127.0.0.1:4173 실행 중. Firebase 로그인/가상 전화/signup/프로필/reissue, 별도 Guest 인증·명시적 merge·양측 source 차단·완료 시험 ID 비교, 챌린지 today/question/attempt/M4A 업로드/고정 키 answer/result/poll/history 지원. 기존 Identity tools/auth-test와 서버 코드는 변경하지 않음. Node Mock 6개 및 ./gradlew clean test 성공, 실제 브라우저 새 화면/초기 버튼/렌더링 확인. 실제 인증·병합·음성 전송 E2E는 사용자 수행 필요. M4A/AAC 미지원 브라우저는 파일 업로드 대안, S3 CORS 미확인, Guest 신규 승격·이벤트204/중복 재전송은 별도 검증.
+
+<!-- codex-turn:01a0f0b0-d01f-7e82-8c4d-6c891389466a -->
+
+- 통합 테스트 화면 조사 turn 기록 보완: 별도 tosunsaeng-integration-test 프로젝트 분리 및 localhost:4173 유지 방향에 대한 사용자 확인 대기. 구현/외부 상태 변경 없음.
+
+- 2026-09-30 통합 테스트 화면 확장 조사: 기존 tools/auth-test는 Firebase Google/가상 phone/signup/exchange/reissue/me 및 LC today 읽기만 지원. 사용자 요청은 Guest 병합과 챌린지 전 흐름까지 확장. 저장소 규칙이 Identity 외 챌린지·S3 코드를 금지하므로 별도 로컬 테스트 프로젝트 분리 방향 확인 요청; 구현·서버 재시작·실계정 변경은 아직 없음. LC 계약은 M4A/AAC audio/mp4, 2MiB, attempt→presigned PUT→같은 Idempotency-Key answer→최대60초 결과 polling. 병합 Identity 성공과 LC 데이터 이전 검증을 구분해야 함.
+
+<!-- codex-turn:01a0f0ab-6a03-7c03-8881-57cff08326ac -->
+
+- 현재 turn 기록 식별자 보완 완료. 테스트 Identity revision5 배포 성공 상태이며 실제 병합 이벤트 E2E 검증은 다음 작업으로 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 테스트 UserMerged 연결 배포 완료: 사용자 적용 직전 승인 후 `tosunsaeng-identity-test:5` 생성, 테스트 서비스에 배포 성공·running1/pending0·steady state 확인. 이미지 commit `88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d` 유지. GUEST_MERGE_ENABLED/WORKLOAD_JWT_ENABLED/USER_MERGED_PUBLISHER_ENABLED=true, workload issuer=https://identity-test.to-teacher.com, subject=identity-service, TTL=PT2M, endpoint=https://api-test.to-teacher.com/internal/v1/events/user-merged. 그 외 설정·Secret 참조·역할·네트워크·태스크 수 유지, OwnerEvent/Billing 발행 OFF 및 운영 미변경. CloudWatch 2026-09-30T04:58:28Z Started IdentityApplication 확인. 실제 계정 병합/이벤트 전송 E2E는 미실행. 다음은 지정 테스트 계정으로 204·중복 방지·source 차단·target 기록 이전 검증. 새 코드 빌드 없이 AWS 설정만 반영했으므로 향후 배포에서도 revision5 설정 보존 필요.
+
+<!-- codex-turn:01a0f0a6-526b-7781-9bc6-9422b4ccb65e -->
+
+- 2026-09-30 Atlas 재로그인 후 테스트 DB `to-teacher-identity-test.user_merged_outbox` 실조회: Documents 0, 전체 0건 및 빈 컬렉션 안내 확인. 활성화 즉시 전송될 기존 이벤트 없음. Identity workload 발급·Guest merge·기존 publisher 활성화는 서비스 간 인증 권한 활성화에 해당하여 적용 직전 확인 요청. 아직 설정 저장/배포/병합/이벤트 전송 없음. OwnerEvent/Billing OFF 및 운영 미변경 유지. 다음은 사용자 확인 후 테스트 revision 설정·배포와 안정성 검증이며 이벤트 E2E는 별도.
+
+- 2026-09-30 AWS 재로그인 후 실조회: Identity test:4 running1/pending0, Guest merge/workload/기존 publisher/OwnerEvent capture·LC publisher OFF. LC test:11 running1/pending0·배포 성공, UserMerged writer/source-deny/consumer true, issuer와 JWKS가 테스트 Identity 주소와 일치. Atlas 세션 만료로 outbox 점검 불가하여 로그인 탭 인계. 설정/배포/발행 변경 없이 대기.
+
+<!-- codex-turn:01a0f0a4-8549-7bb2-93f0-56ad0654afb4 -->
+
+- 테스트 이벤트 연결 착수의 현재 작업 식별 기록 보완 완료. AWS 재로그인 대기 상태이며 최신 설정 조회·배포·이벤트 발송은 미수행. 비밀정보 비기록 유지.
+
+- 2026-09-30 사용자 테스트 설정 적용 요청 착수. AWS 내장 브라우저 세션 만료 및 재로그인 세션 오류 확인 후 기존 ISB 포털 로그인 화면 열어 인계. 화면에 남은 test:4 정보는 캐시라 최신 상태로 간주하지 않음. 최신 배포/outbox 조회·설정 적용·재배포 모두 미수행. 로그인 후 사전 확인부터 재개 필요.
+
+<!-- codex-turn:01a0f0a2-847b-75b0-9a48-0487cbaac804 -->
+
+- 2026-09-30 사용자 전달로 LC 수신 준비 완료 통보 수신(직접 live 검증 아님). 기존 UserMerged 연결 외 추가 체크는 현재 배포/신뢰 설정 재확인, outbox 대기·실패 건 점검, 신규 병합용 GUEST_MERGE_ENABLED, 테스트 계정 E2E 및 실패 복구 절차. OwnerEvent/Billing은 OFF 유지. 이번은 코드 확인·안내만 수행, AWS 변경 없음.
+
+<!-- codex-turn:01a0e73f-9870-7be3-bbe6-d5c63e1c039d -->
+
+- 2026-09-28 LC 점검·배포와 연계한 Identity 준비 안내: 기존 UserMerged 경로 유지, LC 준비 완료 전 publisher/Guest merge OFF. workload issuer/subject/PT2M 및 테스트 endpoint 준비, 기존 outbox 미전송·dead-letter 확인 후 발행 활성화. 신규 merge 생성에는 GUEST_MERGE_ENABLED 별도 활성화가 필요하며 OwnerEvent capture/LC·Billing publisher는 OFF 유지. 실제 AWS 변경 없음.
+
+<!-- codex-turn:01a0e738-e560-7cc0-8c08-1bc54397c211 -->
+
+- 2026-09-28 프론트 인계용 테스트 Identity HTTPS base URL과 Swagger URL 안내. 기존 검증 주소 기준이며 이번 live 재조회 없음. Swagger 명세의 HTTP 서버 URL 관측 이력 때문에 실제 요청은 HTTPS 사용 주의 안내. 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e6c8-5816-7a70-839c-6993a4deb8bb -->
+
+- 기존 LC 전용 경로 우선 사용 방향의 현재 작업 식별 기록 보완 완료. Billing 연동 시 공통 경로 전환과 기존 잔량·과거 병합 검토 필요성을 안내했으며 AWS 설정은 변경하지 않음.
+
+- 2026-09-28 사용자 방향 확인: 이번 테스트는 기존 UserMerged LC 전용 경로를 사용하고 Billing 연동 시 OwnerEvent 공통 경로로 전환하는 단계적 접근. 전환 시 기존 outbox 잔량 처리 및 과거 병합의 Billing backfill 별도 검토 필요. 방향 확인만 수행, 실제 플래그/배포 변경 없음.
+
+<!-- codex-turn:01a0e6c6-bfe9-71e0-b261-cef72303b933 -->
+
+- 2026-09-28 이벤트 경로 설명 정정: 기존 LC 전용 outbox와 신규 OwnerEvent fan-out이 공존하며 capture flag가 신규 병합의 저장 위치를 선택한다. 기존 잔량 처리용 publisher와 신규 publisher는 전환 중 함께 동작할 수 있으므로 하나만 켜야 한다는 절대 조건은 아님. 신규 경로는 Billing/LC delivery를 모두 생성하여 Billing OFF 시 pending 보존됨. 실제 설정 변경 없음.
+
+<!-- codex-turn:01a0e6b4-6101-7c83-b723-450df80551f6 -->
+
+- AWS 테스트 Identity 설정 조회의 현재 작업 식별 기록 보완 완료. test:4 실행 및 회원 통합/workload/발행 OFF 확인, LC 수신 준비와 설정 활성화는 후속 작업. 비밀정보 비기록 및 외부 설정 미변경 유지.
+
+- 2026-09-28 15:29~15:30 KST AWS live 조회: 테스트 Identity 서비스 desired1/running1/pending0, task definition test:4, 이미지 commit 88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d. task 정의에서 GUEST_MERGE/WORKLOAD_JWT/기존 merge publisher/OwnerEvent capture·LC publisher·Billing merge publisher 모두 false 확인. workload issuer 및 두 경로 endpoint 항목 없음. 사용자 issuer는 테스트 HTTPS 주소, kid는 tosunsaeng-identity-test-rsa-1, Access TTL PT30M. Secret 값 조회/설정 변경/실제 이벤트 전송 없음. LC 수신 설정은 이번 조회 대상 아님.
+
+<!-- codex-turn:01a0e6b3-45c0-77c3-b0d9-a59b1f442f40 -->
+
+- 회원 통합 테스트 준비 안내의 현재 작업 식별 기록 보완 완료. 다음 단계는 실행 중 테스트 서비스 설정 조회이며 아직 AWS 변경이나 병합 테스트는 수행하지 않음. 비밀정보 비기록 유지.
+
+- 2026-09-28 회원 통합 테스트 후속 순서 안내: 실행 중 테스트 Identity/LC 설정과 이벤트 경로 확인→workload 신뢰 계약 확정→LC 수신 준비→Identity 해당 경로 활성화→테스트 Guest/MEMBER로 병합 E2E. merge transaction은 capture flag에 따라 OwnerEvent 또는 기존 outbox를 선택하므로 발행 경로 일치 필요. 챌린지 403 해결과 별개이며 이번은 안내만 수행.
+
+<!-- codex-turn:01a0e6b0-420b-7b93-a0b1-6a67ac69e80f -->
+
+- 2026-09-28 UserMerged workload 인계 검토: 현재 코드는 사용자 JWT와 JwtEncoder/RSA kid 및 JWKS 기반을 공유하지만 workload issuer는 별도 필수 설정이다. RS256/identity-service/LC merge audience/정확히 PT2M 구현 확인. 테스트 draft merge/workload/publisher OFF, live 상태는 미조회. 같은 테스트 issuer 사용은 가능한 설정 제안이며 활성 완료 아님. 기존 publisher와 OwnerEvent 경로 선택 및 키 overlap 검증 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0e655-dfb5-7220-b937-990b836c73ef -->
+
+- 2026-09-28 사용자 보고: 프로필 인증 성공, 재발급 후 UUID/MEMBER/LC audience true, LC today는 403 COMMON403. LC 로컬 코드에서 MEMBER 검사와 별도로 Challenge OFF도 동일 403임을 확인했으며 테스트 배포 템플릿 CHALLENGE_ENABLED=false 확인. live AWS 설정은 미확인이라 원인 확정 아님. 기능 활성화/운영 설정 변경 없음.
+
+<!-- codex-turn:01a0e654-ccb1-7910-9cbc-8c94acb93265 -->
+
+- Identity 토큰 수신 결과 해석의 현재 작업 식별 기록 보완 완료. 사용자 보고로 claim 형태 검사 성공 확인, 실제 보호 API/재발급/LC 접근은 후속 검증 대기. 토큰 원문 비기록 유지.
+
+- 2026-09-28 사용자 보고로 로컬 화면 Identity 토큰 수신 및 sub UUID/member/learningAudience 검사 true 확인. 화면 구현상 Access/Refresh pair 수신 성공을 의미하지만 claim 요약은 서명 검증이 아님. 프로필/재발급/LC 접근은 후속 검증 필요. 실제 토큰 비기록, 외부 작업 없음.
+
+<!-- codex-turn:01a0e653-09c5-7f00-b670-34ebc093fcef -->
+
+- 가입 정책 버전 안내의 현재 작업 식별 기록 보완 완료. 저장소 설정 확인과 live AWS 미확인을 구분했으며 외부 설정 변경 없이 사용자 직접 동의 원칙 유지.
+
+- 2026-09-28 가입 정책 버전 안내: 저장소 테스트 task draft의 PRIVACY_CONSENT_VERSION=privacy-v1, TERM_CONSENT_VERSION=term-v1 확인. 현재 실행 중인 ECS task 환경변수와 같아야 하며 live AWS 값은 이번에 재조회하지 않음. 버전과 약관 본문 확인/동의 구분 안내. 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e651-1f41-7a11-95fd-9e79532fbb82 -->
+
+- 국제 번호 입력 안내의 현재 작업 식별 기록 보완 완료. 형식 변환과 등록된 가상 번호 사용을 안내했으며 실제 인증/설정 변경 없음. 비밀정보 비기록 유지.
+
+<!-- codex-turn:01a0e651-6dce-7960-83cf-2ef04432c83a -->
+
+- 2026-09-28 테스트 번호 입력 형식 확인: 로컬 화면은 +로 시작하는 국제 형식만 허용하므로 국내 휴대전화 번호는 맨 앞 0 제거 후 +82 접두사 사용 안내. Firebase에 등록된 동일 가상 번호와 고정 코드가 필요하며 실제 번호는 기록하지 않음. 인증/설정 변경 없음.
+
+<!-- codex-turn:01a0e64f-ec02-77b2-a1aa-ebe93c7345e5 -->
+
+- Chrome 로그인 성공 비교 설명의 현재 작업 식별 기록 보완 완료. 사용자 보고로 Google 로그인 성공 확인, 내장 브라우저 실패의 세부 원인은 미확정. Identity exchange/가입 검증은 다음 단계이며 비밀정보 비기록 유지.
+
+- 2026-09-28 사용자 보고로 일반 Chrome Google 로그인 성공 확인. 내장 브라우저에서만 popup-closed-by-user가 발생한 비교 결과상 팝업/OAuth 결과 전달 호환성 문제 가능성이 높음. 정확한 내부 메커니즘은 미확정. Identity exchange/가입 성공과는 구분하며 웹 테스트는 Chrome 사용 안내. 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e64d-f3dd-7173-9711-fb6df33043bb -->
+
+- 반복 Google 팝업 실패 조사의 현재 작업 식별 기록 보완 완료. localhost 승인 확인, 팝업 종료 오류 원인은 미확정이며 일반 Chrome 비교 대기. 비밀값 비기록, 코드/외부 설정 변경 없음.
+
+- 2026-09-28 반복 Google 팝업 실패 조사: IAB localhost 결과 auth/popup-closed-by-user, 후속 exchange 비활성 유지. 브라우저 수집 warn/error 로그 없음. Firebase 승인 도메인에 localhost와 기본 authDomain 등록 확인. 코드에서 popup SDK 완료 후에만 exchange 활성화됨을 확인. 내장 브라우저 팝업 통신 문제는 가설이며 일반 Chrome 비교가 필요. 외부 설정/코드 변경 없음.
+
+<!-- codex-turn:01a0e64c-9f49-7db2-a549-9c004ac7b6a8 -->
+
+- 로그인 상태 확인의 현재 작업 식별 기록 보완 완료. 팝업 종료 오류와 exchange 비활성을 확인했으며 재인증은 사용자가 진행하도록 안내. 비밀정보 비기록 및 외부 설정 미변경 유지.
+
+- 2026-09-28 로그인 완료 여부 확인: 로컬 화면 결과 auth/popup-closed-by-user, exchange/가입/서버 확인 버튼 비활성. Firebase 설정은 적용됐으나 화면에서 Google 인증 완료를 받지 못한 상태로 확인. 팝업 인증 재시도 안내, 실제 인증 동작/코드 변경 없음.
+
+<!-- codex-turn:01a0e64a-15d6-7291-804b-372af08e97a4 -->
+
+- 로컬 Firebase 설정 입력 오류 진단의 현재 작업 식별 기록 보완 완료. JSON 문법 수정 안내만 수행했으며 사용자 입력이나 외부 인증 설정은 변경하지 않음. 실제 값 비기록 유지.
+
+- 2026-09-28 로컬 화면 설정 실패 진단: 현재 입력은 속성명 따옴표 누락과 마지막 쉼표가 있는 JS 객체여서 JSON.parse가 실패하는 형태임을 UI에서 확인. Google 버튼 비활성 상태로 인증 이전 입력 단계 오류. 값 유지한 채 JSON 문법 수정 안내, 외부 설정/코드 변경 없음. 실제 값 비기록.
+
+<!-- codex-turn:01a0e648-0866-7b60-9158-82ec6a24ecb4 -->
+
+- Firebase 웹 구성 확인 작업 식별 기록 보완 완료. 사용자에게 로컬 화면용 JSON 입력 방법을 안내했으며 실제 인증과 외부 설정 변경은 수행하지 않음. 실제 키 비기록 유지.
+
+- 2026-09-28 사용자 제공 SDK 코드가 Firebase 웹 앱 구성임을 확인. 로컬 화면에는 apiKey/authDomain/projectId/appId만 큰따옴표 JSON으로 입력하며 import/Analytics 초기화는 불필요함을 안내. 실제 키 비기록, 외부 설정 변경 및 인증 실행 없음.
+
+<!-- codex-turn:01a0e645-f435-75a1-b0ad-dcd4d36ecd6b -->
+
+- 2026-09-28 Firebase 웹 구성 찾기 안내: 현재 Authentication 설정이 아닌 프로젝트 일반 설정의 내 앱→웹 앱→SDK 설정 및 구성(Config) 경로 안내. 웹 앱이 없다면 같은 프로젝트에 웹 앱만 추가하며 Hosting은 불필요. 구성 객체를 큰따옴표 JSON으로 변환해야 함을 설명. 실제 웹 앱 존재/등록은 이번에 확인·변경하지 않음.
+
+<!-- codex-turn:01a0e639-5ecc-7283-8bf4-92e25670f712 -->
+
+- 로컬 인증 테스트 화면 구현의 현재 작업 식별 기록 보완 완료. localhost 서버 실행 및 Node 3개/전체 Java 테스트 성공, 실제 브라우저 렌더링·회원 인증은 차단/설정 준비로 미검증. 운영과 Firebase 설정은 변경하지 않음.
+
+- 2026-09-28 로컬 인증 테스트 도구 구현: tools/auth-test에 화면/Web SDK 흐름/고정 테스트 HTTPS 게이트웨이/테스트/README 추가. localhost:4173 로컬 서버 기동. Google→exchange→동일 UID 가상 phone link→signup 및 프로필/refresh/LC 읽기 smoke 제공. 토큰 메모리 보관/민감정보 비출력/Origin·Host 가드 유지. Node 3개 테스트와 전체 Gradle clean test 성공. Chrome 자동 열기는 ERR_BLOCKED_BY_CLIENT로 차단, 실제 UI 렌더링/인증 E2E 미확인. 웹 앱 구성/localhost 허용/약관 버전 준비 필요. 운영/Firebase 설정 변경 없음.
+
+<!-- codex-turn:01a0e638-bf2e-7b93-b16e-6b9d4b7d43ce -->
+
+- 2026-09-28 최소 웹 테스트 화면 방향 안내: 별도 공개 배포 없이 로컬 HTTP 페이지와 Firebase Web SDK로 Google 인증/동일 UID 전화 연결 및 Identity 가입 검증 가능. 같은 프로젝트 웹 앱 등록·인증 허용 도메인·전화 인증 웹 설정 및 직접 API 호출 시 CORS 확인 필요. 아직 화면 구현/외부 설정 변경 없음. Android SHA/SDK 검증은 별도.
+
+<!-- codex-turn:01a0e630-f709-7f23-b4ff-a6fe4bca4d3c -->
+
+- 2026-09-28 Firebase 열린 콘솔 확인: to-teacher-firebase Google/전화 사용 설정 및 저장된 테스트 전화번호·인증 코드 1쌍 확인. 설정 변경 없음. 다음은 SDK Google 로그인→exchange→동일 UID phone link→signup 검증이며 회원 생성은 아직 미수행. 열린 페이지에 Spark 표시도 관측했으나 실제 결제 연결 상태는 별도 재확인 필요. 번호/코드는 기록하지 않음.
+
+<!-- codex-turn:01a0e625-c8ec-7c70-a91b-565707c268de -->
+
+- 테스트 계정 생성 안내의 현재 작업 식별 기록 보완 완료. 절차 안내만 완료했으며 SDK 테스트 화면/회원 생성/인증 E2E는 미수행, 외부 변경 없음.
+
+<!-- codex-turn:01a0e625-5503-7271-a27a-251d2cc3a321 -->
+
+- 2026-09-28 테스트 계정 생성 방법 안내: Firebase 콘솔 수동 사용자 추가가 아닌 Google SDK 로그인→exchange enrollment→동일 UID에 테스트 phone credential link→강제 갱신 ID Token→Identity signup 흐름 설명. 테스트 번호 등록만으로 회원 생성되지 않음. 앱 전체 대신 최소 SDK 테스트 화면을 준비할 수 있으나 아직 만들거나 계정을 생성하지 않음. 실제 인증/서버 설정 변경 없음.
+
+<!-- codex-turn:01a0e621-9da6-7d80-b98a-3fa688b86cc0 -->
+
+- 2026-09-28 Identity/LC 사전 smoke: 사용자 LC 주소 https://api-test.to-teacher.com 확인, Firebase 테스트 계정 없음. Postman 앱 제어 권한 부재로 HTTP 직접 검사 수행: 두 health200/UP, 프로필/챌린지 무토큰 및 잘못된 토큰401, Firebase exchange 빈값/잘못된 값401, 잘못된 refresh401. JWKS 공개 메타데이터 정상. docs/postman에 비밀값 없는10요청 collection 및 결과/미검증 범위 작성. MEMBER E2E/GUEST403/서버 간 신뢰 성공은 미검증. Identity OpenAPI 서버가 http URL인 문제 관측, 변경하지 않음. 테스트 설정/운영/DB 사용자 생성 없음.
+
+<!-- codex-turn:01a0e5dc-f4ed-7513-bd4c-ac48de99b1bb -->
+
+- 2026-09-28 사용자 요청으로 테스트 Identity test:4 desired1 기동 완료, running1/pending0 확인. HTTPS health200/UP, Swagger UI 리다이렉트 후200, /v3/api-docs OpenAPI3.1.0/23개 경로, JWKS RS256/test kid 정상 확인. 운영/Secret/IAM/이미지 미변경. 테스트 실행 비용 발생하며 회원 인증 E2E는 여전히 별도 검증 필요.
+
+<!-- codex-turn:01a0e5bb-8e86-7c92-bf1d-ce1147c7225d -->
+
+- 2026-09-28 AWS 테스트 Swagger 설정 실제 반영 완료. 현재 test:3 JSON을 기준으로 SWAGGER_ENABLED만 false→true 변경하여 test:4 생성/서비스 적용. 이미지88ff5bed 및 인증/Secret/네트워크 보존. desired0/running0/pending0 확인, 서버는 기동하지 않음. 다음 사용자 기동 요청 시 /swagger-ui.html 및 /v3/api-docs 실제 응답 검증 필요. 운영 변경 없음.
+
+<!-- codex-turn:01a0e5b5-3981-76a2-b63d-3e2160a31201 -->
+
+- Swagger 활성화 준비 작업 식별 기록 완료. 로컬 설정 및 전체 테스트 성공, AWS 세션 만료로 실제 설정 적용은 재로그인 대기. 서버 기동이나 운영 변경 없음.
+
+- Swagger 설정 준비 검증: ./gradlew clean test --no-daemon 성공, git diff --check 통과. 실제 AWS 반영과 live 검증은 아직 미완료.
+
+- 2026-09-28 테스트 Swagger 활성화 요청: 로컬 task draft SWAGGER_ENABLED=true와 DeploymentTargetTests assertion 수정. 기존 AWS IAB 세션 만료(Unauthorized/로그아웃)로 실제 ECS 적용 미완료. ISB 로그인 페이지 열어 사용자 재로그인 대기. 서버 기동/운영/Secret/IAM 변경 없음. 로그인 후 최신 테스트 revision의 Swagger 설정만 적용하고 desired0 보존할 계획. Learning Core 준비 후 별도 기동 요청 필요.
+
+<!-- codex-turn:01a0e5b3-b827-74f0-b3a7-be6caf06d2d0 -->
+
+- 2026-09-28 Swagger 사용 가능 여부 안내: 저장된 테스트 task 설정은 SWAGGER_ENABLED=false이므로 단순 재기동만으로 Swagger 사용 불가. true로 설정한 새 revision 적용 후 /swagger-ui.html 사용 가능. 현재 SecurityConfig는 문서 GET을 permitAll하므로 활성화 시 외부 문서 노출 주의. 실제 API 인증은 유지되며 Firebase 인증/phone link는 별도 앱 SDK 흐름 필요. 이번은 코드/설정 읽기만 수행, AWS 현재 상태 재조회·변경·기동 없음.
+
+<!-- codex-turn:01a0e30b-5569-7513-b978-5cb92ec91400 -->
+
+- 단계 출시 검토의 현재 작업 식별 기록을 보완했다. SNS·챌린지 선출시는 가능한 방향이며 무료 자격·결제 후속 적용은 정책 및 E2E 확인 후 진행한다. 이번은 분석/기록만 수행했고 구현·배포 승인이나 완료를 의미하지 않는다.
+
+- 2026-09-27 `develop` 단계 출시 가능성 검토: SNS 로그인·10초 챌린지를 1차, 전화번호당 1회 무료 모의고사·결제를 2차로 분리하는 방향은 코드 구조상 가능하다. Learning Core는 CHALLENGE_ENABLED와 Billing 생성/phone continuation 설정을 분리하며 모의고사 Billing OFF는 기존 생성 경로를 사용한다(모의고사 차단을 뜻하지 않음). 현재 Identity 가입·Guest 승격의 전화번호 인증/내부 eligibility binding 의존성은 유지해야 하며 Billing 외부 발행과 구분한다. 2차 적용 전 기존 사용자 무료 자격·1차 이용 이력 소급 여부와 지연된 이벤트 인계 확인이 필요하다. 이번은 읽기 검토만 했으며 앱/챌린지 AI/운영 E2E·출시 준비 완료를 확인한 것은 아니다. 코드·설정·배포 변경 없음.
+
+<!-- codex-turn:01a0e309-e393-78c3-b4f6-520be76424ca -->
+
+- 2026-09-27 `develop`: 사용자가 구·신 서버 분리, 피드백 진입 전 웹뷰 업데이트 안내, 사용자 수를 보고 조정하는 초기 1주 유예를 이전에 전달했는지 확인했다. 2026-09-22 WORKLOG와 `docs/contracts/guest-app-update-transition-review.md`에 같은 계획 및 피드백 result.updateRequired 인계 계약이 기록되어 있음을 확인. 이번은 이력 확인/기록만 수행했으며 실제 구현·배포 현황을 새로 검증하거나 서버 설정을 변경하지 않았다.
+
+<!-- codex-turn:01a0cdc7-7a37-72f3-bbe3-9a987688a90c -->
+
+- 중지 최종 검증: AWS 새로고침 후 desired0/running0/pending0 확인 완료.
+
+- 2026-09-23 사용자 비용 절감 요청으로 테스트 Identity 서비스 desired count를1→0 변경했다. test:3/이미지/Secret/DB/라우팅은 보존하고 운영 서비스는 미변경. 다음 사용 시 desired1로 기동 후 health/JWKS 재확인 필요. 중지 기간 테스트 API 사용 불가, 기존 workflow는 desired0을 유지하므로 배포 health 검사 실패 가능. Fargate 태스크 중지와 별개로 ALB/Secret/로그 등 잔여 비용은 존재할 수 있다.
+
+<!-- codex-turn:01a0cdbc-58c1-7d40-907e-47144abe8ae9 -->
+
+- 2026-09-23 Learning Core 인계 조회: AWS test:3 JSON에서 issuer https://identity-test.to-teacher.com, audience tosunsaeng-learning-core, 이미지 commit88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d 재확인. 공개 JWKS RS256/kid tosunsaeng-identity-test-rsa-1 재확인. 해당 commit 발급 코드에 UUID sub 검증/account_type/LC+Billing audience 포함 확인. 실제 배포 환경 가입/로그인/재발급 성공 및 실제 MEMBER 토큰 claim 검증은 미수행으로 명확히 구분해 인계.
+
+<!-- codex-turn:01a0cdb6-1084-7162-be93-903d3d595ccf -->
+
+- 현재 작업 기록 완료: 테스트 Identity test:3 running1/pending0, HTTPS health200/UP 및 JWKS 정상 확인. 앱 회원 인증 검증은 다음 단계이며 운영 변경 없음.
+
+- 2026-09-23 테스트 Identity 최초 정상 기동 확인 완료. 사용자 저장된 ELIGIBILITY keyring이 3필드/ACTIVE_WRITE/32바이트로 정상 확인되어 test:3 desired1 기동. running1/pending0, 19:03 KST 시작 완료 로그 및 MongoDB 트랜잭션 지원 확인 로그, HTTPS health200/UP, JWKS RSA/RS256/kid tosunsaeng-identity-test-rsa-1 확인. 운영/IAM/Secret 변경 없음. 앱의 Google+phone 가입/로그인/재발급 및 실제 transaction rollback은 미검증. 기존 CI health 실패 이력은 그대로이며 로컬 설정/기록 수정은 미커밋 상태.
+
+<!-- codex-turn:01a0cdb2-6518-7e00-9096-ff3d03896df6 -->
+
+- 최신 Secret 재조회 기록 완료. 저장 결과 불일치 원인 확인을 위해 사용자 편집 화면 인계 대기. 추가 외부 변경이나 서버 재기동 없음.
+
+- 2026-09-23 사용자 저장 이의에 따라 Secret 페이지 전체 reload 후 재조회했다. 동일 테스트 phone-fingerprint의 ELIGIBILITY 값에서 쉼표 구분 필드가 여전히 1개로 확인됨(요구 3개). 비밀값 비출력, 서버/Secret 변경 없이 저장 대상 확인 필요. 사용자 실수나 캐시 원인을 단정하지 않음.
+
+<!-- codex-turn:01a0cdb0-59de-7e23-8903-8fa69fb5a7a2 -->
+
+- 현재 작업 기록 완료. ELIGIBILITY keyring 접두사 누락으로 사용자 수정 대기, 서버 재기동 보류. 이번 외부 설정 변경 없음.
+
+- 2026-09-23 사용자 재저장 후 재조회: PHONE_ELIGIBILITY_BINDING_KEY_RING은 여전히 Base64 단독(접두사/쉼표 없음). PHONE_IDENTITY_FINGERPRINT_KEY_RING은 버전/ACTIVE_WRITE 포함 정상 구조. 원문 비출력으로 확인했고 서버 재기동/설정 변경은 하지 않았다. 테스트 desired0 유지, 정확한 ELIGIBILITY 항목 수정 재안내 필요.
+
+<!-- codex-turn:01a0cdaa-0452-7252-88aa-880e36c157cd -->
+
+- task:3 배포 진단 기록 완료. 테스트 서비스 desired0/running0/pending0 원복, 사용자 keyring 접두사 보완 저장 대기. 실제 정상 기동/health/JWKS는 미완료이며 운영/IAM 변경 없음.
+
+- 2026-09-23 테스트 task:3 등록/서비스 적용 완료(이미지 88ff5bed 유지, 내부 binding ON/scope/Secret selector만 변경). 기동 시 bean 누락 대신 binding configuration invalid 확인. 사용자 저장 키는 32바이트 Base64 단독으로 버전/상태 접두사 누락. 사용자에게 해당 값 앞 `test-v1,ACTIVE_WRITE,` 추가 저장을 요청한다. 서비스 desired0/running0/pending0 원복 완료. IAM/운영 변경 없고 실제 health/JWKS 검증 미완료.
+
+<!-- codex-turn:01a0cda6-ba83-7112-91d2-ce73aefcfc96 -->
+
+- 내부 binding 보완 작업 기록 완료. 로컬 설정 및 회귀 테스트 준비, 전체 958개 테스트 통과. 사용자 신규 HMAC key 저장 대기이며 AWS revision 미변경/테스트 desired0 상태 유지. 다음 단계는 키 저장 확인 후 현재 test:2 기반 설정 적용과 기동 검증.
+
+- 2026-09-23 사용자 보완 승인 후 로컬 test task draft에서 내부 eligibility binding ON, consumer scope tosunsaeng-billing-test, 기존 테스트 phone-fingerprint Secret 내 별도 JSON key selector 주입을 준비했다. 기존 fingerprint key 재사용 없음, publisher OFF 유지. 배포 설정 회귀 테스트 추가 및 ./gradlew clean test 성공. AWS Secret 새 비밀키 입력/저장은 사용자 대기이며 AWS revision은 아직 변경하지 않았다. Secrets Manager 해당 화면을 열어두었고 서비스 desired0 유지. 키 저장 후 현재 test:2 이미지/설정을 보존한 새 revision으로 적용할 것.
+
+<!-- codex-turn:01a0cd9e-ef7f-79e3-8e8d-9535653d9c29 -->
+
+- 현재 배포 진단 기록 완료: 테스트 :2는 desired0/running0/pending0로 안전 원복됨. 내부 eligibility binding 의존성 설정 및 전화번호 식별용 HMAC keyring 보완 필요(응답 복구 암호화 키와 별개). 운영 변경 없음, 테스트 가입/로그인 검증은 미완료.
+
+- 위 기동 실패 대응 후 AWS 성공 알림과 desired0/running0/pending0 원복을 확인했다. 테스트 revision은 :2 유지.
+
+- 2026-09-23 develop 88ff5bed push 확인: Actions 35843168284 테스트/이미지/ECS 배포 성공, health503 실패. test:2/desired0 확인 후 테스트 서비스만 desired1로 기동했으나 CloudWatch에 PhoneEligibilityFingerprintHasher bean 부재로 시작 실패가 기록됨. Firebase signup 필수 의존성과 PHONE_ELIGIBILITY_BINDING_ENABLED=false 설정의 불일치가 원인. 반복 재시작 방지를 위해 desired0 원복 요청. 다음은 내부 binding ON/consumer scope/전용 keyring 준비(외부 publisher OFF 유지) 후 재기동. 운영 변경 없음. 정상 API 검증은 미완료.
+
+<!-- codex-turn:01a0cd9b-75fb-7211-9de9-7c090e18cdd7 -->
+
+- DNS 연결 확인 작업 식별 기록 보완 완료. CNAME 일치 및 HTTPS503 확인 상태 유지. 추가 외부 변경 없이 workflow 반영과 실제 서버 기동 검증이 남아 있다.
+
+- 2026-09-23 사용자 DNS 설정 후 조회: identity-test.to-teacher.com CNAME이 지정한 staging ALB DNS와 일치(NOERROR, TTL600). 인증서 검증을 끄지 않은 HTTPS health 요청에서 HTTP503 수신. DNS/TLS 연결은 확인됐으며 직전 desired0 상태와 부합하나 서버 기동/정상 health는 미완료. 이번 외부 설정 변경 없음. 다음은 로컬 workflow 사용자 commit/push 및 테스트 이미지 배포/기동 검증.
+
+<!-- codex-turn:01a0cd9a-63c5-7d63-af9d-3a7af1766713 -->
+
+- 2026-09-23 CNAME 등록 실패 문의: 실제 가비아 오류/입력 화면 미확인으로 원인 판단 보류. 올바른 입력 및 동일 호스트 충돌 가능성 안내, 오류 문구 요청. 이번 DNS/AWS 변경 없음.
+
 <!-- codex-turn:01a0cd90-1e27-76f1-a7fb-81e2903fa55f -->
 
 - 테스트 인프라 생성 작업의 현재 식별 기록 보완 완료. 테스트 SG/ALB 규칙/ECS 서비스 생성 완료 및 desired0 상태 유지. 추가 외부 변경 없음. 원격 workflow 사용자 반영과 DNS 연결 후 실제 서버 기동 검증 필요.

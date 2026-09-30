@@ -126,11 +126,13 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 				principal,
 				now
 		);
-		consentPolicy.validate(
+		consentPolicy.validateWithQualityReview(
 				requiredRequest.isPrivacyConsented(),
 				requiredRequest.privacyConsentVersion(),
 				requiredRequest.isTermConsented(),
-				requiredRequest.termConsentVersion()
+				requiredRequest.termConsentVersion(),
+				requiredRequest.isQualityReviewConsented(),
+				requiredRequest.qualityReviewConsentVersion()
 		);
 
 		String normalizedPhone = normalizeVerifiedPhone(principal.verifiedPhoneNumber());
@@ -139,7 +141,11 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 				eligibilityFingerprintHasher.fingerprint(normalizedPhone);
 		ensureNoExistingOwner(principal, phoneFingerprints);
 
-		User user = userFactory.createFederatedMember(requiredRequest.nickname(), now);
+		User user = userFactory.createFederatedMember(
+				requiredRequest.nickname(),
+				Boolean.TRUE.equals(requiredRequest.isQualityReviewConsented()),
+				now
+		);
 		FirebaseIdentity firebaseIdentity = FirebaseIdentity.create(
 				principal.firebaseProjectId(),
 				principal.firebaseUid(),

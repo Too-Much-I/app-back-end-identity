@@ -21,6 +21,9 @@ import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.dao.DuplicateKeyException;
@@ -54,6 +57,8 @@ import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIss
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
+import web.tosunsaeng.identity.domain.user.exception.UserException;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
@@ -298,6 +303,10 @@ class FirebaseSignupServiceTests {
 	}
 
 	private FirebaseSignupRequest request() {
+		return request(null, null);
+	}
+
+	private FirebaseSignupRequest request(Boolean qualityReviewConsented, String qualityReviewVersion) {
 		return new FirebaseSignupRequest(
 				attempt.getEnrollmentId(),
 				"fresh-firebase-credential",
@@ -305,8 +314,57 @@ class FirebaseSignupServiceTests {
 				true,
 				"privacy-v1",
 				true,
-				"term-v1"
+				"term-v1",
+				qualityReviewConsented,
+				qualityReviewVersion
 		);
+	}
+
+	@Test
+	void savesQualityReviewConsentWithServerVersionAndTime() {
+		service.signup(request(true, " quality-review-v1 "));
+
+		User user = registeredUser();
+		assertThat(user.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(user.getConsents().getQualityReviewConsentVersion()).isEqualTo("quality-review-v1");
+		assertThat(user.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void omittedQualityReviewConsentAllowsLegacySignupWithoutGrantingConsent() {
+		service.signup(request());
+		assertQualityReviewUnconsented(registeredUser());
+	}
+
+	@Test
+	void explicitFalseDoesNotStoreProvidedQualityReviewVersion() {
+		service.signup(request(false, "quality-review-old"));
+		assertQualityReviewUnconsented(registeredUser());
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = {"quality-review-old", "   "})
+	void rejectsQualityReviewConsentWithMissingOrOutdatedVersionBeforeWrites(String version) {
+		assertThatThrownBy(() -> service.signup(request(true, version)))
+				.isInstanceOf(UserException.class)
+				.satisfies(exception -> assertThat(((UserException) exception).getErrorCode())
+						.isEqualTo(UserErrorStatus.QUALITY_REVIEW_CONSENT_VERSION_MISMATCH));
+		verify(refreshSessionIssuer, never()).prepare(any());
+		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
+	}
+
+	private User registeredUser() {
+		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+		verify(transactionService).register(captor.capture(), any(), any(), any(), any(), any(), any(), any(), any());
+		return captor.getValue();
+	}
+
+	private void assertQualityReviewUnconsented(User user) {
+		assertThat(user.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(user.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(user.getConsents().getQualityReviewConsentedAt()).isNull();
 	}
 
 	private FirebaseEnrollmentAttempt directAttempt() {

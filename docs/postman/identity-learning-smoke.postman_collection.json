@@ -1,0 +1,64 @@
+{
+  "info": {
+    "name": "Identity + Learning Core test smoke (no account)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Test environments only. No account creation, token issuance, refresh rotation or data deletion. Requests use HTTPS. Collection scripts never save or log credentials. MEMBER success paths require a separate Firebase-authenticated test account."
+  },
+  "variable": [
+    {"key": "identityBase", "value": "https://identity-test.to-teacher.com"},
+    {"key": "learningBase", "value": "https://api-test.to-teacher.com"}
+  ],
+  "auth": {"type": "noauth"},
+  "item": [
+    {
+      "name": "Identity health: 200 UP",
+      "request": {"method": "GET", "url": "{{identityBase}}/actuator/health"},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"]}}]
+    },
+    {
+      "name": "Learning health: 200 UP",
+      "request": {"method": "GET", "url": "{{learningBase}}/actuator/health"},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"]}}]
+    },
+    {
+      "name": "Identity JWKS: public RS256 key",
+      "request": {"method": "GET", "url": "{{identityBase}}/.well-known/jwks.json"},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Public test signing key', () => { pm.response.to.have.status(200); const keys = pm.response.json().keys; pm.expect(keys.some(k => k.kid === 'tosunsaeng-identity-test-rsa-1' && k.alg === 'RS256' && k.kty === 'RSA')).to.eql(true); keys.forEach(k => ['d','p','q','dp','dq','qi'].forEach(field => pm.expect(k).not.to.have.property(field))); });"]}}]
+    },
+    {
+      "name": "Identity profile without token: 401",
+      "request": {"method": "GET", "url": "{{identityBase}}/api/v1/users/me"},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 COMMON_UNAUTHORIZED', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('COMMON_UNAUTHORIZED'); });"]}}]
+    },
+    {
+      "name": "Identity profile with invalid token: 401",
+      "request": {"method": "GET", "url": "{{identityBase}}/api/v1/users/me", "header": [{"key": "Authorization", "value": "Bearer invalid-test-token"}]},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 COMMON_UNAUTHORIZED', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('COMMON_UNAUTHORIZED'); });"]}}]
+    },
+    {
+      "name": "Firebase exchange without credential: 401",
+      "request": {"method": "POST", "url": "{{identityBase}}/api/v1/auth/firebase/exchange", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{}"}},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 INVALID_FIREBASE_ID_TOKEN', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_FIREBASE_ID_TOKEN'); });"]}}]
+    },
+    {
+      "name": "Firebase exchange invalid credential: 401",
+      "request": {"method": "POST", "url": "{{identityBase}}/api/v1/auth/firebase/exchange", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"firebaseIdToken\":\"invalid-test-token\"}"}},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 INVALID_FIREBASE_ID_TOKEN', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_FIREBASE_ID_TOKEN'); });"]}}]
+    },
+    {
+      "name": "Reissue invalid credential (Stage9 OFF): 401",
+      "request": {"method": "POST", "url": "{{identityBase}}/api/v1/auth/reissue", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"refreshToken\":\"invalid-test-token\"}"}},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 INVALID_REFRESH_TOKEN', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('INVALID_REFRESH_TOKEN'); });"]}}]
+    },
+    {
+      "name": "Challenge without token: 401",
+      "request": {"method": "GET", "url": "{{learningBase}}/api/v1/challenges/today"},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 COMMON401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('COMMON401'); });"]}}]
+    },
+    {
+      "name": "Challenge with invalid token: 401",
+      "request": {"method": "GET", "url": "{{learningBase}}/api/v1/challenges/today", "header": [{"key": "Authorization", "value": "Bearer invalid-test-token"}]},
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('401 COMMON401', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().code).to.eql('COMMON401'); });"]}}]
+    }
+  ]
+}

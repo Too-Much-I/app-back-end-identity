@@ -164,7 +164,7 @@ class FirebaseExchangeControllerTests {
 				true,
 				"privacy-v1",
 				true,
-				"term-v1"
+				"term-v1", false, null
 		);
 		when(firebaseSignupUseCase.signup(request)).thenReturn(new FirebaseSignupResponse(
 				"identity-access",
@@ -274,7 +274,7 @@ class FirebaseExchangeControllerTests {
 				true,
 				"privacy-v1",
 				true,
-				"term-v1"
+				"term-v1", null, null
 		);
 		when(firebaseGuestUpgradeUseCase.upgrade(request)).thenReturn(new FirebaseSignupResponse(
 				"identity-access",

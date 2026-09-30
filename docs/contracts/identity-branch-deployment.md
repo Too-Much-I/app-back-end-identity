@@ -142,3 +142,33 @@ Task Definition은 선택 서비스에서 가져오고 secrets나 일반 환경�
 - [분기 테스트](../../src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java): workflow에서 shell을 추출하여 main/develop/미지원 ref/누락된 test role 경로 실행. 나머지는 YAML 계약 정적 검사다.
 - [Sentry release 계약 테스트](../../src/test/java/web/tosunsaeng/identity/deployment/SentryReleaseDeploymentTests.java) 유지.
 - 실제 GitHub Actions/AWS 배포 및 IAM 권한 검증은 이 로컬 테스트에 포함하지 않는다.
+
+## 2026-09-23 최초 기동 실패 후 보완 (AWS 적용 대기)
+
+- 실제 develop CI는 테스트/빌드/ECS 배포 성공, desired0 상태 health503으로 실패했다. test:2 기동 시 Firebase signup의 필수 PhoneEligibilityFingerprintHasher bean 누락을 확인했다.
+- 내부 PHONE_ELIGIBILITY_BINDING_ENABLED는 true, consumer scope는 tosunsaeng-billing-test로 준비한다. PHONE_ELIGIBILITY_PUBLISHER_ENABLED=false는 유지한다. 내부 가입 식별과 외부 Billing 발행을 구분한다.
+- 기존 테스트 phone-fingerprint Secret의 JSON에 PHONE_ELIGIBILITY_BINDING_KEY_RING 항목을 추가한다. 기존 PHONE_IDENTITY_FINGERPRINT_KEY_RING은 변경하지 않는다. 새 값은 독립적인 32바이트 이상 무작위 키를 사용한 `test-v1,ACTIVE_WRITE,<Base64 key>` 형식이다. 실제 값은 문서/채팅/저장소에 기록하지 않는다.
+- 동일 테스트 execution role이 이미 읽을 수 있는 Secret을 사용하므로 IAM 확대 없이 별도 JSON selector로 주입한다. 두 목적의 실제 키는 재사용하지 않는다.
+- 새 비밀값의 입력과 저장은 사용자가 수행한다. 키 저장 확인 후 현재 AWS test:2를 기반으로 위 환경변수와 Secret 참조만 바꾼 새 revision을 등록한다. 로컬 draft의 오래된 이미지 태그를 그대로 배포하지 않는다.
+- 로컬 draft 수정만으로 실제 ECS 설정은 바뀌지 않는다. workflow 역시 서비스에 연결된 task definition을 읽으므로 AWS revision 보완이 먼저 필요하다.
+- 사용자 키 저장 대기 중 테스트 서비스는 desired0 유지. 실제 AWS 적용/health/JWKS/가입 검증은 아직 완료하지 않았다.
+
+### 실제 적용 후 키 형식 보완 대기
+
+- 테스트 task:3 등록 및 서비스 적용 완료. 기존 이미지 88ff5bed를 유지하고 내부 binding/consumer scope/Secret selector만 수정했다. IAM/운영 변경 없음.
+- 기동 시 bean 누락은 해소됐으나 binding configuration invalid로 종료했다. Secret 값은 Base64 32바이트만 저장되어 있어 parser가 요구하는 버전/상태 접두사가 누락된 것으로 확인했다. 원문은 기록하지 않았다.
+- 사용자가 해당 값 앞에 `test-v1,ACTIVE_WRITE,`를 붙여 저장해야 한다. 새 키 생성은 필요하지 않다. 테스트 서비스는 desired0/running0/pending0로 원복 확인했다.
+- 값 저장 후 task:3 그대로 재기동 가능하며 health/JWKS/가입 검증은 여전히 미완료다.
+
+### 2026-09-23 19:03 KST 정상 기동 확인
+
+> 2026-09-28 AWS 반영 완료: 테스트 서비스에 task:4 연결, SWAGGER_ENABLED=true. task:3의 이미지88ff5bed/기타 설정을 보존했고 desired0/running0/pending0 확인. 아직 기동하지 않아 live Swagger 검증은 다음 기동 때 수행한다. 아래 로그인 대기 기록은 이전 상태다.
+
+> 2026-09-28 후속 설정: 사용자 요청으로 로컬 테스트 draft의 SWAGGER_ENABLED=true 및 회귀 assertion을 준비했다. AWS 세션 만료로 실제 ECS revision 반영은 아직 하지 않았다. 재로그인 후 현재 서비스 revision을 기준으로 Swagger만 변경하고 desired0을 유지할 것. 문서 GET은 공개되지만 보호 API의 JWT 인증은 유지된다. Learning Core 준비 후 사용자가 기동 요청하면 UI/API docs/health를 확인한다. 자동 기동 예약은 없다.
+
+- 사용자가 보완한 keyring의 필드/상태/키 길이 정상 확인 후 test:3 desired1 기동, running1/pending0 확인.
+- HTTPS `https://identity-test.to-teacher.com/actuator/health`: 200, UP.
+- `/.well-known/jwks.json`: 공개 RSA/RS256 서명키, kid `tosunsaeng-identity-test-rsa-1` 확인.
+- CloudWatch에 애플리케이션 시작 완료 및 MongoDB 트랜잭션 지원 확인 로그 수집됨. 실제 회원가입 transaction/rollback 검증과는 구분한다.
+- 배포 이미지 88ff5bed 유지, 외부 publisher OFF, 운영/IAM 변경 없음. 기존 GitHub Actions health 실패 기록은 자동으로 성공으로 바뀌지 않는다.
+- 남은 검증: Android Google 로그인/같은 UID phone link/enrollment/signup/exchange/reissue 및 Learning Core MEMBER 연동. 이번 기동 확인으로 해당 기능까지 성공했다고 판단하지 않는다.

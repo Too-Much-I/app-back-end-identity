@@ -1,7 +1,7 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
 - 문서 성격: 현재 저장소 Controller·DTO·Service 기준 프론트 인계 명세. 구현 사실과 출시 정책, 미검증 설정을 구분한다.
-- 기준일: 2026-09-21 (TMI-169 Guest 가입 재개·미충족 요건·enrollment 만료 계약 반영)
+- 기준일: 2026-09-30 (TMI-188 가입·승격 선택 동의 및 공개 정책 버전 조회 반영)
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자
 - 적용 조건: 환경별 backend base URL, 활성 기능, Firebase project와 Provider 설정을 백엔드/모바일 담당자가 함께 확인한다. 코드 존재가 배포·활성화 완료를 뜻하지 않는다.
 
@@ -23,7 +23,7 @@ Swagger 공유: 배포 서버의 `/swagger-ui.html` 또는 `/v3/api-docs`를 사
 
 ### 2.0 적용 범위와 설정
 
-신규 앱은 SNS 가입/로그인과 기존 Guest 전환을 제공하며, 신규 Guest 생성·이메일 로그인 UI·전화번호 변경·Firebase UID rebind는 제공하지 않는다. 서버 주소·활성 SNS·Firebase 앱 설정·현재 약관 URL/버전·최소 지원 앱 버전은 인계받은 환경 설정을 사용한다. 공개 정책/capability 조회 API는 없다.
+신규 앱은 SNS 가입/로그인과 기존 Guest 전환을 제공하며, 신규 Guest 생성·이메일 로그인 UI·전화번호 변경·Firebase UID rebind는 제공하지 않는다. 서버 주소·활성 SNS·Firebase 앱 설정·현재 약관 URL·최소 지원 앱 버전은 인계받은 환경 설정을 사용한다. 현재 정책 버전은 공개 `GET /api/v1/policies/consents`에서 조회한다. 공개 capability 조회 API는 없다.
 
 구현 여부와 배포 활성화는 다르다. [출시 전 확인사항과 기능별 활성화 조건](frontend-firebase-auth-integration-appendix.md#deployment)을 확인한 기능만 노출한다.
 
@@ -72,7 +72,11 @@ Stage 8 기능을 활성화한 서버는 기존 자체 세션을 무효화하고
 
 ### 2.6 회원가입 정책 버전은 서버 기준으로 공급한다
 
-`/firebase/signup`, `/guest/upgrade`는 개인정보 처리방침·이용약관 version을 요구한다. Guest 승격에는 `/firebase/guest/prepare`가 현재 두 정책 version을 공급한다. direct 신규 가입에 사용할 공개 정책 metadata API는 아직 없으므로 배포 담당자와 합의한 설정 공급이 필요하다. 임의 version이나 구버전으로 가입을 우회하지 않는다.
+`/firebase/signup`, `/guest/upgrade`는 개인정보 처리방침·이용약관 version을 요구한다. 가입 전 Identity Token 없이 `GET /api/v1/policies/consents`로 필수 두 정책과 품질 검토 선택 정책의 현재 version을 조회한다. Guest prepare도 기존처럼 필수 두 version을 제공한다. 정책 본문/URL은 해당 version과 일치하게 프론트에서 제공하며, 임의 version이나 구버전으로 가입을 우회하지 않는다.
+
+TMI-188: signup·Guest upgrade에 `isQualityReviewConsented`, `qualityReviewConsentVersion`이 추가됐다. 선택 동의 true일 때만 현재 품질 검토 version이 필요하다. signup은 누락/null을 false로 처리하지만 **Guest upgrade는 누락/null이면 기존 선택 동의를 보존**한다. upgrade에서 미동의를 반영하려면 명시 false를 전송한다. 선택 동의는 `missingRequirements`에 추가되지 않는다. 정확한 요청·조회 계약은 8.2, 8.5, 8.22를 따른다.
+
+공개 조회 이후 정책이 바뀌면 버전 불일치 오류를 받을 수 있다. 최신 정책을 다시 조회하고 내용을 보여준 뒤 필요한 동의를 받는다. 사용자가 본 내용 확인 없이 version 문자열만 자동 교체해 재전송하지 않는다. 코드 반영과 실제 대상 환경 배포는 구분한다.
 
 ### 2.7 문서에 없는 변경 API를 추정하지 않는다
 
@@ -417,6 +421,7 @@ Provider 연결/해제 전용 오류는 8.19를 따른다. `401 ACCOUNT_WITHDRAW
 | `POST /api/v1/auth/firebase/providers/link/status` | MEMBER Bearer + Firebase proof + requestId body | 200 연결 상태 | 400, 401, 403, 404, 409, 429, 503 |
 | `GET /api/v1/users/me/consents` | Identity Bearer | 200 정책 버전 및 사용자 동의 상태 | 401, 403, 404 |
 | `PUT /api/v1/users/me/consents` | Identity Bearer | 200 저장된 동의 상태 | 400, 401, 403, 404, 409 |
+| `GET /api/v1/policies/consents` | 공개, Identity Token 불필요 | 200 현재 필수·선택 정책 버전 | — |
 
 Spring Security가 Bearer Token 자체를 거절하면 application 오류 대신 `401 COMMON_UNAUTHORIZED` 또는 `403 COMMON_FORBIDDEN`이 반환될 수 있다. 표의 실패 HTTP는 현재 Controller와 application 경계를 합친 프론트 처리 범위다.
 
@@ -476,7 +481,9 @@ exchange/signup은 Guest Access Token이 필요 없다. 공개 진입점은 Fire
 
 이 API는 로그인 API가 아니라 `/firebase/exchange`에서 `ENROLLMENT_REQUIRED`를 받은 신규 사용자의 가입 완료 API다. `nickname`은 앞선 가입 화면에서 사용자가 입력·확정한다. 기존 MEMBER의 `AUTHENTICATED` 로그인 흐름에서는 이 API를 호출하지 않으며 nickname도 보내지 않는다.
 
-signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebaseIdToken`은 필수·최대 16,384자, trim 후 `nickname`은 2~20자다. 두 필수 동의 값은 true, 버전은 현재 서버 정책과 일치해야 한다. 현재 두 DTO에는 품질 검토 선택 동의 필드가 없다. 필요하면 가입 후 8.21 동의 변경을 사용한다.
+signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebaseIdToken`은 필수·최대 16,384자, trim 후 `nickname`은 2~20자다. 두 필수 동의 값은 true, 버전은 현재 서버 정책과 일치해야 한다. 품질 검토 선택 동의 두 필드는 선택값이며, 제공한 버전은 trim 후 최대 100자·`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$` 형식을 따른다. true이면 현재 버전 필수, false이면 버전 생략 가능하다. true의 버전 누락/불일치는 `400 QUALITY_REVIEW_CONSENT_VERSION_MISMATCH`, 버전 형식/길이 위반은 `400 INVALID_REQUEST`다.
+
+신규 signup에서 `isQualityReviewConsented` 누락/null은 false다. false이면 선택 동의 version·timestamp는 null로 저장하며 true이면 서버 현재 version·서버 시각을 저장한다. 가입 후 변경/철회는 8.21 API를 사용한다. 신규 signup의 `PROFILE`, `CONSENTS`는 항상 필요하고 enrollment에는 폼 초안을 저장하지 않으므로 입력값은 최종 요청까지 프론트가 보관한다.
 
 요청:
 
@@ -488,7 +495,9 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
   "isPrivacyConsented": true,
   "privacyConsentVersion": "privacy-v1",
   "isTermConsented": true,
-  "termConsentVersion": "term-v1"
+  "termConsentVersion": "term-v1",
+  "isQualityReviewConsented": false,
+  "qualityReviewConsentVersion": "quality-review-v1"
 }
 ```
 
@@ -576,11 +585,15 @@ signup/upgrade 공통 입력 제한: `enrollmentId`는 UUID 문자열, `firebase
   "isPrivacyConsented": true,
   "privacyConsentVersion": "privacy-v1",
   "isTermConsented": true,
-  "termConsentVersion": "term-v1"
+  "termConsentVersion": "term-v1",
+  "isQualityReviewConsented": true,
+  "qualityReviewConsentVersion": "quality-review-v1"
 }
 ```
 
-일곱 필드 모두 필수다. enrollmentId는 해당 Guest와 Firebase UID에 대해 prepare에서 받은 값, 두 version은 최신 prepare 응답값으로 대체한다. 닉네임은 trim 후 2~20자다. phone 번호·인증 boolean·userId·missingRequirements는 요청에 추가하지 않는다. phone/email 검증은 서버가 Firebase proof로 확인한다. [Request validation 원문](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/dto/request/FirebaseGuestUpgradeRequest.java)과 [최종 검증](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestUpgradeService.java)을 따른다.
+기존 일곱 필드는 모두 필수이며 품질 검토 두 필드는 선택이다. enrollmentId는 해당 Guest와 Firebase UID에 대해 prepare에서 받은 값, 필수 두 version은 사용자가 확인한 현재 정책 version을 전송한다. 닉네임은 trim 후 2~20자다. phone 번호·인증 boolean·userId·missingRequirements는 요청에 추가하지 않는다. phone/email 검증은 서버가 Firebase proof로 확인한다. [Request validation 원문](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/dto/request/FirebaseGuestUpgradeRequest.java)과 [최종 검증](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/application/FirebaseGuestUpgradeService.java)을 따른다.
+
+upgrade의 `isQualityReviewConsented` 누락/null은 기존 선택 동의 여부·version·timestamp를 그대로 보존한다(구버전 동의가 최신 버전으로 자동 갱신되지 않음). 명시 false는 철회하고 version·timestamp를 null로 비운다. true는 현재 버전 검증 후 반영하며, 같은 유효 버전에 이미 동의한 경우 기존 timestamp를 보존하고 새 동의/버전 갱신이면 서버 시각을 기록한다. true의 버전은 공개 정책 조회에서 얻는다. signup과 upgrade의 누락 처리가 다르므로 동의 화면을 생략했을 때 false를 자동 전송하지 않는다.
 
 prepare 뒤 정책이 바뀌어 `PRIVACY_CONSENT_VERSION_MISMATCH` 또는 `TERM_CONSENT_VERSION_MISMATCH`를 받으면 prepare에서 현재 요건과 version을 다시 받고 필요한 재동의를 진행한다. 동의 화면을 생략했다고 동의 필드를 누락하면 validation 오류가 발생한다.
 
@@ -1042,6 +1055,27 @@ prepare 전에 대상 SDK link를 실행하지 않는다. 이미 서버/Firebase
 ```
 
 필수 동의 누락은 `400 PRIVACY_CONSENT_REQUIRED`/`TERM_CONSENT_REQUIRED`, 버전 불일치는 `PRIVACY_CONSENT_VERSION_MISMATCH`/`TERM_CONSENT_VERSION_MISMATCH`/`QUALITY_REVIEW_CONSENT_VERSION_MISMATCH`다. 정책을 재조회해 사용자가 확인하도록 하며 임의 동의나 version 덮어쓰기를 하지 않는다. 동시 수정은 `409 USER_UPDATE_CONFLICT`일 수 있다.
+
+### 8.22 `GET /api/v1/policies/consents`
+
+인증: 공개, Authorization 헤더 불필요. `Cache-Control: no-store`를 반환한다.
+
+```json
+{
+  "isSuccess": true,
+  "code": "SUCCESS",
+  "message": "요청에 성공했습니다.",
+  "result": {
+    "privacyConsentVersion": "privacy-v1",
+    "termConsentVersion": "term-v1",
+    "qualityReviewConsentVersion": "quality-review-v1"
+  }
+}
+```
+
+예시 문자열을 고정값으로 사용하지 않고 응답값을 사용한다. 가입/승격 검증과 같은 `ConsentPolicy` 설정을 조회하며 정책 본문·URL이나 개인 동의 여부·시각은 반환하지 않는다. 개인 상태는 기존 인증된 `GET /api/v1/users/me/consents`로 조회한다. 새 환경변수·엔티티는 추가하지 않는다. 조회와 제출 사이 version 변경 가능성을 처리한다.
+
+구현 근거: [공개 Controller](../../src/main/java/web/tosunsaeng/identity/domain/user/api/ConsentPolicyController.java), [응답 DTO](../../src/main/java/web/tosunsaeng/identity/domain/user/dto/response/CurrentConsentPolicyResponse.java), [공통 정책 검증](../../src/main/java/web/tosunsaeng/identity/domain/user/domain/ConsentPolicy.java).
 
 ## 9. 배포·QA·구버전 참고
 
