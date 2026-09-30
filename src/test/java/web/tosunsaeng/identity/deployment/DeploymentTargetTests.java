@@ -100,4 +100,24 @@ class DeploymentTargetTests {
 	}
 
 	private record Result(int code, String env, String output, String log) {}
+
+	@Test @SuppressWarnings("unchecked")
+	void firebaseTestTaskKeepsInternalBindingEnabledWithoutExternalPublishing() throws Exception {
+		Map<String, Object> task = new Yaml().load(Files.readString(
+				Path.of("docs/contracts/identity-test-task-definition.draft.json")));
+		var container = ((List<Map<String, Object>>) task.get("containerDefinitions")).getFirst();
+		var env = ((List<Map<String, String>>) container.get("environment")).stream()
+				.collect(java.util.stream.Collectors.toMap(e -> e.get("name"), e -> e.get("value")));
+		assertThat(env).containsEntry("FIREBASE_AUTH_ENABLED", "true")
+				.containsEntry("SWAGGER_ENABLED", "true")
+				.containsEntry("PHONE_ELIGIBILITY_BINDING_ENABLED", "true")
+				.containsEntry("PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID", "tosunsaeng-billing-test")
+				.containsEntry("PHONE_ELIGIBILITY_PUBLISHER_ENABLED", "false");
+		var secrets = ((List<Map<String, String>>) container.get("secrets")).stream()
+				.collect(java.util.stream.Collectors.toMap(e -> e.get("name"), e -> e.get("valueFrom")));
+		assertThat(secrets.get("PHONE_ELIGIBILITY_BINDING_KEY_RING"))
+				.contains(":secret:tosunsaeng/test/identity/phone-fingerprint-")
+				.endsWith(":PHONE_ELIGIBILITY_BINDING_KEY_RING::")
+				.isNotEqualTo(secrets.get("PHONE_IDENTITY_FINGERPRINT_KEY_RING"));
+	}
 }

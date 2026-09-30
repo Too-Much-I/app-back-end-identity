@@ -292,6 +292,19 @@ public class User {
 			String termConsentVersion,
 			Instant promotedAt
 	) {
+		promoteGuestToFederatedMember(
+				memberNickname, privacyConsentVersion, termConsentVersion, null, null, promotedAt
+		);
+	}
+
+	public void promoteGuestToFederatedMember(
+			String memberNickname,
+			String privacyConsentVersion,
+			String termConsentVersion,
+			Boolean qualityReviewConsented,
+			String qualityReviewConsentVersion,
+			Instant promotedAt
+	) {
 		if (status != UserStatus.ACTIVE || !isGuest()) {
 			throw new IllegalStateException("Only an active Guest can be promoted.");
 		}
@@ -310,11 +323,14 @@ public class User {
 		this.provider = UserProvider.FEDERATED;
 		this.accountType = UserAccountType.MEMBER;
 		this.guestInstallationIdHash = null;
-		this.consents = getConsents().renewRequiredConsents(
-				privacyConsentVersion,
-				termConsentVersion,
-				requiredPromotedAt
-		);
+		this.consents = qualityReviewConsented == null
+				? getConsents().renewRequiredConsents(
+						privacyConsentVersion, termConsentVersion, requiredPromotedAt
+				)
+				: getConsents().renew(
+						privacyConsentVersion, termConsentVersion,
+						qualityReviewConsented, qualityReviewConsentVersion, requiredPromotedAt
+				);
 		this.updatedAt = requiredPromotedAt;
 		validateAccountFields();
 	}

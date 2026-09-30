@@ -45,7 +45,18 @@ public record FirebaseGuestUpgradeRequest(
 
 		@Schema(description = "이용약관 정책 버전", example = "term-v1")
 		@NotBlank(message = "이용약관 동의 버전은 필수입니다.")
-		String termConsentVersion
+		String termConsentVersion,
+
+		@Schema(description = "학습 품질 검토 이용 선택 동의. 누락/null이면 기존 동의 유지, false이면 철회",
+				example = "false", types = {"boolean", "null"})
+		Boolean isQualityReviewConsented,
+
+		@Schema(description = "품질 검토 정책 버전. 명시 true이면 현재 버전 필수, 그 외 생략 가능",
+				example = "quality-review-v1", types = {"string", "null"})
+		@Size(max = 100, message = "품질 검토 이용 동의 버전은 100자 이하여야 합니다.")
+		@Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
+				message = "품질 검토 이용 동의 버전 형식이 올바르지 않습니다.")
+		String qualityReviewConsentVersion
 ) {
 
 	public FirebaseGuestUpgradeRequest {
@@ -53,6 +64,8 @@ public record FirebaseGuestUpgradeRequest(
 		nickname = trimNullable(nickname);
 		privacyConsentVersion = trimNullable(privacyConsentVersion);
 		termConsentVersion = trimNullable(termConsentVersion);
+		// null은 기존 Guest의 선택 동의 보존을 뜻하므로 false로 기본화하지 않는다.
+		qualityReviewConsentVersion = trimNullable(qualityReviewConsentVersion);
 	}
 
 	private static String trimNullable(String value) {

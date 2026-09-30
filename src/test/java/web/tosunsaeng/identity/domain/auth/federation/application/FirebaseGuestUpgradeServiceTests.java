@@ -20,7 +20,11 @@ import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
@@ -53,6 +57,8 @@ import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.exception.UserException;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.support.SignedUserTokenFixture;
@@ -287,6 +293,10 @@ class FirebaseGuestUpgradeServiceTests {
 	}
 
 	private FirebaseGuestUpgradeRequest request() {
+		return request(null, null);
+	}
+
+	private FirebaseGuestUpgradeRequest request(Boolean qualityReviewConsented, String qualityReviewVersion) {
 		return new FirebaseGuestUpgradeRequest(
 				attempt.getEnrollmentId(),
 				"upgrade-credential",
@@ -294,8 +304,80 @@ class FirebaseGuestUpgradeServiceTests {
 				true,
 				"privacy-v1",
 				true,
-				"term-v1"
+				"term-v1",
+				qualityReviewConsented,
+				qualityReviewVersion
 		);
+	}
+
+	@Test
+	void omittedQualityReviewConsentPreservesExistingVersionAndTimeEvenWhenOutdated() {
+		UserConsents previous = UserConsents.consented(
+				"privacy-old", "term-old", true, "quality-review-old", NOW.minusSeconds(120)
+		);
+		ReflectionTestUtils.setField(guest, "consents", previous);
+
+		service.upgrade(request());
+
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isEqualTo("quality-review-old");
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW.minusSeconds(120));
+		assertThat(guest.getConsents().getPrivacyConsentVersion()).isEqualTo("privacy-v1");
+	}
+
+	@Test
+	void explicitFalseRevokesExistingQualityReviewConsentAndClearsVersionAndTime() {
+		service.upgrade(request(false, null));
+
+		assertThat(guest.getConsents().isQualityReviewConsented()).isFalse();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isNull();
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isNull();
+		verify(transactionService).upgrade(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void explicitTrueRecordsNewConsentAtServerTime() {
+		ReflectionTestUtils.setField(guest, "consents", UserConsents.consented(
+				"privacy-v1", "term-v1", NOW.minusSeconds(120)
+		));
+
+		service.upgrade(request(true, " quality-review-v1 "));
+
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isEqualTo("quality-review-v1");
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void explicitTruePreservesExistingCurrentConsentTime() {
+		service.upgrade(request(true, "quality-review-v1"));
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW.minusSeconds(120));
+	}
+
+	@Test
+	void explicitTrueRenewsOutdatedConsentAtServerTime() {
+		ReflectionTestUtils.setField(guest, "consents", UserConsents.consented(
+				"privacy-v1", "term-v1", true, "quality-review-old", NOW.minusSeconds(120)
+		));
+		service.upgrade(request(true, "quality-review-v1"));
+		assertThat(guest.getConsents().getQualityReviewConsentVersion()).isEqualTo("quality-review-v1");
+		assertThat(guest.getConsents().getQualityReviewConsentedAt()).isEqualTo(NOW);
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = {"quality-review-old", "   "})
+	void rejectsQualityReviewVersionBeforeGuestMutationOrWrites(String version) {
+		UserConsents previous = guest.getConsents();
+		assertThatThrownBy(() -> service.upgrade(request(true, version)))
+				.isInstanceOf(UserException.class)
+				.satisfies(exception -> assertThat(((UserException) exception).getErrorCode())
+						.isEqualTo(UserErrorStatus.QUALITY_REVIEW_CONSENT_VERSION_MISMATCH));
+		assertThat(guest.isGuest()).isTrue();
+		assertThat(guest.getConsents()).isSameAs(previous);
+		verify(refreshSessionIssuer, never()).prepare(any());
+		verify(transactionService, never()).upgrade(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+		verify(accessTokenIssuer, never()).issue(any(), any(), any());
 	}
 
 	private VerifiedFirebasePrincipal principal() {

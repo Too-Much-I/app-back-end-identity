@@ -73,6 +73,14 @@ public class UserFactory {
 	}
 
 	public User createFederatedMember(String nickname, Instant createdAt) {
+		return createFederatedMember(nickname, false, createdAt);
+	}
+
+	public User createFederatedMember(
+			String nickname,
+			boolean qualityReviewConsented,
+			Instant createdAt
+	) {
 		Instant requiredCreatedAt = Objects.requireNonNull(
 				createdAt,
 				"createdAt must not be null"
@@ -86,7 +94,7 @@ public class UserFactory {
 		}
 		return User.createFederatedMember(
 				requiredNickname,
-				consentPolicy.consentedAt(requiredCreatedAt),
+				consentPolicy.consentedAt(qualityReviewConsented, requiredCreatedAt),
 				requiredCreatedAt
 		);
 	}

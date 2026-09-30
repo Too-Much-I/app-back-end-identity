@@ -123,11 +123,13 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 				|| !attempt.getFirebaseUid().equals(principal.firebaseUid())) {
 			throw enrollmentConflict();
 		}
-		consentPolicy.validate(
+		consentPolicy.validateWithQualityReview(
 				requiredRequest.isPrivacyConsented(),
 				requiredRequest.privacyConsentVersion(),
 				requiredRequest.isTermConsented(),
-				requiredRequest.termConsentVersion()
+				requiredRequest.termConsentVersion(),
+				requiredRequest.isQualityReviewConsented(),
+				requiredRequest.qualityReviewConsentVersion()
 		);
 		FirebaseOwnershipOutcome ownership = ownershipService.resolve(principal, userId);
 		if (ownership == FirebaseOwnershipOutcome.OWNED_BY_OTHER_ACTIVE_MEMBER) {
@@ -162,6 +164,8 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 				requiredRequest.nickname(),
 				consentPolicy.getPrivacyConsentVersion(),
 				consentPolicy.getTermConsentVersion(),
+				requiredRequest.isQualityReviewConsented(),
+				consentPolicy.getQualityReviewConsentVersion(),
 				now
 		);
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(userId);

@@ -14,7 +14,7 @@
   "containerDefinitions": [
     {
       "name": "tosunsaeng-identity",
-      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-identity:bd337be4baf7055bfd7f541d424b06585b09c2a3",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-identity:88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d",
       "essential": true,
       "portMappings": [
         {
@@ -94,7 +94,11 @@
         },
         {
           "name": "PHONE_ELIGIBILITY_BINDING_ENABLED",
-          "value": "false"
+          "value": "true"
+        },
+        {
+          "name": "PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID",
+          "value": "tosunsaeng-billing-test"
         },
         {
           "name": "PHONE_ELIGIBILITY_PUBLISHER_ENABLED",
@@ -154,7 +158,7 @@
         },
         {
           "name": "SWAGGER_ENABLED",
-          "value": "false"
+          "value": "true"
         },
         {
           "name": "LOGGING_STRUCTURED_FORMAT_CONSOLE",
@@ -185,6 +189,10 @@
         {
           "name": "PHONE_IDENTITY_FINGERPRINT_KEY_RING",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/phone-fingerprint-0PUfQU:PHONE_IDENTITY_FINGERPRINT_KEY_RING::"
+        },
+        {
+          "name": "PHONE_ELIGIBILITY_BINDING_KEY_RING",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/phone-fingerprint-0PUfQU:PHONE_ELIGIBILITY_BINDING_KEY_RING::"
         }
       ],
       "logConfiguration": {

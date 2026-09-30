@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Identity 인증 테스트</title>
+<style>
+body{font:16px/1.6 system-ui;background:#f3f6fa;color:#172536;max-width:820px;margin:32px auto;padding:0 20px}section{background:white;padding:22px;margin:18px 0;border-radius:12px;border:1px solid #d8e0e9}h1{margin-bottom:6px}h2{font-size:19px}label{display:block;margin:12px 0}input:not([type=checkbox]),textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #9baabc;border-radius:6px}button{padding:10px 16px;margin:5px 6px 5px 0;background:#174f91;color:white;border:0;border-radius:6px;cursor:pointer}button:disabled{opacity:.45}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#526174}.warning{border-left:4px solid #d3992c;padding-left:12px}
+</style>
+<h1>Identity 인증 테스트</h1><p>로컬 전용 · Google + 가상 전화번호 · 테스트 서버만 사용</p>
+<p class="warning">실제 테스트 계정/세션이 생성됩니다. 토큰은 메모리에만 보관하며 새로고침하면 사라집니다. 화면·네트워크 정보를 공유하지 마세요. Android SDK 검증은 별도입니다.</p>
+<section><h2>1. Firebase 웹 설정</h2><p>프로젝트 설정 → 내 앱 → 웹 앱의 Firebase 구성 객체를 <b>JSON</b>으로 입력하세요. 서비스 계정 JSON은 넣지 마세요.</p>
+<textarea id="config" rows="6" autocomplete="off" spellcheck="false" placeholder='{"apiKey":"웹 앱 API key","authDomain":"to-teacher-firebase.firebaseapp.com","projectId":"to-teacher-firebase","appId":"웹 앱 ID"}'></textarea>
+<button id="init">설정 적용</button><small>프로젝트는 to-teacher-firebase로 제한됩니다. localhost 허용 도메인 설정이 필요할 수 있습니다.</small></section>
+<section><h2>2. Google 로그인 · 가입 준비</h2><button id="google" disabled>Google 로그인 / 재인증</button><button id="exchange" disabled>Identity 로그인 / 가입 준비</button></section>
+<section><h2>3. 같은 계정에 테스트 전화번호 연결</h2><p>콘솔에 등록된 가상 번호와 고정 코드를 사용합니다. 실제 SMS 발송은 지원하지 않습니다.</p>
+<label>테스트 번호 (국제 형식)<input id="phone" type="tel" autocomplete="off" placeholder="+82…"></label><button id="send" disabled>테스트 인증 시작</button>
+<label>등록된 6자리 코드<input id="otp" type="password" inputmode="numeric" autocomplete="off" maxlength="6"></label><button id="link" disabled>현재 Google 계정에 연결</button><div id="recaptcha"></div></section>
+<section><h2>4. Identity 회원가입</h2><label>닉네임<input id="nickname" minlength="2" maxlength="20" autocomplete="off"></label>
+<p>배포 담당자가 확인한 현재 정책 버전을 입력하고 해당 약관을 읽은 뒤 직접 동의하세요. 버전은 자동 추정하지 않습니다.</p>
+<label>개인정보 정책 버전<input id="privacyVersion" autocomplete="off"></label><label><input id="privacy" type="checkbox"> 해당 개인정보 처리방침을 확인하고 동의합니다.</label>
+<label>이용약관 버전<input id="termsVersion" autocomplete="off"></label><label><input id="terms" type="checkbox"> 해당 이용약관을 확인하고 동의합니다.</label><button id="signup" disabled>동의한 내용으로 회원가입</button></section>
+<section><h2>5. 서버 인증 확인</h2><button id="me" disabled>내 프로필 인증 확인</button><button id="refresh" disabled>토큰 재발급</button><button id="today" disabled>Learning Core 접근 확인</button><button id="clear">로컬 인증정보 지우기</button>
+<p><small>자동 재시도 없음. 재발급 응답 유실 시 이 도구는 세션을 버리고 다시 로그인하도록 합니다(Stage 9 복구 테스트 도구가 아닙니다). 로컬 삭제는 서버 세션 폐기가 아닙니다.</small></p></section>
+<section><h2>결과 (민감정보 제외)</h2><pre id="status" role="status" aria-live="polite">Firebase SDK 로딩 중…</pre></section>
+<script type="module" src="/app.js"></script></html>

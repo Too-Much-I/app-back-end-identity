@@ -177,6 +177,32 @@ class SecurityIntegrationTests {
 	}
 
 	@Test
+	void currentConsentPoliciesArePublicWithoutUserStateAndNotCached() throws Exception {
+		mockMvc.perform(get("/api/v1/policies/consents"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.qualityReviewConsentVersion").value("quality-review-v1"))
+				.andExpect(jsonPath("$.result.length()").value(3))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.consentedAt").doesNotExist());
+		mockMvc.perform(post("/api/v1/policies/consents"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void publicPolicyOpenApiAndOptionalSignupUpgradeFieldsAreDocumented() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/policies/consents'].get.security").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.isQualityReviewConsented").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.qualityReviewConsentVersion").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.isQualityReviewConsented").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.qualityReviewConsentVersion").exists());
+	}
+
+	@Test
 	void disabledFirebaseExchangeIsPublicAndReturnsStableUnavailableResponse() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/firebase/exchange")
 						.contentType(MediaType.APPLICATION_JSON)

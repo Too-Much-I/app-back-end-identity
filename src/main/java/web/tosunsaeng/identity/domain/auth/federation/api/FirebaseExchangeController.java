@@ -110,7 +110,9 @@ public class FirebaseExchangeController {
 	@Operation(
 			summary = "Firebase 신규 MEMBER 가입 완료",
 			description = "fresh Firebase credential과 유효한 enrollment를 검증하고 phone·동의가 "
-					+ "충족된 신규 MEMBER aggregate를 단일 Transaction으로 생성합니다."
+					+ "충족된 신규 MEMBER aggregate를 단일 Transaction으로 생성합니다. "
+					+ "품질 검토 선택 동의는 누락/null이면 false이며 true이면 현재 정책 버전을 보내야 합니다. "
+					+ "정책 버전은 인증 없는 GET /api/v1/policies/consents로 조회합니다."
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "가입 및 Identity Token 발급 성공"),
@@ -189,7 +191,9 @@ public class FirebaseExchangeController {
 	@Operation(
 			summary = "Guest를 Firebase MEMBER로 승격",
 			description = "JWT subject의 Guest UUID를 유지하면서 User·Firebase/Phone/Social identity·"
-					+ "eligibility outbox·Session·enrollment를 단일 Mongo Transaction으로 갱신합니다."
+					+ "eligibility outbox·Session·enrollment를 단일 Mongo Transaction으로 갱신합니다. "
+					+ "품질 검토 선택 동의 누락/null은 기존 상태 유지, false는 철회, "
+					+ "true는 현재 버전 검증 후 반영합니다."
 	)
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	@ApiResponses({

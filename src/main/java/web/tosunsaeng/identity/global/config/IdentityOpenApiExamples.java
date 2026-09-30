@@ -105,6 +105,8 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 				new UserConsentStatusResponse(ConsentPolicyStatusResponse.of("privacy-v1", true, "privacy-v1", NOW),
 						ConsentPolicyStatusResponse.of("term-v1", true, "term-v1", NOW),
 						ConsentPolicyStatusResponse.optionalOf("quality-review-v1", false, null, null)));
+		success(api, "/api/v1/policies/consents", "get", "200", "CURRENT_POLICY_VERSIONS", "인증 없는 현재 정책 버전 조회",
+				new CurrentConsentPolicyResponse("privacy-v1", "term-v1", "quality-review-v1"));
 		success(api, USER + "me/consents", "put", "200", "SAVED", "현재 동의 저장 완료",
 				new UserConsentResponse(true, "privacy-v1", NOW, true, "term-v1", NOW, false, null, null));
 		success(api, USER + "withdraw", "post", "200", "WITHDRAWN", "탈퇴 확정, 외부 데이터 정리는 비동기",

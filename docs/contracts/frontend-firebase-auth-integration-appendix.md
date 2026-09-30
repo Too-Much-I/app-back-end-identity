@@ -1,6 +1,6 @@
 # 프론트 Firebase·SNS 연동 부록 — 배포·QA·구버전 참고
 
-- 기준일: 2026-09-21 (TMI-169 Guest 가입 재개 QA 반영)
+- 기준일: 2026-09-30 (TMI-188 선택 동의·공개 정책 조회 QA 반영)
 - 주 문서: [프론트 API 명세](frontend-firebase-auth-integration-guide.md)
 - API 요청·응답과 앱 처리 규칙은 주 문서를 먼저 읽는다. 이 문서는 배포 확인, QA, 구버전 참고 자료다.
 
@@ -28,9 +28,10 @@
 | SNS 추가/재연결 | link prepare/start/complete/status 공통 흐름. sync로 신규 연결 금지 |
 | 전화번호 변경 | 셀프 변경 및 번호 재할당 예외 변경 보류 |
 | 기존 이메일 회원 이전 | 대상 없음. 신규 이메일 로그인 화면 추가도 이번 인계 범위 아님 |
-| 공개 정책·capability API | 현재 없음. 아래 공급 방식 확정 전 존재를 가정하지 않음 |
+| 공개 정책 API | `GET /api/v1/policies/consents`로 필수·선택 세 정책의 현재 버전 조회. 대상 서버 배포 확인 필요 |
+| 공개 capability API | 현재 없음 |
 
-출시 담당자가 확정해 프론트에 전달할 값: 환경별 Identity/Learning Core base URL, Firebase project/app 설정, 실제 지원 Provider, 약관 URL·현재 버전, 최소 지원 앱 버전·업데이트 링크, 활성 feature 목록. Guest 승격의 두 필수 version은 prepare 응답으로 공급한다. 약관 본문·URL과 direct 신규 가입의 version 공급은 앱 빌드 설정 또는 합의된 원격 설정 등으로 별도 확정하며, 공개 공급 API가 있다고 가정하지 않는다. 이 문서의 `privacy-v1` 등은 예시이며 배포 서버 설정과 일치해야 한다.
+출시 담당자가 확정해 프론트에 전달할 값: 환경별 Identity/Learning Core base URL, Firebase project/app 설정, 실제 지원 Provider, 약관 URL·현재 버전, 최소 지원 앱 버전·업데이트 링크, 활성 feature 목록. 정책 version은 인증 없는 `/policies/consents`에서 조회하고 Guest prepare도 두 필수 version을 공급한다. 약관 본문·URL은 앱 빌드 설정 또는 합의된 원격 설정 등으로 별도 공급하며 조회 version과 내용의 대응을 확인한다. 이 문서의 `privacy-v1` 등은 예시이며 실제 조회 응답을 사용한다.
 
 아직 미확인인 항목은 실제 모바일 Google/Apple/Kakao redirect, phone link/SMS, Mongo Transaction, 비동기 Billing/Learning Core 전달, 키 공급/회전이다. 모든 기능은 해당 환경의 검증된 범위만 노출한다.
 
@@ -107,11 +108,29 @@ Emulator/테스트 번호 통과는 실제 OAuth redirect·국내 SMS·과금/�
 - [ ] Guest `IDENTITY_STATE_CONFLICT`를 성공으로 취급하거나 자동 복구하지 않는다.
 - [ ] logout·withdrawal terminal 처리에서 Firebase signOut 실패와 로컬 Token 삭제를 분리한다.
 - [ ] Token·OTP·비밀번호·phone을 log, analytics, crash report에서 제거한다.
-- [ ] 신규 가입의 현재 약관 URL/버전 공급을 배포 담당자와 확정한다. 인증 후 동의 조회는 `/users/me/consents`를 사용한다.
+- [ ] 가입 전 `/policies/consents`로 현재 필수·선택 정책 버전을 조회하고 해당 약관 본문/URL 공급을 배포 담당자와 확정한다. 인증 후 개인 동의 조회는 `/users/me/consents`를 사용한다.
+- [ ] signup 선택 동의 누락/null은 false, Guest upgrade 누락/null은 기존 상태 유지, 명시 false는 철회임을 반영한다. 명시 true의 버전 검증과 불일치 시 재동의 흐름을 확인한다.
 - [ ] 환경별 Firebase project, Provider button, backend feature flag를 함께 배포한다.
 - [ ] Guest merge는 Billing·Learning Core consumer staging E2E 뒤에만 노출한다.
 - [ ] 업데이트 후 기존 Guest Token을 삭제하지 않고, 신규 Guest API를 호출하는 초기화 코드를 제거한다.
 - [ ] 최소 지원 버전·업데이트 URL·차단/유도 정책을 확정한다.
+
+### TMI-188 선택 동의·공개 정책 조회 QA
+
+| 수행 | 기대 결과 |
+| --- | --- |
+| Identity 인증 없이 `/policies/consents` GET | 200, 현재 세 version만 제공, `Cache-Control: no-store` |
+| 인증 없이 개인 동의 GET/PUT | 기존대로 401 |
+| 신규 signup에서 선택 동의 누락/null/false | 가입 가능, 선택 동의 false·version/timestamp null |
+| 신규 signup에서 true + 현재 선택 정책 version | 동의 true·서버 version·서버 시각 저장 |
+| Guest upgrade 선택 동의 누락/null | 기존 여부·version·timestamp 보존, 오래된 동의의 자동 갱신 없음 |
+| Guest upgrade 명시 false | 기존 동의 철회, version/timestamp null |
+| Guest upgrade 명시 true + 현재 version | 현재 유효한 기존 동의면 시각 보존, 새 동의/버전 갱신이면 서버 시각 |
+| true + version 누락/불일치 | `400 QUALITY_REVIEW_CONSENT_VERSION_MISMATCH`, 가입/승격 부분 저장 없음 |
+| 선택 version 형식/길이 오류 | `400 INVALID_REQUEST` (false여도 제공한 값은 검증) |
+| 조회와 제출 사이 정책 변경 | 최신 내용 재확인·필요한 재동의 후 재시도, version만 자동 교체 금지 |
+
+코드 및 로컬 테스트로 확인하는 계약이며 실제 대상 서버 배포·모바일 화면 검증 완료를 뜻하지 않는다. 새 환경변수/엔티티는 없으며 기존 `QUALITY_REVIEW_CONSENT_VERSION`과 필수 두 정책 설정을 재사용한다.
 - [ ] 최초 연결/재연결 모두 공통 link를 사용하고 start 허가와 상태 조회를 구분한다.
 - [ ] unlink 접수 후 원 requestId를 보존하여 자체 Token 없이 남는 Firebase proof로 상태를 조회한다.
 - [ ] reissue replay의 절대 만료 헤더를 사용하고 늦은 응답이 최신 로그인/로그아웃 결과를 덮어쓰지 않게 한다.
