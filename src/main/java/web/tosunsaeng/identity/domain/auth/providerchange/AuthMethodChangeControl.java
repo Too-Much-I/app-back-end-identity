@@ -25,6 +25,8 @@ public class AuthMethodChangeControl {
 		this.bindingId = bindingId;
 	}
 	public boolean isBlocked(SocialProvider provider) { return blocked.containsKey(provider.name()); }
+	/** Invalidate PREPARED intents without clearing any block or authentication floor. */
+	public void registerFirstProvider() { revision = Math.incrementExact(revision); }
 	public void block(SocialProvider provider, Instant now) {
 		blocked.put(provider.name(), now);
 		revision = Math.incrementExact(revision);

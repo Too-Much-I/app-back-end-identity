@@ -1,5 +1,27 @@
 # Codex Current State
 
+- 현재 설명 turn 기록 보완 완료: Kakao에서도 동일 Firebase UID의 미등록 제공자 상태를 안전 검증 후 등록하는 확장 의도를 확인. 실제 Kakao 자동 연결 여부는 미검증, 추가 구현/배포 없음.
+
+- 2026-10-01 Kakao 확장 의도 확인: 기존 MEMBER의 같은 Firebase UID에 Kakao만 연결되고 Identity에는 없는 경우를 Google/Apple과 동일한 안전 검증 후 등록으로 처리하려는 범위임을 설명. Firebase 자동 연결 자체를 막는 작업이 아니며 실제 Kakao OIDC 자동 연결 동작은 미검증. 이번 turn 구현 변경 없음.
+
+- 2026-10-01 TMI-189 배포/Kakao 활성화 순서 설명: 현 Google/Apple 변경을 사용자 검토·커밋/push 후 테스트 배포/검증하고, Kakao Developers·Firebase OIDC 준비와 자동 등록/subject 검증 확장을 완료한 뒤 FIREBASE_KAKAO_ENABLED=true 및 프론트 노출을 권장. 설정 유지와 상시 OFF는 다르며 준비 완료 후 ON 유지 가능. 기존 Kakao 전용 회원이 생긴 후 OFF하면 신규 로그인에 영향을 주므로 무조건적인 비상 차단 권고는 하지 않음. 이번 turn 코드/외부 설정/배포 변경 없음.
+
+- 2026-10-01 TMI-189 Kakao 확장 설명: 현재 verifier에는 설정된 Kakao OIDC provider 매핑/활성화 검사가 있지만 새 최초 자동 등록과 SDK signed subject 교차 검증은 Google/Apple에 한정됨을 재확인. 이는 승인된 TMI-189 범위 제한이며 기술적 불가가 아님. Kakao까지 동일 UX를 제공하려면 Guard·등록 정책·설정된 OIDC ID의 subject 검증 및 회귀 테스트를 함께 확장해야 함. 이번에는 설명/기록만 수행, 구현·Jira 변경 없음.
+
+- 2026-10-01 TMI-189 구현 설명: 실제 소스를 다시 확인하여 SDK subject 교차 검증 → 로그인 전용 Guard 위임 → 동일 binding/ACTIVE MEMBER·소유권/보안 상태 검증 → 현재 provider 등록과 토큰 발급 트랜잭션의 흐름을 코드와 함께 설명. 애플리케이션 추가 변경 없음. 기존 테스트 결과 1009개 성공 확인(이번 turn 재실행 없음). 배포·실환경 동시성/E2E는 여전히 미확인.
+
+## 현재 진행: TMI-189 — 2026-10-01 로컬 구현·검증 완료, 배포 E2E 대기
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link. Jira TMI-189 설명을 읽고 사용자 개발 요청 범위로 구현. Jira 상태/댓글 변경 없음.
+- LOGIN_EXCHANGE의 동일 프로젝트·UID ACTIVE MEMBER에 한해 현재 Google/Apple 최초 연결을 등록. ProviderChangeGuard는 로그인에서만 미등록 판단을 트랜잭션에 위임하고 block/floor 검증 유지. Exchange는 등록 이후 기존 소유권 검증 및 토큰 발급 수행.
+- Firebase SDK 어댑터에서 서명된 firebase.identities 현재 SNS subject와 최신 Admin providerData 일치 검증 추가. 자동 등록/세션 발급은 같은 Mongo 트랜잭션이며 기존 세션 control CAS/epoch 및 제공자 revision으로 보안 작업과 경합. 다른 회원 소유·기존 제공자 교체·차단/과거 연결 이력·미완료 작업은 거절. 이메일 병합·UID 변경·다른 제공자 일괄 등록 없음.
+- 외부 요청/응답 필드, UUID userId, JWT 계약 유지. 새 기능은 기존 AUTH_SESSION_FENCE_ENABLED=true에서 설치되며 OFF는 fail-closed. sync 사용 환경은 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 확인 필요(보안 상태가 있는 회원은 provider fence OFF에서 기존처럼 sync 거절). 새 환경변수/DB 컬렉션 없음.
+- 최종 ./gradlew clean test: 1009개 통과, failures/errors/skipped=0. git diff --check 통과. 신규 ProviderLoginRegistrationServiceTests 및 Exchange/Verifier/SDK/Configuration 회귀 테스트, 프론트 가이드·QA 부록 갱신.
+- 남은 검증: 실제 replica-set 동시 요청/rollback 및 Firebase Google↔Apple 동일 UID 모바일/웹 E2E. 대상 환경 배포·설정 확인 미수행. 이슈 전체 완료 또는 운영 준비 완료를 뜻하지 않음.
+- 시작 전 WORKLOG의 누적 미커밋 변경 보존, 이번 범위 밖 수정 없음. 커밋/push/배포는 하지 않음. 다음: 사용자 diff 확인 및 직접 커밋/push → 테스트 배포 설정/인덱스 확인 → 실환경 QA. Jira 댓글 초안은 WORKLOG에만 기록.
+
+<!-- codex-turn:01a0f58d-ed66-7321-b9da-8badaf7639dd -->
+
 - 2026-09-30 TMI-188 구현 완료(로컬): feat/TMI-188-quality-review-consent. Firebase signup/Guest upgrade에 isQualityReviewConsented·qualityReviewConsentVersion 추가, signup 누락/null=false, upgrade 누락/null=기존 상태 유지, 명시 false 철회, true 현재 버전 검증/서버 시각 저장. GET /api/v1/policies/consents 공개 조회·no-store 및 Swagger/프론트 계약 갱신. ./gradlew clean test 최종 983개 통과(실패/오류 0), git diff --check 통과. 개인정보/약관 필수·개인 API 인증·enrollment/userId 계약 유지, 새 환경변수/엔티티 없음. 배포·모바일 E2E 미수행, 커밋/push/PR 및 Jira 상태·댓글 변경 없음. 기존 배포 문서/DeploymentTargetTests·docs/postman·tools 변경은 작업 시작 전 dirty 상태로 보존. 후속: diff 확인 후 사용자 커밋·배포 및 실제 정책 본문/버전 대응 검증.
 
 - 2026-09-30 TMI-188 생성 완료 turn 기록 보완. 사용자 승인에 따라 생성했으며 부모 TMI-136 연결 확인 완료. 구현은 아직 시작하지 않았고 추가 Jira 변경 없음.

@@ -30,6 +30,11 @@ import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 
 public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderLoginRegistrationService loginRegistration;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setLoginRegistration(web.tosunsaeng.identity.domain.auth.providerchange.ProviderLoginRegistrationService service) {
+		this.loginRegistration = service;
+	}
 
 	private final FirebaseAuthenticationVerifier authenticationVerifier;
 	private final FirebaseIdentityRepository firebaseIdentityRepository;
@@ -142,6 +147,12 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 						principal.firebaseUid()
 				);
 		if (firebaseIdentity.isPresent()) {
+			if (loginRegistration != null) {
+				// Preserve existing withdrawal/member error precedence before the transactional fence recheck.
+				requireActiveMember(firebaseIdentity.orElseThrow());
+				return loginRegistration.authenticate(firebaseIdentity.orElseThrow(), principal,
+						() -> authenticate(firebaseIdentity.orElseThrow(), principal));
+			}
 			return authenticate(firebaseIdentity.orElseThrow(), principal);
 		}
 
@@ -164,19 +175,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			FirebaseIdentity firebaseIdentity,
 			VerifiedFirebasePrincipal principal
 	) {
-		checkOwner(firebaseIdentity.getUserId());
-		User user = userRepository.findById(firebaseIdentity.getUserId())
-				.orElseThrow(() -> new AuthException(
-						AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT
-				));
-		if (user.getStatus() != UserStatus.ACTIVE || !user.isMember()) {
-			if (user.getStatus() == UserStatus.WITHDRAWN
-					&& withdrawalLifecycleRepository != null
-					&& withdrawalLifecycleRepository.findByUserId(user.getUserId()).isPresent()) {
-				throw new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
-			}
-			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
-		}
+		User user = requireActiveMember(firebaseIdentity);
 		ensureNoSocialIdentityOwner(principal, user.getUserId());
 		long epoch = refreshSessionIssuer.captureEpoch(firebaseIdentity.getUserId());
 
@@ -194,6 +193,21 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
 				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
 		);
+	}
+
+	private User requireActiveMember(FirebaseIdentity firebaseIdentity) {
+		checkOwner(firebaseIdentity.getUserId());
+		User user = userRepository.findById(firebaseIdentity.getUserId())
+				.orElseThrow(() -> new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT));
+		if (user.getStatus() != UserStatus.ACTIVE || !user.isMember()) {
+			if (user.getStatus() == UserStatus.WITHDRAWN
+					&& withdrawalLifecycleRepository != null
+					&& withdrawalLifecycleRepository.findByUserId(user.getUserId()).isPresent()) {
+				throw new AuthException(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
+			}
+			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
+		}
+		return user;
 	}
 
 	private void ensureNoSocialIdentityOwner(

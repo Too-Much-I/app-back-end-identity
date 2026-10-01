@@ -1,7 +1,7 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
 - 문서 성격: 현재 저장소 Controller·DTO·Service 기준 프론트 인계 명세. 구현 사실과 출시 정책, 미검증 설정을 구분한다.
-- 기준일: 2026-09-30 (TMI-188 가입·승격 선택 동의 및 공개 정책 버전 조회 반영)
+- 기준일: 2026-10-01 (TMI-189 동일 UID Google·Apple 최초 연결의 단일 로그인 반영)
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자
 - 적용 조건: 환경별 backend base URL, 활성 기능, Firebase project와 Provider 설정을 백엔드/모바일 담당자가 함께 확인한다. 코드 존재가 배포·활성화 완료를 뜻하지 않는다.
 
@@ -65,6 +65,20 @@ Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는�
 ### 2.4 recent-auth 오류는 Token 강제 갱신만으로 해결되지 않는다
 
 `getIdToken(forceRefresh=true)`는 Firebase ID Token 내용을 새로 받지만 `auth_time` 자체를 갱신하지 않을 수 있다. `FIREBASE_RECENT_AUTH_REQUIRED`이면 현재 Firebase 사용자에게 Provider credential을 다시 제시하는 명시적 재인증을 수행한 뒤 새 ID Token을 받아야 한다.
+
+#### TMI-189: 같은 Firebase UID에 새 Google·Apple이 연결된 기존 MEMBER
+
+정상 흐름은 **선택한 Google 또는 Apple 로그인 1회 → fresh Firebase ID Token으로 `/firebase/exchange` → `AUTHENTICATED`**다. Firebase가 기존 MEMBER와 같은 프로젝트·UID에 현재 SNS를 연결했고 안전 조건을 충족하면, 서버가 현재 로그인한 제공자만 등록한다. 기존 Google 재로그인이나 추가 `link/prepare → start → complete`를 정상 최초 연결의 필수 단계로 요구하지 않는다. 다른 UID 또는 이메일 일치만으로 기존 회원에 합치지 않는다.
+
+- 적용 조건: TMI-189 배포 및 `app.session-revocation.fence-enabled=true` (`AUTH_SESSION_FENCE_ENABLED`). fence OFF에서는 미등록 SNS를 기존처럼 거절한다. 명시 연결 API의 `link-enabled`와는 별개다. 배포·실기기 E2E 완료를 이 문서가 보증하지 않는다.
+- 자동 등록 후 제공자 보안 상태가 저장된다. 기존 `auth-methods/sync`도 사용하는 환경은 `FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED`를 함께 확인한다. 제공자 fence가 꺼진 상태에서 보안 상태가 있는 회원의 sync를 거절하는 기존 정책은 유지된다.
+- 서버 검증: Google/Apple 토큰의 서명·프로젝트·유효기간·최근 인증, 서명된 `firebase.identities`의 현재 제공자 subject와 Admin 최신 연결 일치, ACTIVE MEMBER·동일 Firebase binding, 차단·과거 해제/재연결 이력·다른 회원 소유·같은 제공자의 다른 계정·진행 중 보안 작업 여부. 원격 목록의 다른 제공자는 일괄 등록하지 않는다.
+- 요청/응답 필드·userId·JWT 계약 불변. signup/Guest 전환·sync·high-risk API에는 자동 등록을 추가하지 않는다. Kakao는 이번 자동 등록 대상이 아니다.
+- `PROVIDER_RELINK_REQUIRED`는 차단/기존 연결 교체/과거 연결 이력 또는 fence OFF 등에서 여전히 발생할 수 있다. Firebase 연결을 지워서 우회하거나 무한 재시도하지 말고 기존 명시 연결·지원 절차를 따른다.
+- `SOCIAL_IDENTITY_CONFLICT`는 다른 회원 소유 충돌이며 자동 병합하지 않는다. `PROVIDER_CHANGE_CONFLICT` 또는 `SESSION_SECURITY_UNAVAILABLE` 경합은 즉시 성공으로 표시하지 않는다. 진행 중 작업을 확인한 뒤 제한적으로 exchange를 다시 요청하면 같은 회원이 먼저 등록한 경우 기존 연결로 수렴한다. 동일 Refresh Token 응답을 재전달하는 멱등 계약은 아니다.
+- 토큰 subject 증빙이 없거나 원격 연결과 다르면 `INVALID_FIREBASE_ID_TOKEN`. 현재 선택한 SNS로 재인증 후 반복되면 지원 안내. 토큰 강제 갱신만으로 최근 인증 오류를 해결하려 하지 않는다.
+
+구현 근거: [등록 트랜잭션](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderLoginRegistrationService.java), [검증 어댑터](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/infrastructure/firebase/FirebaseSdkAdminClient.java). 배포 전 검증 항목은 [TMI-189 QA](frontend-firebase-auth-integration-appendix.md#tmi-189)를 따른다.
 
 ### 2.5 `logout-all`의 Firebase 폐기는 비동기다
 

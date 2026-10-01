@@ -17,12 +17,46 @@ import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserInfo;
 import com.google.firebase.auth.UserRecord;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class FirebaseSdkAdminClientTests {
 
 	private static final String ID_TOKEN = "test-only-id-token";
 	private static final String FIREBASE_UID = "opaque-firebase-uid";
 	private static final String GOOGLE_SUBJECT = "opaque-google-subject";
+
+	@ParameterizedTest
+	@ValueSource(strings = {"google.com", "apple.com"})
+	void requiresSignedCurrentSubjectToMatchLatestRemoteSubject(String providerId) throws Exception {
+		AbstractFirebaseAuth auth = mock(AbstractFirebaseAuth.class);
+		FirebaseToken token = mock(FirebaseToken.class);
+		UserRecord user = mock(UserRecord.class);
+		when(auth.verifyIdToken(ID_TOKEN, true)).thenReturn(token);
+		when(auth.getUser(FIREBASE_UID)).thenReturn(user);
+		when(token.getUid()).thenReturn(FIREBASE_UID);
+		when(token.getIssuer()).thenReturn("https://securetoken.google.com/test-project");
+		UserInfo currentProvider = provider(providerId, "current-subject");
+		when(user.getProviderData()).thenReturn(new UserInfo[]{currentProvider});
+		var base = new java.util.HashMap<String, Object>();
+		base.put("aud", "test-project"); base.put("auth_time", 100L); base.put("iat", 101L); base.put("exp", 3700L);
+		for (Object evidence : java.util.List.of("not-a-list", java.util.List.of(), java.util.List.of("old-subject"),
+				java.util.List.of("current-subject", "other-subject"), java.util.List.of(123))) {
+			base.put("firebase", Map.of("sign_in_provider", providerId, "identities", Map.of(providerId, evidence)));
+			when(token.getClaims()).thenReturn(base);
+			assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		}
+		base.put("firebase", Map.of("sign_in_provider", providerId));
+		when(token.getClaims()).thenReturn(base);
+		assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		base.put("firebase", Map.of("sign_in_provider", providerId, "identities", Map.of(providerId, java.util.List.of("current-subject"))));
+		when(token.getClaims()).thenReturn(base);
+		assertThat(new FirebaseSdkAdminClient(auth, "test-project").verify(ID_TOKEN, true).signInProviderId()).isEqualTo(providerId);
+		when(user.getProviderData()).thenReturn(new UserInfo[0]);
+		assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		when(user.getProviderData()).thenReturn(new UserInfo[]{currentProvider, currentProvider});
+		assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
+	}
 
 	@Test
 	void mapsSdkObjectsToMinimalSnapshotAndDropsPhoneProviderUid() throws Exception {
@@ -45,7 +79,7 @@ class FirebaseSdkAdminClientTests {
 				"auth_time", authTime.getEpochSecond(),
 				"iat", issuedAt.getEpochSecond(),
 				"exp", expiresAt.getEpochSecond(),
-				"firebase", Map.of("sign_in_provider", "google.com")
+				"firebase", Map.of("sign_in_provider", "google.com", "identities", Map.of("google.com", java.util.List.of(GOOGLE_SUBJECT)))
 		));
 		when(user.getProviderData()).thenReturn(new UserInfo[]{google, phone});
 		when(user.getPhoneNumber()).thenReturn("+820000000000");

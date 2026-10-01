@@ -27,6 +27,26 @@ class FirebaseAdminAuthenticationVerifierTests {
 	private static final Instant NOW = Instant.parse("2026-08-13T12:00:00Z");
 
 	@Test
+	void onlyLoginDefersMissingProviderToRegistrationAndInvalidProofNeverReachesGuard() {
+		for (FirebaseVerificationPurpose purpose : FirebaseVerificationPurpose.values()) {
+			var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+			var verifier = verifier(new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30))), properties(true, true, false));
+			verifier.setProviderChanges(guard);
+			var principal = verifier.verify(ID_TOKEN, purpose);
+			if (purpose == FirebaseVerificationPurpose.AUTH_METHOD_SYNC || purpose == FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) {
+				org.mockito.Mockito.verifyNoInteractions(guard);
+			} else {
+				org.mockito.Mockito.verify(guard).validatePrincipal(principal, purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+			}
+		}
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		var verifier = verifier(new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(3600))), properties(true, true, false));
+		verifier.setProviderChanges(guard);
+		assertThatThrownBy(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE)).isInstanceOf(AuthException.class);
+		org.mockito.Mockito.verifyNoInteractions(guard);
+	}
+
+	@Test
 	void verifiesEnabledGooglePrincipalWithRevokeCheckAndRedactedResult() {
 		StubFirebaseAdminClient client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(60)));
 		FirebaseAdminAuthenticationVerifier verifier = verifier(client, properties(true, true, false));

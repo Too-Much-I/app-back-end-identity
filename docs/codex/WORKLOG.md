@@ -5431,3 +5431,2696 @@
 - Jira 작업: 구현 전 TMI-188 설명 조회만 수행. 상태 전환·댓글 등록 없음. 생성 승인과 별개로 이번 구현 완료 댓글은 승인 전 미등록.
 - Jira 댓글 초안: signup/upgrade 선택 동의 및 익명 정책 조회 구현 완료. 관련 DTO·서비스·domain·보안·Swagger·계약 문서/테스트 갱신. clean test 983개 통과. 대상 환경 배포와 정책 본문/버전 대응 및 모바일 연동 검증 필요. 자동 등록하지 않음.
 - 다음 작업: 사용자 diff 검토 후 직접 커밋/push. 필요 시 승인받은 Jira 댓글 및 후속 배포·모바일 검증. 커밋/push/PR 생성 및 배포는 이번 작업에서 수행하지 않음.
+
+## 2026-09-23 — CNAME 등록 실패 확인 요청
+
+<!-- codex-turn:01a0cd9a-63c5-7d63-af9d-3a7af1766713 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 CNAME 등록 실패의 원인 확인 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 가비아 실제 오류 문구/입력 화면 확인 요청. 호스트 identity-test와 ALB DNS 값 입력 방식, 동일 호스트 레코드 충돌 가능성을 안내하되 원인 확정하지 않음.
+- 테스트와 결과: git diff --check. 안내/기록만 변경하여 Gradle 미실행, DNS 재조회 및 외부 설정 변경 없음.
+- 유지한 계약: 기존 DNS/인증서 검증 레코드 삭제 또는 수정 없음. 비밀값 미기록, 기존 변경 보존.
+- 결정사항: 실제 오류 확인 전 DNS 변경하지 않음.
+- 위험 요소: 입력 형식/기존 레코드/권한 중 원인 미확인. 예상 밖 변경 없음.
+- 다음 작업: 오류 문구 또는 가비아 화면 확인 후 정확한 해결 방법 안내.
+
+## 2026-09-23 — 테스트 도메인 DNS 및 HTTPS 연결 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 CNAME 설정 결과 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: dig로 테스트 도메인의 CNAME이 지정한 ALB DNS와 일치함 확인. TLS 검증을 유지한 curl health 요청에서 HTTP503 수신.
+- 테스트와 결과: DNS NOERROR/TTL600 및 HTTPS503 확인, git diff --check 수행. 제품 변경 없어 Gradle 미실행.
+- 유지한 계약: DNS/AWS/코드 변경 없이 읽기 전용 확인. 비밀값 미기록, 기존 변경 보존. 예상 밖 변경 없음.
+- 결정사항: DNS 연결 문제는 해소. HTTP503은 직전 desired0 상태와 부합하며 실제 서비스 정상 기동 완료를 의미하지 않음.
+- 위험 요소: 현재 ECS 상태 재조회 및 이미지/DB/인증 기동 검증은 미수행. 원격 workflow 수정 반영 여부도 후속 확인 필요.
+- 다음 작업: 사용자 workflow commit/push 후 테스트 이미지 및 revision 확인, 서버 기동/health/JWKS 검증.
+
+## 2026-09-23 — DNS 연결 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0cd9b-75fb-7211-9de9-7c090e18cdd7 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 DNS/HTTPS 확인 결과에 현재 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: CNAME 일치 및 TLS 검증 유지 HTTPS503 확인 결과 기록 보완. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서만 보완하여 Gradle 미실행.
+- 유지한 계약: 추가 외부 변경 없음, 비밀값 미기록, 기존 변경 보존.
+- 결정사항: DNS 연결 확인 완료, 실제 서버 정상 기동은 미완료.
+- 위험 요소: 현재 ECS 상태/이미지/DB/인증 기동 미검증. 예상 밖 변경 없음.
+- 다음 작업: workflow 반영 후 테스트 이미지 배포와 기동 검증.
+
+## 2026-09-23 — develop 최초 테스트 배포 및 시작 실패 진단
+
+- 브랜치: develop.
+- 작업 목표: 사용자 push 확인 및 테스트 서버 기동.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 수행 내용: 원격 develop 88ff5bed 및 분기별 workflow 확인. Actions 35843168284 테스트/이미지 빌드/ECS 배포 성공, health503 실패 확인. 테스트 서비스 test:2 desired0에서1 기동, CloudWatch 구조화 로그에서 PhoneEligibilityFingerprintHasher bean 부재 확인. 반복 시작 실패를 막기 위해 desired0 원복 요청.
+- 원인: Firebase signup은 eligibility hasher를 필수 주입하지만 테스트 task 설정은 PHONE_ELIGIBILITY_BINDING_ENABLED=false. Billing 외부 publisher 비활성화와 내부 가입 의존성의 구분이 누락됨.
+- 테스트와 결과: CI Run tests 성공, 기동 후 HTTPS502 및 application startup failure 확인. 로컬 제품 변경 없어 Gradle 재실행 생략. git diff --check 수행.
+- 유지한 계약: 운영 서비스/권한/키 변경 없음, 비밀값 비노출, 사용자 변경 보존. 예상 밖 파일 변경 없음.
+- 결정사항: 내부 binding 설정과 전용 키 준비 후 재기동하며 외부 Billing publisher는 OFF 유지. 이번에는 Secret 생성이나 코드 변경하지 않음.
+- 위험 요소: DB/인증/JWKS 정상 동작 미검증, CI run은 health 실패 상태로 남음.
+- 다음 작업: binding ON, consumer scope, 전용 keyring 주입 범위 확정 및 테스트 task revision 보완 후 health/회원 인증 검증.
+- 원복 검증: AWS 서비스 업데이트 성공 알림 및 desired0/running0/pending0 확인 완료, test:2 유지.
+
+## 2026-09-23 — 최초 테스트 배포 진단 작업 식별 기록
+
+<!-- codex-turn:01a0cd9e-ef7f-79e3-8e8d-9535653d9c29 -->
+
+- 브랜치: develop.
+- 작업 목표: push 이후 테스트 배포 및 기동 진단 결과의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: CI 테스트/빌드/ECS 배포 성공과 health 실패 확인. 테스트 기동 중 PhoneEligibilityFingerprintHasher 필수 bean 누락 확인, 테스트 서비스 desired0/running0/pending0 원복 검증.
+- 실행한 테스트와 결과: CI Run tests 성공. 실제 기동 실패 확인. 문서 보완만 수행하여 로컬 Gradle 미실행, git diff --check 통과.
+- 유지한 계약: 운영 서비스 변경 없음, 과거 기록 및 기존 변경 보존, Secret 비기록.
+- 결정사항: 내부 eligibility binding 설정 보완 필요. 외부 Billing publisher OFF 유지. 해당 hasher 키는 전화번호 식별용 HMAC 키이며 응답 복구 암호화 키와 구분한다.
+- 위험 요소: 실제 가입/로그인/JWKS 정상 동작은 아직 검증하지 못함. 예상 밖 파일 변경 없음.
+- 다음 작업: 테스트 내부 binding ON 및 consumer scope/전용 HMAC keyring 준비 후 새 task revision 기동 검증.
+
+## 2026-09-23 — 테스트 내부 eligibility binding 설정 보완 준비
+
+- 브랜치: develop.
+- 작업 목표: 가입 필수 hasher 누락 기동 실패를 해결할 설정 준비.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, identity-test-container-secrets.json, identity-branch-deployment.md, src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java, docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 구현 내용: 내부 binding true, 테스트 consumer scope, 기존 테스트 Secret의 독립 HMAC key 항목 selector 준비. 외부 publisher false 유지. 설정 회귀 테스트 추가. 사용자 키 저장용 Secret 화면 열기.
+- 실행한 테스트와 결과: ./gradlew clean test --no-daemon 성공(초기 sandbox Gradle lock 접근 실패 후 승인된 실행 성공), git diff --check 수행.
+- 유지한 계약: API/제품 로직/운영 서비스/IAM 변경 없음, 비밀값 미생성/미기록, 기존 fingerprint 키 변경 없음. 기존 사용자 문서 수정 보존, 예상 밖 파일 변경 없음.
+- 결정사항: 기존 승인된 Secret 안에 별도 키 항목을 사용해 IAM 확대 없이 주입. 새 키 입력/저장은 사용자 수행.
+- 위험 요소: AWS 설정 미적용, 실제 health/인증 검증 미완료. 로컬 draft의 과거 image를 재사용하지 않고 현재 AWS test:2 기준으로 revision 생성 필요.
+- 다음 작업: 사용자 키 저장 완료 확인 후 새 task revision/서비스 기동 및 health/JWKS 검증. 배포 전 독립 키 항목 존재와 selector 확인 필수. Jira 연결 없음, 자동 댓글 미등록.
+
+## 2026-09-23 — 내부 binding 설정 보완 작업 식별 기록
+
+<!-- codex-turn:01a0cda6-ba83-7112-91d2-ce73aefcfc96 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 가입 필수 내부 binding 설정 보완 결과와 사용자 키 저장 대기 상태 기록.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, docs/contracts/identity-test-container-secrets.json, docs/contracts/identity-branch-deployment.md, src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 내부 binding ON/테스트 consumer scope/독립 HMAC key JSON selector 준비 및 회귀 테스트 추가. Secrets Manager 대상 화면을 사용자에게 인계.
+- 실행한 테스트와 결과: ./gradlew clean test --no-daemon 성공, 147 suites/958 tests/0 failures/0 errors. git diff --check 통과.
+- 유지한 계약: 외부 publisher OFF, 운영/API/IAM 변경 없음. 기존 키 및 사용자 변경 보존, Secret 미기록.
+- 결정사항: 새 비밀키 입력과 저장은 사용자 수행. AWS task revision 변경 및 재기동은 저장 이후 진행.
+- 위험 요소: 로컬 설정만 보완된 상태이며 실제 서버 정상 기동/인증 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 저장 완료 확인 후 현재 AWS test:2 기반 새 revision을 적용하고 health/JWKS 검증.
+
+## 2026-09-23 — 테스트 task:3 적용 및 HMAC keyring 형식 진단
+
+- 브랜치: develop.
+- 작업 목표: 사용자 Secret 저장 후 새 설정 배포와 정상 기동 확인.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json(배포 이미지 정합), docs/contracts/identity-branch-deployment.md, docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 수행 내용: Secret 저장 성공과 새 항목 존재 확인. AWS test:2 JSON 편집기에서 현재 이미지를 검증하고 내부 binding ON/consumer scope/독립 Secret selector만 변경해 test:3 등록, 테스트 서비스 desired1 적용. CloudWatch 기동 실패 확인 후 desired0/running0/pending0 원복 완료.
+- 진단: bean 누락은 해결됐으나 Phone eligibility binding configuration is invalid 발생. UI 값의 형식만 검사해 Base64 32바이트 단독 저장 및 버전/ACTIVE_WRITE 접두사 누락 확인. 비밀값은 출력/기록하지 않음.
+- 테스트와 결과: 실제 HTTPS502/503 및 기동 실패 확인, 정상 health/JWKS 미검증. 이전 전체 958개 테스트 통과 유지, 이번 제품 로직 변경 없어 Gradle 미실행. JSON 파싱/git diff --check 수행.
+- 유지한 계약: 기존 배포 이미지/서명/외부 publisher OFF 보존, IAM 및 운영 변경 없음. 사용자 변경 보존, 예상 밖 파일 변경 없음.
+- 결정사항: 비밀값 직접 수정은 사용자에게 인계. 기존 값에 test-v1,ACTIVE_WRITE, 접두사 추가 후 test:3 재기동. 새 키 생성 불필요.
+- 위험 요소: 서버는 중지 상태이며 최초 가입/로그인/DB 검증 미완료. 구버전 task의 과거 오류가 같은 로그 목록에 존재하므로 시각/태스크 구분 필요.
+- 다음 작업: 사용자 형식 보완 저장 후 task:3 기동 및 health/JWKS 확인. Jira 작업 없음.
+
+## 2026-09-23 — task:3 배포 진단 작업 식별 기록
+
+<!-- codex-turn:01a0cdaa-0452-7252-88aa-880e36c157cd -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 배포 및 keyring 형식 오류 진단 결과 기록.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, docs/contracts/identity-branch-deployment.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 이미지 88ff5bed 유지한 test:3 등록/기동. 내부 binding bean 누락은 해결됐으나 keyring 형식 오류로 시작 실패. 비밀값 노출 없이 버전/상태 접두사 누락 확인. 테스트 서비스 desired0/running0/pending0 원복 검증.
+- 테스트와 결과: 실제 health502/503 및 시작 실패 확인, JSON 검증/git diff --check 통과. 제품 로직 변경 없어 Gradle 재실행 생략; 직전 전체 958개 테스트 통과.
+- 유지한 계약: 운영/IAM/외부 publisher 설정 변경 없음, 비밀값 미기록, 사용자 변경 보존. 예상 밖 변경 없음.
+- 결정사항: 사용자에게 기존 값의 접두사 추가 저장 인계. 새 비밀키 생성 불필요.
+- 위험 요소: 정상 health/JWKS 및 회원 인증 검증 미완료.
+- 다음 작업: 사용자 저장 후 task:3 재기동과 상태 검증.
+
+## 2026-09-23 — 사용자 재저장 후 keyring 형식 재확인
+
+- 브랜치: develop.
+- 작업 목표: 키 형식 보완 확인 후 재기동 여부 판단.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Secret 저장 성공 표시 확인 후 화면 재진입/조회. ELIGIBILITY 키 항목은 여전히 Base64 단독, IDENTITY 항목은 버전/상태 포함 구조임을 값 비출력 검사로 확인. 비밀값 화면 닫고 인계.
+- 실행한 테스트와 결과: UI 형식 검사에서 ELIGIBILITY 접두사 누락 확인. 제품 변경 없어 Gradle 미실행. git diff --check 수행.
+- 유지한 계약: AWS 설정/Secret/서비스 실행 수 변경 없음. 비밀값 미기록 및 기존 수정 보존.
+- 결정사항: 형식이 맞기 전 서버를 재기동하지 않음. 정확한 ELIGIBILITY 항목 편집 재안내.
+- 위험 요소: 테스트 서버 중지 유지, health/JWKS 검증 미완료. 예상 밖 변경 없음.
+- 다음 작업: 사용자 ELIGIBILITY 값 접두사 추가 저장 후 검증과 task:3 재기동.
+
+## 2026-09-23 — keyring 재확인 작업 식별 기록
+
+<!-- codex-turn:01a0cdb0-59de-7e23-8903-8fa69fb5a7a2 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 재저장 결과 및 기동 보류 상태 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 재조회한 ELIGIBILITY 항목의 버전/상태 접두사 누락을 비밀값 출력 없이 확인하고 정확한 수정 항목 안내.
+- 테스트와 결과: UI 형식 검사에서 접두사 누락 확인. 문서만 변경하여 Gradle 미실행, git diff --check 통과.
+- 유지한 계약: Secret/운영/서비스 설정 변경 없음. 비밀값 미기록, 사용자 변경 보존.
+- 결정사항: 형식 보완 전 재기동하지 않음.
+- 위험 요소: 정상 health/JWKS 검증 미완료. 예상 밖 변경 없음.
+- 다음 작업: 사용자 ELIGIBILITY 값 보완 저장 후 task:3 재기동 검증.
+
+## 2026-09-23 — 저장 결과 이의에 따른 최신 Secret 재조회
+
+- 브랜치: develop.
+- 작업 목표: 사용자 저장 완료와 관측 불일치 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 편집 dialog 없음 확인 후 페이지 전체 reload 및 Secret 값 재조회. 대상 ELIGIBILITY cell 형식만 검사해 쉼표 구분 필드 1개 확인(요구 3개). 값 출력 없이 비밀값 화면 닫고 인계.
+- 테스트와 결과: UI read-only 재조회 및 형식 검사 수행. 제품 변경 없어 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: Secret/서버/운영 변경 없음. 비밀값 비기록, 기존 수정 보존.
+- 결정사항: 저장 대상/필드 일치 여부 확인 필요. 캐시 또는 사용자 실수로 원인을 단정하지 않음.
+- 위험 요소: 정상 기동 검증 미완료, 실제 값 변경 원인 미확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자와 대상 Secret/ELIGIBILITY 필드 확인 후 형식 정상 시 재기동.
+
+## 2026-09-23 — 최신 Secret 재조회 작업 식별 기록
+
+<!-- codex-turn:01a0cdb2-6518-7e00-9096-ff3d03896df6 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 저장 결과와 관측 불일치 재확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Secret 페이지 전체 새로고침 후 ELIGIBILITY 항목 형식만 검사, 쉼표 구분 필드 1개 확인. 사용자에게 편집 대상 확인 요청. 비밀값 화면 닫음.
+- 테스트와 결과: 읽기 전용 UI 재조회 수행, git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: Secret/서버/운영 변경 없음, 비밀값 비기록, 기존 변경 보존.
+- 결정사항: 원인을 단정하지 않고 사용자 편집 화면에서 대상 필드 확인 예정.
+- 위험 요소: 저장 관측 불일치 원인 및 정상 서버 기동 미확인. 예상 밖 변경 없음.
+- 다음 작업: 대상 필드 확인 및 형식 정상 확인 후 test:3 재기동.
+
+## 2026-09-23 — 테스트 Identity 최초 정상 기동 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 수정 형식 확인 후 테스트 서버 재기동 및 기본 정상 응답 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md, docs/contracts/identity-branch-deployment.md.
+- 수행 내용: Secret 값 비출력 검사에서 keyring 3필드/정상 버전/ACTIVE_WRITE/Base64 32바이트 확인. Secret 편집 없이 기존 test:3 desired1 적용. running1/pending0, CloudWatch 시작 완료(19:03 KST) 및 Mongo 트랜잭션 지원 확인 로그 확인.
+- 실행한 테스트와 결과: TLS 검증 유지 HTTPS health200/UP, JWKS RSA/RS256/공개 kid 정상 확인. 초기화 중502/503 이후 정상 전환. 문서/운영 기동만 변경하여 Gradle 재실행 생략, 직전 전체958개 테스트 통과. git diff --check 수행.
+- 유지한 계약: 동일 이미지88ff5bed/테스트 task:3, 운영/IAM/Secret 미변경, 외부 publisher OFF 유지. 비밀값 비출력/비기록, 기존 사용자 변경 보존.
+- 결정사항: 테스트 서비스1개 실행 유지. 앱 인증 연동 검증 단계로 진행 가능.
+- 위험 요소: 앱 Google/phone 가입/로그인/재발급 및 실제 rollback 미검증. CI 기존 실패 이력은 남아 있음. 예상 밖 파일 변경 없음.
+- 다음 작업: 프론트 테스트 base URL 안내 및 실제 MEMBER 인증 흐름/LC 연동 검증. 로컬 설정/기록 변경은 사용자 commit/push 대상, Jira 변경 없음.
+
+## 2026-09-23 — 테스트 서버 정상 기동 작업 식별 기록
+
+<!-- codex-turn:01a0cdb6-1084-7162-be93-903d3d595ccf -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 keyring 보완 확인 및 테스트 서버 정상 기동 결과 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md, docs/contracts/identity-branch-deployment.md.
+- 수행 내용: 비밀값 비출력 형식 검증 통과 후 test:3 desired1 기동. running1/pending0 및 CloudWatch 시작 완료/Mongo 트랜잭션 지원 확인 로그 확인.
+- 테스트와 결과: HTTPS health200/UP, JWKS RS256 공개키 메타데이터 확인. git diff --check 통과. 제품 코드 변경 없어 Gradle 재실행 생략.
+- 유지한 계약: 운영/IAM/Secret 변경 없음, 기존 배포 이미지 및 외부 publisher OFF 유지. 비밀값 미기록, 기존 변경 보존.
+- 결정사항: 테스트 서비스1개 실행 유지, 앱 인증 검증 단계로 인계.
+- 위험 요소: 실제 가입/로그인/재발급 및 rollback 미검증, 기존 CI health 실패 이력 유지. 예상 밖 변경 없음.
+- 다음 작업: Android Google/phone 연결 및 MEMBER 가입/로그인/재발급 검증.
+
+## 2026-09-23 — Learning Core용 JWT 및 배포 검증 상태 인계
+
+<!-- codex-turn:01a0cdbc-58c1-7d40-907e-47144abe8ae9 -->
+
+- 브랜치: develop.
+- 작업 목표: issuer/JWKS/kid/commit/인증 및 claim 검증 상태 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: AWS test:3 JSON의 issuer/audience/image/release 재확인. HTTPS JWKS에서 공개 kid 및 RS256 확인. git show로 배포 commit의 JwtAccessTokenIssuer를 확인해 UUID 검증/subject/account_type/LC 및 Billing audience 구성 확인. 기존 claim 테스트 assertion 확인.
+- 테스트와 결과: 실제 JWKS 조회 정상. 직전 전체958개 테스트 통과 이력과 실제 인증 E2E 미검증을 구분. 이번 코드 변경 없어 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: 읽기 전용 조회, 운영/테스트 설정 변경 없음, 실제 토큰/비밀키 비기록. 기존 변경 보존.
+- 결정사항: issuer는 실제 배포 설정값 확인이며 실제 발급 토큰의 iss 검증 완료로 표현하지 않음. 가입/로그인/재발급 성공은 아직 미검증.
+- 위험 요소: 실제 MEMBER 발급 및 재발급 claim/서명 E2E 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: Android Firebase 인증 후 테스트 가입/로그인/재발급 성공과 발급 JWT 계약 검증. Jira 변경 없음.
+
+## 2026-09-23 — 비용 절감을 위한 테스트 서비스 중지
+
+<!-- codex-turn:01a0cdc7-7a37-72f3-bbe3-9a987688a90c -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 다음 테스트까지 테스트 Identity 실행 중지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: AWS 테스트 서비스 test:3의 desired count1→0 변경 및 업데이트 성공 확인. 운영/DB/Secret/ALB/배포 revision은 변경하지 않음.
+- 테스트와 결과: AWS UI 상태 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 설정과 데이터 보존, 운영 서비스 미변경, 비밀값 미기록. 예상 밖 파일 변경 없음.
+- 결정사항: 재개 시 desired1 적용 후 health/JWKS 확인. 별도 리소스 삭제 없음.
+- 위험 요소: 중지 동안 테스트 API 접근 불가. ALB/Secret/로그 등 잔여 비용 가능, 서비스0 상태 배포 workflow health 실패 가능.
+- 다음 작업: 사용자 테스트 재개 요청 시 기동 후 앱 인증 E2E 검증. Jira 변경 없음.
+- 최종 검증: 서비스 새로고침 후 desired0/running0/pending0 확인 완료. 테스트 태스크 종료 확인.
+
+## 2026-09-27 — 구·신 서버 분리 및 업데이트 유예 계획 전달 이력 확인
+
+<!-- codex-turn:01a0e309-e393-78c3-b4f6-520be76424ca -->
+
+- 날짜/브랜치: 2026-09-27, develop. 이번 요청의 Jira 지정 없음.
+- 작업 목표: 사용자 제시 세 가지 전환 계획의 과거 전달 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (기록만).
+- 수행 내용: 2026-09-22 구버전 주소 분리·웹뷰 안내·1주 유예 검토 기록 및 guest-app-update-transition-review.md를 확인했다. 구·신 서버 분리, 피드백 진입 전 안내, 사용량에 따른 유예 조정 계획이 이미 기록되어 있으며 후속 피드백 result.updateRequired 계약도 확인했다.
+- 실행한 테스트와 결과: 저장소 기록 검색/원문 대조 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 작업/과거 기록 보존. API·서버·배포·Jira·기능 설정 변경 없음. 비밀정보 미기록.
+- 결정사항: 이전에 전달한 계획이라고 답변하되 계획 합의와 구현·배포 완료를 구분한다.
+- 위험 요소: 이번에는 실제 Learning Core/웹뷰 구현 및 운영 전환 상태를 확인하지 않음. 예상 밖 변경 없음.
+- 다음 작업: 별도 요청이 있으면 해당 계획 기준으로 실제 구현/배포 준비 상태를 점검한다.
+
+## 2026-09-27 — SNS·10초 챌린지 선출시와 무료 모의고사·결제 후속 출시 검토
+
+<!-- codex-turn:01a0e309-e393-78c3-b4f6-520be76424ca -->
+
+- 날짜/브랜치: 2026-09-27, develop. 별도 Jira 지정 없음.
+- 작업 목표: SNS 로그인·10초 챌린지를 먼저 출시하고 전화번호당 1회 무료 모의고사와 결제를 후속 업데이트로 분리할 수 있는지 설명한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (분석 기록만).
+- 조사 근거: Identity FirebaseSignupService/FirebaseGuestUpgradeService의 전화번호·eligibility hasher 의존성, PhoneEligibilityPublisherConfiguration의 별도 활성화 조건, identity-branch-deployment.md의 내부 binding ON/외부 publisher OFF 구분 확인. Learning Core application.yml/ChallengeController/ChallengeService/ExamServiceImpl을 읽어 독립 challenge flag와 Billing OFF 시 기존 모의고사 생성 분기를 확인했다. Learning Core 파일은 수정하지 않았다.
+- 구현 내용: 없음. 단계 출시 방향은 가능하되 배포 검증 완료와 구분하고 전화번호 인증 자체의 후속 연기는 별도 변경임을 안내한다.
+- 테스트와 결과: 코드·설정 읽기 대조 및 git diff --check. 코드 변경 없어 Gradle 미실행, 외부 서비스/실제 앱 E2E 미수행.
+- 유지한 계약: Identity와 Learning Core/Billing 도메인 경계, 현재 가입 인증·내부 식별 계약, 기존 작업과 기록 보존. 서버·기능 flag·Jira 변경 없음. 비밀정보 미기록.
+- 결정사항: 1차 SNS/챌린지 및 기존 모의고사 정책 유지, 2차 무료 자격/결제 동시 도입을 권고한다. Billing OFF만으로 모의고사가 차단되거나 신규 1회 제한이 적용되는 것은 아니다. 사용자 출시 범위 확정 또는 구현 승인으로 간주하지 않는다.
+- 위험 요소: 기존 Guest 기록 승계, 앱 전환, 챌린지 AI/저장소/실기기 연동 확인 필요. 2차 도입 시 기존 사용자에게 새 무료 1회 부여 여부와 이전 이용의 소급 계산 정책, 지연 이벤트/기존 전화번호 binding 인계 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: 1차 모의고사 정책과 2차 기존 사용자 무료 자격 기준을 확정한 후 별도 출시 체크리스트 및 환경별 기능 설정을 검증한다. 이번 배포/commit/push 없음.
+
+## 2026-09-27 — 단계 출시 검토 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e30b-5569-7513-b978-5cb92ec91400 -->
+
+- 날짜/브랜치: 2026-09-27, develop. Jira 지정 없음.
+- 작업 목표: SNS 로그인·10초 챌린지 선출시와 무료 모의고사·결제 후속 출시 검토의 현재 turn 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 앞선 분석은 현재 작업의 결과이며 이전 turn marker로 기록된 것을 과거 기록 수정 없이 새 항목으로 보완했다. 기능 분리 가능성과 현재 가입의 전화번호 인증/내부 식별 의존성, 기존 사용자 무료 자격 정책 필요를 확인했다.
+- 테스트와 결과: git diff --check 통과. 분석 및 기록만 변경하여 Gradle 미실행, 실제 앱/운영 E2E 미검증.
+- 유지한 계약: 과거 기록과 기존 작업 보존. 코드/API/서버/기능 설정/배포/Jira 변경 없음. 비밀정보 미기록.
+- 결정사항: 1차 SNS·챌린지, 2차 무료 자격·결제 적용을 권고했으며 구현 승인이나 출시 준비 완료로 간주하지 않는다.
+- 위험 요소: Guest 승계·챌린지 연동·기존 사용자 자격 이행 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: 기존 모의고사 정책과 2차 무료 자격 기준 결정 후 출시 검증 범위 확정.
+
+## 2026-09-28 — 테스트 서버 Swagger 사용 조건 확인
+
+<!-- codex-turn:01a0e5b3-b827-74f0-b3a7-be6caf06d2d0 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 서버 재기동 시 Swagger 사용 가능 여부 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 조사 내용: 저장된 task draft SWAGGER_ENABLED=false, application.yml UI /swagger-ui.html 및 spec /v3/api-docs, SecurityConfig 문서 GET permitAll 확인.
+- 테스트와 결과: 설정/코드 읽기 및 git diff --check. 분석/기록만 수행하여 Gradle 미실행. AWS 실시간 상태 조회 없음.
+- 유지한 계약: 코드/API/AWS/기능 설정/서비스 기동 변경 없음. 기존 변경 보존 및 비밀정보 미기록.
+- 결정사항: 사용하려면 테스트 Swagger 활성 설정 및 재배포/기동 필요. 보호 API는 Identity Access Token 사용, Firebase 인증은 앱 SDK에서 별도 진행.
+- 위험 요소: Swagger 활성화 시 공개 문서 접근 가능하므로 접근 제한 검토 필요. 문서/실행 API는 배포 버전 기준. 예상 밖 변경 없음.
+- 다음 작업: 사용자 활성화 요청 시 접근 범위를 확정한 뒤 테스트 설정 적용 및 UI/API 검증.
+
+## 2026-09-28 — 테스트 Swagger 활성화 설정 준비
+
+- 브랜치: develop.
+- 작업 목표: Learning Core 준비 후 함께 기동할 테스트 Identity의 Swagger 활성화 준비.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java, docs/contracts/identity-branch-deployment.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 테스트 draft SWAGGER_ENABLED=true, 배포 설정 회귀 assertion 추가. 기존 사용자 변경 보존. AWS 세션 만료 확인 후 ISB 재로그인 페이지 인계.
+- 테스트: ./gradlew clean test --no-daemon 실행. 최종 결과는 아래 추가 기록.
+- 유지한 계약: 보호 API JWT 인증 유지, 운영/Secret/IAM/실행 수 변경 없음. commit/push 미수행, 비밀값 미기록.
+- 결정사항: 테스트 실행은 지금 하지 않음. 로그인 후 현재 AWS revision에 설정만 적용하고 desired0 유지.
+- 위험 요소: 실제 ECS 설정 미반영, live Swagger 미검증. 문서 공개 활성화 요청이며 실제 데이터 API는 인증 유지. 기존 미커밋 변경 외 예상 밖 변경 없음.
+- 다음 작업: 사용자 AWS 재로그인 후 테스트 설정 적용, 나중에 기동 요청 시 health/UI/spec 검증. Jira 연결 없음.
+- 최종 테스트 결과: ./gradlew clean test --no-daemon BUILD SUCCESSFUL(31초), git diff --check 통과. 실제 AWS 반영은 로그인 대기로 미완료.
+
+## 2026-09-28 — Swagger 활성화 준비 작업 식별 기록
+
+<!-- codex-turn:01a0e5b5-3981-76a2-b63d-3e2160a31201 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 Swagger 활성화 준비 결과와 AWS 반영 대기 상태 기록.
+- 변경 파일: docs/contracts/identity-test-task-definition.draft.json, src/test/java/web/tosunsaeng/identity/deployment/DeploymentTargetTests.java, docs/contracts/identity-branch-deployment.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 테스트 draft의 SWAGGER_ENABLED=true 및 회귀 assertion 추가. AWS 세션 만료로 로그인 페이지 인계.
+- 테스트와 결과: ./gradlew clean test --no-daemon 성공, git diff --check 통과.
+- 유지한 계약: 운영/Secret/IAM/실행 수 변경 없음, 보호 API JWT 인증 유지. 비밀값 미기록, 기존 변경 보존.
+- 결정사항: 사용자 재로그인 후 테스트 설정만 반영하고 desired0 유지. 이번 실제 배포/기동 없음.
+- 위험 요소: AWS 반영 및 live Swagger 검증 미완료. 예상 밖 변경 없음.
+- 다음 작업: 재로그인 후 최신 테스트 revision 확인 및 Swagger 설정 반영, 이후 사용자 기동 요청 시 정상 응답 검증.
+
+## 2026-09-28 — AWS 테스트 Swagger 설정 실제 적용
+
+<!-- codex-turn:01a0e5bb-8e86-7c92-bf1d-ce1147c7225d -->
+
+- 브랜치: develop.
+- 작업 목표: 재로그인 후 테스트 Swagger 활성화 설정을 반영하되 서버 중지 유지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md, docs/contracts/identity-branch-deployment.md.
+- 수행 내용: AWS 현재 테스트 서비스 test:3/desired0 확인. 현재 revision JSON에서 SWAGGER_ENABLED만 true로 변경하여 test:4 생성, 서비스에 적용. 성공 알림 및 test:4/desired0/running0/pending0 확인.
+- 테스트와 결과: AWS 저장 및 연결 상태 UI 검증, git diff --check 수행. 이번 제품 코드 변경 없어 Gradle 재실행 생략(직전 clean test 성공). 서버를 켜지 않아 live Swagger/health 미검증.
+- 유지한 계약: 이미지88ff5bed/인증/Secret/IAM/네트워크 보존, 운영 미변경. 기존 사용자 변경 보존 및 비밀값 미기록.
+- 결정사항: 테스트 Swagger 설정 준비 완료, 사용자 요청 전 기동하지 않음. 자동 기동 예약 없음.
+- 위험 요소: Swagger 문서는 기동 후 공개 접근되며 보호 API JWT 인증은 유지. 실제 UI/spec 응답은 미검증. 예상 밖 변경 없음.
+- 다음 작업: Learning Core 준비 후 사용자 기동 요청 시 desired1 및 health/JWKS/Swagger 검증. Jira 변경 없음.
+
+## 2026-09-28 — Swagger 활성 테스트 Identity 기동
+
+<!-- codex-turn:01a0e5dc-f4ed-7513-bd4c-ac48de99b1bb -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 테스트 서버 기동 및 공개 진단 응답 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: test:4 유지하며 테스트 서비스 desired0→1 적용. AWS running1/pending0 확인. 운영 서비스/이미지/Secret/IAM/네트워크 변경 없음.
+- 테스트와 결과: 초기502/503 이후 HTTPS health200/UP. Swagger UI 리다이렉트 후200, OpenAPI JSON3.1.0/Identity API/23경로 확인, JWKS RSA/RS256/테스트 kid 확인. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 사용자 API 인증 유지, 테스트 데이터/설정 보존, 비밀값 미기록. 기존 변경 보존, 예상 밖 파일 변경 없음.
+- 결정사항: 테스트 태스크1개 실행 유지, Swagger URL 인계. 실행 중 Fargate 비용 발생.
+- 위험 요소: 실제 Google/phone 가입/로그인/재발급 및 Learning Core E2E는 미검증. Swagger UI HTTP/명세 응답만 확인했고 브라우저 Try it out은 실행하지 않음.
+- 다음 작업: 프론트 또는 Swagger를 통한 승인된 테스트 계정 인증 검증. Jira 변경 없음.
+
+## 2026-09-28 — Identity·Learning Core 사전 HTTP smoke 및 Postman collection
+
+<!-- codex-turn:01a0e621-9da6-7d80-b98a-3fa688b86cc0 -->
+
+- 브랜치: develop.
+- 작업 목표: 앱 연동 전 양쪽 테스트 API 사전 검증.
+- 변경 파일: docs/postman/identity-learning-smoke.postman_collection.json, docs/postman/README.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 제공 LC 테스트 주소/계정 미준비 확인. Postman 제어 권한 부재로 동일 HTTP 요청 직접 검사. health/JWKS/인증 거절 테스트와 공개 명세 조회, 비밀값 없는10요청 collection 작성.
+- 테스트와 결과: 두 health200/UP, Identity 프로필 무토큰/잘못된 토큰401, exchange 빈 body/잘못된 token401, 잘못된 refresh401, LC today 무토큰/잘못된 token401. JWKS RS256 테스트 kid 정상. collection JSON/10개 요청 확인 및 git diff --check. 제품 코드 변경 없어 Gradle 미실행. Postman runner는 실행하지 않음.
+- 유지한 계약: 실제 토큰/비밀값 비기록. 회원 생성/정상 세션 회전/데이터 삭제/설정 변경 없음. 기존 변경 보존, 예상 밖 변경 없음.
+- 결정사항: 계정 없는 기본 검사와 인증 성공 E2E를 구분. 임의 MEMBER/custom token 우회 없음.
+- 위험 요소: 실제 회원 가입/로그인/refresh/LC 성공 및 GUEST403 미검증. Identity live OpenAPI의 http 서버 주소 관측, HTTPS 명시 사용 및 후속 수정 검토 필요.
+- 다음 작업: Firebase SDK 테스트 계정 Google 인증/phone link 준비 후 승인된 테스트 사용자로 MEMBER E2E 진행. Postman 제어 권한 또는 사용자 import 실행 필요. Jira 변경 없음.
+
+## 2026-09-28 — Firebase·Identity 테스트 회원 생성 절차 안내
+
+<!-- codex-turn:01a0e625-5503-7271-a27a-251d2cc3a321 -->
+
+- 브랜치: develop.
+- 작업 목표: 앱 연동 전 테스트 계정을 만드는 올바른 순서 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 조사/안내: 기존 프론트 가입 계약 확인. Google SDK 인증, exchange enrollment, 같은 UID phone link, 강제 갱신 후 signup 순서 안내. Firebase 콘솔 테스트 번호 등록과 회원 생성 구분. 최소 SDK 테스트 화면이 별도로 필요함을 명시.
+- 테스트와 결과: 계약 문서 읽기 및 git diff --check. 안내/기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 계정/데이터/서버 설정 생성·변경 없음. 실제 전화번호/OTP/credential/토큰 비기록.
+- 결정사항: 테스트 번호는 실제 SMS 없이 고정 검증 코드로 사용하되 SDK 연결과 가입 필수 정보/정책 동의는 생략하지 않음.
+- 위험 요소: 최소 테스트 화면은 아직 미구현, 웹 사용 시 앱 등록/허용 도메인/reCAPTCHA 준비 필요. 실제 MEMBER E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 요청 시 테스트 전용 Firebase SDK 화면 준비 후 인증/가입 성공 경로 검증. Jira 변경 없음.
+
+## 2026-09-28 — 테스트 계정 생성 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e625-c8ec-7c70-a91b-565707c268de -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 회원 생성 절차 안내의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Firebase 테스트 전화번호 등록, Google SDK 로그인, exchange enrollment, 동일 UID phone link, 갱신된 ID Token으로 Identity signup 절차 안내 기록. 앞선 식별자는 현재 hook 제공 식별자로 이 추가 기록에서 보완하며 과거 기록은 유지.
+- 테스트와 결과: 문서만 변경하여 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: 계정/서버/외부 설정 변경 없음, 비밀값 미기록, 기존 변경 보존.
+- 결정사항: SDK 테스트 화면과 실제 회원 생성은 아직 수행하지 않음.
+- 위험 요소: MEMBER 인증 E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 요청 시 최소 Firebase SDK 테스트 화면 준비 및 가입 검증.
+
+## 2026-09-28 — Firebase 테스트 전화번호 등록 확인
+
+<!-- codex-turn:01a0e630-f709-7f23-b4ff-a6fe4bca4d3c -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 열어 둔 Firebase 탭에서 테스트 전화번호 등록 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: to-teacher-firebase 로그인 방법에서 Google/전화 활성화와 테스트 전화번호·인증 코드 저장 항목 1쌍 확인. 콘솔 설정 저장/변경 및 사용자 생성 없음.
+- 테스트와 결과: 콘솔 UI 읽기 확인 완료. 문서 기록만 변경하여 Gradle 미실행. git diff --check 수행.
+- 유지한 계약: 번호/인증 코드/토큰/credential을 저장소에 기록하지 않음. 기존 변경 보존.
+- 결정사항: 테스트 번호 등록 단계 완료, SDK Google 인증과 같은 UID 전화 연결 및 Identity 가입은 별도 진행.
+- 위험 요소: 실제 MEMBER E2E 미검증. 열린 콘솔 Spark 표시는 관측 사실이며 실제 결제 연결 상태 재검증은 이번 범위 밖. 예상 밖 코드 변경 없음.
+- 다음 작업: 최소 SDK 테스트 화면 또는 앱으로 Google 로그인→exchange→phone link→signup 검증. Jira 변경 없음.
+
+## 2026-09-28 — 로컬 Firebase 웹 테스트 화면 필요성 안내
+
+<!-- codex-turn:01a0e638-bf2e-7b93-b16e-6b9d4b7d43ce -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 직접 구현 필요 여부와 간단한 웹 테스트 방법 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Codex가 최소 로컬 웹 화면을 구현할 수 있으며 공개 배포는 불필요함을 안내. Google 인증→exchange→동일 UID phone link→signup 순서 유지. 웹 앱 등록/허용 도메인/전화 인증 웹 설정/CORS는 확인 필요.
+- 테스트와 결과: 안내와 기록만 수행, Gradle 미실행. git diff --check 수행.
+- 유지한 계약: 비밀값 비기록, 서비스 계정 개인키를 웹에 넣지 않음, 외부 설정/계정 생성 및 코드 구현 없음.
+- 결정사항: 실제 구현은 후속 요청 시 진행. Android 앱 인증 검증을 웹 테스트로 대체하지 않음.
+- 위험 요소: 현재 웹 앱 등록/허용 도메인/CORS 미확인, 실제 인증 성공 미검증. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 승인 시 최소 테스트 화면 구현과 필요한 Firebase 웹 설정 확인. Jira 변경 없음.
+
+## 2026-09-28 — 로컬 Firebase 인증 테스트 화면 구현
+
+<!-- codex-turn:01a0e638-bf2e-7b93-b16e-6b9d4b7d43ce -->
+
+- 브랜치: develop.
+- 작업 목표: 앱 프론트 연동 전에 사용자 직접 Google 인증/전화 연결/가입을 진행할 최소 웹 화면 구현.
+- 변경 파일: tools/auth-test/index.html, app.js, session.mjs, server.mjs, app.test.mjs, server.test.mjs, README.md 및 docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 구현 내용: Firebase in-memory 인증, 같은 UID phone link, enrollment 만료 검사, 직접 동의 signup, pair 동시 교체, single-flight 재발급과 UUID 요청 ID, 실패 시 이전 refresh 재사용 금지. 프로필/LC today는 읽기 smoke만 제공. 고정 테스트 HTTPS 5개 API만 허용하는 loopback proxy로 운영 CORS 변경 없이 사용. Host/Origin/전용 헤더/본문 크기 제한, redirect 차단, 로그 민감정보 비출력.
+- 테스트와 결과: 최초 sandbox의 포트/Gradle 캐시 접근 제한 후 승인된 재실행에서 Node server 2개 및 mocked UI 1개 성공, node --check 성공, ./gradlew clean test BUILD SUCCESSFUL. git diff --check 수행. localhost 서버 실행 완료. Chrome 자동 열기는 ERR_BLOCKED_BY_CLIENT로 차단되어 실제 화면 렌더링 검증 실패, 보호 우회 없음.
+- 유지한 계약: Identity 서버 API/보안 설정/운영 배포 미변경. 실제 토큰/키/전화번호/코드를 파일에 저장하지 않음. 계정 생성·실제 로그인·약관 동의는 수행하지 않음.
+- 결정사항: 이 도구는 테스트 가상 번호 전용이며 공개 배포하지 않는다. Stage 9 응답 복구/Android SDK 전체 검증은 별도. 서버 세션 폐기 없이 로컬 정보만 지우는 버튼임을 명시.
+- 위험 요소: Firebase 웹 앱 구성/localhost 승인 도메인/정책 버전/실제 OAuth 및 MEMBER E2E 미확인. 브라우저 개발자 도구에는 credential이 존재하므로 공유 금지. 기존 dirty 문서/배포 테스트 변경 보존, 이번 예상 밖 변경 없음.
+- 다음 작업: 사용자가 로컬 페이지 접근 확인 후 웹 앱 구성과 승인 도메인 준비, 직접 Google 로그인·약관 동의 후 실제 가입 검증. 별도 서비스 배포 불필요. Jira 변경 없음.
+
+## 2026-09-28 — 로컬 인증 테스트 화면 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e639-5ecc-7283-8bf4-92e25670f712 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 로컬 인증 테스트 도구 구현 결과를 현재 작업 식별자로 기록.
+- 변경 파일: tools/auth-test의 화면·SDK 흐름·로컬 서버·테스트·README 및 docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 구현 내용: Google 인증→exchange→같은 UID 가상 전화번호 연결→signup, 프로필/재발급/LC 읽기 smoke. 테스트 HTTPS 목적지 제한, loopback 바인딩, Host/Origin 가드, 토큰 메모리 보관 및 비출력.
+- 테스트와 결과: Node 3개 테스트, 문법 검사, ./gradlew clean test 및 git diff --check 통과. 로컬 서버 기동 완료. Chrome 자동 열기는 ERR_BLOCKED_BY_CLIENT로 차단되어 실제 렌더링/인증 E2E 미검증.
+- 유지한 계약: 운영/API/Firebase 외부 설정 변경 없음. 비밀값 비기록. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 결정사항: 별도 공개 배포 없이 로컬 전용 사용. 실제 로그인·약관 동의는 사용자가 수행. 이전 기록은 유지하고 작업 식별자만 이 항목으로 보완.
+- 위험 요소: 웹 앱 구성/localhost 승인 도메인/정책 버전 확인 및 실제 회원 인증 검증 필요. Stage 9 복구/Android SDK 검증은 별도.
+- 다음 작업: 로컬 화면 사용자 접근 확인 후 Firebase 웹 설정 준비. Jira 변경 없음.
+
+## 2026-09-28 — Firebase 웹 구성 위치 및 JSON 입력 안내
+
+<!-- codex-turn:01a0e645-f435-75a1-b0ad-dcd4d36ecd6b -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 찾지 못한 Firebase 웹 구성 메뉴와 JSON 형식 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 프로젝트 일반 설정→내 앱→웹 앱→SDK 설정 및 구성 경로와 웹 앱 부재 시 등록 방법 안내. Hosting 불필요, 서비스 계정 JSON과 구분. JavaScript 선언을 제외하고 키를 큰따옴표로 감싼 JSON만 입력하도록 안내.
+- 테스트와 결과: 문서 안내만 수행하여 Gradle 미실행, git diff --check 확인.
+- 유지한 계약: 실제 키/인증정보 미기록, Firebase 설정/계정 생성 없음. 기존 변경 보존.
+- 결정사항: 기존 Firebase 프로젝트에서 웹 앱을 사용하며 새 프로젝트 불필요.
+- 위험 요소: 웹 앱 현재 등록 여부는 직접 조회하지 않아 미확인. 실제 인증 E2E 미완료. 예상 밖 변경 없음.
+- 다음 작업: 사용자 웹 앱 구성 확인 후 로컬 화면 설정 및 승인 도메인 확인. Jira 변경 없음.
+
+## 2026-09-28 — 사용자 제공 Firebase 웹 구성 형식 확인
+
+- 브랜치: develop.
+- 작업 목표: 제공된 코드가 로컬 인증 화면에 필요한 웹 구성인지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 웹 appId와 구성 필드를 기준으로 웹 SDK 설정임을 확인. 실제 값 재출력 없이 네 필드의 JSON 입력 방식과 Analytics 불필요 안내.
+- 테스트와 결과: 제공된 구조와 로컬 화면 입력 계약 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 실제 키/토큰 비기록, Firebase 설정/인증/배포 변경 없음.
+- 결정사항: 기존 로컬 화면에 공개 웹 설정만 입력하며 서비스 계정 사용 금지 유지.
+- 위험 요소: 실제 로그인/승인 도메인/E2E 미확인. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 사용자 JSON 입력 후 Google 로그인 진행 및 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — Firebase 웹 구성 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e648-0866-7b60-9158-82ec6a24ecb4 -->
+
+- 브랜치: develop.
+- 작업 목표: 웹 구성 형식 확인 결과의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 제공 구성이 웹 SDK용임을 확인하고 로컬 화면에 필요한 네 필드 JSON 입력 및 Google 로그인 순서 안내. 실제 값은 기록하지 않음.
+- 테스트와 결과: 구조 확인 및 git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 인증/외부 설정/배포 변경 없음, 비밀정보 비기록, 과거 기록과 기존 변경 보존.
+- 결정사항: Analytics 초기화와 서비스 계정 JSON은 불필요.
+- 위험 요소: 실제 Google 로그인 및 E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 설정 적용 후 로그인 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — 로컬 Firebase 설정 입력 오류 진단
+
+- 브랜치: develop.
+- 작업 목표: 설정 적용 실패 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 지정 localhost 탭에서 Google 버튼 비활성과 일반 오류 확인. 입력 객체의 속성명 큰따옴표 누락/마지막 쉼표가 JSON 구문과 맞지 않음을 확인하여 수정 방법 안내. 실제 값 기록 없음.
+- 테스트와 결과: UI 입력 구조와 기존 JSON.parse 구현 대조. 코드 변경 없어 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: 외부 인증/설정 변경 및 사용자 입력 수정 없음. 기존 변경 보존.
+- 결정사항: 현재 오류는 로그인 이전 JSON 입력 파싱 문제로 판단. 인증 성공 여부와 구분.
+- 위험 요소: 일반 오류 문구가 구문 오류를 명확히 설명하지 못함. 실제 로그인 미검증, 예상 밖 변경 없음.
+- 다음 작업: JSON 문법 수정 후 설정 적용 및 Google 로그인 확인. Jira 변경 없음.
+
+## 2026-09-28 — 설정 입력 오류 진단 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e64a-15d6-7291-804b-372af08e97a4 -->
+
+- 브랜치: develop.
+- 작업 목표: 로컬 Firebase 설정 실패 진단의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: UI에서 JSON 속성명 따옴표 누락과 마지막 쉼표를 확인하여 수정 안내. 실제 설정값은 기록하지 않음.
+- 테스트와 결과: 화면과 JSON 입력 계약 대조, git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 입력/인증/외부 설정 변경 없음, 기존 기록과 변경 보존, 비밀값 비기록.
+- 결정사항: 로그인 이전 입력 파싱 문제로 진단.
+- 위험 요소: 실제 로그인 미검증, 일반 오류 메시지 개선 여지 있음. 예상 밖 변경 없음.
+- 다음 작업: 사용자 JSON 수정 후 설정 적용 확인. Jira 변경 없음.
+
+## 2026-09-28 — Google 로그인 완료 여부 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 로그인 시도 후 완료 상태 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 로컬 화면 결과 auth/popup-closed-by-user와 exchange 등 후속 버튼 비활성 확인. Google 인증 결과가 로컬 앱에 전달되어 완료된 상태가 아님을 안내.
+- 테스트와 결과: UI 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 인증 재시도/계정 생성/외부 설정 변경 없음, 비밀값 비기록, 기존 변경 보존.
+- 결정사항: 팝업 완료까지 유지하며 재시도하고 계속 실패하면 일반 Chrome에서 확인 권장.
+- 위험 요소: 팝업 종료 원인은 오류 코드만으로 확정 불가. 실제 MEMBER E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: Google 인증 완료 문구와 exchange 버튼 활성화 확인. Jira 변경 없음.
+
+## 2026-09-28 — 로그인 상태 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e64c-9f49-7db2-a549-9c004ac7b6a8 -->
+
+- 브랜치: develop.
+- 작업 목표: 로그인 완료 여부 확인의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: auth/popup-closed-by-user 및 후속 버튼 비활성을 확인하여 인증 미완료 안내. 팝업 인증 완료 후 재확인하도록 설명.
+- 테스트와 결과: UI 읽기 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 외부 인증/설정 변경 없음, 과거 기록 및 기존 변경 보존.
+- 결정사항: 현재 화면은 Google 인증 완료 결과를 받지 못한 상태로 판단.
+- 위험 요소: 팝업 종료의 구체적 원인과 실제 인증 E2E 미확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자 재시도 후 Google 인증 완료와 exchange 활성 여부 확인. Jira 변경 없음.
+
+## 2026-09-28 — 반복 Google 팝업 인증 실패 조사
+
+- 브랜치: develop.
+- 작업 목표: 반복 로그인 실패의 단계와 설정 오류 가능성 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: IAB 로컬 화면 popup-closed-by-user 및 exchange 비활성 확인. 수집된 warn/error 로그 없음, 남은 OAuth 팝업 없음. Firebase 승인 도메인 UI에서 localhost와 기본 authDomain 등록 확인. 로컬 코드의 popup SDK 호출/완료 분기 확인.
+- 테스트와 결과: UI/코드 읽기 진단 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 인증 재시도/설정 수정/계정 생성/배포 없음. 비밀값 비기록 및 기존 변경 보존.
+- 결정사항: 승인 도메인 누락은 배제. SDK 팝업 완료 이전 단계 실패로 판단하며 내장 브라우저 연동 문제는 미확정 가설. 일반 Chrome 비교 요청.
+- 위험 요소: 오류 코드만으로 실제 팝업 종료 원인은 확정 불가. 수집 로그가 없다는 것이 브라우저 오류 전체 부재를 보증하지 않음. 실제 인증 E2E 미검증, 예상 밖 변경 없음.
+- 다음 작업: 동일 설정으로 일반 Chrome 로그인 비교, 실패 시 팝업 화면과 오류 코드 확인. Jira 변경 없음.
+
+## 2026-09-28 — 반복 팝업 실패 조사 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e64d-f3dd-7173-9711-fb6df33043bb -->
+
+- 브랜치: develop.
+- 작업 목표: 반복 Google 팝업 실패 조사 결과의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 로컬 화면 popup-closed-by-user 및 exchange 비활성, 수집된 경고/오류 로그 부재, Firebase localhost 승인 도메인 등록 확인. 일반 Chrome 비교를 안내.
+- 테스트와 결과: UI·코드 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, 설정/인증/배포 변경 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 도메인 누락은 배제하고 내장 브라우저 팝업 처리 문제는 미확정 가설로 유지.
+- 위험 요소: 실제 팝업 종료 원인과 인증 E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: 일반 Chrome에서 같은 설정으로 로그인 비교 후 원인 추가 확인. Jira 변경 없음.
+
+## 2026-09-28 — Chrome 로그인 성공 비교 결과 설명
+
+- 브랜치: develop.
+- 작업 목표: 내장 브라우저 실패와 일반 Chrome 성공의 차이 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 보고로 Chrome 로그인 성공 확인. Firebase popup 인증은 인증 후 원래 페이지로 결과 전달이 필요하며 브라우저별 팝업/창 간 통신/저장소 정책 차이가 영향을 줄 수 있음을 설명. 정확한 하위 원인은 미확정으로 구분.
+- 테스트와 결과: 기존 UI 진단 및 사용자 비교 결과 기반 분석, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, 코드/외부 설정/계정 직접 변경 없음. 기존 변경 보존.
+- 결정사항: 로컬 웹 인증 테스트는 일반 Chrome에서 계속 진행. Android SDK 실제 검증은 별도.
+- 위험 요소: Identity 가입/로그인 교환 및 MEMBER E2E 성공은 아직 확인하지 않음. 예상 밖 변경 없음.
+- 다음 작업: Chrome에서 Identity 로그인/가입 준비 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — Chrome 로그인 비교 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e64f-ec02-77b2-a1aa-ebe93c7345e5 -->
+
+- 브랜치: develop.
+- 작업 목표: Chrome 로그인 성공 비교 설명의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 보고에 따른 Chrome 로그인 성공과 내장 브라우저 팝업 실패 차이 설명. 정확한 내부 원인은 미확정으로 유지.
+- 테스트와 결과: 사용자 비교 결과 및 기존 UI 진단 기반 분석, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 외부 설정/인증/배포 변경 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 로컬 웹 테스트는 Chrome에서 진행하며 Google 로그인과 Identity 가입 완료는 구분.
+- 위험 요소: Identity exchange/가입 및 MEMBER E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: Chrome에서 Identity 로그인/가입 준비 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — 테스트 전화번호 국제 형식 안내
+
+<!-- codex-turn:01a0e651-6dce-7960-83cf-2ef04432c83a -->
+
+- 브랜치: develop.
+- 작업 목표: 국내 형식 전화번호 입력 거절 이유 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: app.js 국제 번호 정규식 확인. 한국 번호 맨 앞 0 제거 후 국가번호 +82 사용, Firebase 등록 가상 번호 일치 및 고정 코드 사용 안내.
+- 테스트와 결과: 입력 검사 코드 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 실제 번호/인증 코드 비기록, 인증/외부 설정 변경 없음, 기존 변경 보존.
+- 결정사항: 형식 수정만으로 임의 번호가 테스트 번호로 인정되지는 않음을 구분.
+- 위험 요소: 현재 브라우저 오류 자체는 재조회하지 않았으며 실제 phone link 미검증. 예상 밖 변경 없음.
+- 다음 작업: 등록된 가상 번호를 국제 형식으로 입력 후 테스트 연결 확인. Jira 변경 없음.
+
+## 2026-09-28 — 국제 번호 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e651-1f41-7a11-95fd-9e79532fbb82 -->
+
+- 브랜치: develop.
+- 작업 목표: 국제 번호 입력 안내의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 로컬 입력 정규식 확인 후 국제 형식 변환 및 Firebase 등록 가상 번호 일치 조건 안내. 실제 번호/코드는 기록하지 않음.
+- 테스트와 결과: 코드 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정/인증 변경 없음, 기존 기록과 변경 보존.
+- 결정사항: 앞선 식별자를 이번 hook 제공 식별자로 보완.
+- 위험 요소: 실제 전화 연결 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 국제 형식 입력 후 연결 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — 테스트 가입 정책 버전 입력 안내
+
+- 브랜치: develop.
+- 작업 목표: 테스트 화면 정책 버전과 AWS 설정의 관계 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 task draft에서 개인정보 privacy-v1, 이용약관 term-v1 확인. 실제 실행 task 환경변수의 동일 값 사용과 약관 확인 후 직접 동의 안내.
+- 테스트와 결과: 설정 파일 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 실제 비밀값 비기록, 외부 설정/동의/가입 요청 변경 또는 실행 없음. 기존 변경 보존.
+- 결정사항: 가입을 통과시키기 위해 서버 정책 버전을 임의 변경하지 않음.
+- 위험 요소: 현재 live ECS 환경변수는 이번에 재조회하지 않음. 예상 밖 변경 없음.
+- 다음 작업: 실행 중 task 정책 버전 일치 확인 후 사용자가 가입 진행. Jira 변경 없음.
+
+## 2026-09-28 — 정책 버전 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e653-09c5-7f00-b670-34ebc093fcef -->
+
+- 브랜치: develop.
+- 작업 목표: 가입 정책 버전 안내의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 배포 초안의 정책 버전을 확인하고 실제 실행 task 설정과 일치해야 함을 안내. live AWS 재확인과 구분.
+- 테스트와 결과: 설정 파일 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, 외부 설정/가입/동의 실행 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 서버 정책 버전 변경 없이 해당 버전의 약관 확인 후 사용자 직접 동의.
+- 위험 요소: 현재 live 설정 미확인. 예상 밖 변경 없음.
+- 다음 작업: 실제 실행 task 정책 버전 확인 후 가입 검증. Jira 변경 없음.
+
+## 2026-09-28 — Identity 토큰 수신 성공 결과 해석
+
+- 브랜치: develop.
+- 작업 목표: 사용자 제공 토큰 수신 요약의 성공 범위 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 보고와 accept 구현을 대조하여 Access/Refresh pair 수신 및 UUID sub/MEMBER/LC audience 형태 확인 성공 설명. 사용한 버튼은 요약만으로 구분하지 않으며 서버 서명 검증과 구분.
+- 테스트와 결과: 로컬 화면 코드 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행. 실서버 인증 성공 정보는 사용자 보고 기반.
+- 유지한 계약: 토큰 원문 비기록, 외부 인증/설정 변경 없음, 기존 변경 보존.
+- 결정사항: 프로필 인증→재발급→LC 접근을 다음 확인 단계로 안내.
+- 위험 요소: 프로필/재발급/LC 실제 성공 및 서명 검증 미확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자 보호 API 호출과 재발급 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — 토큰 수신 결과 해석 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e654-ccb1-7910-9cbc-8c94acb93265 -->
+
+- 브랜치: develop.
+- 작업 목표: Identity 토큰 수신 성공 해석의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 보고의 UUID sub/MEMBER/LC audience 검사 성공과 Access/Refresh pair 수신 의미 설명. 토큰 내용 확인과 실제 서버 인증 검증 구분.
+- 테스트와 결과: 기존 화면 구현 대조 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 토큰 원문 비기록, 외부 설정/인증 변경 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 프로필→재발급→LC 접근 순서로 후속 확인 안내.
+- 위험 요소: 보호 API/재발급/LC 성공은 아직 미확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자 후속 검증 결과 확인. Jira 변경 없음.
+
+## 2026-09-28 — 프로필·재발급 성공 및 LC 403 조사
+
+<!-- codex-turn:01a0e655-dfb5-7220-b937-990b836c73ef -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 테스트 결과 해석과 LC 403 원인 후보 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 보고상 프로필 인증/재발급 성공 및 claim 형태 유지 확인. LC 로컬 ChallengeController의 MEMBER 검사와 feature OFF 모두 COMMON403 반환 확인. application 기본값 및 테스트 task template CHALLENGE_ENABLED=false 확인. LC 코드/파일은 읽기만 수행.
+- 테스트와 결과: 사용자 결과와 로컬 코드/배포 템플릿 대조, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 토큰 원문 비기록, 외부 설정/기능 활성화/배포 변경 없음. 기존 변경 보존.
+- 결정사항: MEMBER 누락으로 단정하지 않고 실행 중 LC task feature flag부터 확인하도록 안내. AI 및 Day1 등 준비 없이 flag를 켜지 않음.
+- 위험 요소: live LC 환경변수/배포 revision 미확인, 따라서 원인 후보이며 확정 아님. LC 인증·챌린지 E2E 성공 미완료. 예상 밖 변경 없음.
+- 다음 작업: LC 담당자가 실행 task CHALLENGE_ENABLED와 요청 거절 위치 확인 후 활성 준비 검토. Jira 변경 없음.
+
+## 2026-09-28 — Learning Core 회원 통합 workload 인계 검토
+
+<!-- codex-turn:01a0e6b0-420b-7b93-a0b1-6a67ac69e80f -->
+
+- 브랜치: develop.
+- 작업 목표: LC 요청의 workload 신뢰 정보·이벤트 전송 준비 상태를 구현 기준으로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: WorkloadJwtConfiguration/Properties/CredentialProvider에서 기존 encoder와 kid 공유, 별도 issuer, RS256/고정 subject/목적별 audience/정확히 2분 TTL 확인. UserMerged HTTPS adapter와 outbox 재시도/2xx 성공 처리 확인. JWKS 이전 공개키 병행 지원 및 테스트 draft merge/workload/publisher OFF 확인. OwnerEvent 대체 전송 경로 존재 확인.
+- 테스트와 결과: 코드·설정 읽기 검토 및 git diff --check. 코드 변경 없어 Gradle 미실행, live AWS/전송 E2E 미실행.
+- 유지한 계약: 로그인 JWT와 workload 용도 분리, 토큰/비밀키 비기록, 운영 및 테스트 기능 활성화 없음, 기존 변경 보존.
+- 결정사항: 동일 테스트 issuer/JWKS 사용 가능하나 WORKLOAD_JWT_ISSUER를 명시하고 LC와 일치시켜야 함. 키 교체는 공유 사용자 토큰 최대 TTL/skew/cache 및 구 instance 종료를 고려. publisher 경로를 확인한 뒤 하나의 배포 계획으로 활성화하며 기본 챌린지 검증과 merge E2E를 구분.
+- 위험 요소: 현재 공개 kid는 draft 및 이전 관측 기준, live 재확인 필요. 기존 사용자 토큰 차단과 기록 이전/중복 이벤트 E2E 미검증. 실제 전송 준비 완료로 간주하지 않음. 예상 밖 변경 없음.
+- 다음 작업: merge 검증 범위 승인 후 실행 task 설정/배포 revision·키·대상 endpoint 확인과 양측 이벤트 E2E 계획 확정. Jira 변경 없음.
+
+## 2026-09-28 — 회원 통합 테스트 준비 순서 안내
+
+- 브랜치: develop.
+- 작업 목표: workload 및 UserMerged 연동을 위해 다음에 할 작업을 구체화.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: merge transaction의 capture flag 분기 확인. live 설정 조회, 경로와 신뢰 계약 확정, LC 수신 준비, Identity 활성화, 가상 계정 병합 E2E 순서 안내. 챌린지 기능 활성화와 구분.
+- 테스트와 결과: 코드 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 실제 AWS 조회/설정 변경/병합 요청 없음, 비밀값 비기록, 기존 변경 보존.
+- 결정사항: 승인 없이 flag를 켜지 않으며 수신 측 준비 후 발행 측 활성화. Billing은 기존 제외 범위 유지.
+- 위험 요소: live 기능 상태 및 키/전송 E2E 미확인. 실제 계정 병합은 테스트 계정으로만 별도 승인 후 수행. 예상 밖 변경 없음.
+- 다음 작업: 실행 중 테스트 서비스의 비밀 아닌 환경설정과 배포 revision 읽기 확인. Jira 변경 없음.
+
+## 2026-09-28 — 회원 통합 준비 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e6b3-45c0-77c3-b0d9-a59b1f442f40 -->
+
+- 브랜치: develop.
+- 작업 목표: 회원 통합 테스트 준비 안내의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 실행 설정 조회→LC 수신 준비→Identity 발행 활성화→테스트 계정 병합 검증 순서 안내. 이벤트 저장/발행 경로 일치와 챌린지 403 대응의 독립성 설명.
+- 테스트와 결과: 코드 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, AWS 변경/실제 병합 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 다음 단계는 설정 변경 없는 live 조회이며 활성화와 테스트 병합은 별도 진행.
+- 위험 요소: live 배포/기능 상태 및 이벤트 E2E 미확인. 예상 밖 변경 없음.
+- 다음 작업: 테스트 서비스 설정·배포 revision 조회. Jira 변경 없음.
+
+## 2026-09-28 — AWS 테스트 Identity 회원 통합 설정 실조회
+
+- 브랜치: develop.
+- 작업 목표: 실제 배포 버전과 workload·merge 이벤트 준비 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: AWS ECS 서비스 새로고침 후 test:4 desired1/running1/pending0 확인. 이미지 및 release의 commit 88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d 확인. task 정의에서 GUEST_MERGE_ENABLED, WORKLOAD_JWT_ENABLED, USER_MERGED_PUBLISHER_ENABLED, OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED, OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED, Billing merge publisher 모두 false 확인. workload issuer 및 이벤트 endpoint 항목 없음, 환경 파일 없음. 사용자 issuer/kid/Access TTL PT30M 확인.
+- 테스트와 결과: 15:29~15:30 KST 콘솔 읽기 검증 및 git diff --check. 코드 변경 없어 Gradle 미실행, 이벤트 발급/전송 E2E 미수행.
+- 유지한 계약: Secret 값 열람/운영 변경/테스트 설정 변경/계정 병합 없음. 비밀정보 비기록 및 기존 변경 보존.
+- 결정사항: 현 배포는 로그인 가능 상태와 별개로 회원 통합 및 workload 이벤트 OFF. LC 수신 준비 후 선택한 발행 경로로 활성화 계획 필요.
+- 위험 요소: 실제 JWKS 응답 재조회 및 LC 수신 설정/이벤트 E2E는 이번에 검증하지 않음. task 정의 설정 조회이며 컨테이너 내부 런타임 계측은 아님. 예상 밖 변경 없음.
+- 다음 작업: LC에 실제 OFF 상태 인계, workload issuer·endpoint와 사용할 이벤트 경로 확정 후 별도 승인으로 테스트 설정 적용. Jira 변경 없음.
+
+## 2026-09-28 — AWS 설정 조회 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e6b4-6101-7c83-b723-450df80551f6 -->
+
+- 브랜치: develop.
+- 작업 목표: AWS 테스트 Identity 실조회 결과의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 실행 중 test:4 및 이미지 commit 확인. 회원 통합/workload/두 이벤트 발행 경로 OFF와 workload issuer·endpoint 미설정 확인. 사용자 JWT 공개 메타데이터와 TTL 확인.
+- 테스트와 결과: AWS 콘솔 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 조회·기록 없음, AWS 설정 변경/이벤트 발송/병합 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: LC 수신 준비 후 선택한 이벤트 경로의 활성화를 별도 승인으로 진행.
+- 위험 요소: LC 수신 설정 및 이벤트 E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: LC 인계 및 테스트 이벤트 설정 확정. Jira 변경 없음.
+
+## 2026-09-28 — 회원 통합 이벤트 두 경로 및 전환 의미 설명
+
+<!-- codex-turn:01a0e6c6-bfe9-71e0-b261-cef72303b933 -->
+
+- 브랜치: develop.
+- 작업 목표: 발행 경로 선택 의미와 기존 안내의 과도한 단순화 정정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: merge transaction capture 분기, OwnerEventCaptureService와 requiredConsumers, fanout runbook/Stage7 legacy 전환 계약 확인. 기존 LC 전용 outbox와 신규 Billing/LC fan-out 차이 및 기존 잔량 배출을 위한 publisher 공존 설명.
+- 테스트와 결과: 코드/계약 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 신규 merge는 하나의 저장 경로 선택, 과거 outbox 삭제/자동 backfill 없음, 외부 설정 변경 및 비밀값 기록 없음.
+- 결정사항: 두 publisher 동시 활성 자체를 금지하는 것이 아니며 capture와 발행 경로 일치·잔량 처리가 핵심이라고 정정. 신규 경로 Billing OFF는 delivery 미생성이 아니라 미전송 pending 보존임을 안내.
+- 위험 요소: 테스트 DB 기존 outbox 잔량 미확인, 새 경로 Billing backlog 처리 결정 필요. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: LC-only 테스트 또는 신규 fan-out 검증 범위에 맞춰 저장/발행 설정과 backlog 정책 결정. Jira 변경 없음.
+
+## 2026-09-28 — LC 전용 기존 경로 우선 사용 방향 확인
+
+- 브랜치: develop.
+- 작업 목표: 기존 이벤트 경로 우선 검증 후 Billing 연동 시 공통 경로 전환 가능 여부 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 LC 전용 방식으로 이번 테스트 진행 방향 확인. 신규 capture 전환 이후 발생하는 병합부터 공통 이벤트를 생성하며 기존 잔량은 기존 publisher로 처리, 과거 Billing backfill은 자동 수행하지 않음을 안내.
+- 테스트와 결과: 앞선 코드/전환 계약 검토 기반 안내 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정/배포 변경 없음, 실제 키/토큰 비기록, 과거 이벤트 삭제·변환 없음. 기존 변경 보존.
+- 결정사항: 이번 범위는 기존 LC 전용 경로, 공통 경로는 Billing 소비자 준비와 함께 별도 전환 검증.
+- 위험 요소: 과거 통합 계정이 Billing 소유권에 미치는 영향은 후속 검토 필요. 운영 확대나 실제 활성화 승인을 의미하지 않음. 예상 밖 변경 없음.
+- 다음 작업: LC 수신 준비 후 기존 UserMerged publisher와 workload 테스트 설정 적용 범위 제시. Jira 변경 없음.
+
+## 2026-09-28 — 기존 경로 우선 사용 작업 식별 기록 보완
+
+<!-- codex-turn:01a0e6c8-5816-7a70-839c-6993a4deb8bb -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 LC 전용 경로 우선 사용 방향의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 이번 테스트는 기존 UserMerged 경로, Billing 연동 시 OwnerEvent 공통 경로로 전환하는 방향 확인. 기존 미전송 이벤트 처리와 과거 병합의 Billing 이전 별도 검토 안내.
+- 테스트와 결과: 기존 코드·계약 검토 기반 안내 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, AWS 설정/배포/이벤트 변경 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 경로 선택만 확인했으며 실제 활성화는 미수행.
+- 위험 요소: 전환 전 병합의 Billing 소유권 영향 검토 필요. 예상 밖 변경 없음.
+- 다음 작업: LC 수신 준비 후 기존 경로 활성화 설정 범위 제시. Jira 변경 없음.
+
+## 2026-09-28 — 프론트용 테스트 서버·Swagger 주소 전달
+
+<!-- codex-turn:01a0e738-e560-7cc0-8c08-1bc54397c211 -->
+
+- 브랜치: develop.
+- 작업 목표: 프론트가 사용할 테스트 Identity 서버 및 Swagger 주소 제공.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 검증된 테스트 HTTPS base URL, Swagger UI 주소 안내. 실제 API HTTPS 사용 및 Swagger HTTP 서버 주소 관측 이력 주의 안내.
+- 테스트와 결과: 이전 검증 기록 기반 안내, git diff --check. 코드 변경 없어 Gradle 미실행, live 재조회 없음.
+- 유지한 계약: 공개 주소만 공유, 비밀값 비기록, 서버 설정/배포 변경 없음.
+- 결정사항: 프론트 인계 주소는 운영 아닌 테스트 환경임을 명시.
+- 위험 요소: Swagger Try it out의 HTTP 주소 문제 해결 여부는 미확인. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 프론트 테스트 환경 주소 적용 후 인증 연동 확인. Jira 변경 없음.
+
+## 2026-09-28 — LC 배포 연계 Identity 준비사항 검토
+
+<!-- codex-turn:01a0e73f-9870-7be3-bbe6-d5c63e1c039d -->
+
+- 브랜치: develop.
+- 작업 목표: LC guard 점검/consumer 배포 전후 Identity의 필요 작업 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 publisher 설정과 workload 의존성/TTL 확인. issuer 및 HTTPS endpoint 사전 합의, outbox 상태 점검, LC 정상 기동·인증 준비 확인 후 publisher 활성화, 신규 merge용 flag 별도 필요 안내. 기존 경로 선택에 따라 OwnerEvent/Billing 설정 OFF 유지.
+- 테스트와 결과: 코드·설정 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행, AWS/DB live 조회 없음.
+- 유지한 계약: 운영/테스트 기능 변경 및 실제 merge/이벤트 발송 없음, 비밀값 비기록, 기존 변경 보존.
+- 결정사항: LC 소비자 준비 전에 발행하지 않음. 401/403 등 영구 실패로 dead-letter 전환될 수 있어 무조건 자동 회복을 기대하지 않도록 안내. DB 최종 점검 이후 테스트 트래픽 조율 필요.
+- 위험 요소: live LC guard/index 검증과 Identity 기존 outbox 상태 미확인. Guest merge 승인과 테스트 계정 준비 필요. 예상 밖 변경 없음.
+- 다음 작업: LC 배포 완료 증빙 수신 및 Identity outbox/설정 확인 후 승인된 테스트 배포 진행. Jira 변경 없음.
+
+## 2026-09-30 — LC 수신 준비 완료 후 추가 체크리스트 안내
+
+<!-- codex-turn:01a0f0a2-847b-75b0-9a48-0487cbaac804 -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 UserMerged 발행 연결 외 필요한 활성화·검증 사항 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 전달 LC 준비 완료와 직접 검증을 구분. application 설정 및 기존 publisher 실패 처리 재확인. 신뢰 설정·현 배포·outbox 상태 확인, 신규 merge flag, 테스트 계정 E2E, 실패 시 publisher 중단과 동일 이벤트 복구 필요 안내.
+- 테스트와 결과: 코드 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행, AWS/DB live 확인 없음.
+- 유지한 계약: 기존 LC 전용 경로 유지, OwnerEvent/Billing 확대 없음, 비밀정보 비기록, 외부 설정 변경/실제 병합 없음.
+- 결정사항: 추가 기능 개발 필요성이 확인된 것은 아니며 테스트 설정 반영과 실연동 검증이 남은 단계. 기존 관측 배포 상태를 현재 상태로 단정하지 않음.
+- 위험 요소: 과거 pending/dead-letter 및 live issuer/JWKS/revision 미확인, source 차단·target 기록 조회·중복 처리 E2E 미검증. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 승인 시 최신 테스트 설정과 outbox 조회 후 설정 반영 및 테스트 계정 병합 검증. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 이벤트 연결 착수 및 AWS 재로그인 대기
+
+<!-- codex-turn:01a0f0a2-847b-75b0-9a48-0487cbaac804 -->
+
+- 브랜치: develop.
+- 작업 목표: 승인된 테스트 workload/기존 UserMerged 설정 적용 전 최신 상태 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: AWS task 정의 탭에서 로그아웃 상태 확인. 다시 로그인 버튼의 세션 오류 후 기존 ISB 포털을 열어 로그인 화면 인계. 캐시된 task 정의 정보는 live 증빙으로 사용하지 않음.
+- 테스트와 결과: 브라우저 로그인 필요 상태 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: Secret 값 조회/설정 저장/배포/이벤트 전송/계정 병합 없음. 기존 변경 보존, 비밀값 비기록.
+- 결정사항: 재로그인 후 최신 배포와 outbox/LC 수신 상태를 확인한 뒤 설정 적용 진행.
+- 위험 요소: 최신 AWS 설정 및 대기 이벤트 미확인으로 배포 미완료. 예상 밖 변경 없음.
+- 다음 작업: 사용자 AWS 로그인 완료 후 사전 조회 및 테스트 전용 설정 적용 재개. Jira 변경 없음.
+
+## 2026-09-30 — AWS 재로그인 대기 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0a4-8549-7bb2-93f0-56ad0654afb4 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 이벤트 연결 착수 결과를 현재 작업 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: AWS 세션 만료를 확인하고 기존 ISB 로그인 화면을 열어 사용자에게 인계. 이전 캐시 화면은 최신 배포 증빙으로 사용하지 않음.
+- 테스트와 결과: 로그인 필요 상태 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, 설정 변경/배포/이벤트 전송/병합 없음, 과거 기록과 기존 변경 보존.
+- 결정사항: 사용자 재로그인 후 최신 배포와 대기 이벤트 조회부터 재개.
+- 위험 요소: 최신 설정·outbox 미확인으로 실제 배포 미완료. 예상 밖 변경 없음.
+- 다음 작업: AWS 로그인 완료 후 테스트 전용 설정 적용 전 사전 확인. Jira 변경 없음.
+
+## 2026-09-30 — AWS 재로그인 후 양측 설정 확인 및 Atlas 로그인 대기
+
+- 브랜치: develop.
+- 작업 목표: 테스트 UserMerged 발행 활성화 사전 확인 재개.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 최신 Identity test:4 실행1/보류0·배포 성공 및 관련 플래그 OFF 확인. LC test:11 실행1/보류0·배포 성공, writer/source-deny/consumer true 및 workload issuer·JWKS 테스트 Identity 일치 확인. 테스트 Atlas 접속은 로그아웃되어 로그인 탭 열고 사용자에게 요청.
+- 테스트와 결과: AWS 서비스/태스크 정의 UI 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행. LC 실제 인덱스 검사 로그·인증 이벤트 E2E 및 Identity outbox 조회는 미완료.
+- 유지한 계약: 설정 변경/새 revision 생성/배포/이벤트 전송/병합 없음. 비밀정보 비기록, 기존 변경 보존.
+- 결정사항: 발행 활성화 시 기존 대기 이벤트가 전송될 수 있어 outbox 확인 전 OFF 유지.
+- 위험 요소: Atlas 재로그인이 필요하며 대기·실패 이벤트 범위 미확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자 Atlas 로그인 후 테스트 Identity outbox 상태 점검, 안전 조건 충족 시 설정 적용 진행. Jira 변경 없음.
+
+## 2026-09-30 — Atlas 테스트 병합 outbox 확인 완료
+
+<!-- codex-turn:01a0f0a6-526b-7781-9bc6-9422b4ccb65e -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 UserMerged 발행 활성화 전 기존 대기 이벤트 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 재로그인 후 테스트 Atlas Cluster0의 to-teacher-identity-test.user_merged_outbox 조회. Documents 0, 전체 조회 0건 및 빈 컬렉션 안내 확인. 사용자 데이터 수정/삭제 없음.
+- 테스트와 결과: Atlas UI 실조회 및 git diff --check. 애플리케이션 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 LC 전용 발행 경로, OwnerEvent/Billing OFF, 운영 설정 미변경, 비밀값 비기록. 기존 사용자 변경 보존.
+- 결정사항: 기존 전송 대상 없음 확인. workload 발급 활성화는 서비스 간 인증 기능 활성화이므로 브라우저 정책에 따라 적용 직전 사용자 확인 후 진행.
+- 위험 요소: 설정 저장/새 revision/배포/이벤트 전송/병합은 아직 미수행. LC 인덱스 및 이벤트 E2E 미검증. 예상 밖 변경 없음.
+- 다음 작업: 확인 후 테스트 workload/Guest merge/기존 publisher 활성화 및 배포 안정성 점검. 실제 테스트 계정 병합과 source 차단·target 기록 이전 검증 별도. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 Identity UserMerged 발행 설정 배포 완료
+
+- 브랜치: develop.
+- 작업 목표: 승인된 기존 LC 전용 UserMerged 발행 및 workload 인증 기능 테스트 활성화.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 코드 변경 없음.
+- 구현 내용: 적용 직전 확인에 대한 사용자 응답 `dj`를 한국어 키보드의 `어`로 이해한다고 안내 후 진행. 기존 test:4 JSON을 UI에서 보존하여 환경 설정 7개만 수정하고 입력 JSON 동등성 검증 후 test:5 생성. GUEST_MERGE_ENABLED, WORKLOAD_JWT_ENABLED, USER_MERGED_PUBLISHER_ENABLED=true; WORKLOAD_JWT_ISSUER=https://identity-test.to-teacher.com; WORKLOAD_JWT_SUBJECT=identity-service; WORKLOAD_JWT_TTL=PT2M; USER_MERGED_PUBLISHER_ENDPOINT=https://api-test.to-teacher.com/internal/v1/events/user-merged.
+- 배포: tosunsaeng-staging-cluster의 tosunsaeng-identity-test-service를 revision5로 업데이트. desired1 유지, 최종 running1/pending0, 배포 성공 및 steady state 확인. 이미지 commit 88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d 유지.
+- 테스트와 결과: UI JSON 검증, ECS 배포 성공/태스크 실패0 관측, CloudWatch에서 2026-09-30T04:58:28Z Started IdentityApplication(35.888초) 확인. 조회된 기동 로그에 ERROR/WARN/Exception 없음. git diff --check 수행. 코드 변경 없어 Gradle 미실행. 실제 이벤트/계정 병합은 수행하지 않음.
+- 유지한 계약: 기존 RS256 workload 계약 및 LC 전용 outbox 사용, 기존 이미지·비밀값 참조·역할·네트워크·태스크 수 보존. OwnerEvent/Billing 발행 OFF. 운영/LC 서비스 변경 없음. 비밀값 비기록. 기존 사용자 파일 변경 보존.
+- 결정사항: 테스트 연결 설정과 배포 준비 완료로 판단, 실제 이벤트 E2E 성공과 구분.
+- 위험 요소: 204 수신/동일 eventId 재시도/중복 방지/source 토큰 차단/target 기록 이전 미검증. 장기 무오류 보장 아님. 다음 코드 배포 시 새 태스크 환경설정 보존 필요. 예상 밖 파일/설정 변경 없음.
+- 다음 작업: 사용자가 지정한 테스트 Guest/MEMBER로 병합 E2E 검증. 문제 시 이전 revision4로 서비스 롤백 가능. Jira 변경 없음; 댓글 초안은 테스트 설정 배포 성공, 기록 파일 2개, 실조회 결과 및 E2E 미검증 요약이며 자동 등록하지 않음.
+
+## 2026-09-30 — 테스트 이벤트 배포 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0ab-6a03-7c03-8881-57cff08326ac -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 UserMerged 활성화·배포 결과에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 테스트 Identity revision5에 승인된 workload/Guest merge/기존 publisher 설정 적용 및 서비스 배포 완료. 상세 설정과 검증은 바로 앞 작업 항목에 기록. 이번 보완에서 추가 외부 변경 없음.
+- 실행한 테스트와 결과: ECS 배포 성공·running1/pending0·steady state와 애플리케이션 기동 완료 로그 확인. git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 LC 전용 발행, RS256 workload 계약, 운영 미변경, OwnerEvent/Billing 발행 OFF, 비밀값 비기록 및 과거 기록 보존.
+- 결정사항: 배포 완료와 실제 이벤트 E2E 검증을 구분.
+- 위험 요소: 실제 계정 병합·204 응답·중복 방지·source 차단·target 기록 이전은 미검증. 예상 밖 변경 없음.
+- 다음 작업: 지정 테스트 계정으로 병합 E2E 검증 및 향후 배포 시 revision5 설정 보존 확인. Jira 변경 없음.
+
+## 2026-09-30 — 로그인·병합·챌린지 통합 테스트 화면 범위 조사
+
+- 브랜치: develop.
+- 작업 목표: localhost:4173 기존 화면을 로그인부터 회원 통합·10초 챌린지 검증까지 확장하기 위한 계약 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 테스트 도구 코드 변경 없음.
+- 수행 내용: tools/auth-test의 HTML/JS/로컬 게이트웨이/Mock 테스트와 Identity 프론트 Firebase 계약 확인. 별도 Learning Core 저장소의 ten-second-challenge-frontend-api.md를 읽어 클라이언트 호출 순서 확인; Learning Core 소스 복사 없음.
+- 구현 사실: 기존 도구는 로그인/가입/전화 연결/프로필/재발급과 today 읽기만 지원. Guest prepare의 MERGE_REQUIRED 뒤 명시 확인과 Guest Bearer/Firebase proof로 merge, 신규 승격은 별도 enrollment/upgrade 계약. 챌린지는 X-Challenge-Date, attempt, M4A/AAC audio/mp4(2MiB), presigned PUT의 Authorization 미전송, 동일 answer Idempotency-Key 보존 및 결과 polling 계약이 필요.
+- 테스트와 결과: 파일·계약 읽기 및 git diff --check. 구현 전 범위 확인 단계여서 Gradle/Node 테스트 미실행. 실제 로그인/녹음/업로드/병합/API 호출 없음.
+- 유지한 계약: Identity 외 챌린지/S3 코드 추가 금지 규칙 및 비밀값 비기록. 기존 사용자 수정 파일 보존.
+- 결정사항: 전체 통합 화면은 Identity 서비스 저장소가 아닌 별도 로컬 테스트 프로젝트로 분리하는 방향을 사용자에게 확인. 기존 localhost 주소 유지 가능하나 기존 프로세스 확인과 재시작 필요.
+- 위험 요소: 브라우저 녹음이 M4A/AAC를 지원하지 않을 수 있어 파일 업로드 대안 필요. MEMBER 전용 챌린지 결과는 Guest 기록 이전 검증과 별개이며 기존 시험 기록 이전은 별도 LC API 계약 필요. 구현/E2E 모두 미완료. 예상 밖 변경 없음.
+- 다음 작업: 별도 프로젝트 생성 위치·분리 방향 확인 후 안전한 테스트 UI 구현, Mock 테스트 및 실제 화면 QA. Jira 변경 없음.
+
+## 2026-09-30 — 통합 테스트 화면 조사 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0b0-d01f-7e82-8c4d-6c891389466a -->
+
+- 브랜치: develop.
+- 작업 목표: 로그인·병합·챌린지 테스트 화면 조사 결과에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 로컬 인증 도구와 Identity/LC 클라이언트 계약을 확인하고 별도 프로젝트 분리 방향을 사용자에게 질문. 상세 조사 내용은 바로 앞 항목에 보존.
+- 실행한 테스트와 결과: git diff --check 통과. 코드 구현 전 범위 확인 단계여서 Gradle/Node 테스트 미실행.
+- 유지한 계약: Identity 도메인 경계, 과거 작업 기록 보존, 비밀정보 비기록. 실제 인증·병합·업로드·서버 재시작 없음.
+- 결정사항: 별도 tosunsaeng-integration-test 폴더에서 localhost:4173을 유지하는 방향 확인 대기.
+- 위험 요소: 구현 및 실연동 검증 미완료, 브라우저 M4A/AAC 지원과 기존 시험 기록 이전 검증 계약 확인 필요. 예상 밖 변경 없음.
+- 다음 작업: 사용자 확인 후 독립 테스트 화면 구현과 Mock/브라우저 검증. Jira 변경 없음.
+
+## 2026-09-30 — 독립 로그인·병합·챌린지 통합 테스트 화면 구현
+
+- 브랜치: develop (Identity 기록만 변경; 독립 도구는 별도 디렉터리).
+- 작업 목표: 사용자 승인에 따라 Identity 도메인 경계를 유지하면서 localhost:4173 통합 테스트 화면 제공.
+- 변경 파일: Identity의 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 별도 /Users/msde76/tosunsaeng-integration-test에 index.html, app.js, session.mjs, challenge.mjs, server.mjs, app.test.mjs, server.test.mjs, challenge.test.mjs, merge.test.mjs, README.md 생성. /private/tmp/tosunsaeng-integration-test에서 구현한 뒤 사용자 권한 승인으로 새 영구 폴더에 복사. 기존 Identity 도구/서비스 코드는 미변경.
+- 구현 내용: 기존 로컬 인증 도구 기반 독립 클라이언트. Google/phone/signup/exchange/profile/reissue 유지. Guest와 MEMBER 자격을 별도 메모리에 보관하고 신규 테스트 Guest 생성 또는 기존 테스트 Guest 입력 지원. 서버 GUEST 검사·prepare MERGE_REQUIRED·체크박스 및 확인창 후 merge 수행. 응답 유실 자동 재병합 금지. 병합 후 양측 ACCOUNT_MERGED_TOKEN_REJECTED만 성공으로 판단하고 LC 완료 시험 ID 포함 여부 비교. 기존 기록0은 미검증으로 표시.
+- 챌린지 구현: 실제 서버 계약의 today→question→attempt→M4A/AAC 파일 또는 최대10초 지원 브라우저 녹음→presigned S3 PUT→answer→결과/최대60초 polling/history. X-Challenge-Date 전달, S3 사용자 Authorization 미전송, 같은 answer key/body 보존 및 최초 제출 시도 이후 녹음/덮어쓰기 잠금. AI failed와 API200 구분. 새 응시 자동 생성 없음. 녹음은 자동 전송하지 않고 사용자 업로드 버튼으로만 전송.
+- 보안: localhost/동일 Origin/전용 헤더, 정확한 테스트 호스트·경로 allowlist, redirect 금지, presigned HTTPS S3 호스트 검증, 토큰 메모리 전용·오류 코드 제한 표시. 실제 secret/token을 파일에 저장하지 않음. 개인정보가 포함될 수 있는 발화/피드백과 네트워크 공유 금지 안내.
+- 실행한 테스트와 결과: Node Mock 전체6개 통과(로그인/동의/회전, 게이트웨이 origin·host·redirect·body 크기, 토큰 요약, 챌린지 경로/업로드 host, answer 응답유실·같은키·무JWT PUT, merge 확인·source 차단·기록 비교). 루프백 테스트는 최초 sandbox EPERM 후 권한 승인 실행. ./gradlew clean test도 캐시 접근 sandbox 오류 후 승인 재실행 BUILD SUCCESSFUL. 브라우저 localhost 새 화면·초기 비활성 버튼·M4A 지원 안내·화면 렌더 확인. git diff --check 통과.
+- 실행 상태: 영구 프로젝트의 Node 서버를 127.0.0.1:4173에 실행, 기존 포트 점유 프로세스 없어 중지/교체 작업 불필요. 기존 내장 브라우저 localhost 탭 새로고침 및 유지. Firebase 인증·실계정 생성·병합·마이크·실음성 업로드는 실행하지 않음.
+- 유지한 계약: Identity/LC API 또는 배포 설정 변경 없음, Learning Core 서비스 코드 복사 없음, 독립 클라이언트만 추가. Guest의 챌린지 접근을 가정하지 않음. 기존 사용자 dirty 파일 보존, 예상 밖 변경 없음.
+- 결정사항: 신규 Guest 승격은 지원하지 않고 기존 MEMBER 병합만 테스트. Chrome/OS에서 M4A/AAC 녹음 미지원이면 올바른 M4A 파일 사용. 앱의 Android SDK/업데이트·Stage9 응답복구 검증 대체 아님.
+- 위험 요소: 실제 회원 인증/병합/AI E2E 및 S3 CORS 미검증. 새 Guest에는 이전 기록이 없어 별도 기록 보유 Guest 필요. 완료 시험 ID 비교는 전체 데이터 이전·이벤트204·중복 재전송 검증을 대신하지 않음. 녹음 파일의 실제 코덱은 AI 검증; 잘못된 파일은 응시 소비 가능. 토큰은 새로고침하면 소실, 서버 세션은 남음.
+- 다음 작업: Chrome에서 localhost 열고 공개 웹 Firebase 설정 적용→MEMBER 로그인부터 단계별 실행. 테스트 계정/약관 버전·가상 전화·S3 CORS 확인 후 실제 제출, 이슈는 서버 로그와 함께 진단. 사용자 직접 실행 전 실제 데이터 변경 없음. Jira 변경 없음; 등록용 요약 초안은 독립 도구 구현·Mock6/Gradle 통과·실E2E 미검증이며 자동 등록하지 않음.
+
+## 2026-09-30 — 독립 통합 테스트 구현 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0b2-c659-78a2-9787-ecd2246ed647 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 독립 테스트 화면 구현·검증 결과에 현재 turn 식별자 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 별도 프로젝트 파일 목록과 구현 상세는 바로 앞 항목에 보존.
+- 구현 내용: 독립 프로젝트에서 로그인·전화 연결·가입·재발급, Guest 병합 확인 및 source 차단/완료 시험 비교, 챌린지 음성 제출/AI 결과 조회 화면 제공. localhost:4173 실행 및 브라우저 초기 화면 확인 완료.
+- 테스트와 결과: Node Mock6개, ./gradlew clean test, git diff --check 통과. 실제 계정 변경이나 음성 전송 테스트는 미실행.
+- 유지한 계약: Identity 서비스 도메인 경계와 기존 외부 API 유지, 운영 설정 미변경, 비밀정보 비기록, 과거 기록과 사용자 수정 보존.
+- 결정사항: 도구 준비 완료와 실제 E2E 성공을 구분. 코드/배포 추가 변경 없이 기록 식별자만 보완.
+- 위험 요소: S3 CORS·실제 Firebase/병합/AI 연결은 사용자 단계별 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: Chrome에서 Firebase 구성 적용 후 MEMBER 로그인부터 검증. Jira 변경 없음.
+
+## 2026-09-30 — 기존 테스트 Google 계정 재사용 안내
+
+<!-- codex-turn:01a0f0c0-c635-7250-8633-bf35607c3e6c -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 계정 사용 가능 여부와 신규 계정 필요 조건 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 도구 및 확인한 exchange 계약 기준으로 같은 Firebase 프로젝트/Identity 테스트 DB의 MEMBER는 기존 Google로 인증 후 Identity 로그인하고 phone/signup 생략 가능함을 안내. 병합 source는 별도 Guest이며 챌린지 당일 제한은 초기화되지 않음.
+- 테스트와 결과: 문서 안내 작업, git diff --check 수행. 코드 변경/실 API 호출 없어 Gradle·Node 재실행 안 함.
+- 유지한 계약: 기존 MEMBER/Guest 분리, 가입과 로그인 구분, 비밀정보 비기록. 실제 계정/서버 변경 없음.
+- 결정사항: 새 Google 계정은 필수 아님; 신규 가입 검증용으로만 별도 계정 고려.
+- 위험 요소: 현재 계정 존재/당일 챌린지 진행도 live 조회 없음. ENROLLMENT_REQUIRED이면 같은 프로젝트/DB/계정 여부 확인. 예상 밖 변경 없음.
+- 다음 작업: 기존 Google 계정으로 Identity 로그인 후 프로필/챌린지 단계 실행. Jira 변경 없음.
+
+## 2026-09-30 — Chrome 통합 테스트 진행 결과 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 실행한 localhost:4173 Chrome 결과의 성공 범위 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 지정 Chrome의 기존 탭 읽기. 검증표에서 Google 인증·Identity 로그인·MEMBER 프로필·토큰 재발급·LC today 인증 성공 확인. today의 문제3개 모두 not_started/not_requested와 nextQuestionNumber=1 확인. Guest 생성 CONSENT_REQUIRED와 빈 정책 버전/필수 동의 미선택 확인.
+- 테스트와 결과: 실제 화면 관측(별도 네트워크/서버 로그 재검증 아님), git diff --check. 코드 변경 없어 Gradle/Node 재실행 안 함.
+- 유지한 계약: 기존 세션 유지를 위해 새로고침 없음. 추가 API 호출·약관 체크·계정 생성·병합·녹음·업로드 없음. 민감 토큰/개인정보 비기록.
+- 결정사항: 인증 연동은 화면상 성공, 병합과 음성/AI 흐름은 아직 검증 전. 기존 MEMBER 가입을 반복할 필요 없으나 새 Guest 생성은 해당 Guest의 정책 동의가 별도로 필요함을 안내.
+- 위험 요소: 챌린지 문제/음성/AI 및 병합 E2E 미완료. 약관 버전은 현재 배포값 확인 후 사용자 직접 동의 필요. 예상 밖 변경 없음.
+- 다음 작업: 챌린지 다음 문제→응시→녹음/업로드→제출→결과 검증. 병합 시험을 원하면 정책 버전/동의를 확인한 뒤 Guest 준비부터 수행. Jira 변경 없음.
+
+## 2026-09-30 — Chrome 결과 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0c1-b738-7be1-9bee-47f9b41bf1f8 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Chrome 테스트 진행 결과 조회에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 Chrome 화면에서 Google/Identity 로그인·MEMBER 프로필·재발급·LC today 성공 및 Guest 생성 CONSENT_REQUIRED 확인. 상세 관측은 바로 앞 기록에 보존.
+- 테스트와 결과: 화면 읽기 및 git diff --check 통과. 코드 변경 없어 Gradle/Node 미실행.
+- 유지한 계약: 새로고침/추가 API 호출/약관 동의/병합/녹음/업로드 없음, 비밀정보 비기록, 과거 기록 보존.
+- 결정사항: 인증 성공과 아직 수행하지 않은 병합·챌린지 제출/AI 검증을 구분하여 안내.
+- 위험 요소: 실E2E 미완료, 정책 버전 확인 및 사용자 직접 동의 필요. 예상 밖 변경 없음.
+- 다음 작업: 사용자가 챌린지 다음 문제부터 진행하거나 Guest 준비 후 병합을 별도 검증. Jira 변경 없음.
+
+## 2026-09-30 — Chrome 채점 및 Guest 생성 실진단
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 Chrome에서 채점 미진행·Guest 생성 문제 확인 및 가능한 직접 테스트.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 기존 Chrome localhost 탭을 새로고침 없이 읽고 녹음/attempt 준비 후 upload 일반 오류·answer 버튼 비활성·결과0건 확인. 문제 번호1로 결과 GET을 직접 실행해 solvedQuestionCount=0/question=null 재확인. 브라우저 수집 error/warn 로그는 빈 목록. 독립 도구의 업로드·오류 처리 코드를 읽어 현재 메시지만으로 CORS/네트워크 원인을 확정할 수 없음을 확인.
+- Guest 관측: guestCreate CONSENT_REQUIRED, 정책 버전 입력 비어 있고 필수 동의 미선택. 테스트 Guest 확인 체크와 병합 확인 체크는 필수 정책 동의를 대신하지 않음.
+- 테스트와 결과: 실제 LC 결과 조회 성공·제출 이력0 확인, git diff --check. 코드 변경 없어 Gradle/Node 재실행 안 함. AI 채점 실행/실패 여부 자체는 아직 검증 못 함.
+- 유지한 계약: 토큰·서명URL·음성 원문 비기록. 기존 세션 보존. 임의 약관 동의/Guest 생성/병합/음성 전송/서버 설정 변경 없음.
+- 결정사항: 현재 녹음된 테스트 음성을 테스트 S3에 재업로드하고 LC 제출할지 구체적으로 승인 요청. Guest용 정책 입력·약관 동의는 사용자가 직접 수행하도록 요청. 사용자 응답 후 승인 범위에서 테스트 재개.
+- 위험 요소: 업로드 원인 미확정, S3 CORS는 가능성일 뿐 확정 아님. 화면의 일반 오류를 Google 인증 실패나 AI 실패로 단정하지 않음. 예상 밖 변경 없음.
+- 다음 작업: 업로드 승인 후 동일 녹음으로 오류 재현/진단 및 성공 시 제출·AI 결과 확인. 사용자 정책 동의 완료 후 Guest 생성 테스트. Jira 변경 없음.
+
+## 2026-09-30 — S3 업로드 CORS 원인 확정 및 정책 버전 입력
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 승인된 음성 재업로드 테스트와 AWS 정책 버전 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 앱/서버 코드 변경 없음.
+- 수행 내용: 사용자 현재 테스트 음성 업로드·제출 허용 수신 후 Chrome 업로드 버튼 재시도, 같은 일반 오류 재현. Identity test:5 환경값에서 PRIVACY_CONSENT_VERSION=privacy-v1, TERM_CONSENT_VERSION=term-v1 확인 후 Chrome 해당 입력란에 입력. 동의 체크/Guest 생성은 미수행. Chrome native 진단은 OS 권한 미부여로 접근하지 못했고 우회하지 않음.
+- 진단: AWS LC test:11의 AWS_S3_BUCKET_NAME/region 확인 후 테스트 버킷에 무인증 OPTIONS 요청. localhost:4173 Origin, PUT, content-type 조합에 S3 HTTP403 AccessForbidden 및 CORSResponse: CORS is not enabled for this bucket 응답 확인. 파일 생성/음성/토큰 전송 없는 preflight 검사. 최초 sandbox DNS 오류 후 사용자 승인으로 네트워크 진단 재실행.
+- 테스트와 결과: 브라우저 업로드 실패 재현 및 S3 CORS 미설정 확인. 따라서 현재 브라우저 업로드는 차단되며 answer/AI까지 진행하지 못함. git diff --check. 코드 변경 없어 Gradle/Node 재실행 안 함.
+- 유지한 계약: AWS 환경·CORS·권한 변경 없음. 동의 대행 없음. 실제 Secret/Token/서명URL 비기록, 기존 세션/녹음 보존. 운영 미변경.
+- 결정사항: 테스트 버킷의 localhost:4173 Origin에 PUT 및 content-type만 허용하는 CORS 설정을 사용자 승인 후 적용하는 방향 제안. 공개 읽기/버킷 정책 변경이나 CORS 우회는 하지 않음.
+- 위험 요소: CORS 해결 뒤에도 서명/형식/AI 후속 문제가 있을 수 있어 실제 성공은 추가 검증 필요. Guest는 사용자 정책 동의가 필요. 예상 밖 코드 변경 없음.
+- 다음 작업: 테스트 버킷 CORS 수정 승인 후 적용·OPTIONS 재검증 및 현재 녹음 업로드/제출/AI 확인. 사용자 약관 체크 완료 후 Guest 생성 테스트. Jira 변경 없음.
+
+## 2026-09-30 — 재인증 화면 보완·CORS 수정 및 실제 AI 채점 완료
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청의 FIREBASE_RECENT_AUTH_REQUIRED 원인 확인 및 업로드 문제와 함께 수정.
+- 변경 파일: 독립 /Users/msde76/tosunsaeng-integration-test의 app.js, challenge.mjs, merge.test.mjs, README.md. Identity는 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 갱신. 임시 작업 폴더에서 apply_patch 후 승인된 복사로 영구 프로젝트 반영.
+- 원인: FirebaseAdminAuthenticationVerifier가 LOGIN_EXCHANGE 외 목적의 auth_time에 high-risk-max-authentication-age(기본PT5M)를 검사. 도구의 getIdToken(true)는 토큰 갱신이지 Google 재인증이 아님. 기존 Google 버튼은 재인증 전 pair/챌린지를 지워 작업 흐름도 손실시킴.
+- 구현: 같은 Firebase UID reauthenticateWithPopup 성공 후 fresh token을 준비하고 MEMBER/Guest/녹음/attempt 보존. recent-auth 오류에 명확한 사용자 재인증 안내와 수동 prepare 재실행 유도. 확정된 인증 거절 시 merge 불명 상태를 해제하되 자동 병합 금지. S3 fetch 실패는 S3_NETWORK_OR_CORS_ERROR로 분리. 서버5분 기준/Token 검증 완화 없음.
+- AWS 변경: 사용자 적용 직전 명시 승인 후 테스트 오디오 버킷의 CORS를 AllowedOrigins localhost:4173, AllowedMethods PUT, AllowedHeaders Content-Type, MaxAgeSeconds300으로 저장. 성공 UI 및 무인증 OPTIONS200·정확한 allow headers 확인. 버킷 공개 접근·IAM·운영 버킷 변경 없음.
+- 실제 검증: 사용자 사전 승인된 기존 녹음을 Chrome에서 PUT 성공 후 LC answer로 제출. today에서 1번 submitted/processing 확인 뒤 상세 결과 GET에서 solvedQuestionCount1, gradingStatus completed, verdict needs_improvement, transcript/feedback 존재 확인. 음성·발화·피드백 원문은 기록하지 않음. 신규 응시 추가 생성하지 않음.
+- 테스트와 결과: Node Mock6개 통과(최근인증 거절→재인증→MEMBER/Guest 및 이전이력 보존 회귀 포함), ./gradlew clean test BUILD SUCCESSFUL, git diff --check. 기존 코드 경고만 확인. 운영 API 호출 없음.
+- 현재 사용자 단계: Chrome의 기존 도구를 새로고침하지 않아 Guest 자격 보존. 기존 버전 Google 재인증 버튼 실행 후 Google 계정 선택 popup에서 사용자 입력 대기. 기존 버전 동작상 MEMBER pair/챌린지 화면 상태는 초기화되었으나 서버의 채점 완료 결과와 Guest 상태는 보존. 새 코드 검증은 Mock 기반이며 새 로딩부터 적용.
+- 유지한 계약: 기존 RS256/Firebase 계약, S3 JWT 미전송, 사용자 약관 동의 대행/실제 병합 없음. 비밀값 비기록, 기존 dirty 파일 보존. 예상 밖 코드 변경 없음.
+- 위험 요소: 실제 재인증 완료·Guest 병합 E2E는 아직 미검증. 수정 코드 적용용 새로고침은 현재 Guest 자격을 소실시키므로 현 시험 종료 후 수행. 기존 음성1건 제출로 해당 문제 응시 소비됨.
+- 다음 작업: 사용자 동일 Google 재인증 완료 후 기존 화면에서 Identity exchange/Guest prepare 확인. 실제 merge는 별도 명시 확인 후 진행. 테스트 종료 후 새 화면 로딩해 보완 UX 확인. Jira 변경 없음; 댓글 초안은 독립도구4파일 수정·Mock6/Gradle 성공·실제 채점 완료·병합 미검증 요약이며 자동 등록하지 않음.
+
+## 2026-09-30 — 실제 재인증 후 Guest 병합 준비 성공
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 Google 재인증 완료 후 최근인증 오류 해소 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome의 Google 인증 완료 표시 확인 후 Identity exchange와 Guest prepare를 순서대로 직접 호출. MEMBER 토큰 형태 요약 및 기존 MEMBER로 병합 가능 안내·병합 버튼 활성 확인. 실제 merge는 누르지 않음.
+- 테스트와 결과: 실제 로그인/병합 prepare 성공으로 FIREBASE_RECENT_AUTH_REQUIRED 해소 확인. 현재 Guest 인증으로 prepare 성공했으므로 Guest 준비 정상 확인. git diff --check 통과; 추가 코드 변경 없어 테스트 재실행 없음.
+- 유지한 계약: 원문 토큰 비기록, 자동 병합 금지, 서버 최근인증 기준 유지, 사용자 재인증 직접 수행.
+- 결정사항: 업로드/실제 AI 채점 및 재인증 후 병합 준비 검증 완료. 최종 계정 병합/이벤트 E2E와는 구분.
+- 위험 요소: 실제 merge/source 차단/기록 이전 미실행, 시간 경과 시 재인증 재요구 가능. 예상 밖 변경 없음.
+- 다음 작업: 사용자 최종 확인 후 실제 병합과 이벤트 검증. 현재 브라우저는 구버전 스크립트이므로 시험 종료 후 새로고침하여 보완 UX 적용. Jira 변경 없음.
+
+## 2026-09-30 — 재인증·업로드 수정 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0ce-0fc0-7af1-baad-490e85aff2b7 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 수정 및 실검증 결과에 정확한 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 독립 도구 수정 파일과 AWS 변경 상세는 앞선 항목에 보존.
+- 수행 내용: 승인된 localhost 한정 테스트 버킷 CORS 설정 후 실제 음성 업로드·제출·AI 채점 완료 확인. 독립 도구의 같은 UID 재인증 상태 보존/최근인증 오류 안내/S3 오류 분리 수정. 사용자 Google 재인증 후 Identity 로그인 및 Guest 병합 준비 성공 확인.
+- 테스트와 결과: Node Mock6개 및 Gradle clean test 성공, CORS OPTIONS200, 실제 채점 completed, Guest prepare 성공. git diff --check 통과.
+- 유지한 계약: 서버 최근인증 기준 유지, 운영·IAM·공개 접근 변경 없음, 비밀정보 비기록, 과거 기록 보존. 실제 계정 병합 미실행.
+- 결정사항: 현재 브라우저 Guest 보존을 위해 새로고침 보류; 새 도구 코드는 다음 로딩부터 적용.
+- 위험 요소: 최종 병합·이벤트 수신·기록 이전은 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 최종 확인 후 실제 병합 E2E 검증. Jira 변경 없음.
+
+## 2026-09-30 — 사용자 병합 후 검증표 해석
+
+- 브랜치: develop.
+- 작업 목표: 병합 후 공통 안내 문구가 실패인지 실제 결과를 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 Chrome localhost 검증표 읽기. Identity 병합·Identity source 차단·LC source 차단·LC target 인증 성공 표시 확인. 이전 대상 완료 시험0건 및 완료 시험 이전 미검증 표시 확인. 화면에는 과거 CONSENT_REQUIRED/recent-auth/upload 실패도 이후 성공 행과 함께 남음.
+- 테스트와 결과: 현재 화면 실조회 및 git diff --check. 추가 API/병합/설정 변경 없음. 코드 변경 없어 Gradle/Node 재실행 안 함.
+- 유지한 계약: 원문 토큰/개인정보 비기록, 기존 세션 보존, 자동 재병합 금지.
+- 결정사항: 병합 및 양 서비스의 이전 Guest 차단/대상 MEMBER 접근은 화면상 확인됨. 하단 공통 안내는 오류가 아니며 실제 데이터 이전 검증 완료와는 구분.
+- 위험 요소: source에 완료 시험이 없어 기록 이전 확인 불가. 이벤트204/동일event 재전송 처리는 서버 로그/별도 시험 미확인. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 발행/수신 상태를 읽기 전용으로 확인하고 기록 보유 테스트 Guest의 이전 검증을 별도 계획. Jira 변경 없음.
+
+## 2026-09-30 — 병합 후 검증표 조회 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0d5-a5a6-7ad1-906b-614aeab7aad3 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 병합 후 결과 확인에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome 검증표의 Identity 병합·Identity/LC source 차단·LC target 인증 성공과 이전 대상 기록0건 확인 결과 기록. 하단 문구는 공통 안내이며 과거 실패 행과 현재 성공을 구분해 설명.
+- 테스트와 결과: 화면 읽기 및 git diff --check. 코드 변경 없어 Gradle/Node 미실행.
+- 유지한 계약: 비밀정보 비기록, 과거 기록 보존, 추가 API/병합/설정 변경 없음.
+- 결정사항: 인증 차단 검증 성공과 실제 기록 이전 미검증을 구분.
+- 위험 요소: 이벤트204·중복 재전송 및 기록 이전은 별도 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 발행/수신 상태 조회와 기록 보유 테스트 Guest의 이전 검증 계획. Jira 변경 없음.
+
+## 2026-09-30 — 통합 테스트 완료 범위 재확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자의 전체 검증 완료 여부 질문에 현재 증거와 남은 범위를 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome 검증표 확인 후 병합 후 검증 버튼 및 챌린지1 상세 결과 GET을 직접 재실행. Identity/LC source 병합 전용 차단과 LC target 인증 성공, solved1/gradingStatus completed 및 발화·피드백 존재 확인. 로그인/프로필/재발급/Guest 생성/업로드/제출은 현재 화면의 앞선 성공 기록과 이전 실검증 근거를 사용.
+- 테스트와 결과: 현재 인증 상태·채점 결과 읽기 재검증 성공, git diff --check. 코드 변경 없어 Gradle/Node 재실행 없음.
+- 유지한 계약: 실제 계정/데이터 추가 변경 없음, 원문 토큰/개인 발화 비기록. 이전 병합·음성 제출 재실행 안 함.
+- 결정사항: 기본 정상 흐름 통과이지 모든 예외·출시 준비 검증 완료는 아님. 과거 실패 표시는 이후 성공과 구분.
+- 위험 요소: source 완료 시험0건으로 실제 기록 이전 미검증. 이벤트204·중복/재시도·장애복구, 새 가입/전화 연결의 이번 회차 검증, 챌린지2·3 진행/중복·만료·AI실패, Android SDK/운영 전환 검증 남음. 예상 밖 변경 없음.
+- 다음 작업: 기록 보유 테스트 Guest 이전과 서버 이벤트 검증을 우선하고 Android 앱 통합/예외 시나리오 수행. Jira 변경 없음.
+
+## 2026-09-30 — 전체 검증 범위 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0d6-dc0e-7643-bc0f-aa6c386ca867 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 통합 테스트 완료 범위 확인에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome에서 병합 후 읽기 검증과 1번 결과 조회를 재실행해 양 서비스 source 차단·target 인증 및 채점 completed를 확인. 기본 흐름 성공과 미검증 항목을 구분해 안내.
+- 테스트와 결과: 실제 읽기 재검증 성공 및 git diff --check 통과. 코드 변경 없어 Gradle/Node 재실행 안 함.
+- 유지한 계약: 비밀정보 비기록, 과거 기록 보존, 추가 계정 변경/병합/음성 제출 없음.
+- 결정사항: 프론트 앱 연동 시험 진행 가능하나 운영 출시 검증 완료는 아님.
+- 위험 요소: 기록 보유 Guest 이전, 이벤트 중복/장애 복구, 신규 가입/전화 연결 재검증, 나머지 챌린지와 Android 연동 검증 필요. 예상 밖 변경 없음.
+- 다음 작업: 남은 데이터 이전 및 앱/예외 시나리오 검증. Jira 변경 없음.
+
+## 2026-09-30 — 소셜 로그인 제공자 준비 상태 읽기 점검
+
+<!-- codex-turn:01a0f0da-5a97-71a2-91b8-9d2abc0cc7f2 -->
+
+- 브랜치: develop.
+- 작업 목표: Google Play 서명·Apple·Kakao 등록 준비의 필요성과 현재 상태 확인. 외부 변경 금지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (작업 기록만).
+- 수행 내용: Firebase Google/Apple/전화 활성화 및 Kakao 부재 확인. Android com.toteacher.app에 사용자가 전달한 SHA-1 두 개·SHA-256 두 개 등록 확인. Apple Service ID·Team ID·Key ID·비공개 키 입력란은 빈 상태로 관측. 코드상 Apple/Kakao 기본 false, Kakao provider 기본 oidc.kakao 확인.
+- 테스트와 결과: Firebase 화면 및 application.yml/프론트 계약 읽기 점검. 코드 변경 없어 Gradle 미실행; git diff --check 수행.
+- 유지한 계약: Firebase ID Token→Identity 토큰 계약 유지. 비밀정보 비기록, 등록·저장·권한·배포 변경 없음.
+- 결정사항: Google Play 앱 서명 인증서 대조→Apple 개발자 설정→Kakao Generic OIDC 준비 순서 권장. 로컬 빌드는 해당 빌드 서명 등록으로 시험 가능하며 Play 서명이 선행 필수는 아님.
+- 위험 요소: Play 인증서 실제 일치, Apple Developer 설정, Kakao Developers 앱 유무 및 Identity Platform 업그레이드 상태 미확인. 배포 중 provider 플래그는 이번에 재조회하지 않음. Firebase 활성화만으로 실제 로그인 준비 완료 아님.
+- 다음 작업: 승인 후 각 제공자 설정과 Identity 플래그를 준비하고 실제 Android 로그인 검증. 기존 사용자 변경 보존, 예상 밖 수정 없음. Jira 변경 없음.
+
+## 2026-09-30 — Play 앱 서명 인증서 확인 경로 안내
+
+<!-- codex-turn:01a0f0e0-5d2a-7ba2-ad15-d8907cf2168b -->
+
+- 브랜치: develop.
+- 작업 목표: Google Play 앱 서명 인증서 지문 조회 위치 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Play Console 앱 선택→앱 무결성→앱 서명에서 앱 서명 키 인증서 SHA-1/SHA-256 확인 후 Firebase Android 앱 지문에 추가하도록 안내. 업로드 키 인증서와 구분.
+- 테스트와 결과: 코드 변경 없어 테스트 미실행. git diff --check 수행. 이번에 Play 화면 실조회는 하지 않음.
+- 유지한 계약: 기존 개발용 지문 보존, 비밀정보 비기록, 외부 설정 변경 없음.
+- 결정사항: Play 배포용 앱 서명 지문을 기존 Firebase 지문과 대조하고 없는 것만 추가.
+- 위험 요소: 실제 인증서 일치 여부와 Play 배포 앱 로그인은 아직 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자가 인증서 화면을 확인한 뒤 Firebase 등록 및 Play 설치 빌드 로그인 시험. Jira 변경 없음.
+
+## 2026-09-30 — 변경된 Play 앱 서명 메뉴 실조회
+
+- 브랜치: develop.
+- 작업 목표: 사용자 Chrome 탭에서 앱 무결성 메뉴 이전 위치 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 앱 무결성의 이전 안내 확인 후 Google Play로 보호됨→Play 스토어 보호 세부 정보→Play 앱 서명 관리로 이동, 앱 서명 화면 실조회. 사용 중 키와 이전 앱 서명 키가 함께 존재하며 기존 Firebase 등록 지문 중 한 쌍이 업로드 키 인증서임을 확인. 지문 원문은 기록하지 않음.
+- 테스트와 결과: 브라우저 읽기 조회, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정·키·인증서 변경 없음, 사용자 탭 유지.
+- 결정사항: 앞선 메뉴 안내를 현재 UI 경로로 정정. 업로드 키가 아닌 실제 배포 서명들을 대상으로 Firebase 대조 필요.
+- 위험 요소: 키 업그레이드가 있어 현재·이전 배포 서명 범위 확인 필요. 앱 서명 지문 추가와 실로그인은 미수행. 예상 밖 변경 없음.
+- 다음 작업: 승인 후 배포 대상 인증서 지문과 Firebase 등록 목록 대조. Jira 변경 없음.
+
+## 2026-09-30 — Play 메뉴 실조회 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0e2-71ca-79b1-af41-7595febcc93a -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Play Console 조회의 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 앱 무결성 이전 안내와 Google Play로 보호됨→Play 스토어 보호→Play 앱 서명 관리 경로를 실조회하고 사용자 탭을 인증서 화면에 유지.
+- 테스트와 결과: 화면 조회 및 git diff --check 성공. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정 미변경, 비밀정보 비기록, 과거 작업 기록 보존.
+- 결정사항: 최신 메뉴 경로 안내로 정정; 업로드 인증서와 배포 앱 서명 인증서 구분.
+- 위험 요소: 현재·이전 앱 서명 인증서의 Firebase 등록 여부와 Play 설치 로그인 미검증. 예상 밖 변경 없음.
+- 다음 작업: 승인 후 필요한 배포 인증서 대조 및 등록. Jira 변경 없음.
+
+## 2026-09-30 — 기존 키와 양자 내성 키 선택 안내
+
+- 브랜치: develop.
+- 작업 목표: Firebase Google 로그인 지문 등록 시 화면의 키 구분 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 현재 앱 서명 키 내 기존 키의 SHA-1/SHA-256을 우선 대조하도록 안내. 기존 키는 아래 별도 이전 앱 서명 키와 다른 항목이며 키 업그레이드에 따른 이전 배포 인증서도 확인 필요.
+- 테스트와 결과: 앞선 실조회 화면을 근거로 설명. 코드 변경 없어 Gradle 미실행; git diff --check 수행.
+- 유지한 계약: 키 변경·업그레이드·설정 저장 없음, 비밀정보 비기록.
+- 결정사항: 현재 Google 로그인 준비는 기존 방식 앱 서명 지문 대조부터 진행. 양자 내성 인증서의 추가 필요성은 실제 배포 방식과 Firebase 지원 조건 확인 전 단정하지 않음.
+- 위험 요소: 기기별 실제 배포 인증서 및 새 암호화 방식 연동은 미검증. 예상 밖 변경 없음.
+- 다음 작업: 현재/이전 앱 서명 인증서 대조 후 필요한 지문 등록 및 Play 빌드 로그인 검증. Jira 변경 없음.
+
+## 2026-09-30 — 앱 서명 키 구분 안내 작업 식별 보완
+
+<!-- codex-turn:01a0f0e5-8efd-7fc0-8c64-21897c97fb2b -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 키/양자 내성 키 선택 안내에 현재 작업 식별자 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 현재 앱 서명 키의 기존 방식 인증서 지문부터 Firebase와 대조하도록 안내하고, 별도 이전 앱 서명 키 및 양자 내성 키와 구분.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없는 안내로 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 외부 설정 미변경.
+- 결정사항: 지문 등록과 키 변경은 별개이며 키 업그레이드 작업은 수행하지 않음.
+- 위험 요소: 실제 배포 인증서 대조 및 양자 내성 방식의 Firebase 지원 조건 미검증. 예상 밖 변경 없음.
+- 다음 작업: 필요한 배포 인증서 대조 후 승인 범위에서 등록 및 로그인 검증. Jira 변경 없음.
+
+## 2026-09-30 — Google 앱 서명 지문 등록 확인 및 Apple 준비 안내
+
+<!-- codex-turn:01a0f0ea-be30-7211-bdd5-a2eafe81f76f -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 추가 Firebase 지문 검증 및 Apple 로그인 설정 순서 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome Firebase Android 앱에서 SHA-1/SHA-256 각 세 개 등록 확인. 새 지문 한 쌍을 Play 현재 앱 서명 키의 기존 방식 인증서 복사값과 대조하여 둘 다 일치 확인. 지문 값 자체는 기록하지 않음. Apple Developer App ID capability→Services ID/웹 반환 주소→Sign in with Apple 키→Firebase provider 구성→Identity 활성화·실검증 순서 안내.
+- 테스트와 결과: 실화면 및 공개 인증서 지문 비교 성공. 코드 변경 없어 Gradle 미실행; git diff --check 수행.
+- 유지한 계약: Firebase ID Token 기반 Identity 교환 유지, 비밀정보 비기록, 외부 설정 변경 없음.
+- 결정사항: 현재 기존 방식 앱 서명 지문 등록 확인 완료와 실제 Play 로그인 완료를 구분. Android/web Apple 로그인을 위해 Services ID 구성 필요.
+- 위험 요소: 이전 앱 서명 인증서와 양자 내성 인증서 추가 필요성, Play 실로그인 및 Apple Developer 실제 설정은 미검증. 기존 사용자 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: Apple Developer의 실제 앱 식별자에서 Sign in with Apple 상태 확인 후 설정 진행. Jira 변경 없음.
+
+## 2026-09-30 — Apple Identifiers 접근 경로 안내
+
+<!-- codex-turn:01a0f0f0-ef5d-7870-9435-55bd9f5a61b8 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 찾지 못한 Apple Developer Identifiers 메뉴 접근 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Identifiers 직접 링크와 App Store Connect와의 사이트 구분 안내. 앱 등록 팀 선택 및 접근 권한 확인 필요성을 설명.
+- 테스트와 결과: 안내만 수행, 실제 Apple 화면 미조회. 코드 변경 없어 Gradle 미실행; git diff --check 수행.
+- 유지한 계약: 외부 설정·권한 변경 없음, 비밀정보 비기록.
+- 결정사항: 직접 링크에서 앱 등록 개발자 계정으로 로그인 후 실제 App ID 확인부터 진행.
+- 위험 요소: 현재 Apple 로그인 팀·멤버십·권한 상태 미확인. 예상 밖 수정 없음.
+- 다음 작업: 접근 화면 확인 후 Sign in with Apple 구성 점검. Jira 변경 없음.
+
+## 2026-09-30 — Apple 편집 창과 반환 주소 입력 위치 확인
+
+<!-- codex-turn:01a0f0f5-7222-75b1-bcb2-7e6dd5c5a242 -->
+
+- 브랜치: develop.
+- 작업 목표: Apple 열린 Edit 창에서 Firebase 반환 주소 입력 위치 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome의 App ID com.toteacher.app 편집 모달 실조회. 열린 창은 Services ID 웹 설정이 아니라 App ID의 Server-to-Server Notification Endpoint임을 확인. Firebase auth handler를 해당 알림 칸에 넣지 않도록 안내. Services ID의 Domains and Subdomains/Return URLs 입력값 및 Primary App ID 선택 절차 안내.
+- 테스트와 결과: 브라우저 읽기 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정 저장·입력 없음, 알림 수신 주소와 OAuth 반환 주소 분리, 비밀정보 비기록.
+- 결정사항: 현재 알림 주소는 입력하지 않고 Services ID 구성 화면에서 Firebase 기본 auth 도메인과 /__/auth/handler를 설정하도록 안내.
+- 위험 요소: 현재 App ID 체크의 저장 여부, Services ID 등록 상태 및 Apple 서버 알림 처리 구현 미확인. 예상 밖 수정 없음.
+- 다음 작업: Services ID 웹 인증 구성 및 Firebase 연결, 실제 Apple 로그인 검증. Jira 변경 없음.
+
+## 2026-09-30 — Apple 이메일 릴레이 화면과 Services ID 구분
+
+<!-- codex-turn:01a0f0f9-895a-7952-807c-a92a330f3042 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 연 Apple 화면이 로그인 반환 주소 설정인지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 현재 Configure Sign in with Apple for Email Communication 및 Register your email sources 모달 실조회. 이메일 릴레이 발신자 등록 화면으로 확인하고 Identifiers의 Services IDs와 구분해 안내.
+- 테스트와 결과: 화면 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 입력·저장 없음, 비밀정보 비기록.
+- 결정사항: 이메일 소스 창에 Firebase 로그인 도메인을 입력하지 않고 Identifiers 목록에서 Services IDs 선택 또는 생성으로 진행.
+- 위험 요소: Services ID 생성 및 웹 인증 구성 미완료. 예상 밖 수정 없음.
+- 다음 작업: 올바른 Services ID 설정 화면에서 Primary App ID 및 Return URLs 확인. Jira 변경 없음.
+
+## 2026-09-30 — Services ID 생성 화면 확인
+
+<!-- codex-turn:01a0f0fd-0000-70b1-9a00-64653be875c5 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 Apple 화면이 올바른 Services ID 등록 화면인지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Register a Services ID 화면과 빈 Description/Identifier 입력란 확인. Firebase용 설명 및 별도 서비스 식별자 예시 안내; 생성 후 Sign in with Apple Configure 단계 설명.
+- 테스트와 결과: 브라우저 읽기 확인 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 입력·등록·저장 없음, 비밀정보 비기록.
+- 결정사항: 현재 화면은 올바르며 Services ID는 앱 Bundle ID와 별도 식별자로 생성하도록 안내. 제안 식별자의 사용 가능 여부는 등록 시 확인 필요.
+- 위험 요소: Services ID 등록과 반환 주소 설정은 아직 미완료. 예상 밖 수정 없음.
+- 다음 작업: 사용자 생성 후 웹 인증 설정 확인 및 Firebase 연결. Jira 변경 없음.
+
+## 2026-09-30 — Services ID 입력값 재안내
+
+<!-- codex-turn:01a0f0fe-747f-79b0-a496-56eec2e1ba9f -->
+
+- 브랜치: develop.
+- 작업 목표: Services ID 예시를 그대로 입력해도 되는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 제안 Description/Identifier 사용 가능하되 식별자 중복 여부는 Apple 등록 시 확인해야 함을 안내. Firebase 서비스 ID에는 생성한 Identifier를 동일하게 입력하고 Bundle ID와 구분.
+- 테스트와 결과: 안내만 수행, 코드 변경 없어 Gradle 미실행. git diff --check 수행.
+- 유지한 계약: 외부 등록·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: 제안 서비스 식별자를 사용하고 Firebase와 정확히 일치시킴.
+- 위험 요소: 식별자 가용성과 실제 등록 미확인. 예상 밖 수정 없음.
+- 다음 작업: 사용자 등록 후 웹 인증 반환 주소 구성 확인. Jira 변경 없음.
+
+## 2026-09-30 — Services ID 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0fe-6365-7df2-98cf-1d1b032a2823 -->
+
+- 브랜치: develop.
+- 작업 목표: Services ID 입력값 안내의 정확한 현재 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 제안 Description/Identifier를 사용하고 Firebase 서비스 ID와 일치시키도록 안내한 결과 기록. 과거 항목 수정 없이 추가.
+- 테스트와 결과: git diff --check 수행. 안내만 수행하여 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 외부 설정 변경 없음.
+- 결정사항: 앱 Bundle ID와 Services ID 구분 유지.
+- 위험 요소: 실제 등록 및 식별자 가용성 미확인. 예상 밖 코드 변경 없음.
+- 다음 작업: 사용자 등록 후 반환 주소 구성 확인. Jira 변경 없음.
+
+## 2026-09-30 — Services ID 생성 완료 확인 및 웹 인증 설정 안내
+
+- 브랜치: develop.
+- 작업 목표: 사용자 생성 완료 확인 및 다음 설정 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Apple Services ID 목록에서 ToTeacher Firebase Login 및 com.toteacher.app.firebase 생성 확인. 편집 화면을 열어 Sign In with Apple 미선택 및 Configure 비활성 확인. 사용자에게 활성화 후 Primary App ID·Firebase 도메인·반환 URL 설정 안내.
+- 테스트와 결과: 브라우저 읽기 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 입력·설정 저장 없음, 비밀정보 비기록.
+- 결정사항: Services ID 생성은 완료됐으나 웹 로그인 구성은 미완료.
+- 위험 요소: 웹 인증 설정 저장 및 Firebase provider 연결·실제 로그인 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 웹 인증 구성 후 저장 상태 점검. Jira 변경 없음.
+
+## 2026-09-30 — Services ID 생성 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f0ff-50d2-7750-9df0-efcbfefaf975 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Services ID 생성 확인의 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Services ID 생성 및 Sign In with Apple 미활성 상태 확인 결과 기록. 웹 인증 구성과 최종 저장 절차 안내.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 외부 설정 저장 없음.
+- 결정사항: 생성 완료와 웹 인증 설정 완료를 구분.
+- 위험 요소: 웹 구성 저장·Firebase 연결·로그인 검증 미완료. 예상 밖 수정 없음.
+- 다음 작업: 사용자 웹 구성 저장 후 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 웹 인증 Next 비활성 원인 확인
+
+- 브랜치: develop.
+- 작업 목표: Services ID 웹 인증 설정 Next 비활성 원인 진단.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Web Authentication Configuration의 No App ID is available 표시 및 Next disabled 확인. 입력 도메인/반환 URL은 Firebase 기본 auth handler와 일치. 선택 가능한 Primary App ID 부재가 차단 원인임을 안내하고 App ID의 Sign In with Apple primary 구성 및 최종 저장 확인 요청.
+- 테스트와 결과: 브라우저 실조회, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 입력·저장·권한 변경 없음, 비밀정보 비기록.
+- 결정사항: URL 수정 대신 같은 팀의 Primary App ID 등록 상태 점검 우선. 앞선 체크 상태만으로 저장 완료를 보장하지 않음.
+- 위험 요소: Primary 부재의 근본 원인은 미확정; App ID 설정 저장 누락 또는 반영 지연 등 확인 필요. 예상 밖 수정 없음.
+- 다음 작업: App ID primary 설정 최종 저장 후 Services ID Configure 재진입 및 선택 가능 여부 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple Next 비활성 진단 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f100-fed9-77c2-8c77-41f6dc7f8124 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Apple Next 비활성 진단의 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 올바른 도메인/반환 URL 입력과 No App ID is available 표시 확인 결과 기록. Primary App ID 구성 및 최종 저장 점검 안내.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 외부 설정 변경 없음.
+- 결정사항: 주소 수정이 아닌 Primary App ID 가용성 확인이 다음 단계.
+- 위험 요소: 저장 누락·반영 지연 등 근본 원인은 미확정. 예상 밖 수정 없음.
+- 다음 작업: 사용자 App ID 저장 후 Services ID 선택 목록 재확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple Services ID 웹 인증 저장 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 저장 후 Primary App ID 및 웹 인증 주소 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Services ID 목록에서 편집 화면을 다시 열어 Sign In with Apple 활성 확인. Configure에서 Primary App ID가 com.toteacher.app으로 선택됨 확인. Website URLs 목록에 Firebase 기본 도메인과 /__/auth/handler 반환 주소 모두 존재 확인. 읽기 확인 후 Cancel로 모달 닫음.
+- 테스트와 결과: 브라우저 저장 상태 재조회 성공, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 외부 설정 변경·키 생성 없음, 비밀정보 비기록.
+- 결정사항: Primary 부재 문제 해소 및 Services ID 웹 인증 설정 저장 확인 완료. Apple 로그인 전체 완료와는 구분.
+- 위험 요소: Apple 로그인용 키·Firebase provider 구성·Identity 활성화·실로그인 미검증. 예상 밖 수정 없음.
+- 다음 작업: Apple 로그인용 키 준비 후 Firebase 구성 및 테스트. Jira 변경 없음.
+
+## 2026-09-30 — Apple 웹 인증 저장 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f103-c0cf-7913-918a-32eb41e94a8c -->
+
+- 브랜치: develop.
+- 작업 목표: Apple 웹 인증 저장 확인의 현재 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Services ID 재조회에서 로그인 활성, Primary App ID 선택, Firebase 도메인 및 반환 주소 등록을 확인한 결과 기록. 다음 키 준비 절차 안내.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 외부 설정 변경·키 생성 없음.
+- 결정사항: Services ID 구성 저장 확인 완료와 실제 로그인 검증 완료를 구분.
+- 위험 요소: 로그인용 키·Firebase 연결·Identity 활성화 및 실제 인증 미검증. 예상 밖 수정 없음.
+- 다음 작업: Apple 로그인용 키 준비 후 Firebase 연결 검증. Jira 변경 없음.
+
+## 2026-09-30 — Apple 로그인 키 등록 전 구성 확인
+
+- 브랜치: develop.
+- 작업 목표: 현재 키 설정 그대로 등록 가능한지 읽기 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 등록 화면에서 로그인용 이름 및 Sign in with Apple만 선택 확인. Edit에서 Primary App ID com.toteacher.app 및 그룹 내 com.toteacher.app.firebase 확인 후 Back으로 복귀. 추가 기능은 미선택 유지.
+- 테스트와 결과: 브라우저 구성 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 키 생성·권한 변경·외부 저장 없음, 비밀정보 비기록.
+- 결정사항: 현재 선택 구성이 Firebase Apple 로그인 목적과 일치하며 사용자 Continue/Register 후 안전한 키 다운로드 단계로 진행 가능.
+- 위험 요소: 키 실제 발급·Firebase 연결·실로그인 미완료. 예상 밖 수정 없음.
+- 다음 작업: 사용자 키 발급 후 Firebase provider 설정. Jira 변경 없음.
+
+## 2026-09-30 — Apple 키 구성 확인 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f106-82c6-7590-8c0f-4d1253eeda65 -->
+
+- 브랜치: develop.
+- 작업 목표: Apple 키 등록 전 구성 확인의 현재 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Sign in with Apple만 선택되고 Primary App ID 및 Firebase Services ID가 연결된 설정 확인 결과 기록. 사용자 등록·다운로드 절차와 안전한 보관 안내.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 키 생성·외부 설정 변경 없음.
+- 결정사항: 확인된 구성이 로그인 목적과 일치함.
+- 위험 요소: 실제 키 발급·Firebase 연결·로그인 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 발급 후 Firebase 연결 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 키 다운로드 후 Firebase 연결 안내
+
+<!-- codex-turn:01a0f107-a3fc-7dd3-b6e0-a66557eb9cce -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 키 다운로드 완료 보고 후 Firebase Apple provider 입력 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Firebase Authentication Apple의 서비스 ID, 팀 ID, 키 ID 및 비공개 키 입력 위치 설명. 사용자 직접 입력과 안전한 파일 보관 안내; 다운로드 파일을 열거나 원문을 수집하지 않음.
+- 테스트와 결과: 안내만 수행. 코드 변경 없어 Gradle 미실행; git diff --check 수행.
+- 유지한 계약: 비밀정보 비기록, 외부 설정·권한 변경 없음.
+- 결정사항: 다운로드 완료는 사용자 보고 기준이며 Firebase 저장 및 실제 로그인 완료와 구분.
+- 위험 요소: provider 저장·Identity 활성화·실제 Apple 인증 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 Firebase 저장 후 구성 상태 및 테스트 준비 확인. Jira 변경 없음.
+
+## 2026-09-30 — Firebase Apple 연결 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f107-f2b2-7e33-bf9b-02b2eff722a5 -->
+
+- 브랜치: develop.
+- 작업 목표: 다운로드 후 Firebase 연결 안내의 정확한 현재 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 사용자 다운로드 완료 보고와 Firebase Apple provider 입력 안내 결과를 기록. 과거 기록은 수정하지 않음.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없는 안내로 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 다운로드 파일 미열람, 외부 설정 변경 없음.
+- 결정사항: Firebase 저장과 실제 인증 성공은 아직 확인하지 않음.
+- 위험 요소: provider 저장·Identity 활성화·실로그인 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 Firebase 저장 후 구성 상태 확인. Jira 변경 없음.
+
+## 2026-09-30 — Firebase Apple provider 저장 상태 확인
+
+<!-- codex-turn:01a0f10b-51f2-7352-a6be-256d9c0119dc -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 등록 후 Firebase Apple 연결 설정 저장 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: Chrome Firebase Apple 활성 상태 및 재개방한 설정에서 서비스 식별자 일치, 팀/키 식별자와 비공개 키 필드 입력 존재 확인. 원문 출력 없이 존재 여부만 조회하고 저장 없이 취소. 서버 설정의 Apple 기본 비활성 확인.
+- 테스트와 결과: UI 저장 항목 재조회 성공 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 외부 설정·배포 변경 없음.
+- 결정사항: Firebase 구성 저장 확인 완료이나 키 유효성과 Apple 실제 로그인 성공은 아직 미검증. 배포 환경의 활성 플래그는 별도 확인 필요.
+- 위험 요소: 현재 ECS 플래그 미조회, 프론트 Apple 인증 및 Identity 교환 미검증. 예상 밖 수정 없음.
+- 다음 작업: 테스트 Identity 활성 설정 확인 후 필요한 변경 승인 및 실제 Apple 로그인 검증. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 Identity Apple 활성 플래그 실조회
+
+- 브랜치: develop.
+- 작업 목표: 배포된 테스트 Identity Apple 설정 확인 및 비활성 시 활성화 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: ECS 테스트 서비스가 사용하는 tosunsaeng-identity-test:5에서 FIREBASE_APPLE_ENABLED=false 확인. Firebase 인증/Google/전화 활성 및 Kakao 비활성 확인. 새 개정에서 Apple 플래그만 true로 변경하고 테스트 서비스에 배포할 범위를 안내.
+- 테스트와 결과: AWS 실화면 조회, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 이미지·Secret 참조·JWT·병합 이벤트·운영 서비스 유지 예정. 실제 변경 및 배포 없음.
+- 결정사항: 새 로그인 제공자 수용은 보안상 인증 허용 범위 변경이므로 브라우저 적용 직전 사용자 확인 요청.
+- 위험 요소: 활성화/재배포 및 Apple E2E는 미완료. 예상 밖 수정 없음.
+- 다음 작업: 적용 승인 후 Apple 플래그 하나만 변경한 새 테스트 개정 배포 및 안정성 확인. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 Apple 플래그 조회 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f10d-5828-7030-8ee9-c3e92c22eba7 -->
+
+- 브랜치: develop.
+- 작업 목표: 테스트 Identity Apple 활성 설정 조회의 현재 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 테스트 task definition test:5에서 Apple 비활성을 실조회한 결과 및 Apple 플래그만 활성화할 적용 직전 승인 대기 상태 기록.
+- 테스트와 결과: git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 운영 및 테스트 배포 변경 없음.
+- 결정사항: 승인 후 테스트 서비스에만 설정 변경 적용.
+- 위험 요소: 활성화·재배포·Apple 실제 로그인 미완료. 예상 밖 수정 없음.
+- 다음 작업: 사용자 적용 승인 후 새 테스트 개정 배포와 안정성 확인. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 Identity Apple 로그인 활성화 배포 완료
+
+- 브랜치: develop.
+- 작업 목표: 사용자 적용 승인 후 테스트 Identity의 Apple 로그인만 활성화하고 정상 배포 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 서버 코드 및 기존 사용자 변경은 수정하지 않음.
+- 수행 내용: AWS 콘솔에서 test:5 기반 새 개정 작성, 폼 입력 전후 비교로 FIREBASE_APPLE_ENABLED false→true 한 항목 변경 확인. tosunsaeng-identity-test:6 생성 후 tosunsaeng-staging-cluster의 tosunsaeng-identity-test-service에 배포. 이미지 commit 88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d·Secret 참조·JWT·병합 이벤트·로그 설정 유지, 원하는 태스크1 유지. 운영 미변경.
+- 테스트와 결과: ECS 배포 성공 및 running1/pending0 확인. 신규 태스크의 2026-09-30T06:48:35Z Started IdentityApplication 로그 확인. 로드밸런서 조회 시 정상2/비정상0(이전 태스크 정리 구간) 확인. HTTPS health 브라우저 직접 조회는 클라이언트 차단으로 미완료. git diff --check 수행. 설정만 배포하여 Gradle 미실행.
+- 유지한 계약: Firebase ID Token→Identity 인증 계약 유지, Kakao OFF 및 기존 Google/전화 상태 유지. 비밀정보 비기록. 커밋·push 없음.
+- 결정사항: 테스트 Apple 수용 설정 활성화 완료. workflow가 현재 서비스 task definition을 가져오는 구조임을 확인했으며 다음 배포 시 revision6 설정 유지 필요. 초기 task definition 초안은 과거 구성으로 자동 배포 입력이 아니므로 수정하지 않음.
+- 위험 요소: Apple 실제 인증·가입/로그인·토큰 발급 E2E 미실행. 배포 성공과 사용자 인증 성공을 구분. 기존 미커밋 변경 보존, 예상 밖 로컬 변경 없음.
+- 다음 작업: 프론트 또는 테스트 도구에서 실제 Apple 로그인 후 Firebase 인증 및 Identity 교환 검증. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 Apple 활성화 배포 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f10f-31d8-7c73-be2e-e6c742812e36 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 Apple 활성화 배포의 정확한 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 승인된 Apple 플래그만 활성화한 테스트 revision6 배포 및 정상 기동 확인 결과 기록. 과거 항목은 변경하지 않음.
+- 테스트와 결과: ECS 배포 성공/running1/pending0 및 신규 시작 로그 확인 결과 유지. 기록 보완 후 git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영·이미지·Secret·다른 설정 유지, 비밀정보 비기록. 이번 보완에서 추가 외부 변경 없음.
+- 결정사항: 테스트 배포 완료와 실제 Apple 인증 검증을 구분.
+- 위험 요소: Apple 로그인 및 Identity 토큰 발급 E2E 미실행, 직접 HTTPS health 조회 미완료. 예상 밖 수정 없음.
+- 다음 작업: 실제 Apple 인증 및 Identity 교환 검증. Jira 변경 없음.
+
+## 2026-09-30 — 로컬 통합 테스트 화면 Apple 로그인 추가
+
+<!-- codex-turn:01a0f119-e71e-7620-b3ef-121870f401e5 -->
+
+- 브랜치: develop. Jira: 이번 요청에 연결된 이슈 없음, Jira 변경 없음.
+- 작업 목표: 기존 로컬 테스트 화면에서 Apple 로그인부터 기존 회원가입·병합·챌린지 흐름을 수동 검증할 수 있도록 확장.
+- 변경 파일: 별도 프로젝트 `/Users/msde76/tosunsaeng-integration-test`의 app.js, index.html, apple.test.mjs, README.md 및 Identity docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Firebase Apple OAuthProvider와 email/name scope, Apple 로그인/동일 UID 재인증, 제공자별 안내 및 Google/Apple 전환 방지 추가. 명시적 로컬 초기화 후 제공자 전환. 동일 계정 재인증은 Guest/MEMBER/녹음 상태 유지. 기존 테스트 기능 유지.
+- 실행한 테스트와 결과: Node app/apple/merge/challenge/server 테스트 7개 통과(최초 sandbox 포트 권한 오류 후 승인된 재실행). Identity ./gradlew clean test 통과(캐시 권한 승인 후). git diff --check 통과. 127.0.0.1:4173 실행 확인. 새 Chrome 탭 UI 조회는 클라이언트 접근 차단으로 미완료, 기존 인증 탭 새로고침하지 않음.
+- 유지한 계약: Identity API·JWT·보안 정책·서버 코드·배포 미변경, LC/챌린지 테스트 코드는 별도 프로젝트 유지. 비밀키 입력 및 토큰 원문 표시 없음. 커밋/push 없음.
+- 결정사항: 자동 제공자 연결/병합하지 않음. Apple 실제 로그인은 사용자 인증 후 수동 검증. 새 화면 로딩 시 메모리 세션 초기화 주의.
+- 위험 요소: Mock 통과는 실제 Apple OAuth 성공을 의미하지 않음. 신규 Apple 계정에 기존 Firebase 계정의 전화번호를 연결하면 충돌 가능. 브라우저 화면 QA 및 실제 Android/iOS 로그인 미확인. 기존 미커밋 사용자 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: Chrome에서 localhost:4173 새 화면을 열고 Firebase 초기화→Apple 인증→Identity 교환, 신규 계정은 전화번호/동의/가입, 기존 MEMBER는 프로필/재발급 확인. 배포 전 서버 Apple 플래그 유지 및 실제 앱 SDK 흐름 별도 검증.
+
+## 2026-09-30 — Apple 테스트 PROVIDER_RELINK_REQUIRED 원인 조사
+
+<!-- codex-turn:01a0f125-d451-7be2-becd-0b382bed97af -->
+
+- 브랜치: develop. Jira: 요청에 연결된 키 없음, 변경 없음.
+- 작업 목표: 사용자가 보고한 HTTP 409 PROVIDER_RELINK_REQUIRED 의미와 대응 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. FirebaseExchangeService.ensureNoSocialIdentityOwner 및 ProviderChangeGuard.validatePrincipal/authenticate에서 기존 바인딩의 로그인 제공자 승인 누락 또는 차단 시 발생함을 확인. 로컬 테스트 앱은 signInWithPopup/reauthenticateWithPopup만 지원하며 공통 provider link 기능은 미구현임을 확인.
+- 실행한 테스트와 결과: 소스 및 frontend-firebase-auth-integration-guide 공통 link 계약 정적 조회, git diff --check. 실행 코드 변경 없는 분석으로 자동 테스트 미실행.
+- 유지한 계약: Firebase 인증과 Identity 로그인 제공자 승인을 구분, prepare/start/SDK link/대상 재인증/complete 필수 흐름 유지. DB·Firebase 계정·배포·토큰·보호 설정 미변경.
+- 결정사항: 코드상 가능한 원인과 실제 계정 원인 확정을 구분. 기존 승인 SNS로 인증 후 정식 연결 필요하며 자동 계정 삭제·강제 승인하지 않음.
+- 위험 요소: 실제 발생 요청 경로·배포 버전·계정 승인 및 차단 상태 미조회. 현재 오류만으로 과거 연결 해제를 단정할 수 없음. 기존 사용자 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: 실패 API/계정 연결 상태를 확인하고 필요 시 사용자 요청에 따라 테스트 화면에 공통 SNS 연결 기능 구현. 비밀정보 공유 불필요.
+
+## 2026-09-30 — 새 Apple 계정 가입 테스트 안내
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 기존 provider 연결 오류와 독립된 신규 계정 테스트 방법 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 로컬 초기화 후 미연결 Apple 계정으로 로그인→Identity 가입 준비→ENROLLMENT_REQUIRED 확인→미사용 테스트 전화번호 연결 및 동의·가입 안내. 동일 Apple 계정으로 새로 로그인해도 새 서버 계정이 되지 않음을 설명.
+- 실행한 테스트와 결과: 직전 소스/계약 확인 결과 기반 안내. 코드 변경 없어 테스트 미실행, git diff --check 수행.
+- 유지한 계약: 자동 계정 삭제·Firebase unlink·서버 승인 우회 없음. 로컬 메모리 초기화와 서버 계정 삭제 구분.
+- 결정사항: 기존 계정을 보존하며 별도 신규 계정으로 테스트. Apple 이메일 숨기기나 이메일 변경을 새 계정 생성 수단으로 안내하지 않음.
+- 위험 요소: 신규 Apple 계정 보유 여부 및 전화번호 중복 상태 미확인. 기존 사용자 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: 사용자 직접 Apple 인증 후 enrollment 응답 확인. 외부 설정·배포 변경 없음.
+
+## 2026-09-30 — 신규 Apple 가입 안내 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f127-1fa0-7473-a14d-016fb48cb2e1 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 신규 Apple 계정 가입 안내의 정확한 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 별도 미연결 Apple 계정으로 인증 후 신규 enrollment 및 전화번호·동의·가입 절차를 안내한 결과 기록. 과거 항목 보존.
+- 테스트와 결과: git diff --check 수행. 문서 기록만 보완하여 실행 테스트 미실행.
+- 유지한 계약: 로컬 초기화는 서버 계정 삭제가 아님. 제공자 연결 승인 우회·외부 상태 변경·비밀정보 기록 없음.
+- 결정사항: 같은 Apple 계정 재로그인을 신규 계정 생성으로 취급하지 않음.
+- 위험 요소: 실제 신규 가입 미검증, 예상 밖 수정 없음.
+- 다음 작업: 사용자 직접 인증 후 신규 가입 응답 확인. Jira 변경 없음.
+
+## 2026-09-30 — 현재 Apple 계정 사용 가능 여부 설명 보완
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 현재 로그인한 계정을 반드시 교체해야 하는지에 대한 오해 해소.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 안내만 수행. Firebase 인증 성공과 Identity의 provider 승인 상태를 구분하고 별도 Apple 계정은 신규 가입 검증용 선택지임을 명시.
+- 테스트와 결과: 앞선 소스 조사 근거 활용. 코드 변경 없어 실행 테스트 미실행, git diff --check 수행.
+- 유지한 계약: 현재 로그인 세션·DB·연결 상태 변경 및 보호 조건 우회 없음.
+- 결정사항: 현재 계정 상태를 확인하기 전에 다른 계정 사용이나 기존 계정 삭제를 필수 조치로 제시하지 않음.
+- 위험 요소: 실제 계정의 승인 누락/차단 원인 미확정. 예상 밖 수정 없음.
+- 다음 작업: 현재 계정의 Firebase/Identity 연결 상태를 읽기 전용으로 확인하여 정식 연결 경로 결정.
+
+## 2026-09-30 — 현재 Apple 계정 유지 안내 식별 기록 보완
+
+<!-- codex-turn:01a0f128-0010-7923-bda5-c647bc222d71 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 Apple 계정 사용 안내의 정확한 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 계정 교체가 필수는 아니며 Firebase 인증과 Identity 승인이 별개임을 안내한 결과 기록. 과거 기록 보존.
+- 테스트와 결과: git diff --check 수행. 문서 보완만 하므로 실행 테스트 미실행.
+- 유지한 계약: 계정 삭제·세션 변경·승인 우회·비밀정보 기록 없음.
+- 결정사항: 기존 계정 상태를 보존하고 연결 상태 확인 후 대응.
+- 위험 요소: 실제 계정의 승인 누락/차단 원인 미확정, 예상 밖 수정 없음.
+- 다음 작업: 현재 계정의 연결 상태 확인. Jira 변경 없음.
+
+## 2026-09-30 — Chrome Apple 로그인 차단 단계 실조회
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 사용자가 로그인한 실제 테스트 탭에서 차단 위치 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Chrome 기존 localhost 테스트 화면의 검증표에서 Apple 인증 성공과 exchange HTTP 409 PROVIDER_RELINK_REQUIRED 확인. 전화번호 연결/회원가입/프로필/재발급/LC 버튼 비활성 확인. app.js의 exchange 요청이 POST /api/v1/auth/firebase/exchange임을 소스로 대조.
+- 테스트와 결과: 기존 탭 접근성 화면 읽기 및 요청 매핑 정적 확인. 새로고침·버튼 클릭·네트워크 재요청 없이 수행. git diff --check 확인. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 현재 인증 메모리·계정·DB·배포 상태 보존. 비밀정보 조회/기록 없음.
+- 결정사항: Firebase 인증 성공 이후 Identity 로그인/가입 준비 단계 차단으로 확정. Apple 로그인 자체 실패나 전화번호 단계 실패로 해석하지 않음.
+- 위험 요소: 해당 계정의 승인 누락인지 과거 차단인지 화면만으로 구분 불가. 실제 배포 코드/DB 대조 미완료. 예상 밖 수정 없음.
+- 다음 작업: 필요 시 테스트 Identity의 Firebase 바인딩·SocialIdentity·provider 차단 상태를 읽기 전용 대조해 원인 확정. 외부 변경 없음.
+
+## 2026-09-30 — Chrome 차단 단계 조회 식별 기록 보완
+
+<!-- codex-turn:01a0f129-008d-79c1-bbd4-07ae4be59530 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 Chrome 테스트 탭 실조회 작업의 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Apple Firebase 인증 성공, Identity exchange HTTP 409 PROVIDER_RELINK_REQUIRED 및 후속 단계 비활성 확인 결과 기록. 과거 항목 보존.
+- 테스트와 결과: 화면 읽기 및 소스 요청 매핑 확인 결과 유지. git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 탭 새로고침·로그아웃·재요청·계정 변경 없음. 비밀정보 비기록.
+- 결정사항: 차단 단계는 확인했으나 실제 계정 승인 누락/차단 원인은 미확정으로 구분.
+- 위험 요소: 배포 코드·DB 대조 미완료. 예상 밖 수정 없음.
+- 다음 작업: 테스트 계정 연결 상태 읽기 전용 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 로그인 승인 불일치 원인 실확인
+
+<!-- codex-turn:01a0f12e-6c76-7680-9a3c-d53f892f18cd -->
+
+- 브랜치: develop. Jira: 요청에 연결된 이슈 없음, 변경 없음.
+- 작업 목표: Apple 로그인 후 Identity exchange 409의 실제 데이터 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Atlas 테스트 프로젝트의 to-teacher-identity-test에서 firebase_identities 전체 1건과 social_identities 전체 1건 대조. 동일 계정의 승인 provider는 GOOGLE뿐이고 APPLE 없음. Firebase Authentication 사용자 전체 1건에서 해당 UID에 Google/Apple/Phone 연결 확인. 테스트 DB 전체 21개 컬렉션 목록에 auth_method_change_controls 없음. 이전 확인 배포 commit 88ff5bed의 ProviderChangeGuard와 현재 소스에서 현재 로그인 provider/subject 승인 누락 시 해당 409 반환 확인.
+- 테스트와 결과: 실제 Firebase/Atlas 읽기 전용 화면 대조 및 git show 정적 검증, git diff --check. 코드 변경 없어 실행 테스트 미실행. 로그인 탭 새로고침·로그아웃·exchange 재요청 없음.
+- 유지한 계약: 계정/DB/인증 제공자/접근 권한/배포 미변경. 개인 식별값·자격증명·토큰은 문서에 기록하지 않음. 운영 DB 미조회.
+- 결정사항: 신규 Apple 계정이 아니라 기존 Firebase 계정에 Apple이 연결돼 있고 Identity 승인 정보가 따라오지 않은 상태로 판정. 단순 재로그인이나 계정 교체를 필수 해결책으로 제시하지 않음. 서버 보호 조건 우회/DB 강제 삽입하지 않음.
+- 위험 요소: Firebase 연결이 형성된 경위는 미확인. 이미 연결된 Apple을 정식 provider link 흐름으로 승인하는 복구 조건은 추가 검토 필요. 최신 배포 revision 재조회는 미수행. 기존 사용자 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: 사용자가 수정을 요청하면 공통 provider link의 기존 Firebase 연결 처리·복구 조건을 확인한 뒤 테스트 화면에 해당 흐름 구현 및 검증. 실제 동의/연결 변경은 별도 확인.
+
+## 2026-09-30 — Apple 인증과 Identity 연결 승인 차이 설명
+
+<!-- codex-turn:01a0f131-3fdb-7839-a620-1b01d178bf1e -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자에게 현재 Apple 로그인 차단 이유를 쉬운 용어로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 앞서 확인한 Firebase Google/Apple/Phone 연결과 Identity GOOGLE만 등록된 상태를 바탕으로 본인 인증과 서비스 계정 로그인 승인을 구분해 설명.
+- 테스트와 결과: 기존 실조회 결과 기반 안내, git diff --check 수행. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 계정·세션·DB·외부 설정 변경 및 승인 우회 없음. 비밀정보 비기록.
+- 결정사항: 새 Apple 계정 사용이나 기존 계정 삭제가 필수라는 오해 해소. Firebase 연결 생성 경위는 단정하지 않음.
+- 위험 요소: 정식 연결 복구 흐름의 기존 Firebase 연결 처리 조건 미검증. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 정식 연결 절차 및 테스트 화면 보완 검토. Jira 변경 없음.
+
+## 2026-09-30 — 로그인 승인 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f131-7898-7bf2-8879-4fbe3ec015e4 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 설명 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 Firebase 인증 성공과 Identity 제공자 승인 누락을 설명한 작업의 식별 기록 추가.
+- 테스트와 결과: git diff --check 수행. 문서 기록 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 계정·세션·DB·설정 미변경, 비밀정보 비기록.
+- 결정사항: 기존 계정에 Apple 연결을 원하는지는 사용자 의도 확인이 필요하며 실제 변경하지 않음.
+- 위험 요소: 연결 복구 조건 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 의도에 맞게 정식 연결 또는 별도 가입 흐름 검토. Jira 변경 없음.
+
+## 2026-09-30 — Apple 전역 활성화와 계정 연결 검사 구분
+
+<!-- codex-turn:01a0f135-a035-71a1-97e4-8737e1098e06 -->
+
+- 브랜치: develop.
+- 작업 목표: 서버 Apple 기능을 켰는데도 409가 발생하는 이유를 코드 근거로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. FirebaseAdminAuthenticationVerifier의 validateProviderPolicy와 후속 ProviderChangeGuard.validatePrincipal 호출, appleEnabled 참조 확인. 전역 기능 활성화가 기존 회원의 SocialIdentity 생성이나 승인 누락 검사를 대체하지 않음을 설명.
+- 테스트와 결과: 소스 정적 조회 및 git diff --check. 코드 변경 없는 설명으로 실행 테스트 미실행.
+- 유지한 계약: Apple 전역 설정·계정·DB·배포 미변경, 비밀정보 비기록.
+- 결정사항: 앞선 허용이라는 표현을 전역 기능 활성화와 계정별 연결 확인으로 명확히 구분. 운영자가 회원마다 수동 허용해야 한다는 의미가 아님.
+- 위험 요소: 이미 Firebase에 연결된 제공자 복구 흐름 검증은 남음. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 정식 계정 연결 흐름의 현재 데이터 상태 처리 확인 및 테스트 UI 보완. Jira 변경 없음.
+
+## 2026-09-30 — 기존 Firebase Apple 연결의 정식 복구 가능성 조사
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 전역 Apple 활성화 이후 계정 연결 불일치의 생성 경위와 기존 link API 복구 가능성 점검.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 분석만 수행. ProviderLinkService.prepare에서 원격 연결이 있으면 ownedSocial로 기존 승인 레코드를 필수 조회함을 확인. 현재 원격 APPLE 연결/로컬 APPLE 없음 상태는 link 기능 활성화 시에도 SOCIAL_IDENTITY_CONFLICT 발생 조건. prepare 이전 원격 연결을 소급 승인하지 않는 주석과 start의 원격 연결 거절 조건 확인. 해당 서비스는 이전 확인 배포 commit 88ff5bed와 diff 없음. 로컬 테스트 화면은 Apple signInWithPopup/reauthenticateWithPopup만 수행하고 SNS 연결 호출은 없음; linkWithCredential은 전화번호용.
+- 테스트와 결과: 소스 및 배포 commit 비교, git diff --check. 코드 변경 없어 실행 테스트 미실행. 실제 계정 mutation/API 재실행 없음.
+- 유지한 계약: 기능 활성화와 계정 연결 검증 분리, 소급 자동 승인·DB 수동 삽입·Firebase 해제 미실행. 비밀정보 비기록.
+- 결정사항: 현재 상태는 테스트 UI에 연결 버튼만 추가해 해결할 수 없으므로 앞선 단순화 설명 정정. 연결 생성 경위는 자동 연결 등 가능성만 있으며 확정하지 않음. 안전한 불일치 복구 흐름 검토가 선행되어야 함.
+- 위험 요소: Firebase 연결 생성 당시 이벤트/로그 미확보. link 플래그 현재 배포값 미조회, 따라서 실제 prepare HTTP 결과는 미실행 상태. 예상 밖 수정 없음.
+- 다음 작업: 사용자 요청 시 기존/대상 SNS 소유권 확인 및 계정 충돌 방지를 포함하는 복구 설계와 테스트 계획 마련. 계정 삭제나 강제 연결 해제로 우회하지 않음.
+
+## 2026-09-30 — Apple 연결 복구 조사 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f136-c432-7520-bb9f-0d575ca063ca -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 연결 복구 조사 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 기존 link prepare의 승인 누락 거절 조건 및 UI만으로 복구되지 않는다는 조사 결과의 작업 식별자를 추가.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 계정·DB·서버 코드·설정 미변경, 비밀정보 비기록.
+- 결정사항: 복구 설계 검토 전 강제 승인 또는 연결 해제하지 않음.
+- 위험 요소: Firebase 연결 생성 경위 미확정, 실제 복구 미검증. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 안전한 불일치 복구 설계 및 테스트 계획 수립. Jira 변경 없음.
+
+## 2026-09-30 — 다중 SNS 지원과 연결 불일치 구분
+
+<!-- codex-turn:01a0f138-0bc6-7f57-9640-70143b10d2d3 -->
+
+- 브랜치: develop.
+- 작업 목표: 다중 SNS 로그인 허용 자체가 충돌 원인인지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 분석만 수행. SocialIdentity의 provider/subject 고유 인덱스와 ProviderLinkService.complete의 대상 provider 추가/동일 provider 중복 검사 확인. 다른 SNS가 이미 등록돼 있다는 이유만으로 새 SNS를 거절하는 구조는 아님.
+- 테스트와 결과: 코드 정적 조회 및 git diff --check. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 한 회원에 복수 SNS 연결 지원, 다른 계정 소유 또는 동일 provider 중복 방지 유지. 외부 데이터·설정 미변경.
+- 결정사항: 현재 오류는 다중 SNS 자체 충돌이 아닌 Firebase/Identity 연결 상태 불일치로 설명. 정식 연결 흐름과 외부에서 먼저 생긴 연결의 복구 공백을 구분.
+- 위험 요소: 최초 설계 전체 이력과 Firebase 연결 생성 경위는 미확정. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 기존 다중 SNS 지원을 유지하는 안전한 불일치 복구 설계 검토. Jira 변경 없음.
+
+## 2026-09-30 — 다중 SNS 지원 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f138-9261-75c3-9c98-e9fadd0c0848 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 설명 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 다중 SNS 지원과 계정 연결 정보 불일치를 구분한 설명의 작업 식별자를 추가.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 복수 SNS 지원 및 계정 충돌 방지 유지. 코드·DB·설정 미변경, 비밀정보 비기록.
+- 결정사항: 현재 오류를 다중 SNS 기능 자체의 충돌로 단정하지 않음.
+- 위험 요소: Firebase 연결 생성 경위와 불일치 복구 절차 미검증. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 안전한 불일치 복구 설계 검토. Jira 변경 없음.
+
+## 2026-09-30 — Apple 로그인 차단 조건과 보안 목적 설명
+
+- 브랜치: develop.
+- 작업 목표: 차단의 직접 조건과 검사 목적을 구분하여 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderChangeGuard.validatePrincipal의 기존 바인딩 및 현재 provider/subject 승인 레코드 검사 재확인. 현재 APPLE 레코드 부재로 거절되는 상태와 과거 계정 차단을 구분.
+- 테스트와 결과: 소스 정적 확인, git diff --check 수행. 설명 작업으로 실행 테스트 미실행.
+- 유지한 계약: 외부 연결만으로 서비스의 승인/해제 절차 우회 금지. 코드·계정·설정 미변경, 비밀정보 비기록.
+- 결정사항: 기능 OFF나 계정 정지가 아니라 승인된 연결 정보 부재에 의한 요청 거절로 설명. Firebase 연결 생성 경위는 단정하지 않음.
+- 위험 요소: 실제 불일치 생성 원인과 복구 절차는 추가 확인 필요. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 연결 불일치 복구 설계 검토. Jira 변경 없음.
+
+## 2026-09-30 — Apple 차단 조건 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f13a-3ebc-7d83-b109-a9008978d8d2 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 수정하지 않고 Apple 승인 레코드 누락에 따른 거절 조건 설명의 작업 기록 추가.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 코드·계정·DB·외부 설정 미변경, 비밀정보 비기록.
+- 결정사항: 확인한 차단 조건과 미확정인 불일치 생성 경위를 구분.
+- 위험 요소: 실제 불일치 생성 경위와 복구 절차 미검증. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 연결 불일치 원인 및 복구 절차 추가 조사. Jira 변경 없음.
+
+## 2026-09-30 — Firebase 신뢰된 제공업체 자동 연결 정책 조사
+
+- 브랜치: develop.
+- 작업 목표: Apple 연결이 Firebase에만 생기는 경로를 공식 동작과 코드로 대조.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 공식 https://firebase.google.com/docs/auth/users#verified_email_addresses 실조회로 동일 이메일의 신뢰된 제공업체 로그인 시 자동 연결, Apple의 신뢰된 제공업체 분류, Google의 Gmail 조건 확인. 로컬 app.js는 Apple signInWithPopup/reauthenticateWithPopup만 호출하고 명시적 SNS link나 Identity sync 호출이 없음을 확인. FirebaseSignupService는 신규 가입 때 연결 SNS를 준비하지만 exchange는 기존 바인딩의 미등록 SNS를 거절하고 자동 저장하지 않음. 기존 sync 역시 승인된 연결 검증만 수행.
+- 테스트와 결과: 공식 문서 브라우저 조회·코드 정적 대조·git diff --check. 코드 변경 없어 실행 테스트 미실행. 계정 로그인/연결 재현 mutation 미수행.
+- 유지한 계약: 계정·DB·배포·설정 미변경, 비밀정보 비기록. 원인 조사와 수정 권한 구분.
+- 결정사항: Firebase 자동 연결이 현재 상태와 부합하는 가장 유력한 생성 경로이며, 앱에서 link API를 직접 호출하지 않아도 발생 가능. Identity의 명시적 연결 승인 모델이 이 경로를 처리하지 못하는 통합 공백 확인. 사용자 실수나 테스트 화면 연결 버튼 누락만으로 단정하지 않음.
+- 위험 요소: 해당 로그인 당시 이벤트 로그 및 연결 전 snapshot 미확보로 이번 연결 순간의 직접 증명은 아님. 자동 연결 전체를 무조건 승인하면 기존 해제/차단 보호를 훼손할 수 있어 별도 복구 설계 필요. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 Firebase 자동 연결을 고려한 안전한 계정 연결/복구 정책 및 회귀 테스트 설계. Jira 변경 없음.
+
+## 2026-09-30 — Firebase 자동 연결 정책 조사 식별 기록 보완
+
+<!-- codex-turn:01a0f13c-7853-7823-af05-3a9850b7edc2 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 자동 연결 정책 조사 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 공식 Firebase 자동 연결 정책 및 Identity 명시적 승인 모델의 불일치 조사 결과 식별 기록 추가.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 계정·DB·서버 코드·설정 미변경, 비밀정보 비기록.
+- 결정사항: 공식적으로 가능한 자동 연결 동작과 이번 개별 사건의 직접 증명을 구분.
+- 위험 요소: 당시 이벤트 로그 미확보, 실제 연결 생성 순간 미확정. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 안전한 자동 연결 대응 및 복구 정책 설계. Jira 변경 없음.
+
+## 2026-09-30 — Apple 연결 해제 후 재현 범위 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청의 Apple 연결 해제와 재로그인 재현 범위를 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 전체 계정 삭제가 아닌 테스트 Firebase 사용자의 Apple provider만 해제하는 범위를 설명하고 적용 전 사용자 확인 요청. Google/전화번호/UID/Identity 회원/기록은 유지 대상.
+- 테스트와 결과: 안내 및 기록만 수행, git diff --check. 실행 테스트·계정 변경 미수행.
+- 유지한 계약: 기존 계정 및 인증 수단 보호, 비밀정보 비기록. 승인 전 unlink/사용자 삭제 없음.
+- 결정사항: 재로그인 시 Firebase 자동 재연결과 동일 오류가 발생할 수 있으므로 해결이 아닌 재현 실험으로 설명. Apple 로그인을 다시 수행할 때 사용자 직접 인증 필요.
+- 위험 요소: 연결 해제는 해당 로그인 수단을 제거하며 세션 영향 확인 필요. 실제 해제 방법·재현은 승인 후 검토. 예상 밖 수정 없음.
+- 다음 작업: 범위 승인 후 지원되는 provider 해제 방법 확인 및 변경 전후 연결 상태 비교. Jira 변경 없음.
+
+## 2026-09-30 — Apple 재현 실험 목적 및 콘솔 해제 기능 확인
+
+- 브랜치: develop.
+- 작업 목표: 오류 재현 요청에 맞춰 Apple provider만 해제 가능한 경로 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Firebase 테스트 사용자 메뉴 읽기 전용 조회, 전체 계정 삭제/비활성화 및 비밀번호 재설정만 표시됨을 확인. Apple 단독 해제는 콘솔 메뉴에서 제공되지 않으므로 Firebase SDK 기반 테스트 UI 경로 검토.
+- 테스트와 결과: 실제 콘솔 메뉴 확인 및 git diff --check. unlink/로그인 재현은 미실행, 자동 테스트 미실행.
+- 유지한 계약: Google·전화번호·UID·Identity 회원과 기록 보존, 전체 사용자 삭제 금지. 비밀정보 비기록.
+- 결정사항: 해결 작업이 아닌 해제 전후 provider/UID 및 exchange 결과 비교 실험으로 범위 명확화. 실제 연결 변경 직전 확인 요청.
+- 위험 요소: Apple 연결 해제는 인증 수단 변경이며 세션 영향 가능. 재로그인 시 사용자 직접 인증 필요. 예상 밖 수정 없음.
+- 다음 작업: Apple 단독 해제 범위 확인 후 재현용 SDK 조작 준비 및 변경 전후 검증. Jira 변경 없음.
+
+## 2026-09-30 — Apple 재현 실험 준비 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f13e-1388-7711-bdc3-0df9a4049ed8 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 재현 실험 준비 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 Firebase 콘솔의 Apple 단독 해제 메뉴 부재 및 실제 변경 전 범위 확인 대기 상태를 기록.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 계정·DB·코드·설정 미변경, 비밀정보 비기록. 전체 사용자 삭제 없음.
+- 결정사항: Google·전화번호·회원 기록을 유지하는 Apple 연결 단독 해제 승인 후 재현 진행.
+- 위험 요소: 실제 unlink와 재로그인 결과 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 확인 후 지원되는 SDK 경로로 해제 전후 상태 및 동일 오류 재발 여부 검증. Jira 변경 없음.
+
+## 2026-09-30 — 승인된 Apple 단독 해제 및 재로그인 재현 준비
+
+- 브랜치: develop. Jira: 요청에 연결된 이슈 없음.
+- 작업 목표: Apple 연결만 해제한 뒤 동일 계정 로그인으로 자동 연결 및 409 재발 검증.
+- 변경 파일: 별도 `/Users/msde76/tosunsaeng-integration-test`의 app.js, index.html, apple.test.mjs, README.md 및 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 재현 버튼에 테스트 프로젝트·Google 인증·Identity 로그인 성공·Google/전화/Apple 존재·Guest 병합 상태 없음 검사 추가. 확인 후 apple.com만 unlink, reload로 UID/나머지 provider 보존 및 Apple 부재 확인. 불명확한 결과에 자동 재해제하지 않도록 메모리 잠금. 로그아웃 후 Apple 로그인 시 동일 UID/자동 연결/기존 provider 유지 boolean 비교. 토큰/사용자 ID 원문 비출력.
+- 실제 수행: 사용자 범위 승인에 따라 기존 오류 탭 새로고침 및 기존 공개 Firebase 웹 구성 적용. 기존 테스트 Google 계정 선택 후 Identity MEMBER 로그인 성공. 재현 확인창 승인 후 Apple 단독 해제 성공 표시와 UID/Google/전화 유지 확인. Apple 로그인 창 열었으나 직접 인증 필요하여 대기. 전체 사용자 삭제/Google·전화 해제 없음. 해제된 Apple 연결은 재인증/연결로 복구 가능한 로그인 수단이며 원인 재현 목적으로 분리함.
+- 실행한 테스트와 결과: Node app/apple/merge/challenge 테스트 5개 통과(해제 취소, Apple만 unlink, 상태 보존, 로그인 후 자동 연결 Mock 검증 포함). 브라우저에서 신규 재현 섹션/Google 로그인/실제 해제 결과 확인. 새 탭 직접 이동은 클라이언트 차단됐으나 기존 탭 reload 성공. git diff --check. Identity 서버 코드 변경 없어 Gradle 재실행 생략.
+- 유지한 계약: 정식 Identity provider API/보호 조건/DB 승인 레코드 미변경, 운영 미변경, 서버 배포 없음. 비밀정보 비기록, 기존 사용자 변경 보존. Identity 로그인에 따른 정상 세션 발급 외 서버 변경 없음.
+- 결정사항: 실험 목적의 Firebase 단독 unlink이며 서비스용 해제 기능으로 사용하지 않음. 사용자 Apple 인증 후 동일 UID와 exchange 결과를 확인해야 재현 완료.
+- 위험 요소: Apple 실제 재로그인 및 409 재발 미완료. 새로고침하면 비교 메모리 소실. 기존 서버 세션은 로컬 초기화로 폐기되지 않음. 예상 밖 수정 없음.
+- 다음 작업: 사용자가 같은 Apple 계정으로 인증 완료 후 비교 결과 및 Identity exchange 확인. 배포 전 확인: 로컬 재현 버튼은 서비스 배포 대상 아님. Jira 댓글/상태 변경 없음.
+
+## 2026-09-30 — Apple 단독 해제 재현 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f13f-c70e-7da3-9ab4-eb80e23fcf6f -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 승인된 Apple 재현 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 로컬 재현 UI 추가·실제 Apple 단독 해제·사용자 재인증 대기 결과의 작업 식별 기록 추가.
+- 테스트와 결과: 앞선 Node Mock 테스트 5개 통과 및 실제 해제 결과 확인 유지. 이번 문서 보완 후 git diff --check 수행, 실행 테스트 재실행 없음.
+- 유지한 계약: 추가 계정·DB·코드·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: Apple 재로그인 후 자동 연결과 Identity 오류 확인 전까지 재현 완료로 보고하지 않음.
+- 위험 요소: 사용자 Apple 인증 및 409 재발 미검증. 예상 밖 수정 없음.
+- 다음 작업: 사용자 인증 완료 후 기존 페이지 비교 상태와 Identity exchange 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 자동 재연결 및 Identity 409 실재현 완료
+
+<!-- codex-turn:01a0f14a-183f-7042-9d8f-de39617a950d -->
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 승인된 재현 실험에서 Apple 재로그인 후 자동 연결과 동일 오류 발생 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 사용자 인증 완료 후 Chrome 기존 테스트 탭의 비교 결과에서 동일 UID/Apple 연결/기존 로그인 수단 유지가 모두 true임을 확인. 앞선 실제 해제 결과(Apple 없음)와 대조. Identity 로그인/가입 준비 버튼을 눌러 exchange HTTP 409 PROVIDER_RELINK_REQUIRED 재발 확인.
+- 테스트와 결과: 실제 Firebase Apple 인증→같은 UID로 Apple 재연결→Identity exchange 409 흐름 재현 성공. 신규 signup/명시적 SNS link API 없이 일반 로그인 경로에서 재연결 확인. git diff --check 수행. 코드 변경 없어 자동 테스트 재실행 없음.
+- 유지한 계약: Google·전화번호 연결 유지, 전체 계정 삭제·DB 직접 변경·서버 코드/배포 변경 없음. 개인정보·토큰·비밀정보 비기록. 기존 사용자 변경 보존.
+- 결정사항: 이번 재현의 자동 재연결은 추정이 아닌 관측 결과. 최초 사건의 과거 생성 로그까지 확보한 것은 아님. Identity의 누락된 승인 레코드 거절과 Firebase 자동 연결 간 호환성 문제를 해결 범위로 제시.
+- 위험 요소: 원인 재현 완료이며 해결 완료는 아님. 현재 Apple 연결은 다시 존재하고 Identity Apple 로그인은 여전히 거절됨. 예상 밖 수정 없음.
+- 다음 작업: 사용자 요청 시 기존 제공자 해제/차단 보호를 유지하는 자동 연결 처리 및 안전한 복구 계획 수립. 추가 해제/자동 승인하지 않음. Jira 변경 없음.
+
+## 2026-09-30 — 다른 Apple 계정 비교 실험 준비 및 기존 연결 해제
+
+- 브랜치: develop. Jira: 요청에 연결된 이슈 없음.
+- 작업 목표: 기존 Apple 연결 해제 후 다른 Apple 계정 로그인에서도 동일 오류가 발생하는지 비교.
+- 변경 파일: 별도 로컬 테스트 프로젝트 app.js, apple.test.mjs 및 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 다른 계정의 Firebase UID 변경은 예상 가능한 결과이므로 재현 로그인 단계에서 중단하지 않고 boolean 비교만 표시. 서로 다른 계정 연결/토큰 복사 없음. 다른 UID Mock 로그인 후 exchange 버튼 활성화 검증 추가.
+- 실제 수행: 기존 오류 화면 새로고침 및 공개 웹 설정 재적용, Google 인증/Identity 로그인 성공 확인. 사용자 요청한 Apple 단독 해제 실행 후 동일 UID·Google/전화 유지·Apple 없음 확인. Apple 로그인 창을 열었으며 사용자 이중 인증 단계 대기.
+- 테스트와 결과: Node app/apple/merge/challenge 테스트 5개 통과, 실제 해제 후 상태 확인, git diff --check. 서버 코드 미변경으로 Gradle 재실행 생략.
+- 유지한 계약: 전체 사용자 삭제·Google/전화번호 해제·Identity DB 직접 변경·배포 없음. 비밀정보 비기록, 기존 사용자 변경 보존.
+- 결정사항: Identity exchange 결과 비교까지만 범위로 하며 신규 signup/약관 동의/전화번호 연결은 수행하지 않음.
+- 위험 요소: 실제 다른 Apple 계정 여부·UID 및 오류 결과 미확인, 사용자 인증 필요. 현재 기존 Apple 연결은 해제 상태이며 재연결 가능. 예상 밖 수정 없음.
+- 다음 작업: 사용자 인증 후 UID 비교 및 exchange 응답 확인. 로컬 재현 기능은 서비스 배포 대상 아님. Jira 변경 없음.
+
+## 2026-09-30 — 다른 Apple 비교 실험 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f14c-14b3-7c60-bbfb-0531777241b7 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 다른 Apple 계정 비교 실험의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 다른 UID 허용 비교 기능·기존 Apple 단독 해제·사용자 인증 대기 결과의 식별 기록 추가.
+- 테스트와 결과: 앞선 Node Mock 테스트 5개 통과 및 실제 해제 결과 확인 유지. git diff --check 수행, 문서 보완만으로 실행 테스트 재실행 없음.
+- 유지한 계약: 추가 계정·DB·코드·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: 다른 Apple 인증 및 exchange 확인 전까지 재현 결과를 확정하지 않음.
+- 위험 요소: 사용자 인증 대기, 실제 다른 UID 및 오류 응답 미확인. 예상 밖 수정 없음.
+- 다음 작업: 인증 완료 후 기존 페이지의 비교 상태 및 Identity 응답 확인. Jira 변경 없음.
+
+## 2026-09-30 — 다른 Apple 계정의 Identity 가입 준비 정상 응답 확인
+
+- 브랜치: develop. Jira: 연결된 이슈 없음.
+- 작업 목표: 다른 Apple 계정 로그인 시 기존 계정 자동 연결 사례와 동일한 409가 발생하는지 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 사용자 Apple 인증 완료 후 Chrome 재현 화면의 동일 UID=false/Apple 연결=true/기존 로그인 수단 유지=false 확인. Identity 로그인/가입 준비 버튼 실행 후 신규 가입 준비 완료 안내 및 전화 인증 시작 버튼 활성 확인.
+- 테스트와 결과: 실제 다른 Firebase UID의 Apple 인증 및 exchange 신규 enrollment 경로 성공, 해당 409 재발 없음. 전화 연결/약관 동의/signup은 미실행. git diff --check 수행. 코드 변경 없어 자동 테스트 재실행 없음.
+- 유지한 계약: 기존 계정·Google/전화·회원 기록 삭제 없음, 추가 provider 변경 없음. 토큰/사용자 식별값/비밀정보 비기록. 신규 Identity 회원 생성까지 수행하지 않음.
+- 결정사항: Apple 로그인 전체 장애가 아니라 기존 Firebase 계정에 자동 연결된 SNS와 Identity 승인 정보가 불일치할 때의 문제로 범위 좁힘. 기존 로그인 수단 유지=false는 다른 계정 간 비교로 해석하며 기존 계정 수단 삭제로 해석하지 않음.
+- 위험 요소: 신규 MEMBER 가입과 이후 API 검증은 미수행. 테스트 enrollment는 만료될 수 있음. 이전 기존 계정의 Apple 해제 상태 유지. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 기존 UID 자동 연결 대응 설계 또는 신규 Apple 회원가입 검증 진행. Jira 변경 없음.
+
+## 2026-09-30 — 다른 Apple 계정 검증 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f14f-ab03-7770-88dd-7c286941d9fe -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 다른 Apple 계정 검증의 정확한 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 다른 Firebase UID의 Apple 인증 및 Identity 신규 가입 준비 정상 응답 결과의 식별 기록 추가.
+- 테스트와 결과: 앞선 실제 화면 검증 결과 유지, git diff --check 수행. 문서 보완만으로 실행 테스트 재실행 없음.
+- 유지한 계약: 추가 계정·DB·코드·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: 409 미재발과 신규 가입 준비 성공을 최종 회원가입 완료와 구분.
+- 위험 요소: 전화번호 연결·MEMBER 가입·후속 API 미검증. 예상 밖 수정 없음.
+- 다음 작업: 요청 시 기존 UID 자동 연결 대응 설계 또는 신규 가입 검증 진행. Jira 변경 없음.
+
+## 2026-09-30 — Apple 신규 회원 후속 검증 순서 안내
+
+<!-- codex-turn:01a0f152-ed12-7800-936d-e5e4dcd2227e -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 확인 범위와 다음에 필요한 기능 검증의 우선순위 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 신규 enrollment 성공과 MEMBER 가입 완료를 구분하고 전화 연결/동의/가입, 프로필, Apple 재로그인, 토큰 재발급, LC 접근 및 챌린지 순서 제안. 병합은 기본 인증 이후 별도 테스트로 분리.
+- 테스트와 결과: 앞선 실검증 결과 기반 안내, git diff --check 수행. 신규 외부 테스트 미실행.
+- 유지한 계약: 약관 동의는 사용자 직접 수행, 기존 계정 전화번호 재사용 금지 안내. 실제 계정·데이터·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: 정상 신규 계정 경로 검증은 이어갈 수 있으나 기존 UID 자동 연결 409를 해결 완료로 취급하지 않음.
+- 위험 요소: 신규 Apple MEMBER 발급/재로그인/재발급 미검증. 자동 연결 문제는 출시 전 수정·회귀 검증 필요. 예상 밖 수정 없음.
+- 다음 작업: 사용자 진행 요청 후 미사용 테스트 전화번호 및 약관 동의 준비, 가입 검증. Jira 변경 없음.
+
+## 2026-09-30 — 신규 Apple 가입용 테스트 전화번호 가용성 확인
+
+- 브랜치: develop.
+- 작업 목표: 요청된 신규 Apple 가입 검증을 위한 미사용 테스트 전화번호 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Chrome Apple 신규 enrollment 준비 상태 확인 및 Firebase 전화 provider의 테스트 번호 설정 펼쳐 조회. 등록 번호는 1개이며 앞서 확인된 기존 Google 회원의 연결 번호로 별도 번호 필요.
+- 테스트와 결과: 실제 설정 화면 읽기 전용 확인, git diff --check 수행. 새로운 전화 인증/가입 및 실행 테스트 미수행.
+- 유지한 계약: 기존 Google 전화 연결·회원 기록 보존, provider 설정 및 테스트 인증 코드 변경 없음. 인증 코드/개인정보 비기록.
+- 결정사항: 현재 번호를 새 Apple 계정에 재사용하지 않음. 별도 가상 번호 및 고정 코드는 사용자가 콘솔에서 직접 등록하도록 인계, 이후 전화 인증 이어서 진행. 약관 동의는 별도 사용자 확인 필요.
+- 위험 요소: 추가 테스트 번호 미등록으로 전화 연결 검증 대기, enrollment 만료 시 가입 준비 재요청 필요. 예상 밖 수정 없음.
+- 다음 작업: 사용자 별도 가상 번호 등록 후 신규 Apple 전화 연결 검증. Jira 변경 없음.
+
+## 2026-09-30 — 신규 Apple 전화 인증 준비 작업 식별 기록 보완
+
+<!-- codex-turn:01a0f153-b853-7d73-addf-8c5d552adbf6 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 전화 인증 준비 작업의 정확한 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 기록을 보존하고 테스트 번호 가용성 확인 및 별도 번호 등록 대기 상태의 식별 기록 추가.
+- 테스트와 결과: git diff --check 수행. 문서 보완만으로 실행 테스트 미실행.
+- 유지한 계약: 기존 회원 전화 연결 유지, 외부 설정·계정 변경 없음, 비밀정보 비기록.
+- 결정사항: 사용 중인 테스트 번호를 새 계정에 재사용하지 않음.
+- 위험 요소: 별도 테스트 번호 등록 및 실제 전화 인증 미완료. 예상 밖 수정 없음.
+- 다음 작업: 사용자 번호 등록 후 신규 Apple 전화 연결 검증. Jira 변경 없음.
+
+## 2026-09-30 — 신규 Apple 계정 테스트 전화 연결 성공
+
+<!-- codex-turn:01a0f157-dcb6-77f3-92fa-aee455c04396 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 등록한 별도 가상 번호로 신규 Apple 계정 전화 연결 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Firebase 전화 provider 설정에 테스트 번호 두 개 및 저장 비활성 확인. 기존 번호와 다른 신규 가상 번호를 사용. Chrome Apple 세션에서 exchange 가입 준비 갱신 후 전화 인증 시작 및 고정 코드 연결 수행. SDK 성공 화면에서 Firebase UID 유지와 전화 연결 완료 확인.
+- 테스트와 결과: 실제 테스트 Firebase 전화 연결 성공. 최종 signup/프로필/토큰 재발급/LC는 미실행. git diff --check 수행, 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 실제 SMS 미발송, 기존 Google 계정의 전화 연결 유지. 인증 코드·토큰·개인 식별값 비기록. 약관 동의 및 최종 가입 대리 실행 없음. 서버 설정·배포·DB 직접 변경 없음.
+- 결정사항: 등록 완료 보고를 전화 연결 검증 진행으로 해석. 가입 전 사용자 닉네임·정책 확인·동의 필요. 기존 draft 정책 버전을 현재 live 값으로 단정하지 않음.
+- 위험 요소: 신규 Identity MEMBER는 아직 생성되지 않았으며 enrollment 만료 가능. 기존 자동 연결 409 문제는 미해결. 예상 밖 수정 없음.
+- 다음 작업: 현재 정책 버전 확인 및 사용자 직접 약관 동의 후 최종 가입, 프로필/재로그인/재발급 검증. Jira 변경 없음.
+
+## 2026-09-30 — 배포된 정책 버전 확인 및 테스트 화면 입력
+
+<!-- codex-turn:01a0f15a-e8a5-77e3-8b23-e88ece58b884 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청대로 현재 서버 정책 버전만 입력하고 동의·가입은 사용자에게 유지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. AWS 테스트 서비스 새로고침 후 연결된 task revision 6에서 개인정보 privacy-v1, 이용약관 term-v1 확인. Chrome 테스트 화면 두 버전 필드 입력 및 표시 확인.
+- 테스트와 결과: 브라우저 실제 설정 및 입력값 검증 완료. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 동의 체크·최종 가입·운영 설정 변경 없음.
+- 결정사항: 조회 당시 동의 체크가 이미 선택되어 있었으므로 그대로 보존. 대리 동의 또는 signup 미실행.
+- 위험 요소: 신규 MEMBER 가입 및 후속 검증 미완료, enrollment 만료 가능. 기존 사용자 변경 보존, 이번 작업 예상 밖 변경 없음.
+- 다음 작업: 사용자 약관 확인 후 최종 가입 및 프로필·재로그인·재발급 검증. Jira 변경 없음.
+
+## 2026-09-30 — 신규 Apple 가입 RESTART_EXCHANGE 진단
+
+- 브랜치: develop.
+- 작업 목표: 사용자 로그인 실패 보고 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Chrome signup RESTART_EXCHANGE 및 프로필 버튼 비활성 확인. 로컬 app.js의 signup 사전 검사와 서버 enrollment 기본 10분·응답 밀리초 단위 확인.
+- 테스트와 결과: UI 및 소스 읽기 검증. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 토큰·개인정보 비기록, 약관 동의/가입/서버 변경 미실행.
+- 결정사항: Firebase 로그인 실패가 아니라 가입 준비 재시작 요구로 안내. 경과 시간상 enrollment 만료 유력하나 내부 메모리 직접 조회 없이 다른 사전 조건 실패 가능성과 구분.
+- 위험 요소: 신규 MEMBER 미생성, 재인증 필요 가능. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 사용자 exchange 갱신 및 필요 시 Apple 재인증 후 최종 가입. Jira 변경 없음.
+
+## 2026-09-30 — 가입 오류 진단 작업 식별 기록
+
+<!-- codex-turn:01a0f15f-3567-7f61-83c8-5570e01ed056 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 RESTART_EXCHANGE 진단의 turn 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 오류 및 로컬 가입 사전 검사 확인 결과를 기록. 코드 수정 없음.
+- 테스트와 결과: git diff --check 통과. 읽기 전용 진단으로 Gradle 미실행.
+- 유지한 계약: 비밀정보 비기록, 동의·가입·서버 변경 없음.
+- 결정사항: 가입 준비 갱신 안내, enrollment 만료는 유력 원인으로 구분.
+- 위험 요소: 신규 가입 및 후속 인증 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 가입 준비 갱신 후 최종 가입 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — 전화 연결 후 exchange 제공자 거절 진단
+
+- 브랜치: develop.
+- 작업 목표: HTTP 403 FIREBASE_PROVIDER_NOT_ALLOWED 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 검증표에서 exchange 실패 확인. FirebaseAdminAuthenticationVerifier의 LOGIN_EXCHANGE PHONE 거절 조건 확인. 직전 task revision 6의 Apple/Phone 활성 확인과 비교.
+- 테스트와 결과: UI 및 소스 읽기 검증, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: PHONE 단독 로그인 제한 유지, 비밀정보 비기록, 계정/동의/배포 변경 없음.
+- 결정사항: 전화 연결 후 sign-in provider 변경 가능성이 유력하나 현재 claim 미조회로 확정하지 않음. 같은 Apple 재인증 후 exchange 및 가입 안내.
+- 위험 요소: 실제 claim 및 재인증 후 성공 미확인. 기존 변경 보존, 예상 밖 수정 없음.
+- 다음 작업: 사용자 Apple 재인증 후 가입 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — 제공자 거절 진단 식별 기록 보완
+
+<!-- codex-turn:01a0f161-0128-7b92-b88f-57124fe10a98 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 exchange 403 진단 기록 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: UI exchange 실패 및 서버 PHONE 로그인 제한 확인 결과 기록. 코드 변경 없음.
+- 테스트와 결과: git diff --check 통과. 읽기 전용 진단으로 Gradle 미실행.
+- 유지한 계약: 제공자 제한 유지, 동의·가입·설정 변경 없음, 비밀정보 비기록.
+- 결정사항: PHONE 전환은 미확정 가설이며 같은 Apple 재인증 후 재시도 안내.
+- 위험 요소: 재인증 후 성공 및 현재 claim 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 Apple 재인증 및 가입 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 가입 후 기능 및 병합 읽기 검증
+
+- 브랜치: develop.
+- 작업 목표: 사용자 수행 후 성공 범위와 미검증 범위 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Chrome 검증표에서 Apple 재인증·회원가입·프로필·재발급·LC 인증·Guest 준비·Identity 병합·응시·S3 업로드 성공 확인. 병합 후 검증 버튼의 읽기 전용 구현을 확인하고 실행.
+- 테스트와 결과: Identity/LC 이전 Guest 모두 ACCOUNT_MERGED_TOKEN_REJECTED 확인, 대상 MEMBER 완료 이력 조회 성공. 이전 기록 0건으로 실제 이전 미검증. 챌린지 결과 solvedQuestionCount=0 및 question=null, 제출/AI 채점 성공 미확인. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 비밀정보·개인정보 비기록, 추가 가입·병합·제출·재발급 또는 서버 설정 변경 없음.
+- 결정사항: 과거 signup/exchange 오류 기록과 이후 성공 기록 구분. 기본 인증 및 병합 차단은 성공, 전체 기능 완료로 단정하지 않음.
+- 위험 요소: AI 채점, 기록 있는 Guest 이전, 이벤트 204/중복 처리는 미검증. 기존 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 챌린지 제출/채점 및 기록 있는 Guest 이전은 별도 범위로 검증. Jira 변경 없음.
+
+## 2026-09-30 — 후속 기능 검증 turn 기록 보완
+
+<!-- codex-turn:01a0f163-6859-73f0-8185-9d56dd1949c7 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Apple 가입 후 기능 확인의 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기본 인증·가입·재발급·LC 접근 성공 표시 확인 및 병합 후 읽기 검증 결과 기록. 코드 변경 없음.
+- 테스트와 결과: 이전 Guest의 Identity/LC 전용 차단 및 대상 MEMBER 이력 조회 성공. git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 추가 가입·병합·제출·서버 변경 없음, 비밀정보 비기록.
+- 결정사항: 기본 인증 성공과 전체 종단 검증 완료를 구분.
+- 위험 요소: 기록 0건으로 실제 이전 미검증, AI 채점 성공 미확인. 예상 밖 변경 없음.
+- 다음 작업: 챌린지 제출·채점 및 기록 있는 Guest 이전 별도 검증. Jira 변경 없음.
+
+## 2026-09-30 — 이전 Google 채점 성공 기록 확인
+
+- 브랜치: develop.
+- 작업 목표: 이전 Google 검증 성공 여부와 최근 Apple 검증 범위 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 WORKLOG에서 CORS 수정 후 실제 업로드·제출·AI completed 및 결과 재조회 성공 확인. 이번 Apple 계정 미확인과 구분하여 설명.
+- 테스트와 결과: 과거 기록 읽기 확인, git diff --check 수행. 코드 변경 및 신규 서버 호출 없어 실행 테스트 미실행.
+- 유지한 계약: 비밀정보 비기록, 외부 상태 변경 없음.
+- 결정사항: AI 전체가 미검증인 것이 아니라 새 Apple 계정 시도만 미확인으로 정정. Google 당시 기록 이전도 0건으로 미검증.
+- 위험 요소: Apple 현재 채점 성공 및 기록 이전은 여전히 미확인. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 Apple 계정 제출·결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — Google 검증 범위 확인 turn 기록 보완
+
+<!-- codex-turn:01a0f166-2c49-7ef0-a54d-ae1cca42c1bc -->
+
+- 브랜치: develop.
+- 작업 목표: 이전 Google 채점 성공 확인과 이번 Apple 시도의 미확인 범위 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 과거 검증 기록의 실제 AI completed 및 결과 재조회 성공 확인. 코드 변경 없음.
+- 테스트와 결과: 기록 읽기 확인 및 git diff --check 통과. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 외부 상태 변경 없음, 비밀정보 비기록.
+- 결정사항: 채점 기능 전체 미검증이 아닌 Apple 신규 시도 미확인으로 설명 정정.
+- 위험 요소: 실제 기록 이전은 당시에도 기록 0건으로 미검증. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 Apple 계정 제출·채점 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — 기록 있는 Guest 병합 재검증 범위 확인
+
+- 브랜치: develop.
+- 작업 목표: 기존 Guest 정리 및 임시 모의고사 1건을 이용한 병합 재검증 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: UserMerged 인계 계약에서 source MERGED tombstone 유지 확인. 기존 병합 계정 삭제 대신 신규 Guest 사용 제안, LC 저장소/fixture 경로 확인 요청.
+- 테스트와 결과: 계약·이전 검증 기록 읽기 및 git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: Identity에 모의고사 코드 추가 금지, 비밀정보 비기록, 외부 삭제·생성·병합 미실행.
+- 결정사항: 삭제 범위 불명확한 기존 병합 기록 보존. LC 스키마 확인 없이 임의 문서 삽입하지 않음.
+- 위험 요소: LC 임시 완료 데이터 생성 방법 미확인, 신규 Guest 동의 및 실제 병합은 실행 전 별도 확인 필요.
+- 다음 작업: LC 저장소 위치 확인 후 테스트 데이터 준비 및 신규 Guest 병합 검증. Jira 변경 없음.
+
+## 2026-09-30 — 기록 있는 Guest 재검증 준비 turn 기록
+
+<!-- codex-turn:01a0f167-97be-7490-8a52-f32ed56a3dce -->
+
+- 브랜치: develop.
+- 작업 목표: 새 Guest와 완료 모의고사 1건을 이용한 병합 검증 준비 범위 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 MERGED Guest 보존 및 새 Guest 사용 제안. LC 스키마 확인을 위한 저장소 위치 요청. 코드 변경 없음.
+- 테스트와 결과: 계약·기록 조회 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: Identity 도메인 경계 유지, 비밀정보 비기록, 외부 삭제·생성·병합 미실행.
+- 결정사항: 기존 병합 기록은 삭제하지 않고 데이터 생성 방법 확인 후 진행.
+- 위험 요소: LC fixture 방법 미확인, 신규 Guest 동의·실제 병합 실행 전 확인 필요. 예상 밖 변경 없음.
+- 다음 작업: LC 저장소 위치를 받아 테스트 데이터 준비 방법 확인. Jira 변경 없음.
+
+## 2026-09-30 — 새 Guest 생성 버튼 비활성 진단
+
+- 브랜치: develop.
+- 작업 목표: 새 Guest 생성 불가 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 생성 버튼 disabled 및 기존 병합 검증 버튼 활성 확인. 독립 도구 app.js controls가 oldGuest/mergeUncertain을 포함해 생성 차단하며 병합 후 검증용 상태를 보존함을 확인. clear는 전체 로컬 인증·녹음/응시 상태를 초기화하므로 미실행.
+- 테스트와 결과: UI·소스 읽기 검증 및 git diff --check 수행. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 외부 계정 삭제·생성·병합 없음, 비밀정보 비기록.
+- 결정사항: 서버 오류와 로컬 도구 재검증 잠금을 구분. 초기화 영향 안내 후 사용자 선택 필요.
+- 위험 요소: 전체 초기화 시 현재 메모리 로그인·녹음/진행 상태 손실. 기존 서버 계정·기록은 삭제되지 않음. 예상 밖 변경 없음.
+- 다음 작업: 전체 로컬 초기화 후 재로그인 또는 Guest 전용 초기화 기능 개선 요청에 따라 진행. Jira 변경 없음.
+
+## 2026-09-30 — Guest 생성 잠금 진단 turn 기록 보완
+
+<!-- codex-turn:01a0f16a-4741-70b0-9a6e-579e498bae50 -->
+
+- 브랜치: develop.
+- 작업 목표: 새 Guest 생성 버튼 비활성 진단의 현재 turn 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: UI disabled 및 기존 병합 상태 보존에 따른 도구 잠금 확인. 코드 수정·로컬 초기화 미실행.
+- 테스트와 결과: UI/소스 확인 및 git diff --check 통과. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 서버 계정 삭제·생성·병합 없음, 비밀정보 비기록.
+- 결정사항: 전체 초기화의 로그인·녹음 손실을 안내하고 MEMBER 유지형 Guest 전용 초기화 개선 여부 질문.
+- 위험 요소: 기존 로컬 상태 유지 중이며 반복 생성은 여전히 잠김. 예상 밖 변경 없음.
+- 다음 작업: 사용자 개선 승인 또는 전체 초기화 선택 대기. Jira 변경 없음.
+
+## 2026-09-30 — Apple 자체 로그인 폼 오류 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 Apple 로그인 일반 오류의 발생 단계 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome Apple 인증 팝업의 계정 로그인 폼에서 문제가 발생했으니 다시 시도하라는 문구 확인. localhost의 Apple/exchange 버튼은 팝업 대기로 비활성 확인. 코드 변경 없음.
+- 테스트와 결과: 브라우저 읽기 검증, git diff --check 수행. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 비밀번호·인증 코드·OAuth state 비기록, 로그인 대행·초기화·외부 설정 변경 없음.
+- 결정사항: Identity 403/409와 구분하여 Apple 계정 인증 단계 문제로 안내. 상세 원인 및 일시 제한 여부는 미확정.
+- 위험 요소: 일반 오류 문구만으로 계정/세션/Apple 서비스 원인을 특정할 수 없음. 예상 밖 변경 없음.
+- 다음 작업: 사용자 팝업 재시작 또는 패스키 인증 후 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — Apple 로그인 팝업 진단 turn 기록 보완
+
+<!-- codex-turn:01a0f16c-c46e-76a2-ad7a-c1a57e771cc4 -->
+
+- 브랜치: develop.
+- 작업 목표: Apple 자체 로그인 오류 진단의 현재 turn 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Apple 계정 로그인 폼의 일반 오류와 테스트 화면의 팝업 대기 상태 확인. 코드 수정 없음.
+- 테스트와 결과: UI 읽기 검증 및 git diff --check 통과. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 비밀정보 비기록, 인증정보 입력·초기화·계정 삭제·설정 변경 없음.
+- 결정사항: Identity 오류와 구분하고 사용자 팝업 재시작 또는 패스키 인증 안내.
+- 위험 요소: 상세 원인 미확정, 재시도 성공 미검증. 예상 밖 변경 없음.
+- 다음 작업: 사용자 재인증 결과 확인. Jira 변경 없음.
+
+## 2026-09-30 — 테스트 화면 정책 버전 재입력
+
+- 브랜치: develop.
+- 작업 목표: 정책 버전 재입력 및 사용자에게 값 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 이전 AWS test revision 6 확인값 privacy-v1, term-v1을 Chrome 두 입력란에 재입력. 코드 변경 없음.
+- 테스트와 결과: 입력값 UI 표시 확인 및 git diff --check 수행. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 동의 체크·가입 버튼 미조작, 비밀정보 비기록.
+- 결정사항: 이번 AWS 재조회 없이 앞서 검증한 버전 사용.
+- 위험 요소: 이후 배포 정책 변경 여부는 이번에 재확인하지 않음. 예상 밖 변경 없음.
+- 다음 작업: 사용자 정책 확인·동의 후 테스트 진행. Jira 변경 없음.
+
+## 2026-09-30 — 새 Guest 더미 모의고사 삽입 사전 조사
+
+- 브랜치: develop.
+- 작업 목표: 새 Guest 소유 완료 모의고사 1건 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 Learning Core 저장소 발견 및 규칙/ExamReadService/ExamSession/ExamSummary/조회 조건 확인. Identity에 LC 코드 추가 없음.
+- 테스트와 결과: 스키마·로컬 프록시 읽기 확인, git diff --check 수행. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 운영·기존 계정·병합 marker 변경 없음, 토큰·개인정보 비기록.
+- 결정사항: 방금 생성된 Guest UUID가 UI에 없어 소유자 확정 전 삽입 중단. 최신 생성 계정 추정은 사용하지 않음.
+- 위험 요소: 정확한 Guest 소유자 및 테스트 DB 삽입 경로 검증 필요. 더미 생성 미완료, 예상 밖 변경 없음.
+- 다음 작업: Guest UUID 확인 후 테스트 DB에 한정한 fixture 생성·이력 조회 검증. Jira 변경 없음.
+
+## 2026-09-30 — Guest 더미 데이터 준비 turn 기록 보완
+
+<!-- codex-turn:01a0f16f-fcea-7f02-b7b6-8781010b68a7 -->
+
+- 브랜치: develop.
+- 작업 목표: 새 Guest 더미 모의고사 삽입 요청의 현재 turn 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Learning Core 로컬 소스에서 완료 이력 조회 및 세션·요약 스키마 확인. 정확한 Guest 소유자 확인 전 데이터 삽입 보류. 코드 변경 없음.
+- 테스트와 결과: 소스 읽기 확인 및 git diff --check 통과. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 비밀정보 비기록, 운영·기존 계정·병합 marker 변경 없음.
+- 결정사항: 최신 계정 추정 없이 Guest UUID 확인 필요. 토큰 원문 요청하지 않음.
+- 위험 요소: 더미 삽입 및 이력 조회 검증 미완료. 예상 밖 변경 없음.
+- 다음 작업: 정확한 Guest UUID 확인 후 테스트 DB 대상 검증 및 fixture 삽입. Jira 변경 없음.
+
+## 2026-09-30 — 정책 버전 재입력 turn 기록 보완
+
+<!-- codex-turn:01a0f16e-72f5-7373-9b33-e76496c0159c -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 정책 버전 재입력 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 이전 테스트 배포 확인값 privacy-v1 및 term-v1을 Chrome 입력란에 채우고 사용자에게 안내. 코드 변경 없음.
+- 테스트와 결과: UI 입력값 확인 및 git diff --check 통과. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 동의·가입 대리 실행 없음, 비밀정보 비기록.
+- 결정사항: 앞서 확인한 정책 버전 사용, 이번 AWS 재조회 없음.
+- 위험 요소: 이후 서버 정책 변경 여부 미재확인. 예상 밖 변경 없음.
+- 다음 작업: 사용자 정책 확인·동의 후 테스트 진행. Jira 변경 없음.
+
+## 2026-09-30 — Guest 더미 데이터 준비 최종 상태
+
+<!-- codex-turn:01a0f16f-fcea-7f02-b7b6-8781010b68a7 -->
+
+- 브랜치: develop.
+- 작업 목표: Guest 더미 삽입 준비 결과를 WORKLOG 끝에 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: LC 완료 이력 스키마 확인, Guest UUID 확인 대기. 코드 변경 없음.
+- 테스트와 결과: 소스 읽기 확인, git diff --check 통과. 코드 변경 없어 자동 테스트 미실행.
+- 유지한 계약: 외부 데이터 변경 없음, 비밀정보 비기록.
+- 결정사항: 소유자 추정 삽입 금지, 확인 후 테스트 DB만 사용.
+- 위험 요소: fixture 삽입 미완료. 예상 밖 코드 변경 없음.
+- 다음 작업: Guest UUID 확인 및 테스트 DB 검증 후 삽입. Jira 변경 없음.
+
+## 2026-09-30 — 최신 테스트 Guest의 더미 완료 모의고사 추가
+
+- 브랜치: develop.
+- 작업 목표: 사용자 승인한 최신 Guest에 병합 검증용 완료 모의고사 1건 삽입.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드 변경 없음.
+- 구현 내용: 테스트 Identity users에서 GUEST 최신순 3개를 최소 필드 조회하여 최신 ACTIVE/이전 2개 MERGED 확인. 테스트 LC mock_exams에 active=false·빈 questions·TEST ONLY 제목의 참조 카탈로그 1건, exam_summaries에 합성 점수120/IM2·더미 안내 1건, exam_sessions에 해당 Guest 소유 COMPLETED/active=false·날짜 포함 1건 삽입. 카탈로그 서비스의 비활성 제외와 완료 이력 조회 조건을 소스로 확인.
+- 테스트와 결과: Atlas 저장 결과 확인, Chrome 병합 전 완료 시험 기록 조회 실행으로 현재 Guest에서 1건 조회 및 비교 준비 확인. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영 DB·기존 계정·병합 marker/guard 수정 및 실제 AI 호출 없음. Identity에 LC 코드 추가 없음. 사용자 UUID·토큰 비기록, 더미는 실제 채점 결과와 구분.
+- 결정사항: 기존 계정 삭제 없이 새 Guest에 합성 완료 이력과 요약만 추가. 비활성 카탈로그라 실제 응시 배정 제외. fixture 참조명 merge-fixture-20260930-173033으로 식별 가능.
+- 위험 요소: 문항별 결과·AI 채점 검증용 완전한 시험 아님. 실제 병합 및 소유권 이전은 아직 미실행. 여러 컬렉션 UI 순차 삽입 후 현재 Guest 조회로 확인, 잔존 더미는 테스트 종료 후 정리 대상. 예상 밖 코드 변경 없음.
+- 다음 작업: 사용자 재인증/병합 승인 후 MEMBER에서 동일 시험 이전 및 Guest 차단 검증. Jira 변경 없음.
+
+## 2026-09-30 — Guest 더미 삽입 완료 turn 기록
+
+<!-- codex-turn:01a0f172-7184-7dd2-9075-746ef07a8df3 -->
+
+- 브랜치: develop.
+- 작업 목표: 최신 테스트 Guest의 완료 모의고사 더미 생성 및 조회 검증 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드 변경 없음.
+- 구현 내용: 승인된 최신 생성 기준으로 ACTIVE Guest 확인 후 테스트 LC에 비활성 카탈로그·완료 세션·합성 요약 각 1건 삽입.
+- 테스트와 결과: Atlas 저장 및 현재 Chrome Guest의 완료 이력 1건 조회 확인. git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영·기존 계정·병합 marker 변경 없음, 비밀정보 비기록, 실제 AI 채점과 더미 구분.
+- 결정사항: 병합 비교용 이력 준비 완료, 실제 병합 미실행.
+- 위험 요소: 문항별 결과 없는 합성 데이터이며 실제 소유권 이전은 아직 미검증. 예상 밖 코드 변경 없음.
+- 다음 작업: 사용자 병합 실행 후 MEMBER 기록 이전 및 Guest 차단 확인. Jira 변경 없음.
+
+## 2026-09-30 — 더미 완료 시험 1건 병합 후 검증 성공
+
+- 브랜치: develop.
+- 작업 목표: 사용자 실행한 Guest 병합의 실제 기록 이전 및 source 차단 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 기존 성공 표시에 이어 병합 후 읽기 검증 직접 재실행. 코드 변경 없음.
+- 테스트와 결과: Identity/LC 이전 Guest의 병합 전용 거절 코드 확인, target MEMBER 이력 조회 성공, 이전 시험 ID 1건 중 1건 포함 확인. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 추가 병합·삽입·삭제 없음, 토큰·개인 식별값 비기록, 합성 데이터와 실제 채점 구분.
+- 결정사항: 이번에는 기록 있는 Guest의 완료 이력 이전 검증 성공으로 보고. 기존 0건 테스트의 미검증 상태와 구분.
+- 위험 요소: 요약/문항별 결과 소유권 DB 재조회 및 이벤트204·중복·장애 재시도는 이번 작업에서 미검증. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 요약/상세 결과 및 중복·장애 시나리오 추가 검증. Jira 변경 없음.
+
+## 2026-09-30 — 기록 있는 Guest 병합 검증 turn 기록
+
+<!-- codex-turn:01a0f17a-1321-7121-9953-f75a4c519fa7 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 병합 후 기록 이전 및 Guest 차단 검증 결과 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 병합 후 읽기 검증 재실행. 코드 변경 없음.
+- 테스트와 결과: Identity/LC 이전 Guest 병합 전용 거절 및 MEMBER 완료 이력 조회 성공, 이전 시험 1건 중 1건 포함 확인. git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 추가 병합·데이터 변경 없음, 비밀정보·개인 식별값 비기록.
+- 결정사항: 합성 완료 이력 1건의 실제 이전 조회 검증 성공으로 확정.
+- 위험 요소: 상세 결과 소유권 및 이벤트 중복·장애 재시도 별도 미검증. 예상 밖 변경 없음.
+- 다음 작업: 필요 시 상세·중복·장애 시나리오 추가 검증. Jira 변경 없음.
+
+## 2026-09-30 — 동일 UID 원격 선연결 복구 수정 방향 검토
+
+- 브랜치: develop.
+- 작업 목표: Google/Apple 동일 이메일 로그인 오류의 후속 수정 범위 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: ProviderChangeGuard가 기존 Firebase binding의 현재 provider SocialIdentity 미등록 시 거절하고 ProviderLinkService.prepare도 Firebase 선연결을 사후 승인하지 않는 구현 재확인. 코드 변경 없음.
+- 테스트와 결과: 소스 재조회 및 git diff --check 수행. 코드 미변경으로 Gradle 미실행.
+- 유지한 계약: 이메일만으로 계정 연결/통합하지 않음, 다른 UID 및 타계정 provider 충돌·차단 유지. 기존 사용자 dirty 변경 보존.
+- 결정사항: 기존 제공자 재인증·사용자 명시 동의 기반 선연결 복구 경로를 권장하며 상세 계약·구현은 아직 미확정.
+- 위험 요소: guard 단순 제거 또는 SocialIdentity 자동 동기화는 기존 해제/차단 정책 우회 가능. 현재 정상 흐름 검증이 모든 출시 준비 완료를 의미하지 않음. 예상 밖 변경 없음.
+- 다음 작업: 복구 정책 확정 후 서버·프론트 계약과 보안 회귀 테스트 설계/구현. Jira 변경 없음.
+
+## 2026-09-30 — Apple/Google 연결 복구 검토 turn 기록
+
+<!-- codex-turn:01a0f17b-6860-7ae0-97d1-3a57b7e70929 -->
+
+- 브랜치: develop.
+- 작업 목표: 동일 UID의 Firebase 선연결과 Identity 미등록 상태에 대한 수정 방향 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 현재 로그인 guard 및 연결 prepare의 거절 조건 확인. 기존 제공자 재인증·명시 동의 기반 복구 경로 제안. 코드 변경 없음.
+- 테스트와 결과: 소스 읽기 확인 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 이메일만으로 자동 연결하지 않음, provider 차단·소유권 검사 유지, 비밀정보 비기록.
+- 결정사항: guard 제거가 아닌 복구 절차 보완 권장. 상세 정책·구현 미확정.
+- 위험 요소: 기존 해제/차단 우회 방지 회귀 필요. 예상 밖 변경 없음.
+- 다음 작업: 정책 확정 후 서버·프론트 계약과 테스트 설계. Jira 변경 없음.
+
+## 2026-09-30 — EMAIL_VERIFICATION 적용 조건 설명
+
+<!-- codex-turn:01a0f276-318f-73c2-b4c5-d548d50ce4ad -->
+
+- 브랜치: develop.
+- 작업 목표: missingRequirements의 EMAIL_VERIFICATION 의미와 SNS 로그인 적용 여부 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseEnrollmentRequirementResolver 및 FirebaseAdminAuthenticationVerifier에서 PASSWORD 연결 여부와 emailVerified 조건 확인. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: 소스와 프론트 계약 확인, git diff --check 수행. 설명만 수행하여 Gradle 테스트 미실행.
+- 유지한 계약: 기존 enum 및 가입/승격 검증 조건 유지. 비밀정보 비기록, 기존 dirty 변경 보존.
+- 결정사항: Firebase 이메일/비밀번호 계정의 이메일 소유 확인으로 설명. 순수 SNS에는 해당 조건이 없으며 PASSWORD가 함께 연결된 미인증 계정은 예외임을 안내.
+- 위험 요소: 현재 로그인 제공자만 보고 인증 필요 여부를 판단하면 연결된 PASSWORD 방식 조건을 놓칠 수 있음. 이번 작업의 예상 밖 변경 없음.
+- 다음 작업: 프론트는 배열 순서 대신 각 requirement 포함 여부로 필요한 절차를 안내. Jira 작업 없음.
+
+## 2026-09-30 — 가입 전 공개 정책 버전 조회 필요성 확인
+
+<!-- codex-turn:01a0f27a-43d9-7210-8c7d-deeadae61e61 -->
+
+- 브랜치: develop.
+- 작업 목표: 회원가입 동의 전 인증 없이 현재 정책 버전을 조회할 수 있는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: UserController, UserConsentService, SecurityConfig 및 Firebase 응답 확인. 현재 내 동의 조회는 JWT와 현재 사용자 조회에 의존하며 공개 정책 조회 경로는 없음. 공개 GET /api/v1/policies/consents는 제안이며 미구현.
+- 실행한 테스트와 결과: 코드 읽기로 인증 경계 및 ConsentPolicy 버전 검증 확인, git diff --check 수행. 분석 작업으로 Gradle 테스트 미실행.
+- 유지한 계약: 개인 동의 상태 API 인증 유지, 가입 제출 시 서버의 현재 버전 검증 유지, 기존 dirty 변경 보존.
+- 결정사항: 기존 privacyConsentVersion, termConsentVersion, qualityReviewConsentVersion 이름으로 공개 정책 버전을 제공하는 방향 권장. 공통 ConsentPolicy를 사용하여 검증과 조회 값 일치 필요.
+- 위험 요소: 조회와 가입 사이 정책이 바뀔 수 있어 재조회·정책 내용 재표시·재동의 필요. 버전만 최신으로 자동 교체하면 사용자가 실제 본 내용과 동의 기록 불일치 가능. 정책 본문 제공 경로는 추가 확인 필요.
+- 다음 작업: 공개 정책 조회 API와 프론트 재동의 흐름 구현 시 계약 및 인증 회귀 테스트 추가. 이번 작업의 예상 밖 변경 없음, Jira 변경 없음.
+
+## 2026-09-30 — missingRequirements와 signup 입력 생략 가능 여부 검토
+
+<!-- codex-turn:01a0f27e-be2c-7083-b7aa-6775133ef792 -->
+
+- 브랜치: develop.
+- 작업 목표: 프론트의 단계별 저장 가정과 signup 필수 필드 계약을 비교하고 수정 필요성 판단.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: requirement resolver, signup/upgrade DTO·서비스, enrollment entity, 응답과 프론트 계약 및 기존 테스트 확인. 일반 신규 가입은 PROFILE·CONSENTS 항상 포함, enrollment는 입력 초안을 보관하지 않음. Guest 승격에서 CONSENTS가 빠질 수 있는 예외 확인. 코드 수정 없음.
+- 실행한 테스트와 결과: 기존 FirebaseExchangeServiceTests의 PROFILE·CONSENTS 포함 기대값 및 FirebaseGuestPrepareServiceTests의 PHONE_VERIFICATION·PROFILE만 포함하는 기대값 확인. 테스트 실행은 하지 않았으며 분석 작업으로 Gradle 미실행. git diff --check 수행.
+- 유지한 계약: signup/upgrade 필수 입력 및 최종 정책 버전 검증 유지, enrollment 소유권·만료 경계 유지. 사용자 dirty 변경 보존.
+- 결정사항: 신규 가입에는 입력 선택화나 enrollment 초안 조회 API가 불필요. missingRequirements는 요청 필드 생략 목록이 아니며 클라이언트 폼 입력을 최종 제출까지 보존. Guest 승격의 기존 동의는 인증된 내 동의 API로 확인 가능.
+- 위험 요소: 신규 가입과 Guest 승격을 동일하게 해석하면 동의 누락이 발생할 수 있음. PHONE_VERIFICATION 외에 PASSWORD 계정의 EMAIL_VERIFICATION도 인증 상태에 따라 달라짐. 정책 변경 시 버전만 자동 교체하지 않고 필요한 재동의 수행. 실제 프론트 구현은 미검토.
+- 다음 작업: 프론트에 신규 가입/Guest 승격 차이 전달, 공개 정책 조회 API는 별도 구현 범위로 유지. 예상 밖 변경 없음, Jira 작업 없음.
+
+## 2026-09-30 — signup 입력과 Firebase 사전 인증 시점 설명
+
+<!-- codex-turn:01a0f281-5b58-7311-bb96-2b359e06ba9b -->
+
+- 브랜치: develop.
+- 작업 목표: signup 전에 missingRequirements에서 인증 항목만 빠질 수 있다는 설명을 쉽게 풀어 전달.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 직전 확인한 resolver·signup·enrollment 구현을 근거로 프론트 폼 입력과 Firebase 인증 완료 상태의 저장 위치 및 전달 시점 차이를 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: 설명 작업으로 Gradle 미실행. 직전 코드 확인 결과를 재사용하고 git diff --check 수행.
+- 유지한 계약: 신규 가입 PROFILE·CONSENTS 항상 요구, 최종 signup 필수 입력 유지. 비밀정보 비기록.
+- 결정사항: 화면 입력만으로 서버 요구사항이 충족되지 않으며 signup에서 전달됨을 안내. Firebase 전화번호 인증은 signup 전에 완료 가능함을 예시로 설명.
+- 위험 요소: PASSWORD 이메일 인증 및 Guest 기존 동의 예외를 구분해야 함. 기존 dirty 변경 보존, 이번 예상 밖 변경 없음.
+- 다음 작업: 공개 정책 버전 조회 필요성은 별도 유지. Jira 변경 없음.
+
+## 2026-09-30 — 신규 가입 폼 값 보관 책임 확인
+
+<!-- codex-turn:01a0f285-a6a1-7032-beac-08ff3646d8ef -->
+
+- 브랜치: develop.
+- 작업 목표: 전화번호 사전 인증과 signup 필수 입력에 대한 사용자 이해 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 일반 신규 가입은 닉네임·동의·버전을 필수 제출하고 프론트에서 입력값을 보관해야 함을 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: 앞서 확인한 resolver와 DTO 근거 재사용. 설명 작업으로 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: signup 필수 입력 및 Firebase 인증 경계 유지, 비밀정보 비기록.
+- 결정사항: 프론트가 자동으로 값을 보유하는 것이 아닌 화면 입력 후 제출/재시도까지 보관하는 책임으로 명확화.
+- 위험 요소: 새로고침·앱 종료 등으로 폼 값이 사라지면 다시 입력받아야 함. Guest 승격의 기존 동의 예외와 구분. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 프론트의 폼 보관/재입력 흐름 적용. Jira 변경 없음.
+
+## 2026-09-30 — signup 선택 동의와 공개 정책 조회 수정 방향 설명
+
+- 브랜치: develop.
+- 작업 목표: Firebase 신규 가입 선택 품질 검토 동의 및 가입 전 공개 정책 조회의 변경 계약 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 UserConsentUpdateRequest, ConsentPolicy, UserFactory, UserConsents를 근거로 재사용 방향 정리. signup DTO·서비스·factory 확장과 공개 정책 조회 controller/DTO 및 GET 인증 허용 제안. 애플리케이션 미구현.
+- 실행한 테스트와 결과: 기존 구현 소스 확인, git diff --check 수행. 구현 전 설명 단계로 Gradle 미실행.
+- 유지한 계약: 기존 선택 동의 필드명, 필수 개인정보·약관 검증, 기존 클라이언트 누락 시 false, 개인 동의 API 인증 유지.
+- 결정사항: true일 때 현재 선택 정책 버전 검증, false일 때 버전 생략 가능. 공개 조회는 사용자 상태 없이 동일 ConsentPolicy의 세 버전을 반환. 신규 엔티티·환경변수 추가 불필요.
+- 위험 요소: 공개 조회 이후 정책 변경 시 실제 재동의 필요. Guest upgrade에 같은 입력을 추가하는 변경은 이번 신규 signup 설명 범위와 별도로 구분. 실제 정책 내용과 버전의 대응은 프론트에서도 관리 필요.
+- 다음 작업: DTO·서비스·factory·공개 GET·계약 문서 수정 및 선택 동의 저장/버전 검증/익명 조회/기존 보호 경로 테스트 구현. 기존 dirty 변경 보존, 이번 예상 밖 변경 없음, Jira 작업 없음.
+
+## 2026-09-30 — signup 선택 동의·공개 조회 설명 turn 기록
+
+<!-- codex-turn:01a0f287-75d4-73d3-9397-eb6175e4ad11 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 수정 방향 설명의 turn 식별자를 포함한 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Firebase signup에 기존 선택 동의 두 필드 추가 및 공개 GET /api/v1/policies/consents 제안 기록. 실제 API 구현 없음.
+- 실행한 테스트와 결과: 기존 동의 DTO·factory·엔티티 소스 확인, git diff --check 통과. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 개인정보·약관 필수, 선택 동의 누락은 false, true일 때 현재 버전 검증, 개인 API 인증 유지.
+- 결정사항: 기존 ConsentPolicy와 UserConsents 재사용, 새 엔티티·환경변수 불필요. Guest upgrade 확장은 별도 범위.
+- 위험 요소: 조회 후 정책 변경 시 재동의 필요. 구현·배포는 아직 수행하지 않음.
+- 다음 작업: 설명한 두 변경 구현 및 관련 테스트. 기존 dirty 변경 보존, 예상 밖 변경 없음, Jira 변경 없음.
+
+## 2026-09-30 — Guest upgrade 선택 동의 확장 방향 추가
+
+- 브랜치: develop.
+- 작업 목표: Guest upgrade의 학습 품질 검토 선택 동의 입력 누락 확인 및 수정 계획 확장.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseGuestUpgradeRequest와 User.promoteGuestToFederatedMember 및 UserConsents.renewRequiredConsents 확인. 요청에 선택 동의 두 필드가 없고 현재 승격이 기존 선택 동의를 보존함을 확인. 실제 코드 구현 없음.
+- 실행한 테스트와 결과: 소스 읽기 확인 및 git diff --check 수행. 방향 정리 단계로 Gradle 미실행.
+- 유지한 계약: 기존 필드명 및 Guest 승격 소유권/필수 동의 검증 유지, 누락 요청의 기존 동의 보존 제안. 기존 dirty 변경 보존.
+- 결정사항: signup 선택 동의·공개 정책 GET에 더해 upgrade 선택 동의 입력 추가를 범위에 포함. 신규 signup 누락은 false, upgrade 누락은 기존 상태 보존. 명시 false는 미동의 처리, true는 현재 버전 검증 후 반영.
+- 위험 요소: upgrade 누락을 false로 기본화하면 기존 Guest 선택 동의가 의도 없이 철회될 수 있음. 선택 동의는 missingRequirements의 필수 단계로 추가하지 않음.
+- 다음 작업: 세 API 변경 구현 시 기존 동의 보존/명시 철회/명시 동의/버전 오류 회귀 검증 추가. 예상 밖 변경 없음, Jira 변경 없음.
+
+## 2026-09-30 — Guest upgrade 선택 동의 검토 turn 기록
+
+<!-- codex-turn:01a0f289-7e99-7d31-a542-d6c0f23667ca -->
+
+- 브랜치: develop.
+- 작업 목표: Guest upgrade 선택 동의 확장 검토에 이번 turn 식별자를 포함한 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 요청 DTO에 선택 동의 필드가 없음을 확인하고 추가 방향 정리. 승격 시 기존 동의를 보존하는 현재 동작 확인. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: DTO·승격·동의 소스 확인 및 git diff --check 통과. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 기존 선택 동의 필드명, 필수 동의 검증 및 Guest 소유권 유지. 비밀정보 비기록.
+- 결정사항: upgrade 필드 누락은 기존 동의 유지, 명시 false는 미동의 처리, true는 현재 버전 검증 후 저장하는 방향 제안.
+- 위험 요소: 누락을 false로 기본화하면 기존 동의가 의도 없이 철회될 수 있음. 아직 구현·배포하지 않음.
+- 다음 작업: signup·upgrade 선택 동의와 공개 정책 조회 구현 및 회귀 검증. 기존 dirty 변경 보존, 예상 밖 변경 없음, Jira 변경 없음.
+
+## 2026-09-30 — Guest upgrade enrollment 사용 설명
+
+- 브랜치: develop.
+- 작업 목표: Guest 승격도 enrollment를 사용하는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseGuestPrepareService의 GUEST_USER enrollment 발급/재사용 및 FirebaseGuestUpgradeService의 소유권·유효성·Firebase 일치 검증 확인. 코드 변경 없음.
+- 실행한 테스트와 결과: 서비스 소스 확인, git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: Guest 토큰 사용자 ID 기준 소유권 검증, Firebase 계정 일치 및 enrollment 유효성 유지.
+- 결정사항: 신규 signup과 동일한 enrollment 구조를 쓰되 Guest prepare에서 받은 승격용 ID를 제출해야 함을 설명.
+- 위험 요소: 신규 가입용 enrollment를 Guest 승격에 대체 사용할 수 없음. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 확장 및 공개 정책 조회 계획 유지. Jira 작업 없음.
+
+## 2026-09-30 — Guest upgrade enrollment 설명 turn 기록
+
+<!-- codex-turn:01a0f28b-a259-7003-b0dc-9ce02b89313b -->
+
+- 브랜치: develop.
+- 작업 목표: Guest upgrade enrollment 설명에 이번 turn 식별자를 포함한 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: guest/prepare가 발급한 GUEST_USER enrollment를 guest/upgrade에 제출하며 Guest 소유권·Firebase 계정 일치·유효성을 검증하는 현재 구현 확인. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: 서비스 소스 확인 및 git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 인증된 Guest 기준 소유권 및 enrollment 유효성 검사 유지. 비밀정보 비기록.
+- 결정사항: 신규 signup과 같은 엔티티 구조를 사용하지만 신규 가입용 ID와 승격용 ID는 대체 불가. enrollment는 닉네임·동의 초안 저장 용도가 아님.
+- 위험 요소: 가입/승격 ID 혼용 시 검증 실패. 기존 dirty 변경 보존, 이번 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 확장 및 공개 정책 조회 계획 유지. Jira 변경 없음.
+
+## 2026-09-30 — 신규 signup MEMBER와 Firebase 연결 시점 설명
+
+- 브랜치: develop.
+- 작업 목표: 신규 가입 완료 시 MEMBER도 Firebase 계정에 연결되는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseExchangeService의 DIRECT_SIGNUP·boundUserId=null 및 FirebaseSignupService/TransactionService의 새 MEMBER 생성·FirebaseIdentity 저장 확인. 코드 변경 없음.
+- 실행한 테스트와 결과: 소스 읽기 확인, git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 가입 전 Firebase 소유권 검증 및 가입 성공 시 회원·Firebase 매핑 원자적 저장 유지.
+- 결정사항: 신규 가입도 Firebase 계정과 연결되며 가입 전 enrollment 연결과 가입 완료 후 MEMBER 매핑을 구분해서 설명.
+- 위험 요소: enrollment 자체가 영구 회원 연결 문서라고 오해하지 않도록 FirebaseIdentity와 구분. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 확장 및 공개 정책 조회 계획 유지. Jira 변경 없음.
+
+## 2026-09-30 — 신규 signup Firebase 연결 설명 turn 기록
+
+<!-- codex-turn:01a0f28d-9078-7533-a411-467c1c3c6a4a -->
+
+- 브랜치: develop.
+- 작업 목표: 신규 signup Firebase 연결 설명에 이번 turn 식별자를 포함한 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 가입 전 DIRECT_SIGNUP enrollment의 Firebase 연결 및 가입 성공 시 새 MEMBER와 FirebaseIdentity 매핑 저장 확인. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: 서비스·트랜잭션 소스 확인 및 git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: Firebase 소유권 검증 및 회원·Firebase 매핑 원자적 저장 유지. 비밀정보 비기록.
+- 결정사항: 신규 signup은 새 userId 생성, Guest upgrade는 기존 userId 유지. enrollment와 영구 FirebaseIdentity 매핑 역할 구분.
+- 위험 요소: enrollment를 영구 회원 연결 문서로 오해하지 않도록 안내. 기존 dirty 변경 보존, 이번 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 확장 및 공개 정책 조회 계획 유지. Jira 변경 없음.
+
+## 2026-09-30 — enrollment 유효기간과 DB 삭제 시점 설명
+
+- 브랜치: develop.
+- 작업 목표: enrollment가 TTL 초과 시 삭제되는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseEnrollmentAttempt의 expiresAt·cleanupAt, lifecycle 삭제 예약, 만료 capture 및 application 기본 설정 확인. 코드 변경 없음.
+- 실행한 테스트와 결과: 소스·설정 읽기 및 git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 만료 시 서버 검증으로 재사용 차단, DB 삭제와 회원·Firebase 연결의 별도 생명주기 유지.
+- 결정사항: 기본 10분은 가입 시도 유효기간이며 즉시 삭제 시간이 아님. 가입 완료 후 lifecycle은 기본 24시간 뒤 TTL 정리를 예약. 미완료 건은 별도 정리 절차에 의존.
+- 위험 요소: 실제 TTL 인덱스 및 배포 환경 설정 미확인. MongoDB TTL 삭제는 비동기로 정각 삭제 보장 없음. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 필요 시 실제 정리 설정·인덱스 별도 확인. 선택 동의·공개 정책 조회 계획 유지, Jira 변경 없음.
+
+## 2026-09-30 — enrollment TTL 설명 turn 기록
+
+<!-- codex-turn:01a0f28f-d025-7981-8040-2cb687b69152 -->
+
+- 브랜치: develop.
+- 작업 목표: enrollment 유효기간과 삭제 시점 설명의 turn 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: expiresAt과 cleanupAt 역할, 가입 완료 후 삭제 예약 및 중단 가입 별도 정리 경로를 소스 기준으로 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: 엔티티·lifecycle·설정 소스 확인, git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 만료 enrollment 재사용 차단 및 MEMBER/FirebaseIdentity의 별도 생명주기 유지. 비밀정보 비기록.
+- 결정사항: 기본 유효기간 10분은 즉시 DB 삭제 시간이 아니며 가입 완료 후 기본 24시간 보관 뒤 TTL 정리 예약. 실제 환경 설정과 구분.
+- 위험 요소: 배포 환경 설정·DB TTL 인덱스 미확인, MongoDB TTL 삭제는 비동기. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 확장 및 공개 정책 조회 계획 유지. 필요 시 실환경 정리 설정 별도 확인, Jira 변경 없음.
+
+## 2026-09-30 — Guest 승격 enrollment 정리 동일성 확인
+
+- 브랜치: develop.
+- 작업 목표: Guest 승격에도 동일한 enrollment 만료·삭제 흐름 적용 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: FirebaseGuestUpgradeTransactionService의 소비 처리 및 공통 finalizeEnrollment 호출 확인. 코드 변경 없음.
+- 실행한 테스트와 결과: 소스 확인 및 git diff --check 수행. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: enrollment 소비·만료 경계 및 회원/Firebase 연결의 별도 생명주기 유지.
+- 결정사항: 기본 10분 유효기간과 완료 후 기본 24시간 삭제 예약 흐름이 Guest 승격에도 동일함을 안내.
+- 위험 요소: 실제 배포 설정·TTL 인덱스 미확인. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 선택 동의 및 공개 정책 조회 계획 유지. Jira 변경 없음.
+
+## 2026-09-30 — TMI-136 하위 선택 동의·공개 정책 조회 이슈 초안
+
+- 브랜치: develop.
+- Jira: TMI-136
+- 작업 목표: 기존 논의한 SNS 가입·Guest 승격 선택 동의 및 공개 정책 조회 작업을 TMI-136 하위 이슈로 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 공식 Atlassian 도구로 부모 에픽 sns 로그인, 프로젝트 작업 유형 및 기존 하위 이슈 확인. 제목·계약·완료 조건을 포함한 신규 작업 초안 작성. 코드 변경 없음.
+- 실행한 테스트와 결과: Jira 읽기 조회 성공, git diff --check 수행. 초안 준비 작업으로 Gradle 미실행.
+- 유지한 계약: 기존 필드명, 신규 signup 누락 false, Guest upgrade 누락 기존 동의 보존, 개인 동의 API 인증, enrollment 경계 유지.
+- 결정사항: TMI-136 에픽 아래 작업 1건으로 세 API 변경 통합. AGENTS.md에 따라 내용을 먼저 제시하고 승인 후 생성.
+- 위험 요소: 사용자 승인 전이라 Jira 생성 미실행. 기존 하위 이슈 제목에서 직접 중복 작업 발견하지 않음, 전체 기존 본문 중복 조사 미수행. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- Jira 작업: 부모/유형/자식 조회만 수행. 댓글 등록·상태 변경 없음. 생성 승인 대기.
+- 다음 작업: 사용자 초안 승인 시 생성하고 부모 연결 재조회. Jira 댓글 초안: 선택 동의 및 공개 정책 조회 이슈 범위 준비 완료, 구현·테스트는 후속 작업에서 수행 예정. 자동 등록하지 않음.
+
+## 2026-09-30 — TMI-136 하위 Jira 초안 검토 turn 기록
+
+<!-- codex-turn:01a0f295-c7b4-75e3-ab58-00091111be92 -->
+
+- 브랜치: develop.
+- Jira: TMI-136
+- 작업 목표: 하위 작업 생성 초안 검토의 turn 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 부모 에픽과 작업 유형 및 기존 자식 조회, signup·upgrade 선택 동의와 공개 정책 조회를 묶은 작업 제목·계약·완료 조건 준비 및 사용자에게 제시. 코드 변경 없음.
+- 실행한 테스트와 결과: 공식 Atlassian 읽기 조회 성공, git diff --check 수행. 초안 작업으로 Gradle 미실행.
+- 유지한 계약: 선택 동의 필드명, Guest 누락 시 보존, 필수 동의 및 개인 API 인증 유지.
+- 결정사항: AGENTS.md의 사전 내용 공개·승인 규칙에 따라 생성 승인 대기.
+- 위험 요소: 아직 신규 Jira 이슈는 생성되지 않음. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- Jira 작업: 읽기 조회만 수행, 생성·댓글·상태 변경 없음, 생성 승인 대기.
+- 다음 작업: 사용자 승인 후 신규 작업 생성 및 부모 연결 확인. Jira 댓글 초안은 직전 기록 유지, 자동 등록하지 않음.
+
+## 2026-09-30 — TMI-188 선택 동의·공개 정책 조회 작업 생성
+
+- 브랜치: develop.
+- Jira: TMI-188
+- 작업 목표: 승인된 초안으로 TMI-136 하위 작업 생성.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 공식 Atlassian 도구로 작업 생성 및 부모 TMI-136 연결 재조회 확인. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: 생성 성공 및 제목·부모·해야 할 일 상태 확인, git diff --check 수행. Jira 작업만 수행하여 Gradle 미실행.
+- 유지한 계약: 승인한 signup·upgrade 선택 동의 및 공개 정책 조회 범위, 기존 인증/필수 동의/enrollment 계약 유지.
+- 결정사항: 신규 이슈 TMI-188로 후속 구현 범위 관리. 구현 미시작.
+- 위험 요소: 서버 변경·배포는 아직 없음. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- Jira 작업: TMI-188 생성, 사용자 명시 승인 후 수행. 댓글 등록 없음, 상태 전환 없음(기본 해야 할 일).
+- 다음 작업: TMI-188 기준 구현 및 검증. Jira 댓글 초안: 작업 생성 및 TMI-136 부모 연결 확인 완료, 코드 변경 없음, 구현 검증은 후속 작업 예정. 자동 등록하지 않음.
+
+## 2026-09-30 — TMI-188 생성 완료 turn 기록
+
+<!-- codex-turn:01a0f298-f345-7770-9d5a-e9dcdeab20e2 -->
+
+- 브랜치: develop.
+- Jira: TMI-188
+- 작업 목표: 승인된 Jira 생성 작업의 turn 식별자를 포함한 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 공식 Atlassian 도구로 SNS signup·Guest upgrade 선택 동의 및 공개 정책 조회 작업 생성. 부모 TMI-136 연결 재조회 확인. 코드 변경 없음.
+- 실행한 테스트와 결과: Jira 생성 성공 및 부모·기본 상태 확인, git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 승인된 이슈 범위 및 기존 필수 동의·인증·enrollment 계약 유지. 비밀정보 비기록.
+- 결정사항: 후속 구현은 TMI-188 기준으로 진행, 현재 구현 미시작.
+- 위험 요소: API 구현·배포는 아직 없음. 기존 dirty 변경 보존, 예상 밖 변경 없음.
+- Jira 작업: 사용자 명시 승인 후 TMI-188 생성. 댓글 등록 없음, 상태 전환 없음, 기본 상태 해야 할 일.
+- 다음 작업: TMI-188 구현 및 검증. Jira 댓글 초안은 직전 기록 유지, 자동 등록하지 않음.
+
+## 2026-09-30 — TMI-188 SNS 가입·Guest 승격 선택 동의 및 공개 정책 조회 구현
+
+<!-- codex-turn:01a0f29b-84b6-7b03-92bc-008f0e80c92b -->
+
+- 브랜치: feat/TMI-188-quality-review-consent.
+- Jira: TMI-188
+- 작업 목표: 승인된 이슈의 signup/upgrade 선택 동의 저장 및 가입 전 익명 정책 버전 조회 구현.
+- 변경 파일: FirebaseSignupRequest, FirebaseGuestUpgradeRequest, FirebaseSignupService, FirebaseGuestUpgradeService, FirebaseExchangeController, UserFactory, User, SecurityConfig, IdentityOpenApiExamples. 신규 ConsentPolicyController·CurrentConsentPolicyResponse. 테스트 FirebaseSignupServiceTests·FirebaseGuestUpgradeServiceTests·FirebaseExchangeControllerTests·SecurityIntegrationTests·OpenApiSharingTests 및 신규 FirebaseConsentRequestTests. 문서 docs/contracts/frontend-firebase-auth-integration-guide.md, docs/contracts/frontend-firebase-auth-integration-appendix.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 기존 선택 동의 필드명/검증 재사용. signup 누락/null은 false, upgrade 누락/null은 기존 선택 동의 보존, 명시 false는 버전·시각 비움, true는 현재 버전 검증 후 저장. 유효한 기존 동의 시각은 보존하고 새 동의/버전 갱신은 서버 시각 사용. 공개 GET /api/v1/policies/consents는 동일 ConsentPolicy의 현재 세 버전을 BaseResponse.result에 반환하며 no-store 사용. 사용자 상태 및 정책 본문은 반환하지 않음. OpenAPI/프론트 요청 예시·누락 처리·버전 오류/재동의·QA 갱신.
+- 실행한 테스트와 결과: 최초 샌드박스 Gradle 캐시 잠금 접근 실패 후 승인된 권한으로 실행. 첫 전체 테스트는 983개 중 Swagger endpoint count 기대값 1건 실패. 새 공개 GET로 24→25 operation 및 23→24 path 변경 반영, Swagger 응답 예시 추가 후 ./gradlew clean test 최종 통과(983 tests, failures=0, errors=0). git diff --check 통과. 테스트에서 외부 Provider/Repository는 mock 사용, 실제 외부 인증/DB 호출 없음.
+- 유지한 계약: 개인정보/약관 필수 동의, 개인 동의 GET/PUT JWT 인증, Guest userId 유지, enrollment 소유권·만료·소비와 기존 트랜잭션 유지. 선택 동의는 missingRequirements에 추가하지 않음. 구버전 JSON 요청 호환, 새 엔티티·환경변수 없음.
+- 결정사항: Guest upgrade는 Boolean null을 유지하여 보존/철회 구분. 기존 domain 승격 overload는 보존 동작으로 위임. 공개 정책 API는 해당 GET만 permitAll.
+- 위험 요소: 배포·모바일 E2E는 미수행. 프론트 정책 본문/URL과 조회 버전의 대응 확인 필요, 조회 이후 version 변경 시 재동의 처리 필요. 실환경 정책 설정은 기존 환경변수 재사용.
+- 예상 밖 변경: 이번 작업 범위 밖 추가 변경 없음. 시작 전부터 dirty였던 identity-branch-deployment.md, identity-test-container-secrets.json, identity-test-task-definition.draft.json, DeploymentTargetTests.java 및 docs/postman·tools는 수정하지 않고 보존. 기존 작업 기록도 보존.
+- 배포 전 확인: 대상 환경의 세 정책 설정·본문/URL 대응 및 새 GET 익명 조회, signup/upgrade의 선택 동의 처리와 개인 API 인증 확인. 프론트는 signup/upgrade의 누락 규칙 차이를 반영.
+- Jira 작업: 구현 전 TMI-188 설명 조회만 수행. 상태 전환·댓글 등록 없음. 생성 승인과 별개로 이번 구현 완료 댓글은 승인 전 미등록.
+- Jira 댓글 초안: signup/upgrade 선택 동의 및 익명 정책 조회 구현 완료. 관련 DTO·서비스·domain·보안·Swagger·계약 문서/테스트 갱신. clean test 983개 통과. 대상 환경 배포와 정책 본문/버전 대응 및 모바일 연동 검증 필요. 자동 등록하지 않음.
+- 다음 작업: 사용자 diff 검토 후 직접 커밋/push. 필요 시 승인받은 Jira 댓글 및 후속 배포·모바일 검증. 커밋/push/PR 생성 및 배포는 이번 작업에서 수행하지 않음.
+
+## 2026-10-01 — TMI-189 Firebase 동일 UID SNS 최초 연결의 단일 로그인 구현
+
+<!-- codex-turn:01a0f58d-ed66-7321-b9da-8badaf7639dd -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: 기존 ACTIVE MEMBER의 같은 Firebase 프로젝트/UID에 연결된 현재 Google/Apple을 안전 조건 확인 후 등록하여 정상 최초 연결에 추가 기존 SNS 재로그인을 요구하지 않음.
+- 변경 파일: 신규 ProviderLoginRegistrationService.java, ProviderLoginRegistrationServiceTests.java. FirebaseExchangeService.java, FirebaseAdminAuthenticationVerifier.java, FirebaseSdkAdminClient.java, ProviderChangeGuard.java, AuthMethodChangeControl.java, ProviderChangeConfiguration.java. 테스트 FirebaseExchangeServiceTests.java, FirebaseAdminAuthenticationVerifierTests.java, FirebaseSdkAdminClientTests.java, ProviderChangeConfigurationTests.java. docs/contracts/frontend-firebase-auth-integration-guide.md, frontend-firebase-auth-integration-appendix.md, docs/codex/CURRENT_STATE.md, WORKLOG.md.
+- 구현 내용: LOGIN_EXCHANGE에 한해 Guard의 미등록 Google/Apple 판단을 등록 서비스로 위임하되 block/floor는 즉시 검사. Firebase SDK에서 서명된 현재 제공자 subject 증빙과 Admin 최신 연결을 교차 확인(누락/다중/불일치 거절). 등록 서비스는 exact Firebase binding·ACTIVE MEMBER·세션 epoch 및 인증 경계를 재검증하고 현재 provider만 저장. 세션 control을 touch하여 unlink/withdrawal/logout-all 등과 CAS 경합하고 제공자 revision 증가로 오래된 PREPARED intent를 무효화. 등록·기존 소유권 검사·세션 발급을 동일 Mongo 트랜잭션에서 실행. 과거 block/floor, 기존 같은 provider의 다른 subject, 다른 회원 소유, active security slot/미완료 작업은 자동 승인하지 않음. duplicate key는 409, 일반 저장/트랜잭션 장애는 기존 진단을 포함한 503으로 안전하게 실패하며 다음 제한 재시도에서 동일 회원의 기등록 연결로 수렴. 기존 탈퇴/비활성 오류 선행 검사 유지.
+- 실행한 테스트와 결과: 초기 새 mock 테스트에서 Mockito 재스텁/중첩 mock 생성 오류가 발생하여 테스트 초기화를 수정. Gradle 캐시 권한 제한은 승인된 실행으로 해결. 최종 ./gradlew clean test BUILD SUCCESSFUL, XML 집계 tests=1009, failures=0, errors=0, skipped=0. git diff --check 통과. Google↔Apple 정상 등록, 현재 provider만 등록, 중복 요청, 소유권/교체/이력/Guest/UID/binding/탈퇴 거절, 트랜잭션 진입 시 unlink/logout 경합, CAS 실패, 발급 예외, 로그인 목적 한정, 증빙 불일치, fence OFF의 거절과 기존 signed JWT 발급 계약 테스트 포함. 신규 테스트의 외부 Provider/Repository는 mock; 실제 Atlas/OAuth는 호출하지 않음.
+- 유지한 계약: /api/v1/auth/firebase/exchange 요청/응답 및 UUID userId, RS256/JWKS/audience/MEMBER 토큰 계약 불변. signup/Guest/sync/high-risk 경로에 자동 등록 없음, Kakao 자동 등록 제외. Google/Apple의 SDK 증빙 교차 검증은 공통 검증 어댑터에 적용됨. 이메일만으로 병합·UID rebind·다른 제공자 일괄 등록·기존 차단 해제·LC/Billing 변경 없음.
+- 결정사항: 기존 AUTH_SESSION_FENCE_ENABLED=true에서 등록 서비스를 설치하고 OFF에서는 미등록 SNS를 거절한다. 명시 link capture와 별개이며 새로운 설정/컬렉션 없음. auto registration 후 provider control이 생성되므로 sync 사용 환경에서는 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED를 확인한다(OFF+보안 상태 존재 시 기존 sync 거절 유지). 충돌 시 무한 자동 재시도/성공 간주 금지. 프론트 정상 경로와 409/503 대응·배포 QA 문서화.
+- 위험 요소: mock 테스트는 실제 replica-set write conflict/rollback의 증명이 아님. 테스트 환경 E2E와 모바일 Firebase 자동 연결·subject claim 형태는 배포 후 확인 필요. 대상 환경 feature flag, 기존 unique index 및 모든 보안 writer의 동시 배포 호환성 확인 필요. 배포/외부 데이터 보정/실제 SNS 로그인 미수행이므로 Jira 전체 완료로 판단하지 않음.
+- 예상 밖 변경: 없음. 시작 전부터 WORKLOG에 존재한 누적 미커밋 변경은 그대로 보존했고 과거 항목은 변경하지 않음. 이번 작업은 코드/테스트/계약/작업 기록 범위만 변경.
+- 배포 전 확인: AUTH_SESSION_FENCE_ENABLED, 필요 시 provider-change fence, Mongo 트랜잭션 및 social_identities provider+subject unique 인덱스. Google→Apple/Apple→Google 동일 회원 로그인을 테스트 환경에서 재현, 다른 UID/차단/교체/동시 보안 작업 실패 및 rollback 확인. 기존 전화번호·가입·Guest·명시 link 회귀 확인.
+- Jira 작업: 공식 Atlassian MCP로 TMI-189 설명/완료 조건 조회만 수행. 사용자의 개발 요청에 따라 구현했으며 이슈 수정·상태 전환·댓글 등록 없음.
+- Jira 댓글 초안(미등록): TMI-189 로컬 구현 완료. ProviderLoginRegistrationService 및 Exchange/Guard/SDK/설정·테스트·프론트 계약 갱신. 동일 UID ACTIVE MEMBER의 현재 Google/Apple만 안전 조건하에 등록하고 세션 발급과 트랜잭션 결합. clean test 1009개 및 diff check 통과. 실제 Firebase E2E/replica-set 경합 검증과 배포 설정 확인은 남아 있음.
+- 다음 작업: 사용자 diff 검토 후 직접 커밋/push. 별도 승인된 테스트 배포 및 E2E 후 PR 병합/완료 조건 확인. 이번 작업에서 커밋/push/배포/PR 생성 및 Jira 변경은 수행하지 않음.
+
+## 2026-10-01 — TMI-189 구현 코드 설명
+
+<!-- codex-turn:01a0f5c9-f303-7da2-b06f-4d7a367122e2 -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: 실제 구현을 코드 근거와 함께 사용자에게 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 이번 turn 갱신. 기존 코드/테스트/계약 문서 dirty 변경 보존.
+- 구현 내용: 추가 구현 없음. FirebaseSdkAdminClient의 signed subject와 Admin providerData 비교, ProviderChangeGuard의 로그인 목적 한정 위임, FirebaseExchangeService의 등록 후 기존 토큰 발급, ProviderLoginRegistrationService의 binding/회원/소유권/보안 상태 검사와 트랜잭션, SessionSecurityService의 control version 경합, 조건부 Bean 설치를 재확인.
+- 실행한 테스트와 결과: 코드 변경 없는 설명 작업이라 테스트 재실행하지 않음. 기존 XML 결과 tests=1009, failures=0, errors=0 확인. git diff --check 수행.
+- 유지한 계약: exchange DTO/userId/JWT 유지, 이메일 자동 병합·다른 UID 연결·차단 해제·다른 provider 일괄 등록 없음. 현재 Google/Apple 최초 등록만 허용.
+- 결정사항: Guard의 return은 로그인 성공이 아니라 최종 등록 서비스로 판단을 넘기는 것임을 명시. epoch/CAS와 제공자 revision 역할, 경합 후 제한 재시도와 응답 멱등성 차이를 구분하여 설명.
+- 위험 요소: 실제 Firebase 및 Mongo replica-set E2E/경합/rollback 미검증. AUTH_SESSION_FENCE_ENABLED=true 필요, sync 사용 시 provider-change fence 확인 필요. 기존 로컬 테스트 성공을 배포 완료로 해석하지 않음.
+- 예상 밖 변경: 없음. Jira 조회/변경, 커밋/push/배포 미수행.
+- Jira 댓글 초안(미등록): 구현 코드 흐름과 보안 조건 설명 완료. 애플리케이션 추가 변경 없음. 기존 1009개 성공 결과 확인, 대상 환경 E2E/경합 검증은 남아 있음.
+- 다음 작업: 사용자 변경 검토 후 직접 커밋/push 및 승인된 테스트 배포·실환경 검증.
+
+## 2026-10-01 — TMI-189 Kakao 최초 연결 확장 범위 설명
+
+<!-- codex-turn:01a0f5d2-f322-7111-a23f-f7cb5e59783d -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: Google/Apple 한정 이유와 향후 Kakao 동일 로그인 UX 지원에 필요한 변경 설명.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 애플리케이션 추가 수정 없음.
+- 구현 내용: 기존 FirebaseAdminAuthenticationVerifier의 Kakao 설정 ID 매핑/활성 검사와 Guard·ProviderLoginRegistrationService·FirebaseSdkAdminClient의 Google/Apple 한정 조건 재확인. 기존 Kakao 로그인 지원과 새 미등록 제공자 자동 등록 지원을 구분.
+- 실행한 테스트와 결과: 관련 소스 조회 및 git diff --check. 설명 작업이므로 Gradle 재실행 없음.
+- 유지한 계약: 기존 Kakao 일반 로그인/명시 연결 동작 유지. 현재 TMI-189 자동 등록은 Google/Apple 한정. 비밀정보 비기록.
+- 결정사항: 기술적 제약이 아닌 기존 이슈 범위 제한임을 설명. Kakao 확장은 활성화된 지원 제공자 정책·설정 OIDC ID 기반 signed subject와 최신 원격 연결 교차 검증·소유권/차단/교체/경합 테스트를 함께 변경하는 방향 권장. 단순 KAKAO 조건 추가는 불충분.
+- 위험 요소: 실제 Kakao OIDC 토큰의 증빙 형태와 Firebase 연결 동작은 실환경 확인 필요. 확인되지 않은 provider를 포괄 허용하지 않음.
+- Jira 작업: 변경 없음. 댓글 초안(미등록): Kakao 자동 등록 확장 지점 분석, 코드 변경 없음, 실제 OIDC 증빙 검증과 회귀 테스트 필요.
+- 예상 밖 변경: 없음. 기존 dirty 변경 보존.
+- 다음 작업: 사용자 구현 요청 및 필요 시 Jira 범위 변경 승인 후 Kakao를 포함한 공통 정책 구현/검증.
+
+## 2026-10-01 — 테스트 배포와 Kakao 활성 설정 운영 순서 안내
+
+<!-- codex-turn:01a0f5e2-83d1-7f90-a47f-d1d96e61114e -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: 현재 변경 배포 후 Kakao 준비 순서 및 활성 설정 유지 이유 설명.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 코드 추가 변경 없음. application.yml의 FIREBASE_KAKAO_ENABLED 기본 false 및 설정된 OIDC ID 매핑/활성 검사 확인. 서버 활성 플래그와 Firebase provider 등록·프론트 버튼 노출을 구분.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 사용자가 commit/push 수행, 미준비 제공자 자동 허용 없음. 현재 Google/Apple 자동 등록 범위 유지.
+- 결정사항: 현재 변경 테스트 배포·Google/Apple 재현 검증 후 Kakao 준비, 미등록 provider 자동 등록/subject 증빙 검증 확장 및 회귀 검증, 서버 ON/프론트 노출 순서 권장. 장기적으로 Kakao를 지원하더라도 환경별 준비/운영 제어 설정은 유지하고 정상 운영에서는 ON으로 유지 가능.
+- 위험 요소: Kakao 설정만 ON해도 TMI-189 자동 등록 범위가 확장되지는 않음. 기존 Kakao 전용 회원이 생긴 뒤 OFF하면 로그인 제한이 발생하므로 영향 평가 필요. 실제 배포 및 Firebase/Kakao 설정 미확인.
+- 예상 밖 변경: 없음. 기존 dirty 변경 보존. Jira 변경/댓글 등록 및 commit/push/배포 미수행.
+- Jira 댓글 초안(미등록): 배포 및 Kakao 준비/활성화 순서 설명, 코드 변경 없음. 실제 OIDC 준비·자동 등록 확장·E2E 남음.
+- 다음 작업: 사용자 변경 검토·직접 commit/push 후 테스트 배포 검증. 이후 승인된 Kakao 설정/코드 확장 진행.
+
+## 2026-10-01 — Kakao 연결 불일치 해결 의도 확인
+
+<!-- codex-turn:01a0f5e3-7766-74d1-8e15-e6f4d7d515b4 -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: 사용자의 Kakao 확장 이해 확인.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 추가 구현 없음. 같은 Firebase UID에 Kakao가 연결됐지만 Identity에 미등록인 경우 안전 조건하에 현재 provider 등록을 지원하려는 의미로 설명. Firebase의 자동 연결 자체가 아니라 양쪽 등록 상태 불일치의 처리 공백을 해결하는 것임을 구분.
+- 실행한 테스트와 결과: 코드 변경 없는 설명으로 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: 이메일만으로 병합하지 않음, 다른 UID/소유자/차단/교체는 우회하지 않음.
+- 결정사항: Google/Apple과 동일한 UX 및 보안 정책으로 Kakao 확대 방향. 실제 Kakao OIDC의 동일 UID 자동 연결 발생 여부는 미확인으로 명시.
+- 위험 요소: 카카오가 항상 같은 이메일에 자동 연결된다고 단정할 수 없음. Firebase 연결 형태/토큰 증빙 확인 필요.
+- 예상 밖 변경: 없음. Jira/외부 설정/커밋/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): Kakao 등록 상태 불일치 해결 의도 확인. 구현 추가 없음, 실제 OIDC 동작 확인 필요.
+- 다음 작업: 승인된 범위에서 Kakao 검증 및 자동 등록 확장 구현.
+
+## 2026-10-01 — Kakao 확장 의도 확인 turn 기록 보완
+
+<!-- codex-turn:01a0f5e3-d705-70c1-9e94-15d82a5da49d -->
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link.
+- Jira: TMI-189
+- 작업 목표: 현재 설명 turn의 정확한 식별자로 작업 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Kakao도 동일 Firebase UID에 연결됐지만 Identity에 미등록인 상태를 안전 검증 후 처리하는 확장 의도 확인. Firebase 자동 연결 자체를 막는 작업은 아님.
+- 실행한 테스트와 결과: 문서 변경으로 Gradle 미실행. git diff --check 수행.
+- 유지한 계약: 이메일 자동 병합·차단 우회 없음, 현재 애플리케이션 동작 불변.
+- 결정사항: 과거 기록은 유지하고 현재 turn 식별자 기록을 EOF에 추가.
+- 위험 요소: 실제 Kakao OIDC 자동 연결/식별 증빙은 미검증.
+- 예상 밖 변경: 없음. 외부 설정·Jira·커밋/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): Kakao 확장 의도 설명 완료, 추가 구현 없음, 실제 OIDC 검증 필요.
+- 다음 작업: 승인된 범위의 Kakao 자동 등록 확장 구현 및 검증.

@@ -92,7 +92,9 @@ public final class FirebaseAdminAuthenticationVerifier
 			);
 			// Sync/high-risk have operation-specific permit checks. Ordinary login/enrollment may never bypass a block.
 			if (providerChanges != null && purpose != FirebaseVerificationPurpose.AUTH_METHOD_SYNC
-					&& purpose != FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) providerChanges.validatePrincipal(principal);
+					&& purpose != FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) {
+				providerChanges.validatePrincipal(principal, purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+			}
 			return principal;
 		} catch (IllegalArgumentException exception) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);

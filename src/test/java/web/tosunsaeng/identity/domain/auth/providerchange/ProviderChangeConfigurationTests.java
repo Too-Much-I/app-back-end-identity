@@ -12,9 +12,24 @@ class ProviderChangeConfigurationTests {
 			.withBean(MongoTemplate.class, () -> mock(MongoTemplate.class));
 	@Test void defaultsOffDoNotCreateRemoteMutationPort() {
 		runner.run(c -> { assertThat(c).hasNotFailed().hasSingleBean(ProviderChangeGuard.class)
-				.doesNotHaveBean(ProviderChangeService.class).doesNotHaveBean(FirebaseProviderMutationPort.class);
+				.doesNotHaveBean(ProviderChangeService.class).doesNotHaveBean(FirebaseProviderMutationPort.class)
+				.doesNotHaveBean(ProviderLoginRegistrationService.class);
 			var p = c.getBean(ProviderChangeProperties.class); assertThat(p.isEnabled()).isFalse();
 			assertThat(p.isRelinkEnabled()).isFalse(); assertThat(p.isLinkEnabled()).isFalse(); assertThat(p.isWorkerEnabled()).isFalse(); });
+	}
+	@Test void loginRegistrationRequiresSessionFenceButNotExplicitLinkCapture() {
+		runner.withPropertyValues("app.session-revocation.fence-enabled=true")
+				.withBean(web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService.class,
+						() -> mock(web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService.class))
+				.withBean(web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository.class,
+						() -> mock(web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository.class))
+				.withBean(web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository.class,
+						() -> mock(web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository.class))
+				.withBean(web.tosunsaeng.identity.domain.user.domain.repository.UserRepository.class,
+						() -> mock(web.tosunsaeng.identity.domain.user.domain.repository.UserRepository.class))
+				.withBean(java.time.Clock.class, java.time.Clock::systemUTC)
+				.run(c -> assertThat(c).hasNotFailed().hasSingleBean(ProviderLoginRegistrationService.class)
+						.doesNotHaveBean(ProviderLinkService.class));
 	}
 	@Test void commonLinkRequiresFenceAndLegacyFlagCannotExpandScope() {
 		runner.withPropertyValues("app.provider-change.link-enabled=true").run(c -> assertThat(c).hasFailed());
