@@ -1,5 +1,49 @@
 # Codex Current State
 
+- Kakao 활성 설정 설명 turn 기록 보완 완료. 코드 지원과 AWS 활성화/배포를 구분했으며 이번 외부 변경은 없음. 테스트 서버 설정 확인 및 실제 로그인 검증 대기.
+
+- 2026-10-01 Kakao 설정 적용 여부 재확인: 코드의 최초 등록 지원은 완료했지만 AWS 환경변수 활성화/배포는 미수행. application.yml은 FIREBASE_KAKAO_ENABLED 기본 false, provider ID 기본 oidc.kakao 유지. 코드 배포와 서버 ON 설정을 함께 확인해야 함.
+
+- 2026-10-01 Kakao exchange 403 진단: 코드상 현재 로그인 제공자 미인식/비활성이 원인. 기본 설정 및 테스트 task 초안은 Kakao OFF지만 실행 task는 AWS 세션 만료로 미확인. Chrome에 기존 AWS 접속 포털을 열고 사용자 로그인 대기. 토큰 조회·외부 설정 변경 없음.
+
+## 2026-10-01 최신 — TMI-189 후속 Kakao 로컬 구현 완료 / 배포 대기
+
+- develop에서 사용자 요청으로 Kakao 최초 로그인 등록 확장. LOGIN_EXCHANGE의 동일 UID 활성 MEMBER에 한해 현재 KAKAO만 등록하며 기존 소유권/차단/이력/보안 작업/트랜잭션 제약 유지. Firebase SDK는 설정된 OIDC ID의 서명된 subject와 최신 원격 연결 일치 검증. 임의 OIDC·Kakao OFF 우회 없음.
+- 기존 로컬 테스트 도구 app.js/index.html/apple.test.mjs에 Kakao 로그인·재인증/회귀 테스트 추가. localhost:4173 서버 재시작 및 HTML 응답 확인. 브라우저 새로고침·실제 로그인·회원 변경 미수행.
+- 최종 ./gradlew clean test 1024개 통과, 웹 node 테스트 7개 통과, git diff --check 통과. 초기 sandbox 제약 및 신규 mock stubbing 오류 수정 후 재검증 완료.
+- JWT/API 불변. 커밋/push/배포 및 AWS/Firebase 설정 변경 없음. 실제 Kakao/Android/iOS E2E는 미검증. 다음: 사용자 push/테스트 배포 후 FIREBASE_KAKAO_ENABLED=true, FIREBASE_KAKAO_PROVIDER_ID=oidc.kakao, AUTH_SESSION_FENCE_ENABLED=true 확인하고 실제 테스트. sync 사용 환경의 provider fence 확인도 유지.
+- TMI-189 조회만 수행, Jira 수정/댓글/상태 변경 없음. 과거 누적 기록 변경 보존. 상세 변경 파일/검증/댓글 초안은 WORKLOG 최신 항목 참조.
+
+- 현재 turn 기록 보완 완료: 사용자 시크릿 교체 보고 반영 및 다음 단계 안내만 수행. 코드·외부 설정 변경 없음, Kakao 실제 로그인 검증 대기.
+
+- 2026-10-01 사용자 시크릿 교체 및 Firebase 값 갱신 완료 보고 수신. 실제 비밀값 재조회 없음. 다음은 웹 테스트 화면과 Identity Kakao 지원 준비이며 실제 로그인은 미검증.
+
+- 2026-10-01 Kakao callback 등록 이후 순서 안내: 시크릿 교체 확인 → 웹 테스트 및 Identity Kakao 검증·등록 지원 준비 → Android/iOS 각각 SDK 로그인·앱 복귀 검증. 이번 코드/외부 설정 변경 없음, 실제 로그인 미검증.
+
+- Redirect URI 확인 작업의 현재 turn 기록 보완 완료. 주소 일치 확인, 민감정보 자동 출력 문제에 따른 사용자 직접 시크릿 교체 권장 상태 유지. 비밀값 기록 및 외부 설정 변경 없음.
+
+- 2026-10-01 Kakao 로그인 Redirect URI 입력값이 Firebase callback과 일치함 확인(저장 완료는 사용자 보고). 화면 도구의 탭 선택 자동 출력에 client secret이 포함되는 문제가 발생해 값은 문서/응답에 복사하지 않음. 노출된 시크릿의 사용자 직접 재발급 및 Firebase 대응 값 갱신 권장, 재발급/저장 등 외부 변경 미수행. 이후 테스트 로그인 준비 필요.
+
+- Android/iOS Kakao 지원 범위 정정의 현재 turn 기록 보완 완료. 두 플랫폼 모두 공통 oidc.kakao를 사용하고 플랫폼별 앱 복귀 설정·검증이 필요함을 안내. 구현/외부 설정 변경 없음.
+
+- 2026-10-01 Kakao 클라이언트 범위 정정: 사용자 확인에 따라 Android와 iOS 모두 대상. Firebase OIDC 화면의 Apple 링크는 Apple 로그인 제공자가 아닌 iOS 플랫폼 SDK 안내이며 두 플랫폼 각각 로그인·앱 복귀 검증 필요. 같은 provider/client 설정을 사용하되 SDK/복귀 설정은 플랫폼별로 준비, 별도 로컬 웹 테스트는 웹 SDK 사용. 이번 코드/외부 설정 변경 없음.
+
+- 2026-10-01 Firebase OIDC 플랫폼별 단계 안내 확인: 콘솔에 Apple/Android/웹 SDK 문서 링크가 표시됨. 추가 콘솔 등록 오류가 아니라 각 앱에서 oidc.kakao 로그인 흐름을 구현하라는 안내임을 설명. Android 프론트 연동과 localhost 웹 테스트 연동을 구분, 서버 Kakao 활성화/최초 자동 등록 확장도 별도 필요. 이번 설정/코드 변경 없음.
+
+- Firebase OIDC 등록 확인·Kakao callback 안내의 현재 turn 기록 보완 완료. oidc.kakao 활성 확인, 사용자 callback 저장 및 실제 로그인 검증 대기. 외부 설정 변경 없음.
+
+- 2026-10-01 Firebase oidc.kakao 제공업체 사용 설정됨 확인. 통합 구성에서 실제 Firebase callback URL 확인, Kakao REST API 키 수정 화면의 카카오 로그인 리다이렉트 URI에 사용자 직접 등록 안내. 비즈니스 인증 URI와 구분, 실제 키/시크릿 비기록. Callback 저장 및 실제 로그인은 아직 미검증.
+
+- 카카오 로그인용 Client Secret 선택 안내의 현재 turn 기록 보완 완료. 실제 비밀값 조회/입력이나 외부 설정 변경은 하지 않았으며 Firebase 연동 검증 대기.
+
+- 2026-10-01 Kakao 시크릿 선택 안내: Firebase OIDC에는 REST API 키의 카카오 로그인용 Client Secret을 사용하며 비즈니스 인증용은 사용하지 않음. 실제 값 조회/기록/전송 및 외부 설정 변경 없음.
+
+- 2026-10-01 MEMBER 승격 후 기존 Guest Access Token으로 guest/prepare 호출 시 서비스는 DB의 현재 User가 Guest인지 검사하여 403 GUEST_UPGRADE_NOT_ALLOWED 반환함을 확인. 만료/유효하지 않은 인증은 먼저 401, 다른 MEMBER에 이미 통합된 MERGED source는 401 ACCOUNT_MERGED_TOKEN_REJECTED로 구분. 코드 변경 없음, 소스 확인만 수행.
+
+- Kakao 플랫폼 키 메뉴 안내의 현재 turn 기록 보완 완료. 현재 브랜치 develop 확인, 기존 변경 보존. REST API 키 카드 위치만 안내했으며 실제 값 기록·키 변경·외부 전송 없음.
+
+- 2026-10-01 Kakao 플랫폼 키 메뉴 확인: 앱 설정 → 앱 → 플랫폼 키에서 REST API 키 카드 및 클라이언트 시크릿 라벨 확인. 값은 출력/기록하지 않음. 사용자 직접 Firebase 입력 안내, 키 생성/변경 없음.
+
 - 현재 설명 turn 기록 보완 완료: Kakao에서도 동일 Firebase UID의 미등록 제공자 상태를 안전 검증 후 등록하는 확장 의도를 확인. 실제 Kakao 자동 연결 여부는 미검증, 추가 구현/배포 없음.
 
 - 2026-10-01 Kakao 확장 의도 확인: 기존 MEMBER의 같은 Firebase UID에 Kakao만 연결되고 Identity에는 없는 경우를 Google/Apple과 동일한 안전 검증 후 등록으로 처리하려는 범위임을 설명. Firebase 자동 연결 자체를 막는 작업이 아니며 실제 Kakao OIDC 자동 연결 동작은 미검증. 이번 turn 구현 변경 없음.

@@ -24,15 +24,21 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 
 	private final AbstractFirebaseAuth firebaseAuth;
 	private final String firebaseProjectId;
+	private final String kakaoProviderId;
 
 	FirebaseSdkAdminClient(FirebaseApp firebaseApp, FirebaseAuthProperties properties) {
 		this(
 				selectFirebaseAuth(firebaseApp, properties.tenantId()),
-				properties.projectId()
+				properties.projectId(), properties.kakaoProviderId()
 		);
 	}
 
 	FirebaseSdkAdminClient(AbstractFirebaseAuth firebaseAuth, String firebaseProjectId) {
+		this(firebaseAuth, firebaseProjectId, "oidc.kakao");
+	}
+
+	FirebaseSdkAdminClient(AbstractFirebaseAuth firebaseAuth, String firebaseProjectId, String kakaoProviderId) {
+		this.kakaoProviderId = Objects.requireNonNull(kakaoProviderId, "kakaoProviderId must not be null");
 		this.firebaseAuth = Objects.requireNonNull(firebaseAuth, "firebaseAuth must not be null");
 		this.firebaseProjectId = Objects.requireNonNull(
 				firebaseProjectId,
@@ -141,10 +147,10 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 	}
 
 	/** A latest Admin snapshot alone cannot prove which external account signed this token. */
-	private static void validateCurrentSocialSubject(Map<String, Object> claims,
+	private void validateCurrentSocialSubject(Map<String, Object> claims,
 			List<FirebaseLinkedProviderData> linkedProviders) {
 		String provider = requireSignInProvider(claims);
-		if (!provider.equals("google.com") && !provider.equals("apple.com")) return;
+		if (!provider.equals("google.com") && !provider.equals("apple.com") && !provider.equals(kakaoProviderId)) return;
 		var firebase = (Map<?, ?>) claims.get("firebase");
 		if (!(firebase.get("identities") instanceof Map<?, ?> identities)
 				|| !(identities.get(provider) instanceof List<?> subjects)

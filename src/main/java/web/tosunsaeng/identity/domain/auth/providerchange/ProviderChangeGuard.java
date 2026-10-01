@@ -34,7 +34,7 @@ public class ProviderChangeGuard {
 						.orElseThrow(() -> error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
 				if (!mongo.exists(Query.query(Criteria.where("userId").is(binding.getUserId()).and("provider").is(provider)
 						.and("providerSubject").is(target.providerSubject())), web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity.class)) {
-					if (loginExchange && (provider == SocialProvider.GOOGLE || provider == SocialProvider.APPLE)) return;
+					if (loginExchange && supportsFirstLoginRegistration(provider)) return;
 					throw error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
 				}
 			}
@@ -70,6 +70,9 @@ public class ProviderChangeGuard {
 		if (method == null) return null;
 		return switch (method) { case GOOGLE -> SocialProvider.GOOGLE; case APPLE -> SocialProvider.APPLE;
 			case KAKAO -> SocialProvider.KAKAO; default -> null; };
+	}
+	public static boolean supportsFirstLoginRegistration(SocialProvider provider) {
+		return provider == SocialProvider.GOOGLE || provider == SocialProvider.APPLE || provider == SocialProvider.KAKAO;
 	}
 	public static AuthException error(AuthErrorStatus status) { return new AuthException(status); }
 }

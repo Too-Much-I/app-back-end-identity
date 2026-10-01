@@ -27,7 +27,7 @@ class FirebaseSdkAdminClientTests {
 	private static final String GOOGLE_SUBJECT = "opaque-google-subject";
 
 	@ParameterizedTest
-	@ValueSource(strings = {"google.com", "apple.com"})
+	@ValueSource(strings = {"google.com", "apple.com", "oidc.kakao"})
 	void requiresSignedCurrentSubjectToMatchLatestRemoteSubject(String providerId) throws Exception {
 		AbstractFirebaseAuth auth = mock(AbstractFirebaseAuth.class);
 		FirebaseToken token = mock(FirebaseToken.class);
@@ -56,6 +56,30 @@ class FirebaseSdkAdminClientTests {
 		assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
 		when(user.getProviderData()).thenReturn(new UserInfo[]{currentProvider, currentProvider});
 		assertClientFailure(auth, FirebaseAdminClientException.Reason.INVALID_TOKEN);
+	}
+
+	@Test
+	void configuredKakaoProviderIdRequiresItsOwnSignedSubject() throws Exception {
+		AbstractFirebaseAuth auth = mock(AbstractFirebaseAuth.class);
+		FirebaseToken token = mock(FirebaseToken.class);
+		UserRecord user = mock(UserRecord.class);
+		when(auth.verifyIdToken(ID_TOKEN, true)).thenReturn(token);
+		when(auth.getUser(FIREBASE_UID)).thenReturn(user);
+		when(token.getUid()).thenReturn(FIREBASE_UID);
+		when(token.getIssuer()).thenReturn("https://securetoken.google.com/test-project");
+		UserInfo kakao = provider("oidc.kakao-test", "test-subject");
+		when(user.getProviderData()).thenReturn(new UserInfo[]{kakao});
+		var claims = new java.util.HashMap<String, Object>();
+		claims.put("aud", "test-project"); claims.put("auth_time", 100L); claims.put("iat", 101L); claims.put("exp", 3700L);
+		when(token.getClaims()).thenReturn(claims);
+		var client = new FirebaseSdkAdminClient(auth, "test-project", "oidc.kakao-test");
+		for (String key : java.util.List.of("oidc.kakao", "oidc.untrusted")) {
+			claims.put("firebase", Map.of("sign_in_provider", "oidc.kakao-test", "identities", Map.of(key, java.util.List.of("test-subject"))));
+			assertThatThrownBy(() -> client.verify(ID_TOKEN, true)).isInstanceOfSatisfying(FirebaseAdminClientException.class,
+					e -> assertThat(e.reason()).isEqualTo(FirebaseAdminClientException.Reason.INVALID_TOKEN));
+		}
+		claims.put("firebase", Map.of("sign_in_provider", "oidc.kakao-test", "identities", Map.of("oidc.kakao-test", java.util.List.of("test-subject"))));
+		assertThat(client.verify(ID_TOKEN, true).signInProviderId()).isEqualTo("oidc.kakao-test");
 	}
 
 	@Test

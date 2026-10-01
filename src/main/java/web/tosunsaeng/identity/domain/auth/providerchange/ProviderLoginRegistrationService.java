@@ -53,7 +53,7 @@ public class ProviderLoginRegistrationService {
 				guard.authenticate(userId, binding.getFirebaseIdentityId(), proof.signInMethod(), proof.authTime());
 				security.checkFirebaseAuthentication(userId, security.firebase(userId, epoch, proof));
 				SocialProvider provider = social(proof.signInMethod());
-				if (provider == SocialProvider.GOOGLE || provider == SocialProvider.APPLE) {
+				if (supportsFirstLoginRegistration(provider)) {
 					var targets = proof.linkedSocialPrincipals().stream().filter(p -> p.provider() == provider).toList();
 					if (targets.size() != 1) throw error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
 					var target = targets.getFirst();

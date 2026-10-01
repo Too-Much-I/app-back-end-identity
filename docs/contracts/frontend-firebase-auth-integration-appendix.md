@@ -335,13 +335,17 @@ SNS 해제·재연결은 [전용 API/응답·모바일 흐름·오류 계약](fi
 
 <a id="tmi-189"></a>
 
-## TMI-189 배포 전 QA — 동일 UID의 Google·Apple 최초 로그인 등록
+## TMI-189 후속 배포 전 QA — 동일 UID의 Google·Apple·Kakao 최초 로그인 등록
 
 로컬 테스트와 실환경 검증은 구분한다. 새 자동 등록은 기존 `AUTH_SESSION_FENCE_ENABLED=true`에서만 설치되며 Mongo 트랜잭션과 세션 제어 문서의 CAS가 필요하다. fence를 끈 환경에서 미등록 SNS를 허용하지 않는다. 별도 컬렉션·새 환경변수는 없으며 기존 `social_identities`의 provider+subject unique 인덱스와 세션/제공자 제어 문서를 사용한다.
 
 | 검증 | 완료 기준 |
 | --- | --- |
 | Google MEMBER → 동일 UID Apple, 역방향 | 각 선택한 SNS 로그인 1회와 exchange로 같은 UUID MEMBER 반환, 추가 기존 SNS 재인증 불필요 |
+| Google/Apple MEMBER → 동일 UID Kakao, 역방향 | 동일 활성 MEMBER·소유권·보안 조건을 만족할 때 현재 제공자만 등록. 실제 OIDC UID 연결 여부 별도 확인 |
+| Kakao 비활성/잘못된 provider ID | FIREBASE_PROVIDER_NOT_ALLOWED, 자동 등록·로그인 없음 |
+| Kakao 설정된 OIDC subject 누락/다중 값/원격 불일치 | INVALID_FIREBASE_ID_TOKEN, 등록·발급 없음. 임의 OIDC와 기본값으로 대체하지 않음 |
+| Android·iOS 및 localhost 웹 | 각 플랫폼 로그인/취소/같은 계정 재인증/앱 복귀를 별도 검증. 웹 성공을 모바일 검증으로 대체하지 않음 |
 | Firebase에 여러 제공자 존재 | 현재 sign-in provider만 새 등록, 나머지 미등록 제공자는 그대로 |
 | 다른 UID/이메일만 일치 | 자동 rebind/merge 없음, 기존 enrollment·소유권 충돌 계약 유지 |
 | 차단/과거 해제 이력/같은 SNS 다른 subject | 거절, 기존 block·floor 유지 |
@@ -350,6 +354,6 @@ SNS 해제·재연결은 [전용 API/응답·모바일 흐름·오류 계약](fi
 | 동일 요청 중복/동시 등록 | 중복 연결 없음. 경합은 409/503 후 제한 재시도 시 같은 owner 연결로 수렴. 응답 token의 멱등 재사용은 보장 안 함 |
 | unlink/withdrawal/logout-all 경합 | 세션 control의 version 충돌 또는 epoch/floor 검증으로 안전하게 거절; 롤백 후 반쪽 등록·세션 없음 |
 | 명시 link PREPARED | 자동 등록의 revision 증가로 이전 준비 상태 무효화; STARTED/미완료 보안 작업은 자동 등록 차단 |
-| 기존 가입/Guest/전화번호/Kakao/명시 link | 자동 등록 범위 확대 없음, 기존 회귀 테스트 및 대상 환경 확인 |
+| 기존 가입/Guest/전화번호/명시 link | 로그인 이외 자동 등록 범위 확대 없음, 기존 회귀 테스트 및 대상 환경 확인 |
 
 로컬 mock 테스트는 거절 경계·발급 호출 순서·중복 요청 수렴을 검증한다. 실제 replica-set의 트랜잭션 rollback/write conflict 및 모바일 Firebase의 같은 UID 자동 연결은 대상 테스트 환경에서 별도 검증해야 한다. 토큰·provider subject·개인정보를 QA 문서/로그에 붙여 넣지 않는다.

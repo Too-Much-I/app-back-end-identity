@@ -138,6 +138,21 @@ class FirebaseAdminAuthenticationVerifierTests {
 	}
 
 	@Test
+	void disabledKakaoAndUnknownOidcNeverReachRegistrationGuard() {
+		for (String providerId : List.of("oidc.kakao", "oidc.untrusted")) {
+			var snapshot = data(NOW.minusSeconds(30), providerId, false, false, false,
+					List.of(new FirebaseLinkedProviderData(providerId, "test-only-subject")));
+			var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+			// Known Kakao disabled; arbitrary OIDC still rejected even when Kakao is enabled.
+			var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, !providerId.equals("oidc.kakao")));
+			verifier.setProviderChanges(guard);
+			assertAuthError(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+					AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+			org.mockito.Mockito.verifyNoInteractions(guard);
+		}
+	}
+
+	@Test
 	void loginAllowsExactFifteenMinuteBoundaryButRejectsOlderAuthentication() {
 		StubFirebaseAdminClient boundaryClient = new StubFirebaseAdminClient(
 				validGoogleData(NOW.minus(Duration.ofMinutes(15)))
