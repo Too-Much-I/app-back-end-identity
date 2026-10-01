@@ -70,6 +70,7 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 			throw invalidToken();
 		}
 		List<FirebaseLinkedProviderData> linkedProviders = linkedProviders(user);
+		validateCurrentSocialSubject(claims, linkedProviders);
 		boolean hasPhoneProvider = linkedProviders.stream()
 				.anyMatch(provider -> PHONE_PROVIDER_ID.equals(provider.providerId()));
 		boolean phoneVerified = hasPhoneProvider
@@ -137,6 +138,21 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 			throw invalidToken();
 		}
 		return providerId;
+	}
+
+	/** A latest Admin snapshot alone cannot prove which external account signed this token. */
+	private static void validateCurrentSocialSubject(Map<String, Object> claims,
+			List<FirebaseLinkedProviderData> linkedProviders) {
+		String provider = requireSignInProvider(claims);
+		if (!provider.equals("google.com") && !provider.equals("apple.com")) return;
+		var firebase = (Map<?, ?>) claims.get("firebase");
+		if (!(firebase.get("identities") instanceof Map<?, ?> identities)
+				|| !(identities.get(provider) instanceof List<?> subjects)
+				|| subjects.size() != 1 || !(subjects.getFirst() instanceof String subject) || subject.isBlank()) {
+			throw invalidToken();
+		}
+		var current = linkedProviders.stream().filter(p -> provider.equals(p.providerId())).toList();
+		if (current.size() != 1 || !subject.equals(current.getFirst().providerUid())) throw invalidToken();
 	}
 
 	private static String requireStringClaim(Map<String, Object> claims, String claimName) {

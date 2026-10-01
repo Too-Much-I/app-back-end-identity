@@ -19,6 +19,11 @@ public class ProviderChangeGuard {
 	public ProviderChangeGuard(MongoTemplate mongo) { this.mongo = mongo; }
 	public boolean hasState(String userId) { return mongo.exists(Query.query(Criteria.where("_id").is(userId)), AuthMethodChangeControl.class); }
 	public void validatePrincipal(web.tosunsaeng.identity.domain.auth.federation.application.VerifiedFirebasePrincipal principal) {
+		validatePrincipal(principal, false);
+	}
+	/** Only exchange may defer a missing first SNS binding to its transactional registration policy. */
+	public void validatePrincipal(web.tosunsaeng.identity.domain.auth.federation.application.VerifiedFirebasePrincipal principal,
+			boolean loginExchange) {
 		var binding = mongo.findOne(Query.query(Criteria.where("firebaseProjectId").is(principal.firebaseProjectId())
 				.and("firebaseUid").is(principal.firebaseUid())), web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity.class);
 		if (binding != null) {
@@ -29,6 +34,7 @@ public class ProviderChangeGuard {
 						.orElseThrow(() -> error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
 				if (!mongo.exists(Query.query(Criteria.where("userId").is(binding.getUserId()).and("provider").is(provider)
 						.and("providerSubject").is(target.providerSubject())), web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity.class)) {
+					if (loginExchange && (provider == SocialProvider.GOOGLE || provider == SocialProvider.APPLE)) return;
 					throw error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
 				}
 			}

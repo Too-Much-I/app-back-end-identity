@@ -31,6 +31,13 @@ public class ProviderChangeConfiguration {
 	@Bean InitializingBean validateProviderChange(ProviderChangeProperties properties) { return properties::validate; }
 	@Bean ProviderChangeGuard providerChangeGuard(MongoTemplate mongo) { return new ProviderChangeGuard(mongo); }
 	@Bean
+	@ConditionalOnProperty(prefix = "app.session-revocation", name = "fence-enabled", havingValue = "true")
+	ProviderLoginRegistrationService providerLoginRegistrationService(MongoTemplate mongo, SessionSecurityService security,
+			ProviderChangeGuard guard, FirebaseIdentityRepository identities, SocialIdentityRepository socials,
+			UserRepository users, Clock clock) {
+		return new ProviderLoginRegistrationService(mongo, security, guard, identities, socials, users, clock);
+	}
+	@Bean
 	@ConditionalOnProperty(prefix = "app.provider-change", name = "fence-enabled", havingValue = "true")
 	ProviderLinkService providerLinkService(ProviderChangeService changes, MongoTemplate mongo, SessionSecurityService security,
 			ProviderChangeGuard guard, SocialIdentityRepository socials, ProviderChangeProperties properties, Clock clock) {
