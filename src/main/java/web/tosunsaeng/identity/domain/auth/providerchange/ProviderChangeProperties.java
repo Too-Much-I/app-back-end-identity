@@ -13,6 +13,7 @@ public class ProviderChangeProperties {
 	private boolean workerEnabled;
 	private boolean relinkEnabled;
 	private boolean linkEnabled;
+	private boolean linkRecoveryEnabled;
 	private Duration recentAuth = Duration.ofMinutes(5);
 	private Duration permitTtl = Duration.ofMinutes(5);
 	private Duration retention = Duration.ofDays(7);
@@ -25,7 +26,7 @@ public class ProviderChangeProperties {
 
 	public void validate() {
 		if (relinkEnabled) throw new IllegalArgumentException("Legacy relink is retired; migrate the client to common link before enabling link-enabled.");
-		if ((enabled || workerEnabled || linkEnabled) && !fenceEnabled) {
+		if ((enabled || workerEnabled || linkEnabled || linkRecoveryEnabled) && !fenceEnabled) {
 			throw new IllegalArgumentException("Provider change requires session fencing.");
 		}
 		for (Duration duration : new Duration[]{recentAuth, permitTtl, retention, permitRetention,

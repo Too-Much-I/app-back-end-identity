@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.domain.auth.providerchange;
 import java.util.List;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,15 @@ public class ProviderLinkController {
 		@Override public String toString() { return "ProviderLinkRequest[REDACTED]"; }
 	}
 	private final ObjectProvider<ProviderLinkService> service;
+	public record ProofRequest(@Schema(accessMode = Schema.AccessMode.WRITE_ONLY, format = "password")
+			@NotBlank @Size(max = 16384) String firebaseIdToken) {
+		@Override public String toString() { return "ProviderLinkProof[REDACTED]"; }
+	}
+	public record FailureRequest(@NotBlank @Size(max = 36) String linkAttemptId,
+			@Schema(accessMode = Schema.AccessMode.WRITE_ONLY, format = "password") @NotBlank @Size(max = 16384) String firebaseIdToken,
+			@NotNull ProviderLinkAttempt.FailureCode failureCode) {
+		@Override public String toString() { return "ProviderLinkFailure[REDACTED]"; }
+	}
 	private final CurrentUserProvider currentUser;
 	public ProviderLinkController(ObjectProvider<ProviderLinkService> service, CurrentUserProvider currentUser) {
 		this.service = service; this.currentUser = currentUser;
@@ -51,5 +61,20 @@ public class ProviderLinkController {
 		var value = service.getIfAvailable();
 		if (value == null) throw ProviderChangeGuard.error(AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
 		return value;
+	}
+	@Operation(summary = "SNS 연결 취소 요청", description = "PREPARED만 즉시 취소합니다. STARTED의 원격 작업을 취소하거나 잠금을 해제하지 않습니다.")
+	@PostMapping(value = "/cancel", consumes = "application/json", produces = "application/json")
+	public BaseResponse<ProviderLinkService.Status> cancel(@Valid @RequestBody AttemptRequest request) {
+		return BaseResponse.success(required().cancel(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken()));
+	}
+	@Operation(summary = "SNS 연결 실패 보고", description = "허용된 오류 분류만 기록합니다. 실패 보고는 잠금 해제 증거가 아닙니다.")
+	@PostMapping(value = "/failure-report", consumes = "application/json", produces = "application/json")
+	public BaseResponse<ProviderLinkService.Status> failure(@Valid @RequestBody FailureRequest request) {
+		return BaseResponse.success(required().failure(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken(), request.failureCode()));
+	}
+	@Operation(summary = "본인 진행 중 SNS 연결 조회", description = "실행 중 작업 우선, 없으면 최대 20개 준비 작업. SDK 실행 허가는 반환하지 않습니다.")
+	@PostMapping(value = "/pending", consumes = "application/json", produces = "application/json")
+	public BaseResponse<ProviderLinkService.Pending> pending(@Valid @RequestBody ProofRequest request) {
+		return BaseResponse.success(required().pending(currentUser.getCurrentUserId(), request.firebaseIdToken()));
 	}
 }

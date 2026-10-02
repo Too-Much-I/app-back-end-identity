@@ -91,7 +91,12 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		success(api, PROVIDERS + "link/start", "post", "200", "START_REPLAY", "start 재시도는 SDK 재실행 허가 아님",
 				new ProviderLinkService.Status(ID, SocialProvider.GOOGLE, "STARTED", NOW.plusSeconds(300), false));
 		link(api, "complete", "COMPLETED", false, "서버 연결 확정");
-		for (String state : new String[]{"PREPARED", "STARTED", "COMPLETED", "ALREADY_LINKED", "EXPIRED", "ACTION_REQUIRED", "SUPERSEDED"}) {
+		link(api, "cancel", "CANCELLED", false, "시작 전 취소 완료");
+		link(api, "cancel", "ACTION_REQUIRED", false, "시작된 작업 취소 의도 기록, 보호 유지");
+		link(api, "failure-report", "ACTION_REQUIRED", false, "실패 보고는 잠금을 해제하지 않음");
+		success(api, PROVIDERS + "link/pending", "post", "200", "PENDING", "본인 작업 조회, SDK 실행 허가 없음",
+				new ProviderLinkService.Pending(java.util.List.of(new ProviderLinkService.Status(ID, SocialProvider.GOOGLE, "STARTED", NOW.plusSeconds(300), false)), false));
+		for (String state : new String[]{"PREPARED", "STARTED", "COMPLETED", "ALREADY_LINKED", "EXPIRED", "ACTION_REQUIRED", "SUPERSEDED", "CANCELLED", "FAILED"}) {
 			link(api, "status", state, false, "상태 조회는 SDK 실행을 허가하지 않음");
 		}
 
@@ -123,7 +128,7 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		error(api, AUTH + "reissue", AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE);
 		error(api, FIREBASE + "guest/prepare", AuthErrorStatus.IDENTITY_STATE_CONFLICT);
 		error(api, FIREBASE + "guest/upgrade", AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
-		for (String path : new String[]{"unlink", "unlink/status", "link/prepare", "link/start", "link/complete", "link/status"}) {
+		for (String path : new String[]{"unlink", "unlink/status", "link/prepare", "link/start", "link/complete", "link/status", "link/cancel", "link/failure-report", "link/pending"}) {
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_RATE_LIMITED);
 		}

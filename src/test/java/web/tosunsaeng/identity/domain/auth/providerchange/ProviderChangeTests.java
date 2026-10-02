@@ -358,6 +358,61 @@ class ProviderChangeTests {
 		assertThat(mongo.findById(p.linkAttemptId(), ProviderLinkAttempt.class).getCleanupAt()).isNotNull();
 		assertThat(links.prepare(USER, SocialProvider.GOOGLE, "proof", List.of(UUID.randomUUID().toString())).status()).isEqualTo("PREPARED");
 	}
+	@Test void cancelledPrepareIsIdempotentAndNeverGrantsStart() {
+		properties.setLinkRecoveryEnabled(true);
+		var p = firstPrepare(SocialProvider.GOOGLE);
+		assertThat(links.cancel(USER, p.linkAttemptId(), "proof").status()).isEqualTo("CANCELLED");
+		Long version = mongo.findById(p.linkAttemptId(), ProviderLinkAttempt.class).getVersion();
+		assertThat(links.cancel(USER, p.linkAttemptId(), "proof").status()).isEqualTo("CANCELLED");
+		assertThat(mongo.findById(p.linkAttemptId(), ProviderLinkAttempt.class).getVersion()).isEqualTo(version);
+		assertThat(links.start(USER, p.linkAttemptId(), "proof").linkAllowed()).isFalse();
+		assertThat(links.status(USER, KEY, "proof").status()).isEqualTo("CANCELLED");
+		assertThat(security.control(USER).getActiveLogoutId()).isNull();
+		assertThat(links.prepare(USER, SocialProvider.GOOGLE, "proof", List.of(UUID.randomUUID().toString())).status()).isEqualTo("PREPARED");
+	}
+	@Test void startedCancelAndFailureKeepSlotBlockAndNoTtl() {
+		properties.setLinkRecoveryEnabled(true);
+		var p = firstPrepare(SocialProvider.GOOGLE); links.start(USER, p.linkAttemptId(), "proof");
+		var before = guard.control(USER, binding.getFirebaseIdentityId());
+		assertThat(links.cancel(USER, p.linkAttemptId(), "proof").status()).isEqualTo("ACTION_REQUIRED");
+		assertThat(links.failure(USER, p.linkAttemptId(), "proof", ProviderLinkAttempt.FailureCode.CREDENTIAL_ALREADY_IN_USE).status()).isEqualTo("ACTION_REQUIRED");
+		var a = mongo.findById(p.linkAttemptId(), ProviderLinkAttempt.class);
+		assertThat(a.getState()).isEqualTo(ProviderLinkAttempt.State.STARTED);
+		assertThat(a.getCleanupAt()).isNull(); assertThat(a.getCancelRequestedAt()).isNotNull();
+		assertThat(security.control(USER).getActiveLogoutId()).isEqualTo(a.slot());
+		assertThat(guard.control(USER, binding.getFirebaseIdentityId()).getRevision()).isEqualTo(before.getRevision());
+		assertThat(guard.control(USER, binding.getFirebaseIdentityId()).isBlocked(SocialProvider.GOOGLE)).isTrue();
+		links.failure(USER, p.linkAttemptId(), "proof", ProviderLinkAttempt.FailureCode.NETWORK_ERROR);
+		assertThat(mongo.findById(a.getAttemptId(), ProviderLinkAttempt.class).getFailureCode()).isEqualTo(ProviderLinkAttempt.FailureCode.CREDENTIAL_ALREADY_IN_USE);
+		assertThat(links.start(USER, p.linkAttemptId(), "proof").linkAllowed()).isFalse();
+	}
+	@Test void pendingFindsPreparedAndPrioritizesStartedWithoutGrant() {
+		properties.setLinkRecoveryEnabled(true);
+		var p = firstPrepare(SocialProvider.GOOGLE);
+		links.prepare(USER, SocialProvider.GOOGLE, "proof", List.of(UUID.randomUUID().toString()));
+		assertThat(links.pending(USER, "proof").attempts()).hasSize(2).allMatch(s -> !s.linkAllowed());
+		links.start(USER, p.linkAttemptId(), "proof");
+		assertThat(links.pending(USER, "proof").attempts()).hasSize(1).first().extracting(ProviderLinkService.Status::linkAttemptId).isEqualTo(p.linkAttemptId());
+		assertThatThrownBy(() -> links.pending("another-owner", "proof")).isInstanceOf(AuthException.class);
+		assertThatThrownBy(() -> links.cancel("another-owner", p.linkAttemptId(), "proof")).isInstanceOf(AuthException.class);
+	}
+	@Test void cancelRequestDoesNotUndoDelayedSuccessfulCompletion() {
+		properties.setLinkRecoveryEnabled(true);
+		var p = firstPrepare(SocialProvider.GOOGLE); links.start(USER, p.linkAttemptId(), "proof");
+		links.cancel(USER, p.linkAttemptId(), "proof"); advance();
+		proof.set(principal(SocialProvider.GOOGLE, time.get(), EnumSet.allOf(SocialProvider.class)));
+		assertThat(links.complete(USER, p.linkAttemptId(), "proof").status()).isEqualTo("COMPLETED");
+		assertThat(links.cancel(USER, p.linkAttemptId(), "proof").status()).isEqualTo("COMPLETED");
+		assertThat(socials.findByProviderAndProviderSubject(SocialProvider.GOOGLE, "subject-GOOGLE")).isPresent();
+	}
+	@Test void recoveryEndpointsDefaultOffAndPreparedCancelUsesVersion() {
+		var p = firstPrepare(SocialProvider.GOOGLE);
+		assertThatThrownBy(() -> links.cancel(USER, p.linkAttemptId(), "proof")).isInstanceOf(AuthException.class);
+		properties.setLinkRecoveryEnabled(true);
+		var stale = mongo.findById(p.linkAttemptId(), ProviderLinkAttempt.class);
+		links.cancel(USER, p.linkAttemptId(), "proof"); stale.start(time.get(), 1, time.get().plusSeconds(60));
+		assertThatThrownBy(() -> mongo.save(stale)).isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+	}
 	@Test void prepareResponseLossRecoversByOriginalRequestKey() {
 		var p = firstPrepare(SocialProvider.GOOGLE);
 		assertThat(links.status(USER, KEY, "proof").linkAttemptId()).isEqualTo(p.linkAttemptId());

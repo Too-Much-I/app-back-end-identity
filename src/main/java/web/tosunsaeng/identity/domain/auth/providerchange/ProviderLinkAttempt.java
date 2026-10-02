@@ -16,7 +16,8 @@ import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
 @Document("provider_link_attempts")
 @CompoundIndex(name = "uk_provider_link_request", def = "{'userId':1,'requestIdHash':1}", unique = true)
 public class ProviderLinkAttempt {
-	public enum State { PREPARED, STARTED, COMPLETED, ALREADY_LINKED }
+	public enum State { PREPARED, STARTED, COMPLETED, ALREADY_LINKED, CANCELLED, FAILED }
+	public enum FailureCode { CREDENTIAL_ALREADY_IN_USE, ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL, POPUP_CLOSED, NETWORK_ERROR, SDK_ERROR }
 	@Id private String attemptId;
 	@Version private Long version;
 	@Indexed private String userId;
@@ -34,6 +35,11 @@ public class ProviderLinkAttempt {
 	private Instant startedAt;
 	private Instant completedAt;
 	private String socialIdentityId;
+	private Instant cancelRequestedAt;
+	private Instant failureReportedAt;
+	private FailureCode failureCode;
+	private Instant resolvedAt;
+	private String resolutionReason;
 	@Indexed(name = "ttl_provider_link_cleanup", expireAfter = "0s") private Instant cleanupAt;
 	private ProviderLinkAttempt() { }
 	static ProviderLinkAttempt create(FirebaseIdentity binding, SocialProvider provider, String hash,
@@ -59,5 +65,18 @@ public class ProviderLinkAttempt {
 		state = State.COMPLETED; completedAt = now; socialIdentityId = identityId; cleanupAt = cleanup;
 	}
 	String slot() { return "link:" + attemptId; }
+	boolean requestCancel(Instant now, Instant cleanup) {
+		if (state == State.PREPARED) {
+			cancelRequestedAt = now; state = State.CANCELLED; resolvedAt = now;
+			resolutionReason = "CANCELLED_BEFORE_START"; cleanupAt = cleanup; return true;
+		}
+		if (state == State.STARTED && cancelRequestedAt == null) { cancelRequestedAt = now; return true; }
+		return false;
+	}
+	boolean reportFailure(FailureCode code, Instant now) {
+		if (state != State.STARTED || failureReportedAt != null) return false;
+		failureCode = java.util.Objects.requireNonNull(code); failureReportedAt = now; return true;
+	}
+	boolean resolved() { return state == State.CANCELLED || state == State.FAILED; }
 	@Override public String toString() { return "ProviderLinkAttempt[provider=" + provider + ",state=" + state + "]"; }
 }

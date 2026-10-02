@@ -1,5 +1,150 @@
 # Codex Current State
 
+## 최신 상태 — 2026-10-02 TMI-191 구현 완료, 미배포
+
+- Jira: TMI-191 (부모 TMI-136). 브랜치: `codex/TMI-191-provider-link-recovery`. 아래 과거의 구현 미착수 설명을 이 상태로 대체한다.
+- cancel/failure-report/pending API, CANCELLED/FAILED 상태, 제한된 운영 복구 도구 및 로컬 테스트 화면 복원/취소/실패 보고 구현. PREPARED만 즉시 취소하며 STARTED는 ACTION_REQUIRED로 보호 유지. 운영 복구는 승인·SDK 종료 확인·원격/DB 대조·트랜잭션 CAS가 필요하다.
+- 계약/파일/배포 절차: [구현·운영 계약](../contracts/provider-link-recovery-operations.md). `FIREBASE_PROVIDER_LINK_RECOVERY_ENABLED=false` 기본. 호환 코드 전체 배포 및 새 상태를 처리하는 프론트 준비 후 별도 활성화한다.
+- 최종 검증: `./gradlew clean test` 1,030개 통과(실패/오류/skip 0), 운영 도구 unittest 6개 통과, 실제 로컬 도구 폴더 `node --test *.test.mjs` 35개 통과, diff 공백 검사 통과.
+- 별도 `/Users/msde76/tosunsaeng-integration-test`의 6개 파일은 승인된 복사로 반영했다. gateway 재시작/브라우저 새로고침은 하지 않았다. 신규 경로 사용 전 재시작 필요.
+- 실제 Firebase/Atlas 복구, replica-set rollback·경합, 모바일 실증 미수행. 원격 실행 중단은 별도 증거가 필요하고 감사 자료 보존 정책/권한은 운영 전 확정해야 한다.
+- commit/push/배포/실제 계정 변경/Jira 댓글·상태 변경 없음. Jira 댓글 초안은 구현 계약에만 작성. 기존 WORKLOG 및 이전 문서 변경 보존.
+
+## 이전 작업 참고 기록
+
+- 2026-10-02 TMI-191 작업 복원 방식 설명: 원 요청 ID 보존 후 기존 status 조회, 소실 시 인증된 본인 기준 pending 조회를 추가하는 계획. STARTED slot 대조 및 다중 PREPARED 구분 필요. 조회는 SDK 재실행 허가가 아니며 로그인 유실 시 재인증 필요. 구현 없음.
+
+- 2026-10-02 TMI-191 수정 계획을 사용자 사례로 설명: 진행 중 잠금, 안전한 실패/취소 종료, 새로고침 복원 및 감사 가능한 복구. 결과 불명 시 자동 재시도 보장하지 않으며 담당자 확인 가능성 명시. 구현/배포/Jira 변경 없음.
+
+- TMI-191 생성 작업의 현재 turn 식별자 기록 보완 완료. 부모 TMI-136/해야 할 일 상태 확인 완료, 구현 미착수.
+
+- 2026-10-02 TMI-191 생성 완료: SNS 연결 취소·실패 종료 및 재시도 복구 구현. 부모 TMI-136, 초기 상태 해야 할 일 확인. 사용자 내용 승인 후 공식 MCP로 생성, 별도 댓글/상태 전환 없음. 현재 계획 단계이며 구현 미착수.
+
+- TMI-136 하위 이슈 생성안 준비의 현재 turn 식별자 기록 보완 완료. 사용자에게 제목·범위·완료 조건 제시했으며 생성 승인 대기, Jira 외부 변경 없음.
+
+- 2026-10-02 TMI-136(sns 로그인 에픽) 공식 MCP 조회 완료. SNS 연결 취소·실패 종료·재시도 복구 하위 이슈 생성안 제시 및 승인 대기. Jira 생성/댓글/상태 변경 미수행.
+
+- 2026-10-02 SNS 취소·실패 복구 수정 계획서 보완 완료: docs/contracts/provider-link-cancel-recovery-plan.md에 범위/상태 전환/API·데이터 제안/작업 분할/완료 체크리스트/배포 중단 기준 추가. 현재는 문서만 변경했고 구현·배포 미수행. STARTED 결과 불명 자동 해제 제외, 운영 복구 증거 요건 및 정책 수치 확정 필요.
+
+- 2026-10-02 취소·실패 종료 수정 목적 확인: 안전한 종료가 확인된 작업을 종료 상태로 남기고 해당 잠금만 해제하여 재시도 허용. 실패 보고/시간 경과만으로 해제하지 않음. 상태 추가뿐 아니라 조건부 종료와 새로고침 복구 포함 계획이며 구현 미착수.
+
+- 2026-10-01 Kakao 프론트 설정 안내: Firebase Generic OIDC oidc.kakao 로그인 후 Firebase ID Token을 Identity exchange로 전달. Android/iOS 각각 Firebase 앱 구성 및 브라우저 인증 후 앱 복귀 설정 검증 필요. 원본 Kakao 토큰/Client Secret 앱 포함 금지. 프론트 프레임워크·SDK 버전 미확인, 실제 플랫폼 설정 변경 없음.
+
+- SNS 취소·복구 상세 수정 계획의 현재 turn 식별자 기록 보완 완료. 계획 문서 작성만 완료했고 애플리케이션 구현/배포는 미수행.
+
+- 2026-10-01 SNS 취소·실패 복구 상세 계획 문서 docs/contracts/provider-link-cancel-recovery-plan.md 작성. 준비 취소/진행 취소 요청/상태 복원/승인 복구/경합 테스트 구분. STARTED 모든 실패의 즉시 자동 재시도는 현재 SDK 구조에서 보장하지 않음. 문서 작성만 수행, 구현 미착수.
+
+- SNS 취소·재시도 계획의 현재 turn 식별자 기록 보완 완료. 취소/상태 복원/안전한 종료 후 재시도 설계만 설명했으며 코드 및 외부 상태 변경 없음.
+
+- 2026-10-01 SNS 실패 복구 계획에 사용자 취소/재시도 UX 추가 제안: PREPARED는 start와 경합 검사 후 취소, STARTED는 취소 요청 및 원격/이전 실행 종료 확인 후 재시도 허용. 대기 화면 종료와 연결 취소 구분, 이미 연결 완료면 완료 안내(자동 해제 금지). 코드/외부 변경 없음.
+
+- SNS 실패 복구 수정 계획의 현재 turn 식별자 기록 보완 완료. 분석·계획 설명만 수행했으며 코드/계정/배포 변경 없음. 조건부 실패 종료와 새로고침 복구 구현은 후속 요청 대기.
+
+- 2026-10-01 SNS 실패 복구 수정 계획 분석: 실패 자체는 타 회원 소유 Google의 정상 거절, 지속 충돌 원인은 STARTED slot/차단 보호 유지 + 실패 종료 API/상태 부재 + 로컬 요청 ID 새로고침 소실. 정상 연결/로그인은 유지하고 조건부 실패 종료·pending 복구·명확한 UX 추가 제안. 원격 부재만으로 자동 해제하지 않으며 SDK 종료 증거 불충분 시 ACTION_REQUIRED 유지. 구현/외부 변경 없음.
+
+- Google 단독 로그인·프로필 MEMBER 인증 성공 확인의 현재 turn 식별자 기록 보완 완료. 이전 Identity UUID 및 LC 기록 직접 대조는 별도 검증 대상.
+
+- 2026-10-01 Google 단독 로그인 검증: Chrome Google 인증/Identity 로그인 성공 표시 확인 후 프로필 API 읽기 호출로 서버 MEMBER 인증 성공. 이전 Identity UUID 직접 비교/LC 기록 동일성 검증은 미수행. 연결/로그인 재실행 없음.
+
+- SNS 추가 연결 결과 확인의 현재 turn 식별자 기록 보완 완료. 서버 COMPLETED 표시 확인, 추가한 Google 단독 로그인 검증은 후속으로 남아 있음.
+
+- 2026-10-01 Chrome SNS 연결 결과 읽기 확인: 검증표에 Kakao 인증/Identity 로그인 성공과 SNS 추가 연결 서버 COMPLETED, 동일 Firebase UID·기존 전화번호/SNS 유지 표시. 폼은 완료 후 정리되어 연결 전으로 보이나 연결 해제 아님. 새 Google 단독 로그인으로 동일 Identity 회원 확인은 별도 미검증. 이번에는 로그인/연결 재실행 없이 UI 및 성공 표시 코드만 확인.
+
+- 테스트 recovery 개정 13 배포 완료의 현재 turn 식별자 기록 보완 완료. 배포 상태는 COMPLETED이며 실제 사용자 성공 응답 헤더/replay 검증만 후속으로 남아 있음.
+
+- 2026-10-01 테스트 reissue recovery 활성화 배포 완료(이전 승인 대기 상태 대체): tosunsaeng-identity-test:13 ECS COMPLETED, 1 running/0 pending, ALB healthy, public health 200 UP. recovery=true/active-key-id=test-v1/environment=test 및 keyring secret 주입 추가. 기존 IAM 권한으로 충분하여 IAM·운영·이미지 변경 없음. ON 계약 smoke(누락 ID 400, valid ID+가짜 credential 401) 및 전체 1024 테스트 통과. 실사용자 성공 헤더/replay는 미검증. 로컬 테스트 프록시가 응답 헤더를 전달하지 않는 문제는 별도 미수정. 긴급 중단은 recovery OFF가 아니라 maintenance 사용.
+
+- 테스트 recovery 사전 점검의 현재 turn 식별자 기록 보완 완료. 테스트 keyring 주입 및 최소 읽기 권한 승인 대기이며 재배포는 아직 실행하지 않음.
+
+- 2026-10-01 테스트 reissue recovery 활성화 요청 점검: 실제 서비스 개정 12, 1/1 실행, COMPLETED. recovery=false/fence=true 확인. keyring secret 주입과 키 ID/환경/파일 설정 없음. true 단독 변경 시 entrypoint/애플리케이션 기동 실패하므로 재배포 미실행. 테스트 keyring 연결 및 필요한 최소 권한 범위 승인 후 키/DB 인덱스/클라이언트 준비 검증 필요. 원 응답 헤더와 CORS 가시성은 별도 확인 대상.
+
+- 2026-10-01 SNS 연결 복구 완료(아래 사전 점검/승인 대기 기록을 대체): 승인된 테스트 실패 Google STARTED 작업 1건을 감사 컬렉션에 백업한 뒤 정확한 소유·버전 조건 트랜잭션으로 활성 작업 제거 및 slot 해제. Google 차단/auth floor/epoch/회원/Kakao/전화번호/binding 보존 검증. 임시 관리 IP 허용 제거 및 기존 서버 접근 유지 확인. Chrome Kakao 재인증 후 Google 연결 준비 성공(PREPARED), 실제 Google 연결은 아직 미완료. 다른 회원 소유가 아닌 Google 계정 선택부터 사용자 진행 필요. 코드/배포 변경 없음, 일반 실패 복구 UX는 후속 작업.
+
+- reissue recovery 재배포 중단 안내의 현재 turn 기록 보완 완료. 외부 설정 변경/재배포 없음. test/staging 대상 및 선행 준비 확인 후 재개 대기.
+
+- 2026-10-01 reissue recovery 활성화/재배포 요청 사전 점검 중 사용자 중단. 테스트 서비스 콘솔에서 tosunsaeng-identity-test:12, 실행 1/대기 0, 배포 성공 표시 확인. 대상(test/staging) 질문 응답 및 fence·키·인덱스·클라이언트 준비 검증 미완료. 환경변수 변경/태스크 등록/서비스 재배포는 실행하지 않음.
+
+- 2026-10-01 reissue 절대 만료 헤더 null 조사: Recovery OFF(기본 AUTH_REISSUE_RECOVERY_ENABLED=false) 경로는 ReissueResult의 만료 시각을 null로 반환하여 컨트롤러가 두 Reissue-*-Expires-At 헤더를 생략함. Recovery ON 성공 경로는 실제 만료 시각을 반환/헤더 설정. 웹 CORS 응답 헤더 노출 설정은 저장소에서 확인되지 않아 원 응답 존재 여부와 JS 가시성을 구분해야 함. 배포 flag/프록시/실제 요청 미조회, 코드/설정 변경 없음. 관련 HTTP/Configuration 테스트 통과.
+
+- 현재 SNS 연결 복구 사전 점검의 정확한 turn 식별자를 WORKLOG 끝에 추가 완료. 임시 네트워크 접근 승인 및 이전 인증 팝업 종료 확인 대기, 복구 변경은 미수행.
+
+- 2026-10-01 현재 연결 복구 사전 점검: 사용자 credential-already-in-use 확인, 원래 STARTED attempt와 exact owner 세션 slot 일치 확인. 동일 작업 Firebase UID는 OIDC+Phone만 있고 Google 없음. CloudShell DB 진단은 접속 timeout, Atlas 허용 목록에 관리 셸 IP 없음. 테스트 프로젝트에 단일 /32 임시 허용 승인 필요. DB/계정/네트워크 변경은 아직 없음, SDK 종료·현재 로그인 owner 대조 및 조건부 원자적 복구는 남음.
+
+- 실패 SNS 연결 작업 보존 설명의 정확한 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 복구는 미구현이며 계정·DB·외부 설정 변경 없음.
+
+- 2026-10-01 SNS 실패 보존 설명: STARTED는 cleanupAt=null로 자동 삭제/해제되지 않고 만료 시 ACTION_REQUIRED로 표시. PREPARED 만료와 다름. 현재 실패 종료·새로고침 복구 미비를 명확화, 원격 결과 및 이전 실행 종료 확인 후 조건부 복구 필요. 구현/데이터 변경 없음.
+
+- 2026-10-01 새로고침 후 SNS 충돌 조사: 현재 Google prepare 충돌 요청의 status는 PROVIDER_OPERATION_NOT_FOUND. 테스트 DB에 만료된 GOOGLE STARTED 작업 1건 확인, 현재 회원과 소유 대조는 미완료. 로컬 메모리 유실로 원래 작업 복구 불가 확인. 계정/DB 변경·보호 해제 없음. 정확한 작업/Firebase 상태 대조 후 승인된 복구와 UI 보완 필요.
+
+- 테스트 SNS 연결 활성화 배포의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 개정 12 배포 성공 상태이며 실제 계정 연결 검증은 별도 진행 필요.
+
+- 2026-10-01 사용자 승인으로 테스트 Identity SNS 명시 연결 활성화 완료. 개정 11에 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED=true를 먼저 배포하여 개정 10 종료/성공 확인 후 개정 12에 FIREBASE_PROVIDER_LINK_ENABLED=true 추가 배포. 최종 ECS 성공, 1 실행/0 보류, 이전 개정 0 실행 확인. 공개 health UP. 기존 이미지·운영 서버·5분 recent-auth·unlink/worker 설정 유지. 실제 계정 연결 테스트는 사용자 인증으로 별도 수행 필요.
+
+- SNS 연결 unavailable 진단의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 테스트 환경 두 연결 플래그 활성화·재배포는 승인 대기이며 아직 적용하지 않음.
+
+- 2026-10-01 PROVIDER_CHANGE_UNAVAILABLE 진단: AWS 테스트 서비스가 참조하는 tosunsaeng-identity-test:10 환경 변수 48개 확인. AUTH_SESSION_FENCE_ENABLED=true, Google/Apple/Kakao 허용 true이나 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 및 FIREBASE_PROVIDER_LINK_ENABLED 누락(코드 기본 false). 명시 연결 비활성 설정 확인. 변경/재배포 미수행, 승인 후 테스트 환경에 두 플래그 적용 필요. 일반 recent-auth 실패와 구분.
+
+- 5분 재인증 UX 정책 설명의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 구현·외부 설정 변경 없음.
+
+- 2026-10-01 5분 기준은 나중에 설정에서 SNS를 추가하는 사용자에게 사실상 매번 재인증을 요구함을 명확화. 최근 로그인 재사용만으로 장기 로그인 UX 문제를 해결하지 못함. 정책 완화는 별도 검토 대상, 이번 코드/설정 변경 없음.
+
+- 최근 인증 5분 기준 설명의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 코드·외부 설정 변경 없음.
+
+- 2026-10-01 최근 인증 기준 재확인: Firebase auth_time에서 기본 5분 초과 시 SNS 연결 재인증 필요. 앱 마지막 사용·Identity 재발급 시각이 아님. 실배포 값 미확인, 코드/설정 변경 없음.
+
+- 2026-10-01 SNS 연결 UX 권장: 최근 기존 SNS 인증을 재사용하고 만료 시에만 재인증 안내, 서버 준비 단계는 자동화 가능. 재인증 완전 제거는 세션 탈취 후 로그인 수단 추가 위험으로 권장하지 않음. 이번에는 설명/기록만 수행, 정책 및 코드 변경 없음.
+
+- 기존 SNS 재인증 분석의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 최근 로그인 재사용 UX는 제안 상태이며 코드·외부 설정 변경 없음.
+
+- 2026-10-01 기존 SNS 재인증 요구 분석: 서버는 기존 승인 SNS의 최근 auth_time(기본 5분)을 요구하며 매번 별도 팝업을 강제하지 않음. 현재 로컬 도구는 명시 재인증 단계를 강제하는 테스트 UX. 최근 로그인 재사용 최적화는 미구현, 코드/외부 설정 변경 없음.
+
+- 2026-10-01 기존 MEMBER SNS 명시 연결 로컬 화면 구현 완료: 외부 도구 `/Users/msde76/tosunsaeng-integration-test`의 2-2 섹션에 기존 SNS 재인증 → prepare/start → 1회 SDK 연결 → 대상 재인증 → complete/status 추가. 28개 Node 모의 테스트 통과, 로컬 4173 서버 재시작 및 HTTP 응답 확인. Chrome 자동 새 탭은 ERR_BLOCKED_BY_CLIENT로 시각 검증 미완료. 실제 계정 연결·AWS 변경 없음. 실연동 전 FIREBASE_PROVIDER_LINK_ENABLED 및 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 확인 필요. 기존 로그인 탭 상태 보존, 새 화면 사용 시 재로그인 필요.
+
+- 프론트 인증 교환 설명의 정확한 turn 식별자를 WORKLOG 끝에 추가해 기록 보완. 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 프론트가 Firebase SNS 인증 후 ID Token을 Identity exchange에 자동 전달하는 계약 설명. 로컬 테스트 도구만 단계별 버튼으로 분리됨. 사용자 Kakao 준비 완료 보고 반영(이번 실환경 재검증 없음), 기존 회원 SNS 추가 연결 테스트 준비 맥락 유지. 코드/외부 설정 변경 없음.
+
+- 2026-10-01 기존 회원의 SNS 추가 연결 테스트 준비: 로컬 도구에 providers/link 흐름 미구현 확인. 사용자에게 추가할 SNS 질문. Identity MEMBER 인증과 명시 연결 배포 플래그 확인 필요, 이번 구현·외부 변경·계정 연결 없음. 복구 기능은 보류 유지.
+
+- 계정 복구 경계 설명의 정확한 turn 식별자를 WORKLOG 끝에 추가해 기록 보완. 복구 기능은 제안 단계이며 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 일반 로그인/계정 복구 경계 확인: 정상 SNS 로그인 유지, 다른 UID의 번호를 통한 자동 연결 차단 유지, 충돌 시 기존 로그인 또는 별도 복구 안내 방향 설명. 복구 기능 구현·정책 확정 및 외부 변경 없음.
+
+- 2026-10-01 전화번호 기반 기존 회원 복구 제안 검토. 기존 SNS 접근 불가 시 복구 흐름 필요하나 번호 입력/SMS 단독으로 자동 연결하는 정책은 계정 탈취 위험. 명시 복구·위험 기반 추가 확인·기존 userId 보존 방향 제안, 코드/외부 설정/계정 변경 없음.
+
+- SNS 추가 연결 안내의 현재 turn 식별자를 WORKLOG 끝에 추가하여 보완. 설명만 수행했으며 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 신규 가입과 SNS 추가 연결 구분 안내: 다른 UID의 기존 전화번호 중복 연결 불가, 기존 회원 인증 후 새 SNS 연결하고 전화번호는 유지. 이미 동일 UID일 때의 자동 등록과 다른 회원 소유 SNS 제한은 별개. 코드/외부 설정 변경 없음.
+
+- 전화번호 연결 충돌 안내의 정확한 turn 식별자를 WORKLOG 끝에 추가해 보완. 추가 코드·계정·외부 설정 변경 없음, 실제 Firebase 연결 상태 확인 필요.
+
+- 2026-10-01 사용자 오류 항목 link 확인: Google 일반 로그인 뒤 전화번호를 현재 Firebase 사용자에 붙이는 단계에서 실패. 기존 Kakao 회원에 Google 추가 연결하는 절차와 구분 안내. 실제 UID는 미확인, 계정/번호 삭제·자동 병합·코드 변경 없음.
+
+- 2026-10-01 Kakao 기존 계정과 동일 번호의 새 Google 로그인 오류 안내. 로컬 일반 로그인 버튼은 Google 추가 연결 기능이 아니며 같은 번호 자동 통합 없음. 실패 단계 google/link 구분 질문, 실제 Firebase 충돌 원인 미확정. 코드/계정/외부 설정 변경 없음.
+
+- 기존 연결 번호 재사용 안내의 정확한 turn 식별자를 WORKLOG 끝에 추가하여 기록 보완. 신규 가입/기존 회원 연결 목적 확인 대기, 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 사용자가 다른 계정에 이미 연결된 테스트 번호 재사용을 확인. 신규 가입은 미사용 등록 테스트 번호로, 기존 회원 Kakao 추가는 기존 회원 인증 후 명시 연결 흐름으로 구분 안내. 다른 UID 자동 병합·전화번호 이전·계정 삭제 미수행. 실제 Firebase UID/충돌 세부 상태는 미확인.
+
+- Firebase 연결 충돌 진단 turn 기록 보완 완료. 실제 충돌 원인은 미확정이며 사용자 번호 재사용 여부 답변 대기. 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 link account-exists-with-different-credential 안내: PhoneAuthProvider credential을 현재 Firebase UID에 연결하는 단계의 계정 충돌이며 Identity signup 전 실패. 전화번호 중복으로 단정하지 않음. 기존 Google/Apple 번호 재사용 여부 및 Firebase 연결 상태 확인 필요, 계정/설정 변경 없음.
+
+- CAPTCHA 진단 turn 기록 보완 완료. 가상 번호 인증 모드 확인 및 등록 여부 질문 상태이며 실제 원인은 아직 미확정. 추가 코드·외부 설정 변경 없음.
+
+- 2026-10-01 send auth/captcha-check-failed 진단: 로컬 도구는 appVerificationDisabledForTesting=true로 등록된 가상 번호 전용. Firebase 전화 인증 단계 실패이며 Identity 배포 오류와 구분. 입력 번호/프로젝트 테스트 번호 일치 확인 필요, 실제 원인 확정 전. 코드·외부 설정 변경 없음.
+
+- 로컬 테스트 서버 복구 turn 식별자 기록 보완 완료. 재시작 및 HTTP 200 확인 결과 유지, 추가 코드·외부 설정 변경 없음.
+
+- 2026-10-01 localhost:4173 리스너 부재 확인 후 기존 통합 테스트 서버 재시작, HTTP 200 확인. 코드/AWS 설정 변경 없음. 브라우저 상태는 조작하지 않음, 실제 Kakao 테스트 재개 대기.
+
+## 2026-10-01 최신 — 테스트 Kakao 활성 설정 재배포 완료
+
+- 사용자 push commit 1cca3c17c3460e01a7ed75b82f4c22ed6fabede0, GitHub run 36826056025 성공 확인 후 ECS tosunsaeng-identity-test:9 기반 revision 10 생성 및 테스트 서비스 업데이트 완료.
+- 사용자 명시 승인으로 FIREBASE_KAKAO_ENABLED=true, FIREBASE_KAKAO_PROVIDER_ID=oidc.kakao, AUTH_SESSION_FENCE_ENABLED=true 적용. 이미지 및 다른 설정 유지, 운영 미변경.
+- 최종 ECS 배포 성공, revision 10·1 running/0 pending·시작 실패 0, HTTPS health UP 확인. 새 코드/워크플로 수정·commit/push/Jira 변경 없음. 비밀값 미조회·비기록.
+- 현재 워크플로는 서비스 현재 태스크 설정을 승계하므로 다음 CI 배포에도 플래그 유지. 실제 Kakao exchange/가입/기존 회원 연결·모바일 E2E는 미검증. 다음은 Chrome Kakao 재인증 후 Identity 로그인 재시도. 과거 '설정 미적용/배포 대기' 기록은 이 결과로 대체됨.
+
 - Kakao 활성 설정 설명 turn 기록 보완 완료. 코드 지원과 AWS 활성화/배포를 구분했으며 이번 외부 변경은 없음. 테스트 서버 설정 확인 및 실제 로그인 검증 대기.
 
 - 2026-10-01 Kakao 설정 적용 여부 재확인: 코드의 최초 등록 지원은 완료했지만 AWS 환경변수 활성화/배포는 미수행. application.yml은 FIREBASE_KAKAO_ENABLED 기본 false, provider ID 기본 oidc.kakao 유지. 코드 배포와 서버 ON 설정을 함께 확인해야 함.
