@@ -14,6 +14,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
@@ -29,6 +31,7 @@ import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventCapt
 import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 class FirebaseGuestMergeTransactionServiceTests {
@@ -141,6 +144,46 @@ class FirebaseGuestMergeTransactionServiceTests {
 
 		verify(captureService).captureUserMerged(
 				aggregate.source().getUserId(), aggregate.target().getUserId(), MERGED_AT);
+		verify(outboxRepository, never()).save(any());
+	}
+
+	@ParameterizedTest
+	@CsvSource({"WITHDRAWN,GUEST_MERGE_TARGET_WITHDRAWN",
+			"SUSPENDED,GUEST_MERGE_TARGET_NOT_ACTIVE", "MERGED,GUEST_MERGE_CONFLICT"})
+	void targetStateChangeBeforeCommitStopsAllMergeWrites(UserStatus status, AuthErrorStatus expected) {
+		Aggregate aggregate = aggregate();
+		User currentTarget = mock(User.class);
+		when(currentTarget.getStatus()).thenReturn(status);
+		when(currentTarget.isMember()).thenReturn(true);
+		when(userRepository.findById(aggregate.target().getUserId()))
+				.thenReturn(Optional.of(currentTarget));
+		assertRejectedBeforeMutation(aggregate, expected);
+	}
+
+	@Test
+	void missingTargetRetainsMergeConflict() {
+		Aggregate aggregate = aggregate();
+		when(userRepository.findById(aggregate.target().getUserId())).thenReturn(Optional.empty());
+		assertRejectedBeforeMutation(aggregate, AuthErrorStatus.GUEST_MERGE_CONFLICT);
+	}
+
+	@Test
+	void activeNonMemberTargetRetainsMergeConflict() {
+		Aggregate aggregate = aggregate();
+		when(userRepository.findById(aggregate.target().getUserId()))
+				.thenReturn(Optional.of(aggregate.source()));
+		assertRejectedBeforeMutation(aggregate, AuthErrorStatus.GUEST_MERGE_CONFLICT);
+	}
+
+	private void assertRejectedBeforeMutation(Aggregate aggregate, AuthErrorStatus expected) {
+		AuthException exception = catchThrowableOfType(AuthException.class,
+				() -> service.merge(aggregate.mergedSource(), aggregate.source().getUpdatedAt(),
+						aggregate.prepared(), aggregate.outbox(), MERGED_AT));
+		assertThat(exception.getErrorCode()).isEqualTo(expected);
+		verify(userRepository, never()).mergeGuestIfUnchanged(any(), any());
+		verify(sessionRepository, never()).findAllByUserIdAndRevokedAtIsNull(any());
+		verify(sessionRepository, never()).saveAll(any());
+		verify(sessionIssuer, never()).savePrepared(any());
 		verify(outboxRepository, never()).save(any());
 	}
 

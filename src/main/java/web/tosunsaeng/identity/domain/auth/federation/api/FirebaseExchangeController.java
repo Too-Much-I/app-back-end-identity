@@ -223,8 +223,8 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "200", description = "target MEMBER Identity Token 발급 성공"),
 			@ApiResponse(responseCode = "400", description = "요청 형식 오류", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "401", description = "Identity 또는 Firebase 인증 실패", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아님", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "409", description = "target 소유권 또는 merge 동시성 충돌", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아니거나 GUEST_MERGE_TARGET_WITHDRAWN / GUEST_MERGE_TARGET_NOT_ACTIVE", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
+			@ApiResponse(responseCode = "409", description = "target 소유권·원본 상태 충돌 또는 탈퇴 정리 중; 중복 요청 처리 중을 의미하지 않음", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "503", description = "Firebase 또는 Guest merge 기능 비활성", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})

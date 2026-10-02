@@ -128,6 +128,10 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		error(api, AUTH + "reissue", AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE);
 		error(api, FIREBASE + "guest/prepare", AuthErrorStatus.IDENTITY_STATE_CONFLICT);
 		error(api, FIREBASE + "guest/upgrade", AuthErrorStatus.FIREBASE_ENROLLMENT_CONFLICT);
+		error(api, FIREBASE + "guest/merge", AuthErrorStatus.GUEST_MERGE_TARGET_WITHDRAWN);
+		error(api, FIREBASE + "guest/merge", AuthErrorStatus.GUEST_MERGE_TARGET_NOT_ACTIVE);
+		error(api, FIREBASE + "guest/merge", AuthErrorStatus.GUEST_MERGE_CONFLICT);
+		error(api, FIREBASE + "guest/merge", AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
 		for (String path : new String[]{"unlink", "unlink/status", "link/prepare", "link/start", "link/complete", "link/status", "link/cancel", "link/failure-report", "link/pending"}) {
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_RATE_LIMITED);

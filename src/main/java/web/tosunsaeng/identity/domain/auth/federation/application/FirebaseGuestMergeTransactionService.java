@@ -93,6 +93,12 @@ public class FirebaseGuestMergeTransactionService {
 
 		User target = userRepository.findById(targetUserId)
 				.orElseThrow(this::mergeConflict);
+		if (target.getStatus() == UserStatus.WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.GUEST_MERGE_TARGET_WITHDRAWN);
+		}
+		if (target.getStatus() == UserStatus.SUSPENDED) {
+			throw new AuthException(AuthErrorStatus.GUEST_MERGE_TARGET_NOT_ACTIVE);
+		}
 		if (target.getStatus() != UserStatus.ACTIVE
 				|| !target.isMember()
 				|| target.getMergedIntoUserId() != null) {

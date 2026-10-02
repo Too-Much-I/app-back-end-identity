@@ -162,6 +162,16 @@ public enum AuthErrorStatus implements ErrorCode {
 			"GUEST_MERGE_TARGET_CONFLICT",
 			"통합할 MEMBER 계정을 확정할 수 없습니다."
 	),
+	GUEST_MERGE_TARGET_WITHDRAWN(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_TARGET_WITHDRAWN",
+			"통합할 MEMBER 계정이 탈퇴했습니다."
+	),
+	GUEST_MERGE_TARGET_NOT_ACTIVE(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_TARGET_NOT_ACTIVE",
+			"통합할 MEMBER 계정을 현재 이용할 수 없습니다."
+	),
 	GUEST_MERGE_CONFLICT(
 			HttpStatus.CONFLICT,
 			"GUEST_MERGE_CONFLICT",

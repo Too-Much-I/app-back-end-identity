@@ -259,6 +259,8 @@ Guest Identity Access Token 유지
 - 이전 Guest Access Token의 보호 API 호출은 `ACCOUNT_MERGED_TOKEN_REJECTED`가 될 수 있다.
 - Billing·Learning Core의 `UserMerged` consumer와 종단 이전 검증이 끝나기 전 UI를 활성화하지 않는다. merge 성공 응답이 downstream의 모든 기록 이전 완료를 의미하지는 않는다.
 
+대상 상태는 최초 소유권 확인 이후와 저장 직전 모두 검사한다. `403 GUEST_MERGE_TARGET_WITHDRAWN`은 확인된 대상의 탈퇴, `403 GUEST_MERGE_TARGET_NOT_ACTIVE`는 정지 상태이며 자동 재시도하지 않는다. 탈퇴 lifecycle 검사가 먼저 `WITHDRAWAL_CLEANUP_PENDING` 또는 `FIREBASE_IDENTITY_CONFLICT`를 반환할 수 있으며 이 기존 우선순위를 유지한다. 따라서 모든 탈퇴가 새 코드로 반환된다고 가정하지 않는다. `GUEST_MERGE_CONFLICT`는 원본 상태 변경 등 재확인이 필요한 충돌이며 첫 요청 처리 중/완료를 나타내는 코드가 아니다. 같은 Guest의 merge는 앱 전체 single-flight로 실행하고 충돌만으로 Guest 인증을 삭제하거나 병합 완료를 표시하지 않는다.
+
 signup·upgrade·merge에는 `/reissue`처럼 응답 자체를 그대로 재전달하는 멱등 계약이 없다. 응답 유실 시 새 enrollment/Guest를 자동 만들지 않는다. fresh Firebase proof로 `/exchange`를 확인하여 `AUTHENTICATED`면 해당 MEMBER Token으로 복구하고, 신규 가입 안내나 충돌이면 기존 Guest Token을 성급히 삭제하지 말고 상태를 재확인한다. Guest 전환을 계속할 때는 `/exchange`에서 받은 direct signup enrollment 대신 `/guest/prepare`의 Guest 전용 enrollment를 사용한다. 불명 상태를 성공으로 표시하지 않는다.
 
 ### 4.6 기존 MEMBER에 SNS 연결 — 최초/재연결 공통
@@ -391,7 +393,9 @@ Stage 9 활성 환경의 `/reissue` 응답 유실 계약:
 | `403 GUEST_UPGRADE_NOT_ALLOWED` | 현재 User가 ACTIVE GUEST가 아님 | 프로필·Token 상태 재조회 후 로그인 초기화 |
 | `403 GUEST_MERGE_NOT_ALLOWED` | merge source가 ACTIVE GUEST가 아님 | merge 중단, 현재 계정 재확인 |
 | `409 GUEST_MERGE_TARGET_CONFLICT` | target MEMBER를 하나로 확정할 수 없음 | 자동 선택 금지, 처음부터 재인증 또는 지원 |
-| `409 GUEST_MERGE_CONFLICT` | merge 동시성 충돌 | Token·프로필 재조회 후 한 번만 재시도 |
+| `403 GUEST_MERGE_TARGET_WITHDRAWN` | 확인된 target MEMBER가 탈퇴함 | 자동 재시도 중단, 통합 대상 탈퇴 안내; source Guest 인증을 자동 삭제하지 않음 |
+| `403 GUEST_MERGE_TARGET_NOT_ACTIVE` | 확인된 target MEMBER가 정지됨 | 자동 재시도 중단, 대상 계정 이용 불가 안내 |
+| `409 GUEST_MERGE_CONFLICT` | source 상태/updatedAt 변경 또는 저장 직전 target 부재·자격 충돌 | 기존 Guest 인증과 fresh Firebase proof로 prepare 재확인; 같은 target의 MERGE_REQUIRED이면 최대 한 번 재시도. 중복 요청 처리 중/완료로 단정하지 않음 |
 | `429 FIREBASE_RATE_LIMITED` | Firebase quota·rate limit | 입력 차단, backoff 후 재시도 |
 | `503 FIREBASE_UNAVAILABLE` | Firebase 기능 off 또는 일시 장애 | 계정 없음으로 간주하지 말고 일시 장애 표시 |
 | `401 INVALID_REFRESH_TOKEN` | RefreshSession 없음·일반 폐기 | Identity Token 삭제 후 로그인 |

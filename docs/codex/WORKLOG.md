@@ -12034,3 +12034,951 @@
 - 위험 요소: 실제 Mongo rollback/경합·Firebase 원격 복구·모바일 미검증, 원격 SDK 종료는 운영자 증거 필요. 도구는 tenant 없음/oidc.kakao만 지원. 감사 collection 보존 정책 및 접근 제한, pending 대규모 인덱스/explain 확인 필요. 로컬 gateway 재시작 전 신규 경로 미적용.
 - 예상 밖 변경: 없음. 작업 전 존재하던 WORKLOG/CURRENT_STATE/계획서 변경을 보존하고 이번 기록만 추가·갱신. 별도 로컬 프로젝트 수정은 요청 범위와 승인된 경로에 한정.
 - 다음 작업: 사용자가 commit/push한 뒤 호환 배포/플래그 활성화 별도 승인, gateway 재시작 및 실제 취소/복원/승인 복구 smoke. 프론트에는 구현·운영 계약을 전달하고 실제 계정 복구는 개별 승인 후 수행.
+
+## 2026-10-02 — Guest merge 대상 탈퇴·정지 오류 분리 구현
+
+<!-- codex-turn:01a0fb71-09af-7732-b79f-40fcaec7ffea -->
+
+- 브랜치: develop(작업 시작 시 확인). 이번 요청에 지정된 Jira 키 없음. Jira 조회/수정/댓글/상태 변경 미수행.
+- 작업 목표: 승인된 최소 수정안에 따라 대상 탈퇴/정지와 원본 상태 충돌을 프론트가 구분하도록 구현.
+- 변경 파일: AuthErrorStatus.java, FirebaseGuestMergeTargetResolver.java, FirebaseGuestMergeTransactionService.java, FirebaseExchangeController.java, IdentityOpenApiExamples.java, FirebaseGuestMergeTargetResolverTests.java, FirebaseGuestMergeTransactionServiceTests.java, FirebaseExchangeControllerTests.java, OpenApiSharingTests.java, docs/contracts/frontend-firebase-auth-integration-guide.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: target WITHDRAWN을 403 GUEST_MERGE_TARGET_WITHDRAWN, SUSPENDED를 403 GUEST_MERGE_TARGET_NOT_ACTIVE로 두 검사 단계에서 분리. 소유권/구조 모순은 기존 오류 유지. source 조건부 갱신 실패는 기존 GUEST_MERGE_CONFLICT. HTTP 오류 payload 및 비밀정보 비노출, target 상태 변경 시 후속 source/session/outbox 저장 중단, 기존 cleanup gate 우선순위, Swagger 예시 회귀 테스트 추가.
+- 실행한 테스트와 결과: 최초 sandbox 실행은 Gradle 캐시 접근 제한으로 실패하여 승인된 확장 권한으로 재실행. 첫 전체 clean test에서 신규 Guest 테스트 fixture의 installation hash 형식 오류 1건 발생, 테스트 값을 유효한 가짜 hash로 수정 후 HTTP/OpenAPI 회귀 추가. 최종 ./gradlew clean test BUILD SUCCESSFUL(1,045 tests, failures/errors/skipped 0). git diff --check 통과.
+- 유지한 계약: UUID JWT sub 기반 source/Firebase proof 기반 target, JWT/요청/성공 응답 형식 유지. withdrawal cleanup gate 및 세션 fence/원자 트랜잭션/CAS 유지. 새 환경변수/DB 엔티티/외부 API 없음, Learning Core 코드/데이터 변경 없음.
+- 변경한 외부 계약: Guest merge에서 기존 409 충돌로 묶이던 확인된 target 탈퇴·정지 상태에 신규 403 코드 추가. 기존 WITHDRAWAL_CLEANUP_PENDING/FIREBASE_IDENTITY_CONFLICT가 선행할 수 있음. 중복 처리 중/완료 코드나 멱등 재전달 계약은 추가하지 않음.
+- 결정사항: 메시지뿐 아니라 code 분리, 프론트는 새 target 오류에서 자동 재시도 중단/상태 안내. 기존 충돌은 상태 재확인 후 분기하며 처리 중/완료로 단정하지 않음. 기록과 가이드에 이 구분 명시.
+- 위험 요소: 실제 Mongo 동시성/rollback 및 모바일 E2E 미검증. 모든 탈퇴가 새 코드로 반환되는 것은 아니며 선행 Firebase proof/cleanup/session 오류는 그대로 가능.
+- 배포 전 확인: 프론트 새 403 코드 처리 및 기존 cleanup 오류 대응 반영, 서버 전체 인스턴스 호환 배포 후 source/target 상태 변화 QA. 환경변수 추가 없음. 이번 배포/commit/push 미수행.
+- 예상 밖 변경: 이번 범위 밖 변경 없음. 시작 전 미커밋 WORKLOG 누적 변경 및 docs/contracts/guest-app-update-transition-review.md는 사용자/다른 작업 변경으로 보존했고 수정하지 않음.
+- Jira 댓글 초안(미등록): merge 대상 탈퇴/정지 오류 코드 분리, 2단계 검사 및 cleanup/CAS 계약 유지. 관련 소스/Swagger/프론트 가이드/회귀 테스트 갱신, 전체 1,045 tests 통과. 실DB/모바일 QA 미검증.
+- 다음 작업: 사용자 diff 검토/직접 commit·push, 프론트 분기 반영과 배포 후 실제 병합/대상 탈퇴·정지/중복 요청 QA. 중복 PROCESSING 계약은 별도 범위로 설계.
+
+## 2026-10-01 — CI/CD 완료 후 테스트 Identity Kakao 활성화 재배포
+
+<!-- codex-turn:01a0f634-af94-7f81-a4c5-bef57d5d7cc1 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 push한 CI/CD 완료 확인 후 승인된 테스트 Kakao 설정 적용·재배포.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션/워크플로 코드 변경 없음.
+- 구현 내용: GitHub run 36826056025의 테스트·이미지 빌드·ECS 배포·헬스 검증 성공 확인. commit 1cca3c17c3460e01a7ed75b82f4c22ed6fabede0, CI 생성 revision tosunsaeng-identity-test:9 확인. 기존 revision 8과 9의 Kakao 및 session fence OFF 확인.
+- 외부 변경: 사용자에게 세 설정의 범위와 효과를 제시하고 '세 설정 적용 승인' 수신 후 revision 9를 기반으로 revision 10 생성. FIREBASE_KAKAO_ENABLED=true, FIREBASE_KAKAO_PROVIDER_ID=oidc.kakao, AUTH_SESSION_FENCE_ENABLED=true. 동일 commit 이미지와 나머지 설정 유지. tosunsaeng-staging-cluster의 tosunsaeng-identity-test-service만 revision 10으로 업데이트.
+- 실행한 테스트와 결과: gh run watch 및 run view로 CI success 확인. ECS revision 10 저장된 세 환경값 확인, 최종 배포 성공·1 running/0 pending·0/3 task failures 확인. 배포 후 HTTPS /actuator/health 응답 UP. git diff --check 통과. 애플리케이션 변경 없어 로컬 Gradle 재실행 없음; 이전 1024개 로컬 테스트 및 이번 CI 테스트 성공과 구분.
+- 유지한 계약: JWT/API/키/DB/이벤트 목적지 변경 없음. 운영 서비스 미변경. 토큰·비밀값 조회 및 기록 없음. Google/Apple 허용, 재발급 복구 및 다른 기능 설정 유지.
+- 결정사항: CI/CD 종료를 기다려 설정 덮어쓰기 방지. 현 워크플로는 서비스의 현재 task definition을 가져와 이미지와 SENTRY_RELEASE를 바꾸므로 다음 배포도 해당 환경 설정을 승계. 워크플로 자체는 수정하지 않음.
+- 위험 요소: 실 카카오 exchange·신규 가입·기존 회원 최초 연결 및 Android/iOS E2E는 별도 검증 필요. session fence ON으로 세션 보호 동작 활성화; auth-methods/sync를 사용하는 경우 별도 provider fence 계약 확인 필요. 새 태스크 실패 시 이전 revision 9가 설정 롤백 기준이나 이번 자동 롤백은 수행하지 않음.
+- 예상 밖 변경: 없음. 사용자 push 완료로 시작 시 작업 트리 깨끗함 확인. 이번 commit/push/Jira 변경 없음. AWS CLI 자격증명이 없어 로그인된 Chrome 콘솔로 배포 수행, 자격증명 복사 없음.
+- 다음 작업: Chrome Kakao 재인증 후 Identity exchange 재시도, MEMBER/가입 준비 응답 확인. 이후 가입·재발급·기존 회원 연결 및 Android/iOS 검증.
+
+## 2026-10-01 — 로컬 통합 테스트 서버 재시작
+
+- 브랜치: develop.
+- 작업 목표: localhost 테스트 화면 접속 복구.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드 변경 없음.
+- 구현 내용: 4173 포트 리스너 없음 확인 후 기존 통합 테스트 도구의 node server.mjs 재실행.
+- 실행한 테스트와 결과: 시작 메시지 및 localhost:4173 HTTP 200 확인, git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: AWS 배포/인증/회원 데이터 변경 없음. 비밀값 비기록.
+- 결정사항: 로컬 서버 종료가 접속 장애 원인이었으며 재시작으로 화면 응답 복구.
+- 위험 요소: 프로세스의 이전 종료 원인은 미확인. 브라우저 새로고침 시 메모리 세션 소실 가능, 직접 새로고침 미수행.
+- 다음 작업: Chrome에서 로컬 화면 접속 후 Kakao 테스트 재개. 사용자가 터미널에서 node server.mjs를 직접 실행해 유지할 수도 있음.
+
+## 2026-10-01 — 로컬 서버 복구 turn 기록 보완
+
+<!-- codex-turn:01a0f641-fed8-7fc2-a684-1ec67ac33d82 -->
+
+- 브랜치: develop.
+- 작업 목표: 로컬 테스트 서버 복구 결과에 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 4173 포트 리스너 부재 확인 후 기존 node server.mjs 재실행, 코드 수정 없음.
+- 실행한 테스트와 결과: localhost:4173 HTTP 200 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: AWS/회원 데이터/API 변경 없음, 비밀값 비기록.
+- 결정사항: 로컬 화면 응답 복구 완료.
+- 위험 요소: 이전 프로세스 종료 원인 미확인, 실제 Kakao 로그인은 별도 검증 필요.
+- 다음 작업: Chrome 로컬 화면에서 Kakao 테스트 재개.
+
+## 2026-10-01 — 전화번호 테스트 CAPTCHA 오류 진단
+
+- 브랜치: develop.
+- 작업 목표: send의 auth/captcha-check-failed 원인 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 app.js에서 appVerificationDisabledForTesting=true 및 send의 Firebase PhoneAuthProvider 직접 호출 확인. Identity와 분리된 Firebase 인증 오류이며 콘솔 등록 가상 번호 전용 도구임을 안내.
+- 실행한 테스트와 결과: 코드 읽기 및 git diff --check 통과. 코드 변경 없어 테스트 재실행 없음.
+- 유지한 계약: 실제 SMS/외부 인증 요청/설정 변경 없음. 전화번호·코드·토큰 비기록.
+- 결정사항: 입력 번호가 동일 Firebase 프로젝트에 등록된 테스트 번호인지 국제 형식으로 비교하도록 안내. 미등록 번호와 mock CAPTCHA 조합이 유력한 원인이나 입력값/콘솔 미확인으로 확정하지 않음.
+- 위험 요소: 실제 입력 및 Firebase 테스트 번호 설정, 허용 도메인과 브라우저 상태 미검증.
+- 다음 작업: 사용자 테스트 번호 등록 여부 확인 후 필요 시 허용 도메인/브라우저 CAPTCHA 상태 점검.
+
+## 2026-10-01 — CAPTCHA 진단 turn 기록 보완
+
+<!-- codex-turn:01a0f644-9b1a-7e01-9609-04c8fe75ce44 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 CAPTCHA 진단 작업의 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 테스트 도구의 가상 전화번호 인증 모드 확인. Firebase 테스트 번호 등록 여부 확인을 사용자에게 요청. 코드 변경 없음.
+- 실행한 테스트와 결과: 소스 조회 및 git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 외부 설정·인증 요청 변경 없음, 비밀값 및 전화번호 비기록.
+- 결정사항: 미등록 번호와 테스트 CAPTCHA 조합 가능성을 설명하되 확정 원인으로 단정하지 않음.
+- 위험 요소: 실제 입력과 Firebase 콘솔 설정 미확인.
+- 다음 작업: 사용자 등록 여부 확인 후 추가 진단.
+
+## 2026-10-01 — 전화번호 연결 계정 충돌 오류 안내
+
+- 브랜치: develop.
+- 작업 목표: link의 auth/account-exists-with-different-credential 해석.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 link가 PhoneAuthProvider credential을 현재 Firebase user에 linkWithCredential로 연결하며 Identity signup 이전임을 확인. Firebase 계정/인증수단 충돌로 구분하고 정확한 충돌 대상은 미확정으로 안내.
+- 실행한 테스트와 결과: 소스 조회 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 계정 삭제·연결 해제·UID 변경·이메일 자동 병합 없음. 개인정보/토큰 비기록.
+- 결정사항: 전화번호 다른 UID 소유는 통상 credential-already-in-use이므로 현재 오류만으로 전화번호 중복을 단정하지 않음. 기존 Google/Apple 테스트 번호 재사용 여부 확인 요청.
+- 위험 요소: Firebase 사용자 연결 및 원격 오류 상세 미확인.
+- 다음 작업: 신규 가입 테스트인지 기존 회원 연결 테스트인지 구분하고 계정 연결 상태 확인. 임의 삭제/우회 금지.
+
+## 2026-10-01 — Firebase 연결 충돌 진단 기록 보완
+
+<!-- codex-turn:01a0f646-138a-75c1-9054-308451961e49 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 계정 연결 충돌 진단 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Firebase linkWithCredential 단계 오류를 설명하고 기존 테스트 번호 재사용 여부 확인 요청. 코드 변경 없음.
+- 실행한 테스트와 결과: 소스 조회 및 git diff --check 통과. 문서 변경만 수행하여 Gradle 미실행.
+- 유지한 계약: 계정 삭제·연결 해제·자동 병합·외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 오류만으로 전화번호 중복을 단정하지 않고 Firebase 연결 상태 확인 필요.
+- 위험 요소: 실제 충돌 대상과 원격 계정 상태 미확인.
+- 다음 작업: 사용자 답변 후 신규 가입/기존 회원 연결 목적을 구분해 진단.
+
+## 2026-10-01 — 기존 연결 전화번호 재사용 확인
+
+<!-- codex-turn:01a0f646-ffd2-7f31-b935-c5d3992bfaf1 -->
+
+- 브랜치: develop.
+- 작업 목표: 다른 계정에 연결된 테스트 번호라는 사용자 확인에 따른 흐름 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 신규 Kakao 가입에는 다른 미사용 등록 테스트 번호, 기존 회원에 Kakao 추가는 기존 회원 인증 후 명시 연결 흐름이 필요함을 구분. 코드/계정 변경 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 안내만 수행하여 Gradle 미실행.
+- 유지한 계약: 전화번호 소유권 강제 이전·다른 Firebase UID 자동 병합·기존 연결 삭제 없음. 개인정보/비밀값 비기록.
+- 결정사항: 번호 재사용은 사용자 보고로 확인됨. 실제 Firebase UID 및 정확한 오류 매핑은 직접 확인하지 않음. 같은 UID의 최초 제공자 자동 등록과 다른 UID 간 연결 충돌은 별개임을 설명.
+- 위험 요소: 이미 다른 UID에 연결된 Kakao는 단순 추가 연결도 충돌할 수 있어 상태 확인 필요. 테스트 화면의 일반 로그인 버튼을 명시 연결 기능으로 간주하지 않음.
+- 다음 작업: 사용자 목적을 신규 가입 검증 또는 기존 회원 로그인 수단 추가로 확정 후 해당 흐름 진행.
+
+## 2026-10-01 — 기존 연결 번호 재사용 안내 기록 보완
+
+<!-- codex-turn:01a0f646-ffd2-75f2-a1e2-a70a9da0ac47 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 정확한 식별자로 안내 결과 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 연결 번호 재사용에 대해 신규 가입과 기존 회원의 Kakao 연결 흐름을 구분해 안내. 앞선 항목의 식별자는 잘못 기재되었으며 이 항목으로 보완. 과거 기록 수정 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 계정 삭제·연결 해제·자동 병합 및 외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 같은 Firebase UID의 자동 등록과 다른 UID 간 충돌을 구분.
+- 위험 요소: 실제 Firebase 연결 상태와 사용자의 테스트 목적 미확정.
+- 다음 작업: 신규 가입 또는 기존 회원 연결 중 사용자 목적 확인 후 진행.
+
+## 2026-10-01 — Kakao 기존 회원에 새 Google 로그인 시 충돌 구분
+
+<!-- codex-turn:01a0f64c-f5f9-78a1-ae3f-a6f7dadb9f55 -->
+
+- 브랜치: develop.
+- 작업 목표: 동일 전화번호를 사용하는 새 Google 로그인 충돌 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 Google 버튼이 signInWithPopup 또는 동일 제공자 재인증이며 명시적 Google 추가 연결 기능이 아님을 재확인. 동일 전화번호로 별도 Firebase 계정을 자동 통합하지 않음을 안내.
+- 실행한 테스트와 결과: 소스 조회 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 같은 UID의 최초 제공자 등록만 허용, 전화번호/이메일 기반 자동 병합 없음. 비밀값 및 개인정보 비기록.
+- 결정사항: Google 팝업 단계 오류는 기존 이메일/다른 제공자 충돌 가능성, 전화 연결 단계는 기존 계정 소유 충돌 가능성으로 구분하며 실제 실패 버튼 확인 요청. 현재 오류를 전화번호 충돌로 확정하지 않음.
+- 위험 요소: 원격 Firebase UID/이메일 및 오류 발생 단계 미확인. 이미 다른 UID 소유인 Google은 명시 연결도 바로 성공한다고 보장하지 않음.
+- 다음 작업: 실패 항목 google/link 확인 후 기존 Kakao MEMBER에 Google 추가 연결 흐름과 충돌 상태 점검.
+
+## 2026-10-01 — link 단계 전화번호 연결 충돌 확인
+
+<!-- codex-turn:01a0f64e-9492-7852-8098-94054e2b7575 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 확인으로 실패 단계가 전화번호 연결임을 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: link가 현재 Firebase 사용자에 PhoneAuthProvider 인증정보를 연결하는 호출임을 재확인. 기존 Kakao 회원의 Google 추가 연결과 신규 Google 가입의 전화번호 연결은 다른 흐름임을 안내.
+- 실행한 테스트와 결과: 코드 조회 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 계정/전화번호 연결 삭제 및 다른 UID 자동 병합 없음. 개인정보·비밀값 비기록.
+- 결정사항: 동일 번호가 다른 계정에 연결됐다는 사용자 보고와 link 실패는 확인됨. 정확한 Firebase UID 및 오류 매핑은 미확정. 기존 회원 인증 후 명시적 Google 연결이 필요한 흐름이며 테스트 도구의 일반 로그인으로 대체하지 않음.
+- 위험 요소: Google 인증정보가 이미 다른 UID 소유이면 명시 연결 전 별도 상태 확인 필요. 전화번호 충돌 우회로 자동 이전하면 안 됨.
+- 다음 작업: Firebase 연결 상태를 읽기 확인하고 사용자 요청 시 테스트 화면에 기존 회원의 로그인 수단 추가 절차 구현.
+
+## 2026-10-01 — 전화번호 연결 충돌 안내 기록 보완
+
+<!-- codex-turn:01a0f64e-9492-7230-b634-04162f451eaf -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 정확한 식별자로 작업 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: link 단계의 전화번호 연결 실패와 기존 회원의 Google 추가 연결 흐름을 구분해 안내. 앞선 항목의 식별자 오기를 이 항목으로 보완하며 과거 기록은 보존.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 계정 삭제·연결 해제·자동 병합·외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 기존 회원의 명시 연결 절차와 신규 가입 전화번호 연결은 별개.
+- 위험 요소: 실제 Firebase UID 및 Google 인증정보 소유 상태 미확인.
+- 다음 작업: 연결 상태 확인 후 사용자 요청에 따라 테스트 도구의 로그인 수단 추가 기능 준비.
+
+## 2026-10-01 — 신규 가입과 기존 회원 SNS 추가 연결 구분
+
+- 브랜치: develop.
+- 작업 목표: 기존 전화번호 재사용 및 SNS 연결 흐름 이해 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 다른 Firebase 계정에 연결된 전화번호를 새 UID에 중복 연결하지 않으며 기존 회원 인증 후 새 SNS를 연결하는 흐름을 안내. 이미 같은 UID인 경우 자동 등록 예외와 다른 회원 소유 SNS의 제한도 구분.
+- 실행한 테스트와 결과: git diff --check 통과. 설명만 수행하여 Gradle 미실행.
+- 유지한 계약: 전화번호 기반 자동 병합·소유권 이전 없음. 비밀값 비기록.
+- 결정사항: 기존 회원 로그인 및 필요 시 최근 재인증 후 SNS 연결, 전화번호 재연결 불필요.
+- 위험 요소: 로그인 상태만으로 모든 SNS 연결이 허용되는 것은 아니며 기존 소유권 충돌은 별도 확인 필요.
+- 다음 작업: 사용자 요청 시 명시적 SNS 추가 연결 테스트 화면 준비.
+
+## 2026-10-01 — SNS 추가 연결 안내 기록 보완
+
+<!-- codex-turn:01a0f650-2a2c-7e12-9ca9-6aebb66d8895 -->
+
+- 브랜치: develop.
+- 작업 목표: 신규 가입과 기존 회원 SNS 연결 설명의 현재 turn 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 회원 인증 후 새 SNS를 연결하고 전화번호를 유지하는 흐름 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 다른 UID 자동 병합·전화번호 소유권 이전·외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 연결 완료 후 여러 SNS로 같은 회원 로그인 가능하나 다른 회원 소유 SNS는 무조건 연결하지 않음.
+- 위험 요소: 실제 Firebase 소유권과 연결 상태는 별도 확인 필요.
+- 다음 작업: 사용자 요청 시 명시적 SNS 연결 테스트 기능 준비.
+
+## 2026-10-01 — 전화번호를 통한 기존 회원 복구 방향 검토
+
+<!-- codex-turn:01a0f651-54ef-7e11-a255-693c88b4a800 -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 SNS를 잃은 사용자의 새 SNS 및 전화번호 기반 복구 제안 검토.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 설명/설계 검토만 수행. 전화번호 입력 또는 SMS 단독 소유 증명을 기존 계정 소유권과 동일시하지 않도록 안내. 기존 로그인 수단 없는 경우 별도 계정 복구 흐름 필요.
+- 실행한 테스트와 결과: git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 자동 UID 이전·회원 병합·전화번호 연결 해제 없음. 개인정보/비밀값 비기록.
+- 결정사항: 새 SNS 인증 후 기존 계정 복구 선택, 실 SMS 인증 및 위험 기반 추가 확인, 명시 동의와 서버 검증을 거쳐 기존 userId 보존 방식 권장. 정상 로그인 경로와 분리하며 Firebase 충돌을 클라이언트 강제 해제로 우회하지 않음.
+- 위험 요소: 번호 재사용·SIM 탈취·공유 번호로 타인 계정 탈취 가능. 같은 기기 여부는 신뢰 증거가 아니며 기존 SNS 접근 불가 시 복구 수단 및 대기/수동 검토 정책 결정 필요. 실제 기술 설계/구현 미수행.
+- 다음 작업: 사용자 승인 시 복구 증거·추가 검증·알림/세션 폐기·Firebase 소유권 변경 원자성 및 복구 정책 상세 설계.
+
+## 2026-10-01 — 일반 로그인과 계정 복구 경계 확인
+
+<!-- codex-turn:01a0f653-2a83-76d2-bb18-2e739fd15687 -->
+
+- 브랜치: develop.
+- 작업 목표: 충돌 차단 유지와 별도 계정 복구 제안의 의미 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 정상 연결된 SNS 로그인은 유지하고, 다른 Firebase 계정의 기존 전화번호를 이용한 자동 연결만 차단하며 별도 복구 절차를 제공하는 방향 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 설명만 수행하여 Gradle 미실행.
+- 유지한 계약: 기존 인증 계약 및 소유권 충돌 차단 유지, 계정/외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 충돌 안내에서 기존 로그인 또는 계정 복구를 선택하게 하고 복구는 추가 본인 확인 후 처리하는 방향 제안.
+- 위험 요소: 복구 정책과 구현은 미확정이며 아직 제공되는 기능이 아님.
+- 다음 작업: 사용자 요청 시 계정 복구 상세 정책 및 구현 계획 수립.
+
+## 2026-10-01 — 계정 복구 경계 설명 기록 보완
+
+<!-- codex-turn:01a0f653-6f6c-7a80-a239-fe957be526a5 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 정확한 식별자를 포함한 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 정상 SNS 로그인은 유지하고 계정 소유권 충돌은 차단하며 별도 복구 절차를 제안한 설명 기록. 앞선 식별자 오기를 이 항목으로 보완하고 과거 기록은 보존.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 인증 및 충돌 차단 계약 유지, 계정·외부 설정 변경 없음. 비밀값 비기록.
+- 결정사항: 복구는 추가 본인 확인을 거치는 별도 기능이며 아직 구현하지 않음.
+- 위험 요소: 복구 정책과 구현 범위 미확정.
+- 다음 작업: 사용자 요청 시 복구 정책 및 구현 계획 수립.
+
+## 2026-10-01 — 기존 회원 SNS 추가 연결 테스트 사전 확인
+
+<!-- codex-turn:01a0f654-67f9-7301-b75a-649b922135fd -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 회원의 다른 SNS 추가 연결 테스트 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 UI 및 프록시에 providers/link 경로가 없는 상태 확인. 서버 계약의 prepare → start → SDK link → 대상 재인증 → complete 확인. 추가할 SNS를 사용자에게 질문. 구현/외부 설정 변경 없음.
+- 실행한 테스트와 결과: 코드/계약 조회 및 git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 전화번호·회원 기록 유지, 서버 승인 없이 Firebase link 실행하지 않음. 비밀값 비기록.
+- 결정사항: Firebase 로그인만이 아니라 Identity MEMBER 인증이 필요. 기존 카카오 일반 로그인 허용과 명시 연결 기능은 별도이며 FIREBASE_PROVIDER_LINK_ENABLED 및 provider fence 배포 설정 확인 필요.
+- 위험 요소: 연결 대상 SNS, 현재 MEMBER 인증 여부, 실제 배포 연결 플래그 미확인. 다른 UID에 이미 등록된 대상은 연결 충돌 가능.
+- 다음 작업: 사용자 대상 SNS 확인 후 MEMBER 로그인 상태 및 테스트 서버 연결 설정 점검, 로컬 도구에 계약에 맞는 명시 연결 UI 준비. 실제 연결 변경은 대상 확인·승인 및 사용자 직접 SNS 인증 후 수행.
+
+## 2026-10-01 — 프론트의 Firebase 인증 후 Identity 교환 흐름 설명
+
+<!-- codex-turn:01a0f657-2995-7bc0-9338-a7335fcd3889 -->
+
+- 브랜치: develop.
+- 작업 목표: SNS 인증 후 Identity 로그인 요청 주체 설명 및 Kakao 준비 완료 보고 반영.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 exchange 버튼의 Firebase ID Token 취득 및 Identity 교환 호출 확인. 실제 앱에서는 프론트가 인증 성공 후 연속 호출하며 사용자에게 별도 로그인을 요구하는 것이 아님을 설명.
+- 실행한 테스트와 결과: 코드 조회 및 git diff --check 통과. 설명만 수행하여 Gradle 미실행.
+- 유지한 계약: Firebase ID Token은 Identity 검증용, 서비스 요청에는 Identity 토큰 사용. 신규 회원은 ENROLLMENT_REQUIRED 이후 가입 절차 유지. 비밀값 비기록.
+- 결정사항: 사용자의 Kakao 계정 준비 완료 보고 수신. 실제 화면/서버의 MEMBER 상태는 이번에 재검증하지 않음. 기존 회원에 다른 SNS 추가 연결 테스트 맥락 유지.
+- 위험 요소: 앱 프론트의 자동 교환 구현 여부는 별도 확인 필요, 로컬 도구는 단계별 수동 실행용.
+- 다음 작업: 현재 Kakao 회원을 기준으로 대상 SNS 확인 및 명시 연결 테스트 도구/서버 설정 준비.
+
+## 2026-10-01 — 프론트 인증 교환 설명 기록 보완
+
+<!-- codex-turn:01a0f657-2995-78b1-bc70-b7cdc7b8b635 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 정확한 식별자로 작업 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 프론트의 Firebase 인증 후 Identity 교환 흐름 설명 및 사용자 Kakao 준비 완료 보고 반영. 앞선 식별자 오기를 이 항목으로 보완하며 과거 기록은 보존.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 인증 계약 유지, 비밀값 비기록, 외부 설정·계정 변경 없음.
+- 결정사항: 로컬 테스트 버튼 분리는 단계별 검증용이며 실제 앱은 인증 후 교환 요청을 이어서 수행하는 구조.
+- 위험 요소: 실제 프론트 구현 및 현재 MEMBER 상태는 별도 검증 필요.
+- 다음 작업: 기존 Kakao 회원에 다른 SNS를 추가하는 테스트 준비.
+
+## 2026-10-01 — 기존 MEMBER SNS 연결 로컬 테스트 화면 구현
+
+<!-- codex-turn:01a0f658-3a2b-7923-838b-608da5a6d39b -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 Kakao MEMBER를 유지하면서 Google·Apple 등 SNS 추가 연결을 단계별 검증하는 로컬 화면 제공.
+- 변경 파일: 외부 로컬 도구의 app.js, index.html, server.mjs, README.md, app.test.mjs, apple.test.mjs, merge.test.mjs, server.test.mjs 수정; provider-link.mjs, provider-link.test.mjs, provider-link-ui.test.mjs 추가. 저장소는 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 변경.
+- 구현 내용: MEMBER·사용자 동의·기존 SNS 재인증 후 prepare/start, 최초 linkAllowed 허용에만 SDK 연결 1회, 대상 SNS 재인증 후 complete, 원래 requestId 기반 status. 동일 UID·전화번호·기존 SNS 보존 검증, 중복 클릭 방지, 응답 유실별 안전한 재시도 제한, 진행 중 로컬 초기화 방지. 프록시는 기존 테스트 Identity의 네 연결 경로만 추가 허용.
+- 실행한 테스트와 결과: 실 도구 디렉터리에서 Node 테스트 28개 통과(실제 OAuth/Identity 호출 없이 Mock). 4173 서버 재시작 및 화면·모듈 HTTP 정상 응답 확인. Chrome 새 탭 자동 열기는 ERR_BLOCKED_BY_CLIENT로 시각 검증 미완료. Java 변경이 없어 Gradle clean test 미실행.
+- 유지한 계약: Identity API·JWT 계약 변경 없음, 전화번호 이전·자동 병합·해제 없음, 토큰 원문 표시/로그/영구 저장 없음. Learning Core 도메인 코드 추가 없음.
+- 결정사항: 테스트 화면만 구현하고 실제 SNS 인증/연결은 사용자가 수행. AWS 설정·배포·Jira·commit·push 없음. 기존 로그인 탭 새로고침하지 않음.
+- 위험 요소: 명시 연결 플래그 FIREBASE_PROVIDER_LINK_ENABLED 및 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED의 실배포 활성 여부 미확인. 서버 Kakao 로그인 허용과 별개. 브라우저 화면 실인증 및 모바일 검증 별도 필요. 진행 상태는 메모리에만 존재.
+- 예상 밖 변경: 없음. 기존 사용자 변경 문서 보존 후 기록 추가, Identity 비즈니스 코드는 변경하지 않음.
+- 다음 작업: 기존 Kakao로 Firebase 및 Identity MEMBER 로그인 후 새 2-2 섹션 사용. 실연동 전 서버 명시 연결 설정 확인, 승인 없이 설정 활성화하지 않음.
+
+## 2026-10-01 — 기존 SNS 재인증 필수 여부 분석
+
+- 브랜치: develop.
+- 작업 목표: SNS 추가 연결 시 매번 기존 SNS 팝업 인증이 필요한지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없이 ProviderLinkService.remainingProof와 ProviderChangeService.verify/recent 및 ProviderChangeProperties 확인. 서버는 기존 승인 SNS proof와 최근 auth_time을 검증하며 기본 제한은 5분. 로컬 테스트 도구의 별도 재인증 강제와 서버 요구를 구분.
+- 실행한 테스트와 결과: 코드 읽기 및 git diff --check. 분석/문서만 변경하여 테스트 미실행.
+- 유지한 계약: 기존 SNS 소유 증명 유지, 토큰 강제 갱신만으로 auth_time 갱신되지 않음, 대상 SNS의 start 이후 인증 요구 유지.
+- 결정사항: 최근 기존 SNS 로그인 증명 재사용 UX는 가능하나 이번에는 구현하지 않음.
+- 위험 요소: 실제 배포 recent-auth 제한 및 클라이언트 상태에 따라 재인증 필요. Identity 세션만으로 대체 불가.
+- 다음 작업: 요청 시 로컬 화면에서 유효한 최근 기존 SNS 로그인 재사용 구현 및 테스트.
+
+## 2026-10-01 — 재인증 요구 분석 turn 기록 보완
+
+<!-- codex-turn:01a0f667-94ef-7400-91cf-3e1bc5af5315 -->
+
+- 브랜치: develop.
+- 작업 목표: 기존 SNS 재인증 필수 여부 분석의 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 서버는 기존 승인 SNS의 최근 인증(기본 5분)을 요구하고, 별도 팝업을 매번 요구하는 것은 로컬 도구 UX임을 설명. 최근 로그인 재사용은 미구현.
+- 실행한 테스트와 결과: git diff --check 통과. 분석/문서만 변경하여 실행 테스트 생략.
+- 유지한 계약: 기존 SNS 소유 증명 및 대상 SNS의 start 이후 인증 유지. 비밀값 비기록.
+- 결정사항: 코드·계정·외부 설정 변경 없음.
+- 위험 요소: 배포 설정과 인증 시각에 따라 재인증 필요.
+- 다음 작업: 요청 시 최근 로그인 재사용 UX 구현 및 테스트.
+
+## 2026-10-01 — SNS 추가 연결 인증 UX 설명
+
+- 브랜치: develop.
+- 작업 목표: 로그인 상태에서 기존 SNS 재인증으로 인한 사용자 불편과 보안 경계 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 최근 기존 SNS 인증은 재사용하고 오래된 세션만 재인증하는 UX 권장. Identity 세션 유지와 최근 소유 증명을 구분하고, 새 SNS 인증만으로 기존 회원 소유가 입증되지 않는 이유 설명.
+- 실행한 테스트와 결과: git diff --check. 설명/문서만 변경하여 실행 테스트 미수행.
+- 유지한 계약: 현재 기본 5분 recent-auth 및 기존 SNS 검증 유지. 서버 정책 완화나 클라이언트 우회 없음.
+- 결정사항: UI 단계 자동화는 권장안이며 코드 변경 미수행.
+- 위험 요소: 재인증 완전 제거는 탈취된 세션에 공격자 SNS를 추가하는 위험. 대상 SNS 재인증 요구도 별도 존재.
+- 다음 작업: 사용자 요청 시 최근 인증 재사용 및 단계 자동화 구현, 정책 완화는 별도 검토.
+
+## 2026-10-01 — 오래된 로그인 판단 기준 설명
+
+- 브랜치: develop.
+- 작업 목표: SNS 추가 연결의 최근 인증 기준 명확화.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: ProviderChangeService.recent와 ProviderChangeProperties 확인. Firebase auth_time을 서버 현재 시각과 비교하며 기본 5분 초과 시 재인증 요구. 앱 사용 시각·Identity 토큰 재발급과 구분.
+- 실행한 테스트와 결과: 코드 읽기 및 git diff --check, 설명/문서만 변경하여 실행 테스트 생략.
+- 유지한 계약: 최근 인증·토큰 만료 검사 유지, 서버 설정 변경 없음.
+- 결정사항: 기본 코드 기준 설명이며 실배포 설정은 이번에 확인하지 않음.
+- 위험 요소: 자동 토큰 갱신이 auth_time을 갱신한다고 오해하지 않도록 안내.
+- 다음 작업: 요청 시 최근 SNS 인증 재사용 UX 구현.
+
+## 2026-10-01 — 최근 인증 기준 설명 기록 보완
+
+<!-- codex-turn:01a0f669-50fa-7b92-a3c0-7f60a993f453 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 최근 인증 기준 설명 기록 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Firebase auth_time 기준 기본 5분 초과 시 SNS 연결 재인증이 필요하며 일반 로그인 유지 및 토큰 갱신과 다름을 설명. 코드 변경 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 실행 테스트 생략.
+- 유지한 계약: 기존 recent-auth 검증 유지, 비밀값 비기록.
+- 결정사항: 배포 설정 변경 없음, 코드 기본값 설명.
+- 위험 요소: 실배포 설정은 별도 확인 필요.
+- 다음 작업: 요청 시 최근 인증 재사용 UX 구현 및 검증.
+
+## 2026-10-01 — 5분 재인증 정책의 실제 UX 영향 설명
+
+- 브랜치: develop.
+- 작업 목표: 일상적인 SNS 추가 연결에서 5분 기준이 사실상 재인증을 요구한다는 사용자 지적에 답변.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 설명만 수행. 최근 인증 재사용은 가입/로그인 직후에 주로 유효하고 장기 로그인 사용자 불편은 해결하지 못함을 명확화. 시간 연장만으로 문제를 해결한다고 단정하지 않고 정책 완화와 보안 위험 구분.
+- 실행한 테스트와 결과: git diff --check, 설명/기록만 변경하여 실행 테스트 생략.
+- 유지한 계약: 현재 서버 인증 요구 변경 없음.
+- 결정사항: 매번 인증 UX와 유효 세션 기반 연결 허용은 별도 정책 선택이며 이번에 구현하지 않음.
+- 위험 요소: 기존 소유 증명 제거 시 탈취 세션에 공격자 SNS 추가 가능. 단순 토큰 갱신은 재인증 대체 불가.
+- 다음 작업: 사용자 정책 선택 후 보안 검토 및 구현 범위 확정.
+
+## 2026-10-01 — SNS 추가 연결 unavailable 설정 진단
+
+- 브랜치: develop.
+- 작업 목표: 사용자 PROVIDER_CHANGE_UNAVAILABLE 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드의 기능 OFF/서비스 미설치/트랜잭션 실패 경로 확인. AWS 콘솔에서 테스트 서비스 참조 개정 10 및 환경 변수 48개 조회. SNS 허용과 session fence는 true, provider change fence 및 provider link 플래그는 없음. application.yml 기본 false로 명시 연결 비활성 확인.
+- 실행한 테스트와 결과: AWS CLI는 자격증명 부재로 조회 실패, Chrome 콘솔 읽기로 확인. git diff --check. 진단만 수행하여 실행 테스트 생략.
+- 유지한 계약: 계정 연결·설정 수정·재배포·비밀값 조회 없음.
+- 결정사항: 두 연결 플래그의 테스트 환경 활성화는 별도 승인 후 수행. 5분 재인증 문제와 다른 원인.
+- 위험 요소: 설정 활성화 후 DB 트랜잭션 및 실제 연결 검증은 남음. 오류 코드 자체는 트랜잭션 오류에도 사용됨.
+- 다음 작업: 승인 후 테스트 태스크 정의에 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED=true 및 FIREBASE_PROVIDER_LINK_ENABLED=true 적용하고 재배포/검증.
+
+## 2026-10-01 — 재인증 UX 정책 설명 기록 보완
+
+<!-- codex-turn:01a0f66b-0edf-7711-9beb-e8d0934d8128 -->
+
+- 브랜치: develop.
+- 작업 목표: 5분 재인증 정책의 실제 UX 영향 설명에 현재 turn 식별자 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 장기 로그인 사용자에게 사실상 매번 재인증이 필요함을 설명. 기존 인증 생략은 UI 수정이 아니라 서버 보안 정책 변경임을 구분.
+- 실행한 테스트와 결과: git diff --check 통과. 설명/기록만 변경하여 실행 테스트 생략.
+- 유지한 계약: 현재 recent-auth 및 기존 계정 소유 검증 유지, 비밀값 비기록.
+- 결정사항: 코드·서버 설정 변경 없음.
+- 위험 요소: 기존 인증 제거 시 탈취 세션을 통한 공격자 SNS 연결 위험.
+- 다음 작업: 사용자 정책 선택 후 보안 검토 및 구현 범위 확정.
+
+## 2026-10-01 — SNS 연결 오류 진단 turn 기록 보완
+
+<!-- codex-turn:01a0f66c-948a-75a2-8a54-78b709f5a5b7 -->
+
+- 브랜치: develop.
+- 작업 목표: PROVIDER_CHANGE_UNAVAILABLE 진단의 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: AWS 테스트 서비스 참조 개정 10에서 provider change fence 및 provider link 설정 누락 확인. 코드 기본 false와 연결 기능 비활성 오류 경로 대조. 앞선 진단 기록을 보완하며 과거 기록 보존.
+- 실행한 테스트와 결과: AWS 콘솔 읽기 확인 및 git diff --check 통과. 분석/문서만 변경하여 실행 테스트 생략.
+- 유지한 계약: 계정·서버 설정·배포 변경 없음, 비밀값 비기록.
+- 결정사항: 테스트 환경의 두 연결 플래그 활성화 및 재배포 승인 대기.
+- 위험 요소: 활성화 후 실제 연결 및 DB 처리 검증 필요.
+- 다음 작업: 사용자 승인 후 테스트 환경만 설정 적용/재배포.
+
+## 2026-10-01 — 테스트 SNS 추가 연결 활성화 배포
+
+- 브랜치: develop.
+- 작업 목표: 사용자 승인한 테스트 환경 provider change fence 및 provider link 활성화 적용.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 코드 변경 없음.
+- 구현 내용: AWS ECS tosunsaeng-identity-test:10 기반 개정 11에 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED=true만 추가하여 먼저 배포. 성공/개정 10 실행 0 확인 후 개정 12에 FIREBASE_PROVIDER_LINK_ENABLED=true 추가하여 배포. 환경 변수 48→49→50개, 두 값 true 확인. 기존 이미지 1cca3c17c3460e01a7ed75b82f4c22ed6fabede0 유지.
+- 실행한 테스트와 결과: ECS 최종 배포 성공, 1 실행/0 보류 및 이전 개정 0 실행 확인. 공개 actuator/health UP. git diff --check 통과. 코드 변경이 없어 Gradle 테스트 생략, 실제 SNS 인증/연결 API 변경 요청은 수행하지 않음.
+- 유지한 계약: 테스트 서비스만 변경, 운영·IAM·Secret·토큰 TTL·5분 recent-auth·unlink/worker 설정 유지. 기존 provider 보호 OFF writer가 종료된 후 link 신규 접수 활성화. 계정/전화번호 변경 없음.
+- 결정사항: 사용자 명시 승인 범위의 두 플래그를 단계적 배포. 기존 CI는 현재 서비스 태스크 정의를 읽고 이미지/SENTRY_RELEASE를 갱신하므로 이번 환경 변수를 유지하는 구조이며 워크플로는 수정하지 않음.
+- 위험 요소: 실제 SNS 연결/DB 트랜잭션 검증은 별도 필요. STARTED 연결은 임의 초기화/자동 해제 금지, 문제 발생 시 원래 요청 상태 조회 우선. 연결 데이터 생성 후 provider fence를 끄는 롤백 금지.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존, 요청한 외부 설정 두 개 외 변경 없음. Jira/commit/push 미수행.
+- 다음 작업: 로컬 도구에서 기존 요청 상태 확인 후 같은 prepare 요청으로 재시도, 최근 인증 만료 시 기존 SNS 재인증. 실제 complete 성공 및 동일 회원/전화번호 유지 검증.
+
+## 2026-10-01 — 테스트 SNS 연결 활성화 배포 기록 보완
+
+<!-- codex-turn:01a0f66e-090c-7241-ae20-b905461d3b9c -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 SNS 연결 활성화 배포의 정확한 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 승인된 provider change fence를 개정 11에 먼저 배포하고 기존 태스크 종료 후 provider link를 추가한 개정 12 배포 완료. 두 설정 true 확인.
+- 실행한 테스트와 결과: ECS 배포 성공, 1 실행/0 보류 및 이전 개정 0 실행, 공개 health UP 확인. git diff --check 통과. 코드 변경이 없어 Gradle 미실행.
+- 유지한 계약: 운영 서버·기존 인증 정책·기존 이미지 유지. 비밀값 비기록, 실제 계정 연결 미수행.
+- 결정사항: 테스트 환경 설정 적용 완료, 추가 배포 없음.
+- 위험 요소: 실제 SNS 연결 완료 및 회원 데이터 보존 검증은 남음.
+- 다음 작업: 사용자 로컬 테스트에서 상태 조회 후 동일 요청 재시도 및 연결 결과 확인.
+
+## 2026-10-01 — 새로고침 후 SNS 연결 충돌 진단
+
+<!-- codex-turn:01a0f67f-41a7-7422-b39d-ebeffb1e20df -->
+
+- 브랜치: develop.
+- 작업 목표: 첫 연결 실패 후 새로고침한 사용자의 PROVIDER_CHANGE_CONFLICT 원인 조사.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 로컬 화면의 Google PREPARE_UNKNOWN 확인, 현재 요청 상태 조회 결과 PROVIDER_OPERATION_NOT_FOUND. 테스트 DB provider_link_attempts에 GOOGLE STARTED 1건(17:01 시작, 17:06 만료) 확인. 현재 로그인 회원과 DB 작업 소유자의 일치 및 실제 Firebase 연결 결과는 미확정. ProviderLinkService.start의 보호 slot 점유와 prepare 충돌 조건, 새로고침 시 로컬 작업 메모리 유실 및 기존 작업 복구 UI 부재 확인.
+- 실행한 테스트와 결과: 코드/로컬 UI/Atlas 읽기 및 상태 조회만 수행. 세션 control 대조는 Atlas 화면이 이전 컬렉션 내용을 유지하여 증거로 사용하지 않음. git diff --check 통과. 코드 변경 없어 실행 테스트 생략.
+- 유지한 계약: 계정·연결·DB 수정/삭제/잠금 해제 없음. 불명 작업의 SDK 재실행 금지, STARTED 만료 후 자동 해제 금지 유지. 식별자·비밀값 기록 없음.
+- 결정사항: 남은 STARTED 작업은 사용자 설명과 정황상 일치하나 정확한 소유 대조 전 확정하지 않음. 새 준비 요청 반복 대신 원래 작업과 Firebase 결과 대조 필요.
+- 위험 요소: 현재 로컬 도구는 새로고침 후 원래 요청 복구 불가. 다른 회원 소유 SNS 선택 실패 후 원격 연결 성공 여부가 불명확할 수 있으므로 임의 activeLogoutId 초기화 금지.
+- 다음 작업: 정확한 회원·원래 작업·Firebase 연결 결과를 대조하고 별도 승인된 조건부 복구 설계. 로컬 작업 복구와 명확한 실패 안내 개선 검토.
+
+## 2026-10-01 — 실패한 SNS 연결 작업의 보존과 복구 설명
+
+<!-- codex-turn:01a0f67f-41a7-7422-b39d-ebeffb1e20df -->
+
+- 브랜치: develop.
+- 작업 목표: 첫 실패 후 작업이 계속 남는지 및 해결 방향 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: ProviderLinkAttempt.start가 cleanupAt을 제거하고 만료된 STARTED를 조회 시 ACTION_REQUIRED로 표시하는 구현 확인. PREPARED 만료와 구분. 현재 자동 실패 종료/재개 복구가 부족함을 설명.
+- 실행한 테스트와 결과: 코드 읽기 및 git diff --check. 설명/문서만 변경하여 실행 테스트 미수행.
+- 유지한 계약: 원격 결과 불명 시 자동 보호 해제 금지. DB/계정/외부 설정 수정 없음.
+- 결정사항: 실제 연결 부재 및 이전 실행 종료 증거 확보 후 조건부 복구 필요. 실패 취소/상태 복구 설계는 제안이며 미구현.
+- 위험 요소: SDK 오류만으로 원격 연결 미실행을 단정할 수 없음. 현재 작업의 정확한 회원 소유 대조 미완료.
+- 다음 작업: 정확한 작업과 원격 상태 대조, 승인된 복구 및 재시도 UX 구현 범위 확정.
+
+## 2026-10-01 — 실패 연결 작업 보존 설명 기록 보완
+
+<!-- codex-turn:01a0f683-a3f8-7e60-8bb8-1f2f618ac6c9 -->
+
+- 브랜치: develop.
+- 작업 목표: 실패 연결 작업 보존 및 복구 설명의 정확한 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: PREPARED 만료와 STARTED 보호 유지의 차이, 확정된 원격 결과와 이전 실행 종료 증거에 기반한 조건부 복구 필요성을 설명. 앞선 식별자 오기를 보완하며 과거 기록 보존.
+- 실행한 테스트와 결과: git diff --check 통과. 문서만 변경하여 실행 테스트 생략.
+- 유지한 계약: 불명 상태의 자동 보호 해제 금지, 비밀값 비기록.
+- 결정사항: 복구 기능은 제안 단계, 코드·계정·DB·외부 설정 변경 없음.
+- 위험 요소: 정확한 작업 소유 및 Firebase 연결 결과 대조가 아직 필요.
+- 다음 작업: 원래 작업 대조 및 승인된 복구/재시도 UX 구현 범위 확정.
+
+## 2026-10-01 — 막힌 SNS 연결 작업 복구 사전 점검
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 현재 미완료 연결을 안전하게 복구하기 위한 정확한 상태 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 사용자 첫 SDK 오류가 auth/credential-already-in-use임을 확인. 테스트 Atlas 실제 user_session_controls 컬렉션을 열고 exact owner 필터로 단일 문서 조회, 기존 STARTED attempt의 link slot 일치 확인. Firebase 콘솔에서 작업 UID와 일치하는 계정의 제공자는 OIDC와 Phone이며 Google은 없음 확인. 현재 로컬 로그인과 owner의 직접 대조 및 이전 SDK 종료 확인은 추가 필요.
+- 실행한 테스트와 결과: CloudShell 재연결 후 임시 venv에 공식 boto3/pymongo/google-auth/requests 설치. 테스트 MongoDB Secret을 메모리로 읽는 제한 진단은 ServerSelectionTimeoutError로 종료, 비밀값 출력 없음. Atlas 테스트 프로젝트 허용 목록에 기존 단일 서버 IP만 있으며 관리 셸 IP는 미포함 확인. git diff --check 통과, 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 사용자·Firebase 연결·DB·네트워크 설정 수정 없음. 무조건 slot 초기화나 다중 문서 개별 변경 미수행. 운영 자원 변경 없음.
+- 결정사항: 조건부 트랜잭션 복구를 위해 테스트 Atlas에 관리 셸 단일 IP /32 임시 허용 승인 필요. 승인 전 접속 허용 변경하지 않음.
+- 위험 요소: Google 연결 부재만으로 SDK 종료를 단정하지 않음. 복구 전 정확한 binding/version/phase 및 다른 미완료 작업 대조 필요. 관리 셸 IP는 세션마다 바뀔 수 있음.
+- 다음 작업: 임시 네트워크 접근 승인 후 DB/Firebase 읽기 검증과 제한 복구 설계, 복구 적용 시 변경 내용 확인. 임시 접근은 작업 종료 후 제거.
+
+## 2026-10-01 — SNS 연결 복구 사전 점검 기록 보완
+
+<!-- codex-turn:01a0f684-e7ea-7682-a5af-15695f51935b -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 연결 복구 사전 점검의 정확한 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 원래 연결 작업과 회원 세션 잠금 일치, 해당 Firebase UID의 Google 연결 부재 확인. 관리 셸의 DB 접속 시간 초과 및 Atlas 허용 목록에 해당 IP 미포함 확인.
+- 실행한 테스트와 결과: 읽기 검증 및 git diff --check 통과. 코드 변경 없어 실행 테스트 생략.
+- 유지한 계약: DB·계정·네트워크 설정 변경 없음, 비밀값 비기록.
+- 결정사항: 단일 관리 IP 임시 허용 승인 및 이전 SDK 실행 종료 확인 대기.
+- 위험 요소: 현재 로그인 회원과 작업 소유 직접 대조 및 원자적 복구 검증이 남아 있음.
+- 다음 작업: 승인 후 제한된 검증과 조건부 복구 진행, 종료 후 임시 접근 제거.
+
+## 2026-10-01 — reissue 절대 만료 헤더 null 원인 조사
+
+<!-- codex-turn:01a0f68c-1d9d-7901-8991-188d8660c536 -->
+
+- 브랜치: develop. 특정 Jira 이슈 구현 요청 없음.
+- 작업 목표: /auth/reissue의 Reissue-Access-Expires-At 및 Reissue-Refresh-Expires-At 헤더가 null로 읽히는 원인 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 변경 없음.
+- 구현 내용: TokenReissueService의 Recovery OFF 결과에서 절대 만료 필드가 null이며 AuthController는 accessExpiresAt 비-null일 때만 두 헤더를 설정함을 확인. application.yml의 AUTH_REISSUE_RECOVERY_ENABLED 기본 false, 조건부 Recovery Bean 설치, ON 경로 실제 만료 시각 반환 확인. CORS 노출 설정은 저장소에서 발견되지 않음.
+- 실행한 테스트와 결과: ./gradlew test --tests '*ReissueRecoveryHttpTests' --tests '*ReissueRecoveryConfigurationTests' --tests '*TokenReissueServiceTests' BUILD SUCCESSFUL. 실제 실행 suite/count는 XML 결과로 확인. git diff --check 수행. 전체 clean test는 코드 변경 없는 진단이라 미실행.
+- 유지한 계약: 재발급/멱등 재전달/세션 fence/암호화 계약 변경 없음. 배포 환경변수와 프록시, 외부 설정 변경 없음. 토큰/비밀값 조회·출력·기록 없음.
+- 결정사항: 서버가 헤더를 생략하는 OFF 경로와 브라우저 CORS로 읽지 못하는 경우를 구분. 200 원 응답 헤더와 배포 flag 확인이 우선. 헤더만을 위해 복구 flag를 즉시 켜지 않으며 fence·암호키·인덱스·클라이언트 요청 ID 준비 및 runbook 검증 필요.
+- 위험 요소: 실제 배포 flag/요청 상태/응답 헤더/클라이언트 플랫폼/프록시 미확인. 오류 응답에서도 헤더가 없는 것은 의도된 동작. 프론트 가이드 성공 헤더 안내는 Stage 9 ON 조건과 함께 읽어야 함.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존, 코드/커밋/push/Jira/배포 변경 없음.
+- 다음 작업: 사용자 요청 환경과 원 응답 헤더 확인 후 OFF 경로의 헤더 제공 개선 또는 exact-origin CORS 노출 필요 여부 판단(구현 별도 승인/요청).
+
+## 2026-10-01 — reissue recovery 활성화 재배포 사전 점검 중단
+
+<!-- codex-turn:01a0f68d-bee4-7942-a6cd-94c3321b2650 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따른 recovery 활성화/재배포 전 대상 및 선행 조건 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Stage 9 runbook 및 main/develop 배포 분리 문서 확인. 기존 AWS 테스트 서비스 콘솔에서 task definition tosunsaeng-identity-test:12, 실행 1/대기 0, 배포 성공 표시 읽기 확인.
+- 실행한 테스트와 결과: 문서/UI 읽기, git diff --check. 이번에는 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영/테스트 경계 유지. 환경변수 변경, 태스크 등록, 재배포, 커밋/push/Jira 변경 미수행. 비밀값 미조회·비기록.
+- 결정사항: test/staging 대상 확인 질문 후 준비 점검 중 사용자 중단으로 외부 변경 진행하지 않음.
+- 위험 요소: 실제 recovery/fence 값, 암호키 연결, DB 인덱스, 프론트 Idempotency-Key 준비 미검증. 콘솔 배포 성공은 recovery 활성화를 뜻하지 않음.
+- 예상 밖 변경: 없음. 기존 미커밋 기록 보존.
+- 다음 작업: 사용자 재개 요청 시 배포 대상 확정 및 필수 준비 검증 후 활성화/재배포 진행.
+
+## 2026-10-01 — reissue 재배포 중단 안내 기록 보완
+
+<!-- codex-turn:01a0f68f-2f5f-7d22-93ea-c9c3b76d8d18 -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 turn의 작업 기록 누락 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 애플리케이션 변경 없음. 재배포 미실행 및 대상 확인 대기 상태 기록.
+- 실행한 테스트와 결과: git diff --check. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 WORKLOG 보존, 비밀값 비기록, 외부 설정/배포/커밋/push 변경 없음.
+- 결정사항: test/staging 대상 확인 및 세션 fence·키·인덱스·클라이언트 준비 검증 후 재개.
+- 위험 요소: 선행 조건 및 실환경 recovery 설정 미검증.
+- 예상 밖 변경: 없음. 기존 기록 변경 보존.
+- 다음 작업: 사용자 배포 대상 확인 후 안전한 활성화/재배포 진행.
+
+## 2026-10-01 — 테스트 Google 연결 실패 작업 조건부 복구 완료
+
+<!-- codex-turn:01a0f68c-7cc7-7223-9d90-038554e45929 -->
+
+- 브랜치: develop.
+- 작업 목표: credential-already-in-use 이후 남은 테스트 회원의 실패 연결 작업 1건을 승인된 범위에서 복구하고 준비 재시도 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 코드 변경 없음.
+- 구현 내용: 사용자 팝업 종료·재시도 없음 확인 및 복구 승인 후, 정확한 작업/소유/버전/단계와 Firebase Google 연결 부재, 다른 미완료 작업 부재 검증. dry-run 후 snapshot/majority 트랜잭션으로 provider_link_recovery_audit에 원본 작업과 보호 상태를 백업하고 해당 실패 작업만 활성 컬렉션에서 제거, 해당 slot만 해제 및 제어 revision/version 증가. Google 차단 및 인증 floor 유지. 임시 관리 접속 /32 허용은 검증 후 제거하고 기존 서버 접근 보존 확인.
+- 실행한 테스트와 결과: RECOVERY_DRY_RUN_PASSED_NO_WRITES 및 RECOVERY_COMMITTED 확인. 감사 백업 존재, 실패 작업 제거, slot 해제, epoch/Google 차단/auth floor/회원/binding/원격 제공자/전화번호 보존 확인. Chrome에서 기존 Kakao 재인증 후 Google 연결 prepare 성공 확인. 문서 diff 검사 수행, 코드 변경 없는 운영 복구로 Gradle 미실행.
+- 유지한 계약: 운영 자원 불변, 기존 회원·Kakao·전화번호·세션 보호 유지, 비밀값/개인 식별자 비기록. SDK 임의 재실행 없음.
+- 결정사항: 기존 실패 작업은 감사 백업으로 보존. 일반 실패 복구 기능 구현과 재배포는 이번 범위 제외. 새로운 Google 연결은 PREPARED까지만 확인.
+- 위험 요소: 실제 Google 연결/완료 검증은 남아 있음. 다른 회원 소유 Google로 다시 시도하면 동일 실패가 재발할 수 있음. 감사 snapshot의 무조건 복원 금지.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존, commit/push/Jira/배포 변경 없음.
+- 다음 작업: 다른 회원에게 연결되지 않은 Google 계정을 사용자가 선택하여 SDK 연결·대상 재인증·완료 검증 진행. 이후 실패 종료 및 새로고침 복구 UX 별도 개선.
+
+## 2026-10-01 — 테스트 reissue recovery 활성화 선행 설정 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 테스트 recovery 활성화 재배포 가능 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: CloudShell 읽기 전용 AWS CLI로 실제 서비스 개정 12, desired/running 1, rollout COMPLETED 확인. 해당 개정 AUTH_REISSUE_RECOVERY_ENABLED=false, AUTH_SESSION_FENCE_ENABLED=true 확인. recovery 키 ID/환경/파일 설정 및 keyring secret 주입·volume mount 없음 확인. runbook과 entrypoint의 필수 기동 조건 대조.
+- 실행한 테스트와 결과: AWS 조회 및 코드/운영 가이드 대조. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 운영 및 실행 서비스 변경 없음, 비밀값 조회·출력 없음. Idempotency-Key 필수화 및 exact-origin CORS 노출 별도 검증 필요성 유지.
+- 결정사항: true만 설정하면 기동 실패하므로 배포 미실행. 테스트 전용 keyring 연결 및 필요한 최소 읽기 권한 승인 확인 후 준비 진행.
+- 위험 요소: 실제 DB 인덱스/키 형식/클라이언트 멱등 요청 준비 미검증. OFF는 헤더 생략 원인이지만 실제 HTTP 원 응답과 브라우저 CORS 가시성은 별도 검증 필요.
+- 예상 밖 변경: 없음, 기존 기록 보존. commit/push/Jira 변경 없음.
+- 다음 작업: 테스트 keyring 주입 범위 승인, 키/인덱스/클라이언트 준비 확인 후 활성화 배포와 헤더·동일 요청 재전달 검증.
+
+## 2026-10-01 — 테스트 recovery 사전 점검 turn 기록 보완
+
+<!-- codex-turn:01a0f696-a3f8-79c3-91c5-3e9eb3b2db77 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 테스트 recovery 활성화 사전 점검의 turn 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 실행 개정 12의 recovery=false, fence=true 및 필수 keyring 주입/키 ID/환경 설정 누락 확인 결과 기록. 코드 변경 없음.
+- 실행한 테스트와 결과: AWS 읽기 조회와 기동 조건 대조 완료. git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 비밀값 비기록, 실행 서비스/운영/권한 변경 없음.
+- 결정사항: 테스트 keyring 연결과 필요한 최소 읽기 권한 승인 대기, 배포 미실행.
+- 위험 요소: 키 형식/실제 인덱스/클라이언트 Idempotency-Key 준비와 응답 헤더 검증 필요.
+- 예상 밖 변경: 없음, 기존 기록 보존.
+- 다음 작업: 승인 후 준비 검증 및 테스트 활성화 배포.
+
+## 2026-10-01 — 승인된 테스트 reissue recovery 활성화 배포 완료
+
+- 브랜치: develop.
+- 작업 목표: 테스트 재발급 응답 복구 및 절대 만료 헤더 경로 활성화.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 애플리케이션 코드 변경 없음.
+- 구현 내용: 사용자 승인 후 Secrets Manager 테스트 keyring을 메모리에서 형식·32바이트 키 길이·활성 ID 존재 검증(원문 비출력). 실행 역할의 기존 GetSecretValue 권한 허용 확인하여 IAM 변경 없음. 기존 개정 12를 복제하여 개정 13에 recovery=true, active-key-id=test-v1, environment=test 및 AUTH_REISSUE_ENCRYPTION_KEYRING_CONTENT secret 참조만 추가. 기존 이미지·네트워크·역할·다른 설정 유지. AWS 개정 간 비교에서 environment/secrets 외 변경 없음 확인.
+- 실행한 테스트와 결과: 관련 45개 테스트 통과, ./gradlew clean test 전체 1024개 성공(실패/오류/skip 0). 최초 clean 명령은 캐시 sandbox 거절, 승인된 재실행 성공. Atlas 실제 회전 unique/partial 인덱스와 응답 source unique/cleanup TTL 인덱스 존재 확인. 개정 13 startup 성공, 기동 실패/오류 유형 미검출, ALB healthy, 최종 ECS COMPLETED 1 running/0 pending 확인. 공개 health 200 UP. 가짜 credential smoke에서 헤더 누락 400 INVALID_REISSUE_REQUEST_ID, canonical ID 포함 401 INVALID_REFRESH_TOKEN, no-store 확인. git diff --check 수행.
+- 유지한 계약: 운영 자원/계정/세션 데이터 변경 없음. 실제 토큰/키/URI 비기록. 기존 이미지와 fence 유지. 테스트 ON 환경에서 소문자 UUID v4 Idempotency-Key 필수화.
+- 결정사항: 키 주입은 기존 entrypoint가 private runtime 파일 생성 후 환경변수 제거하는 방식. 등록 입력과 반환 객체 직접 비교는 일치하지 않아 개정 간 실제 필드 비교로 재검증했으며 예상 변경만 존재. 배포 완료 후 점검 Python 세션 종료.
+- 위험 요소: 실제 사용자 성공 재발급의 두 만료 헤더 및 동일 ID 재전달은 아직 실환경 미검증(HTTP 자동 테스트 통과). 모바일 crash/single-flight 및 replica-set failover 등 runbook 운영 증빙은 별도. 로컬 테스트 프록시는 응답 헤더를 전달하지 않아 서버 ON 이후에도 브라우저 헤더 조회가 null일 수 있음. exact-origin CORS 노출 별도 확인 필요.
+- 예상 밖 변경: 없음. 기존 문서 수정 보존. commit/push/Jira 변경 없음. 전체 clean test는 로컬 코드 검증으로 배포 이미지 자체 테스트와 구분.
+- 배포 전 확인 사항: 키 형식/접근 권한/fence/인덱스 확인 완료, 클라이언트 멱등 헤더 요구 안내. 긴급 중단은 enabled 유지 + maintenance 사용(runbook 준수).
+- 다음 작업: 사용자 테스트 로그인으로 성공 재발급 원 응답 헤더/동일 ID replay 검증. 필요 시 로컬 프록시 헤더 전달 및 프론트 오류 처리 보완.
+
+## 2026-10-01 — 테스트 recovery 배포 완료 turn 기록 보완
+
+<!-- codex-turn:01a0f698-cf44-7e62-8ea4-a9d7f84ae171 -->
+
+- 브랜치: develop.
+- 작업 목표: 승인된 테스트 recovery 배포 작업의 현재 turn 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 테스트 개정 13 recovery 활성화 및 기존 테스트 keyring 주입 완료. 기존 이미지/IAM/운영 유지. 애플리케이션 코드 변경 없음.
+- 실행한 테스트와 결과: 전체 clean test 1024개 통과. ECS COMPLETED, ALB healthy, 공개 health UP 및 가짜 credential을 이용한 ON 계약 smoke 확인. git diff --check 통과.
+- 유지한 계약: 비밀값 비기록, 실제 사용자 세션 변경 없음, ON 환경 Idempotency-Key 필수.
+- 결정사항: 배포 완료, 로컬 프록시 헤더 전달 수정은 별도 작업.
+- 위험 요소: 실제 사용자 성공 응답의 절대 만료 헤더와 동일 ID replay 실환경 검증은 남아 있음.
+- 예상 밖 변경: 없음. 기존 기록 보존.
+- 다음 작업: 실제 성공 응답 헤더/replay 검증 및 필요 시 프록시 개선.
+
+## 2026-10-01 — Chrome 기존 MEMBER SNS 추가 연결 성공 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 완료한 기존 회원의 SNS 추가 연결 테스트 결과 읽기 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 로컬 테스트 탭 검증표에서 Kakao 인증/Identity 로그인/SNS 추가 연결 성공 및 서버 COMPLETED, 동일 Firebase UID, 기존 전화번호·SNS 유지 표시 확인. 현재 폼은 완료 상태 정리 후 연결 전으로 초기화되어 있으며 계정 연결과 토큰은 유지된다는 안내 확인. 로컬 도구 소스에서 complete 응답 COMPLETED 검사 후 성공 표시하는 흐름 대조.
+- 실행한 테스트와 결과: UI 읽기 및 성공 표시 조건 코드 대조. 연결/로그인 요청 재실행 없음. 문서만 변경하여 Gradle 미실행, git diff --check 수행.
+- 유지한 계약: 개인정보·토큰 비출력, 계정·인증 상태 변경 없음.
+- 결정사항: 기존 Kakao 회원에 Google 추가 연결 완료 테스트는 성공으로 확인. 폼 초기화는 연결 해제가 아님.
+- 위험 요소: 새 Google 단독 로그인 후 동일 Identity 회원 확인, Android/iOS 실기기 동작, 실패 후 복구 UX는 이번 확인에 포함되지 않음. 이번에는 DB 직접 재조회 없이 UI 완료 결과 및 코드 근거로 확인.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존.
+- 다음 작업: 사용자가 원하면 추가한 Google 단독 로그인 및 동일 회원/기록 접근 확인. 실패·새로고침 복구 개선은 별도.
+
+## 2026-10-01 — SNS 연결 결과 확인 turn 기록 보완
+
+<!-- codex-turn:01a0f6a2-8df8-7990-aa0a-9fd4df5cc4bf -->
+
+- 브랜치: develop.
+- 작업 목표: 현재 SNS 추가 연결 결과 확인 작업의 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 검증표의 서버 COMPLETED 및 기존 UID/전화번호/SNS 유지 표시를 확인. 폼 초기화는 테스트 상태 정리이며 연결 해제가 아님을 설명.
+- 실행한 테스트와 결과: UI 읽기와 로컬 도구 성공 표시 조건 대조, git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 계정/로그인/연결 변경 없음, 비밀값 비기록.
+- 결정사항: 추가 연결 성공 확인, 새 Google 단독 로그인 검증은 별도.
+- 위험 요소: 실기기 및 실패 복구 UX 미검증.
+- 예상 밖 변경: 없음. 기존 기록 보존.
+- 다음 작업: 사용자 요청 시 새 SNS 단독 로그인으로 동일 회원 접근 확인.
+
+## 2026-10-01 — 추가한 Google 단독 로그인과 프로필 인증 확인
+
+- 브랜치: develop.
+- 작업 목표: 사용자가 진행한 Google 로그인 성공 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Chrome 검증표의 Google Firebase 인증/Identity 로그인 성공 확인 후 내 프로필 인증 확인 버튼으로 읽기 요청 수행. 서버 MEMBER 인증 성공 확인.
+- 실행한 테스트와 결과: 실제 테스트 프로필 API MEMBER 인증 성공. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 로그인/연결 재실행 없음, 개인정보/토큰 비출력.
+- 결정사항: 추가 SNS 연결 후 Google 단독 Identity 로그인과 보호 API 인증 성공 확인.
+- 위험 요소: 이전 Identity UUID와 직접 비교하거나 LC 기록 동일성 검증한 것은 아님. 모바일 실기기/실패 복구 UX는 별도.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존.
+- 다음 작업: 필요 시 이전 회원 동일성 및 LC 기록 검증, 실패 후 연결 복구 개선.
+
+## 2026-10-01 — Google 로그인 검증 turn 기록 보완
+
+<!-- codex-turn:01a0f6a4-42a5-7b30-9574-01b57551ac13 -->
+
+- 브랜치: develop.
+- 작업 목표: Google 단독 로그인 검증의 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: Google 인증·Identity 로그인 성공 표시 확인 후 프로필 읽기 API로 MEMBER 인증 성공 확인.
+- 실행한 테스트와 결과: 실환경 프로필 인증 성공, git diff --check 통과. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 개인정보·토큰 비기록, 연결/로그인 재실행 없음.
+- 결정사항: Google 로그인과 보호 API 접근 검증 완료.
+- 위험 요소: 이전 Identity UUID 직접 비교 및 LC 기록 동일성은 미검증.
+- 예상 밖 변경: 없음. 기존 기록 보존.
+- 다음 작업: 필요 시 회원 동일성/LC 기록 검증 및 실패 복구 UX 개선.
+
+## 2026-10-01 — SNS 연결 실패 후 재시도 복구 수정 계획 설명
+
+- 브랜치: develop.
+- 작업 목표: credential-already-in-use 이후 지속된 PROVIDER_CHANGE_CONFLICT의 원인과 수정 방향 설명(구현 제외).
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: ProviderLinkService.start의 provider 차단 및 slot 점유, prepare의 기존 slot 충돌 검사, ProviderLinkAttempt의 STARTED cleanupAt=null 및 실패 종료 상태 부재 확인. 만료 status는 ACTION_REQUIRED일 뿐 해제되지 않음. 로컬 ProviderLinkFlow.link는 SDK 호출 전 LINK_UNKNOWN 설정 후 예외 종료, 메모리 전용 상태라 새로고침 시 원 요청 ID 소실 확인.
+- 실행한 테스트와 결과: 서버/로컬 도구 코드 및 Stage 10 runbook 5.5 대조. git diff --check 수행. 분석만 수행하여 Gradle 미실행.
+- 유지한 계약: 타 회원 소유 SNS 연결 거절 유지. 만료/클라이언트 실패 주장만으로 slot 또는 provider 보호를 해제하지 않음. 개인정보/토큰 비기록.
+- 결정사항: 실패 안내와 원 요청 복구 UX, 인증된 pending 조회 및 조건부 실패 종료/reconcile 경로 제안. SDK 종료·자동 재시도 부재 및 원격 상태 증거가 충분한 경우에만 exact owner/version/phase 트랜잭션으로 종료/slot 해제. provider 차단/auth floor는 보존, 실패 작업은 삭제하지 않고 감사 가능 종료 상태 유지. 불명 상태는 ACTION_REQUIRED 유지. 구현/API 명칭 미확정.
+- 위험 요소: Firebase와 Mongo는 단일 원자 트랜잭션이 아니며 원격 부재 조회만으로 지연 SDK 호출 종료를 보장할 수 없음. 자동 복구의 증거 요건/관리 경로 구분 설계 필요. 기존 클라이언트 호환성 및 늦은 complete/동시 요청 검증 필요.
+- 예상 밖 변경: 없음. 코드·외부 설정·계정·Jira 변경 없음.
+- 다음 작업: 구현 요청 시 API/상태 계약과 복구 증거 요건 확정 후 서버·테스트 도구 및 회귀 테스트 구현. 성공 로그인 경로는 유지.
+
+## 2026-10-01 — SNS 실패 복구 수정 계획 turn 기록 보완
+
+<!-- codex-turn:01a0f6a5-445d-7f61-b677-0b5d40dad13e -->
+
+- 브랜치: develop.
+- 작업 목표: 실패 후 연결 재시도 문제 분석과 수정 계획의 현재 turn 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 타 회원 소유 SNS 거절은 정상이며, STARTED 잠금 유지·실패 종료 경로 부재·새로고침 시 원 요청 정보 소실이 지속 충돌 원인임을 설명. 조건부 종료/감사 기록/pending 조회/실패 안내 개선 제안. 코드 구현 없음.
+- 실행한 테스트와 결과: 코드 및 운영 가이드 대조, git diff --check 통과. 분석만 수행하여 Gradle 미실행.
+- 유지한 계약: 원격 결과 불명 시 보호 유지, 클라이언트 주장이나 만료만으로 잠금 해제 금지, 비밀값 비기록.
+- 결정사항: 구현 요청 후 복구 증거 요건과 API/상태 계약 확정.
+- 위험 요소: 원격 SDK와 DB의 원자성 부재 및 지연 호출 종료 증명 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 외부 변경 없음.
+- 다음 작업: 승인된 구현 범위 확정 후 실패 종료·복구 UX와 회귀 테스트 추가.
+
+## 2026-10-01 — SNS 연결 취소·재시도 UX 추가 계획
+
+- 브랜치: develop.
+- 작업 목표: 오래 걸리는 SNS 연결을 사용자가 취소하고 재시도할 수 있는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 코드 분석에 기반해 PREPARED의 조건부 즉시 취소와 STARTED 이후 취소 요청/원격 상태 확인을 구분하는 계획 제시. UI 대기 종료와 원격 작업 취소는 다르며, 안전한 종료 확인 전 중복 SDK 연결 금지. 연결 완료 상태는 취소 대신 완료 안내, 연결 해제는 별도 인증 작업.
+- 실행한 테스트와 결과: 이전 코드 분석 근거 사용 및 git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 시간 경과/팝업 닫힘만으로 잠금 해제 금지, 기존 SNS/전화번호 보호 및 미확정 대상 차단 유지. 비밀값 비기록.
+- 결정사항: 실패 복구 계획에 취소 요청·진행 상태 복원·종료 후 재시도 UX 포함 제안. 새 상태/API 명칭과 시간 기준은 구현 전 확정. 아직 구현 없음.
+- 위험 요소: Firebase SDK 지연 성공과 취소의 경합. 서버가 이전 실행 종료를 입증하지 못하면 즉시 재시도를 보장할 수 없음. 기존 SNS 로그인 유지 범위는 보호 정책에 따라 검증 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 외부 변경 없음.
+- 다음 작업: 취소/start/complete 경합, 응답 유실, 새로고침 및 지연 SDK 결과 테스트를 구현 범위에 포함.
+
+## 2026-10-01 — SNS 취소·재시도 계획 turn 기록 보완
+
+<!-- codex-turn:01a0f6a7-07f7-7e12-a2e3-9bef009190e0 -->
+
+- 브랜치: develop.
+- 작업 목표: SNS 연결 취소·재시도 설계 설명의 현재 turn 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 준비 단계 취소, 연결 진행 중 종료 확인, 완료 후 별도 해제의 차이를 설명. 취소 버튼·상태 복원·안전한 종료 후 재시도와 지연 성공 경합 테스트를 계획에 포함 제안. 코드 변경 없음.
+- 실행한 테스트와 결과: git diff --check 통과. 계획 설명만 수행하여 Gradle 미실행.
+- 유지한 계약: 팝업 종료/시간 경과만으로 잠금 해제 금지, 결과 불명 시 중복 연결 제한, 비밀값 비기록.
+- 결정사항: 취소와 실패 복구를 함께 설계하되 실제 구현은 후속 요청 대기.
+- 위험 요소: 원격 SDK 지연 완료와 취소 경합으로 즉시 재시도를 항상 보장할 수 없음.
+- 예상 밖 변경: 없음. 기존 기록 보존, 외부 변경 없음.
+- 다음 작업: API/상태 계약과 종료 증거 요건 확정 후 취소·복구·경합 테스트 구현.
+
+## 2026-10-01 — SNS 취소·실패 복구 상세 수정 계획 작성
+
+- 브랜치: develop.
+- 작업 목표: 서버 상태/API/프론트/보안 증거/테스트/배포 순서 상세 설명.
+- 변경 파일: docs/contracts/provider-link-cancel-recovery-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 현재 코드와 제안을 구분한 계층형 계획 문서 작성. PREPARED 원자 취소, STARTED 취소 요청과 제한된 조건부 복구, 실패 감사 상태, 원 요청 복원, pending 조회/권한, 경합 테스트 및 단계 배포 정리.
+- 실행한 테스트와 결과: ProviderLinkAttempt/Service/Controller 및 이전 로컬 도구 조사 근거 대조, git diff --check 수행. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: status에서 SDK 실행권한 재부여 금지, 타 회원 SNS 거절, 불명 원격 실행에 대한 보호 유지, 비밀값 비기록.
+- 결정사항: 클라이언트 오류/팝업 종료/원격 부재만으로 STARTED 자동 종료를 보장하지 않음. 일반 취소 API와 승인된 운영 복구를 분리 제안. API/상태 이름은 확정 전.
+- 위험 요소: 모든 실패에서 즉시 자동 재시도 요구는 현재 직접 Firebase SDK 구조만으로 충족 불가하며 별도 설계 필요. 구 클라이언트 상태 호환성과 실제 앱 구현 별도.
+- 예상 밖 변경: 없음. 코드/계정/배포/Jira 변경 없음, 기존 기록 보존.
+- 다음 작업: 구현 요청 시 문서의 범위 및 종료 증거 요건을 기준으로 계약 확정 후 진행.
+
+## 2026-10-01 — SNS 취소·복구 상세 계획 turn 기록 보완
+
+<!-- codex-turn:01a0f6a8-556f-7661-94db-2e163c63943c -->
+
+- 브랜치: develop.
+- 작업 목표: 상세 수정 계획 설명의 현재 turn 식별자 기록.
+- 변경 파일: docs/contracts/provider-link-cancel-recovery-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 서버 상태·취소/실패 보고/작업 복원 API 제안, 인증·감사·원자적 복구 조건, 프론트 UX, 경합 테스트와 단계 배포 계획 작성. 애플리케이션 구현 없음.
+- 실행한 테스트와 결과: 현재 코드 및 운영 계약 대조, git diff --check 통과. 문서 변경만 수행하여 Gradle 미실행.
+- 유지한 계약: 불명 STARTED 자동 해제 금지, SDK 실행 허가 재부여 금지, 개인정보·비밀값 비기록.
+- 결정사항: 준비 단계 취소와 진행 단계 취소 요청을 구분하며 모든 오류의 즉시 자동 재시도는 보장하지 않음.
+- 위험 요소: Firebase 지연 실행과 DB 상태 간 원자성 부재, 실제 앱 및 구 클라이언트 호환성 검증 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 외부 변경 없음.
+- 다음 작업: 구현 요청 후 제안 계약과 증거 요건 확정 및 서버·클라이언트 회귀 테스트 구현.
+
+## 2026-10-01 — Kakao 프론트 Firebase OIDC 설정 안내
+
+<!-- codex-turn:01a0f6ad-a68e-7043-8937-365571ea4c7d -->
+
+- 브랜치: develop.
+- 작업 목표: 이전에 안내한 카카오 프론트 플랫폼별 설정과 토큰 교환 계약 재정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 저장소 프론트 가이드와 기존 작업 기록 확인. oidc.kakao 공통 provider ID, Firebase SDK 인증 및 Firebase ID Token의 Identity exchange 전달, Android/iOS 각 Firebase 앱 구성과 브라우저 인증 후 앱 복귀 설정·실기기 검증 안내. Kakao Native SDK 직접 토큰 교환과 구분, Client Secret 앱 포함 금지.
+- 실행한 테스트와 결과: 계약/이전 기록 읽기, git diff --check 수행. 설명만 수행하여 실행 테스트 미실행.
+- 유지한 계약: 카카오 원본 Access Token을 Identity에 전달하지 않음, 공통 provider ID 및 기존 JWT/API 유지, 비밀값 비기록.
+- 결정사항: 프론트 프레임워크/SDK 버전 미확인으로 정확한 플랫폼 코드와 callback scheme 값은 단정하지 않음.
+- 위험 요소: Chrome 성공은 모바일 앱 복귀 검증이 아님. 실제 Android/iOS 구성은 이번에 직접 조회하지 않음.
+- 예상 밖 변경: 없음, 기존 문서 변경 보존. 외부 설정/코드 변경 없음.
+- 다음 작업: 프론트 기술 스택에 맞춰 SDK별 설정·로그인·취소·재인증·앱 복귀 체크리스트 구체화.
+
+## 2026-10-02 — 취소·실패 종료 수정 목적 재확인
+
+<!-- codex-turn:01a0fa59-82cf-7150-860b-d13d6caccb2d -->
+
+- 브랜치: develop.
+- 작업 목표: 취소/실패 상태 추가와 작업 잠금 해제의 관계 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 안전한 종료가 확인된 연결 작업을 취소/실패 종료로 기록하고 해당 잠금만 해제하여 재시도를 허용하는 계획임을 재확인. 클라이언트 실패 보고나 시간 경과만으로 해제하지 않으며 결과 불명은 보호 유지.
+- 실행한 테스트와 결과: 기존 계획 근거 설명 및 git diff --check 통과. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 기존 SNS/전화번호 및 대상 제공자 보호 유지, 비밀값 비기록.
+- 결정사항: 상태 enum 추가만이 아니라 조건부 종료 처리와 새로고침 복구까지 포함하는 계획. 구현 미착수.
+- 위험 요소: 이전 SDK 실행 종료가 불명인 경우 즉시 재시도를 보장하지 못함.
+- 예상 밖 변경: 없음. 기존 기록 보존, 외부 변경 없음.
+- 다음 작업: 구현 요청 후 종료 증거와 트랜잭션/API 계약 확정.
+
+## 2026-10-02 — SNS 취소·실패 복구 구현 계획서 정식 보완
+
+<!-- codex-turn:01a0fa77-8925-78f1-9086-0f668e6c3033 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자 요청에 따라 기존 초안을 구현 범위·작업 분할·완료 기준이 있는 수정 계획서로 보완.
+- 변경 파일: docs/contracts/provider-link-cancel-recovery-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 범위/제외 항목, 상태 전환표, nullable 데이터 필드 제안, guard의 STARTED 검사와 원자 종료 필요성, API 멱등성, 변경 대상/작업 순서, 완료 체크리스트, 호환 배포 및 중단 기준 추가. 기존 상세 근거/테스트 표 보존.
+- 실행한 테스트와 결과: 기존 계획 전체 읽기, ProviderChangeGuard 상태 조회 및 테스트 파일 위치 확인, git diff --check 수행. 문서만 수정하여 Gradle 미실행.
+- 유지한 계약: 불명 원격 실행 보호 유지, 상태 조회의 SDK 허가 재부여 금지, owner JWT 기준, 기존 SNS/전화번호 보존, 비밀값 비기록.
+- 결정사항: 설계 제안과 실제 구현을 구분. STARTED 종료 증거 부족 시 즉시 재시도 보장하지 않음. 코드/배포/Jira 변경 없음.
+- 위험 요소: 실제 앱 저장소 별도, 복구 증거/보존/폴링 정책 확정 필요. 새 enum의 구 서버 호환 확인 필요.
+- 예상 밖 변경: 없음. 기존 미커밋 문서 변경 보존.
+- 다음 작업: 계획 검토 후 구현 요청 시 계약·운영 복구 권한 확정, 서버/테스트 도구 회귀 테스트부터 구현.
+
+## 2026-10-02 — TMI-136 하위 SNS 취소·복구 이슈 생성안 준비
+
+- 브랜치: develop.
+- Jira: TMI-136
+- 작업 목표: 사용자 요청에 따른 수정 계획의 하위 Jira 이슈 생성 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 공식 Atlassian MCP로 TMI-136 조회, sns 로그인 에픽 확인. SNS 연결 취소·실패 종료 및 재시도 복구 제목과 계획 기반 범위/완료 조건 초안 준비.
+- 실행한 테스트와 결과: Jira 부모 읽기 확인, git diff --check 수행. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: Jira 생성 전 내용 제시 및 승인 규칙 유지, 비밀값/개인정보 비기록.
+- 결정사항: 이슈 생성/댓글/상태 변경 미실행. 내용 승인 대기.
+- 위험 요소: STARTED 불명 결과 자동 해제 제외 및 조건부 운영 복구 범위를 이슈에도 명시해야 함.
+- 예상 밖 변경: 없음, 기존 기록 보존.
+- 다음 작업: 승인 후 부모 TMI-136 아래 이슈 생성 및 결과 기록. 별도 Jira 댓글은 등록하지 않음.
+
+## 2026-10-02 — Jira 생성안 승인 대기 turn 기록 보완
+
+<!-- codex-turn:01a0fa79-87af-7850-9734-7f823a000bbb -->
+
+- 브랜치: develop.
+- Jira: TMI-136
+- 작업 목표: 하위 이슈 생성 준비 작업의 현재 turn 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 공식 Atlassian MCP로 부모 에픽 조회 후 제목·범위·완료 조건을 사용자에게 제시. 생성 승인은 대기 중.
+- 실행한 테스트와 결과: 부모 이슈 읽기 확인 및 git diff --check 통과. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: Jira 변경 전 승인, 비밀값 비기록.
+- 결정사항: Jira 생성/댓글/상태 변경 없음. 댓글 목적 및 변경 상태 해당 없음.
+- 위험 요소: 승인 전 Jira 변경 금지, 불명 STARTED 자동 해제 제외 유지.
+- 다음 작업: 사용자 내용 승인 후 TMI-136 하위 이슈 생성.
+
+## 2026-10-02 — TMI-191 SNS 취소·실패 복구 이슈 생성
+
+- 브랜치: develop (이슈 생성만 수행, 구현 브랜치 변경 없음).
+- Jira: TMI-191
+- 작업 목표: 승인된 수정 계획을 TMI-136 에픽 하위 작업으로 생성.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md, docs/contracts/provider-link-cancel-recovery-plan.md.
+- 구현 내용: 공식 Atlassian MCP로 TMI 작업 유형 확인 후 TMI-191 생성. 제목/범위/보안 경계/완료 조건/계획서 경로 등록, 재조회로 parent=TMI-136 확인.
+- 실행한 테스트와 결과: 생성 응답과 부모/상태 재조회 확인, git diff --check 수행. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 사용자 사전 내용 승인에 따라 생성, 비밀값 비기록, 코드/배포/commit/push 변경 없음.
+- 결정사항: 생성 승인 있음. 초기 상태 해야 할 일, 별도 상태 전환/댓글 등록 없음. 추가 댓글 목적 해당 없음.
+- 위험 요소: 실제 구현 미착수, 종료 증거 및 정책 상세 확정 필요.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존.
+- 다음 작업: 구현 요청 시 TMI-191 재조회 후 계획과 완료 조건에 맞춰 구현. Jira 댓글 초안: 계획 기반 이슈 생성 및 부모 확인 완료, 코드 변경/실행 테스트 없음, 구현과 실환경 검증 대기(미등록).
+
+## 2026-10-02 — TMI-191 생성 turn 기록 보완
+
+<!-- codex-turn:01a0fa7a-bd43-77f2-8dbd-802099b41c68 -->
+
+- 브랜치: develop.
+- Jira: TMI-191
+- 작업 목표: 승인된 Jira 생성 작업의 현재 turn 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md, docs/contracts/provider-link-cancel-recovery-plan.md.
+- 구현 내용: 사용자 승인 후 공식 Atlassian MCP로 TMI-191 생성, 부모 TMI-136 및 초기 상태 해야 할 일 재조회 확인. 계획서에 이슈 연결 기록.
+- 실행한 테스트와 결과: Jira 생성/부모 조회 확인, git diff --check 통과. 코드 변경 없어 실행 테스트 미실행.
+- 유지한 계약: 승인된 생성 범위만 수행, 비밀값 비기록, 코드/배포 변경 없음.
+- 결정사항: 생성 승인 있음. 별도 댓글/상태 전환 없음, 추가 댓글 목적 해당 없음.
+- 위험 요소: 구현 및 실환경 검증 미착수.
+- 예상 밖 변경: 없음. 기존 기록 보존.
+- 다음 작업: 구현 요청 시 이슈 재조회 후 범위/완료 조건 기준으로 진행.
+
+## 2026-10-02 — TMI-191 수정 계획 사용자 관점 설명
+
+<!-- codex-turn:01a0fa7e-fd08-78f0-815e-0cdf27555058 -->
+
+- 브랜치: develop.
+- Jira: TMI-191
+- 작업 목표: SNS 연결 실패·취소 복구 계획을 실제 사용자 사례로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 진행 중 잠금이 실패 후 남는 현재 문제, 확정 종료 상태/조건부 잠금 해제, 준비 단계 취소와 실행 후 결과 확인 구분, 새로고침 복원, 감사 기록 및 운영 복구 한계를 쉬운 표현으로 설명.
+- 실행한 테스트와 결과: 계획서 요약 재확인 및 git diff --check 통과. 설명/기록만 수행하여 Gradle 미실행.
+- 유지한 계약: 결과 불명 자동 해제 금지, 기존 회원/SNS/전화번호 보존, 비밀값 비기록.
+- 결정사항: 아직 구현 전이며 모든 STARTED 실패의 즉시 자동 재시도는 보장하지 않음.
+- 위험 요소: 원격 실행 종료를 확인하지 못한 경우 담당자 복구가 필요할 수 있음.
+- 예상 밖 변경: 없음. 기존 기록 보존, 코드/외부/Jira 변경 없음.
+- 다음 작업: 구현 요청 시 TMI-191 최신 내용 조회 후 계획 범위와 완료 조건에 따라 진행. Jira 댓글 초안은 설명 완료·구현 미착수·불명 결과 보호 유지(미등록).
+
+## 2026-10-02 — TMI-191 진행 작업 조회 방식 설명
+
+<!-- codex-turn:01a0fa81-fa4b-7df0-ac6f-f6d0855a4a29 -->
+
+- 브랜치: develop.
+- Jira: TMI-191
+- 작업 목표: 새로고침 후 진행하던 연결 작업을 찾는 방법 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기존 서버 작업 저장 및 원 요청 ID status 조회, 제안된 최소 메타데이터 보존과 인증된 회원 기준 pending 조회를 구분. 원 ID 해시 조회와 STARTED slot 대조, 여러 PREPARED 후보의 임의 최신 선택 금지, 상태 조회가 SDK 재실행 권한이 아님을 설명.
+- 실행한 테스트와 결과: 기존 분석/계획 근거 사용 및 git diff --check 통과. 설명만 수행하여 실행 테스트 미실행.
+- 유지한 계약: userId는 인증에서 도출, 다른 사용자 작업 노출 금지, 토큰 원문 복구 메타데이터 저장 금지.
+- 결정사항: 로그인 세션 유실 시 재인증 후 본인 작업 조회. pending 및 영속 메타데이터 복원은 아직 계획.
+- 위험 요소: 원격 SDK 팝업/실행 자체를 복원하는 기능이 아니며 불명 상태 중복 실행 금지.
+- 예상 밖 변경: 없음. 코드/계정/Jira 변경 없음.
+- 다음 작업: 구현 요청 시 status/pending 인증·다중 후보·세대 검증 테스트 추가. Jira 댓글은 등록하지 않음.
+
+## 2026-10-02 — TMI-191 SNS 연결 취소·실패 및 작업 복구 구현
+
+<!-- codex-turn:01a0fa83-a6ba-7ef2-aec8-0b8b89fbbb92 -->
+
+- 브랜치: codex/TMI-191-provider-link-recovery (승인된 브랜치 생성).
+- Jira: TMI-191. 구현 전 공식 Atlassian MCP로 설명/완료 조건 재조회. Jira 수정/댓글/상태 전환 없음. 댓글 초안은 구현 계약에만 작성(미등록).
+- 작업 목표: 실패한 SNS 연결이 불명 상태를 잃지 않도록 취소/실패 의도 기록, 본인 작업 복원, 승인된 안전한 종료 및 재시도 지원.
+- 변경 파일(서버): src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/{ProviderChangeProperties,ProviderLinkAttempt,ProviderLinkController,ProviderLinkService}.java, src/main/java/web/tosunsaeng/identity/global/config/IdentityOpenApiExamples.java, src/main/resources/application.yml.
+- 변경 파일(테스트/도구): src/test/java/web/tosunsaeng/identity/domain/auth/providerchange/{ProviderChangeTests,ProviderLinkHttpTests}.java, src/test/java/web/tosunsaeng/identity/OpenApiSharingTests.java, scripts/provider_link_recovery.py, scripts/test_provider_link_recovery.py.
+- 변경 파일(문서): docs/contracts/provider-link-cancel-recovery-plan.md, docs/contracts/provider-link-recovery-operations.md, docs/contracts/frontend-firebase-auth-integration-guide.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 별도 로컬 테스트 도구 변경: /Users/msde76/tosunsaeng-integration-test/{provider-link.mjs,provider-link.test.mjs,app.js,index.html,server.mjs,server.test.mjs}. /tmp/tmi-191-ui.U6bidJ에서 패치/검증 후 승인된 정확한 파일 복사로 반영. 실행 프로세스 재시작/브라우저 새로고침/실제 로그인 없음.
+- 구현 내용: CANCELLED/FAILED enum 및 감사 시각/allowlist 실패 사유 추가. PREPARED 취소는 version 경합 검사로 종료, STARTED 취소/실패 보고는 slot/block 유지 및 ACTION_REQUIRED 응답. 인증된 pending은 실제 활성 slot 우선, 미만료 PREPARED 최대 20개와 hasMore 반환. 조회로 SDK 실행권한 재부여 없음.
+- 구현 내용(복구): 공개 관리 API 없이 dry-run 기본 운영 스크립트 제공. 별도 승인 참조/SDK 종료 확인/동일 digest/원격 재조회/정확한 세대·버전·slot 대조 후 snapshot-majority 트랜잭션으로 감사 백업 및 확정 종료. block/floor/epoch 유지, 원문 예외 출력·맹목적 재시도·자동 삭제 금지. 실제 도구 실행 안 함.
+- 구현 내용(로컬): sessionStorage에 requestId/attempt/target만 저장, 취소/실패 보고/작업 복원 및 다중 후보 선택 추가. SDK 대기 중 취소와 지연 응답 권한 부활 방지. 새로고침으로 잃은 SDK 실행을 재개하지 않으며 완료 불명은 운영 확인으로 안내.
+- 테스트: 최종 ./gradlew clean test 성공 — 1,030 tests, 실패/오류/skip 0. 중간 전체 실행의 OpenAPI 경로 개수/신규 응답 예시 실패는 경로 기대값 28/27 및 실제 예시 추가로 수정 후 targeted/full 재검증. Python unittest 6개 통과. 승인된 실제 로컬 도구 전체 node 테스트 35개 통과. git diff --check 통과.
+- 유지한 계약: UUID 주체/RS256/JWKS/audience 및 정상 SNS 연결·전화번호·기존 회원 보존. 토큰/비밀번호 비기록. Learning Core 도메인 코드를 Identity에 추가하지 않음. 사용자 제출 실패/팝업 닫힘/시간 경과만으로 잠금 해제 금지.
+- 결정사항: 신규 FIREBASE_PROVIDER_LINK_RECOVERY_ENABLED 기본 false. 새 enum 호환 전체 서버 배포 후 별도 활성화. STARTED의 모든 실패를 자동 즉시 재시도하도록 만들지 않음. commit/push/배포/외부 계정 변경 없음.
+- 위험 요소: 실제 Mongo rollback/경합·Firebase 원격 복구·모바일 미검증, 원격 SDK 종료는 운영자 증거 필요. 도구는 tenant 없음/oidc.kakao만 지원. 감사 collection 보존 정책 및 접근 제한, pending 대규모 인덱스/explain 확인 필요. 로컬 gateway 재시작 전 신규 경로 미적용.
+- 예상 밖 변경: 없음. 작업 전 존재하던 WORKLOG/CURRENT_STATE/계획서 변경을 보존하고 이번 기록만 추가·갱신. 별도 로컬 프로젝트 수정은 요청 범위와 승인된 경로에 한정.
+- 다음 작업: 사용자가 commit/push한 뒤 호환 배포/플래그 활성화 별도 승인, gateway 재시작 및 실제 취소/복원/승인 복구 smoke. 프론트에는 구현·운영 계약을 전달하고 실제 계정 복구는 개별 승인 후 수행.
+
+## 2026-10-02 — Guest merge 오류 분리 최종 검증·EOF 기록
+
+<!-- codex-turn:01a0fb71-09af-7732-b79f-40fcaec7ffea -->
+
+- 브랜치: develop. 이번 요청에 지정된 Jira 없음, Jira 변경 없음.
+- 작업 목표: 승인된 Guest merge 대상 탈퇴·정지 오류 분리 구현 및 검증 완료.
+- 변경 파일: AuthErrorStatus, FirebaseGuestMergeTargetResolver, FirebaseGuestMergeTransactionService, FirebaseExchangeController, IdentityOpenApiExamples, 해당 resolver/transaction/controller 테스트, OpenApiSharingTests, 프론트 Firebase 통합 가이드, WORKLOG/CURRENT_STATE.
+- 구현 내용: 최초 및 저장 직전 대상 검사에서 WITHDRAWN/SUSPENDED를 각각 403 GUEST_MERGE_TARGET_WITHDRAWN / GUEST_MERGE_TARGET_NOT_ACTIVE로 분리. Swagger 오류 예시/프론트 처리 기준/HTTP 및 후속 저장 중단 회귀 테스트 추가.
+- 실행한 테스트와 결과: 최종 ./gradlew clean test 1,045 tests 성공(failures/errors/skipped 0), git diff --check 통과. 첫 테스트의 잘못된 가짜 Guest hash fixture를 수정하고 전체 재검증 완료. 실제 외부 Provider/Atlas 호출 없음.
+- 유지한 계약: source CAS 충돌 및 target 소유권 충돌, withdrawal cleanup 기존 우선순위, 세션 fence/원자 트랜잭션, JWT/요청/성공 응답 유지. 새 환경변수/엔티티/멱등 응답/PROCESSING 상태 없음.
+- 결정사항: source 충돌을 첫 요청 처리 중/완료로 단정하지 않음. 프론트는 신규 403 자동 재시도 중단, 기존 conflict는 상태 재확인. 모든 탈퇴가 새 코드로 반환되는 것은 아님.
+- 위험 요소: 실DB 동시성/모바일 E2E 미검증. 배포 전 프론트 코드 분기/기존 cleanup 오류 대응 및 전체 서버 호환 배포 확인 필요.
+- 예상 밖 변경: 이번 범위 밖 수정 없음. 기존 WORKLOG 누적 미커밋 기록과 앱 전환 조사 문서 변경 보존. 배포/commit/push 미수행.
+- Jira 댓글 초안(미등록): 대상 탈퇴·정지 오류 분리 및 소스/문서/테스트 갱신, 전체 1,045 tests 통과. 실DB/모바일 QA 필요.
+- 다음 작업: 사용자 diff 검토/직접 commit·push, 프론트 반영 후 배포 및 실제 병합 QA.

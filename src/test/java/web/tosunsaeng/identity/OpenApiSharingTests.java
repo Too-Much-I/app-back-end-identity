@@ -64,6 +64,14 @@ class OpenApiSharingTests {
 		assertThat(result.path("properties").path("type").path("enum").toString())
 				.contains("ENROLLMENT_REQUIRED", "MERGE_REQUIRED").doesNotContain("ALREADY_LINKED");
 		assertThat(prepare.path("responses").has("409")).isTrue();
+		JsonNode mergeResponses = spec.path("paths").path("/api/v1/auth/firebase/guest/merge")
+				.path("post").path("responses");
+		JsonNode mergeForbiddenExamples = mergeResponses.path("403").path("content")
+				.path("application/json").path("examples");
+		assertThat(mergeForbiddenExamples.path("GUEST_MERGE_TARGET_WITHDRAWN").path("value")
+				.path("code").asText()).isEqualTo("GUEST_MERGE_TARGET_WITHDRAWN");
+		assertThat(mergeForbiddenExamples.path("GUEST_MERGE_TARGET_NOT_ACTIVE").path("value")
+				.path("code").asText()).isEqualTo("GUEST_MERGE_TARGET_NOT_ACTIVE");
 		assertThat(fieldNames(spec.path("paths"))).contains(
 				"/api/v1/auth/logout", "/api/v1/users/withdraw",
 				"/api/v1/auth/firebase/providers/link/prepare");

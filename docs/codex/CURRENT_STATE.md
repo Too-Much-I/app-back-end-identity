@@ -1,5 +1,9 @@
 # Codex Current State
 
+<!-- codex-turn:01a0fb71-09af-7732-b79f-40fcaec7ffea -->
+
+- 2026-10-02 Guest merge 대상 오류 분리 구현 완료(로컬 develop): 최초 TargetResolver 및 TransactionService에서 확인된 대상 WITHDRAWN/SUSPENDED를 각각 403 GUEST_MERGE_TARGET_WITHDRAWN / GUEST_MERGE_TARGET_NOT_ACTIVE로 반환. 기존 withdrawal gate의 CLEANUP_PENDING/IDENTITY_CONFLICT 우선순위와 source CAS conflict 유지, 중복 PROCESSING/응답 replay 추가 없음. 컨트롤러·Swagger 예시·프론트 가이드/회귀 테스트 갱신. 최종 ./gradlew clean test 성공, git diff --check 통과. 배포·커밋/push 미수행, 실제 DB 경합/모바일 QA 미검증. 기존 WORKLOG와 앱 전환 조사 문서의 사용자 변경 보존.
+
 ## 최신 상태 — 2026-10-02 TMI-191 구현 완료, 미배포
 
 - Jira: TMI-191 (부모 TMI-136). 브랜치: `codex/TMI-191-provider-link-recovery`. 아래 과거의 구현 미착수 설명을 이 상태로 대체한다.

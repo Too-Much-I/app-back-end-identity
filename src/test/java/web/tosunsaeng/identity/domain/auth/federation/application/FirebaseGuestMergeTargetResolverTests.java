@@ -13,6 +13,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
@@ -23,6 +25,7 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentit
 import web.tosunsaeng.identity.domain.auth.federation.repository.SocialIdentityRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 class FirebaseGuestMergeTargetResolverTests {
@@ -113,6 +116,45 @@ class FirebaseGuestMergeTargetResolverTests {
 		);
 		assertThat(exception.getErrorCode())
 				.isEqualTo(AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
+	}
+
+	@ParameterizedTest
+	@CsvSource({"WITHDRAWN,GUEST_MERGE_TARGET_WITHDRAWN",
+			"SUSPENDED,GUEST_MERGE_TARGET_NOT_ACTIVE", "MERGED,GUEST_MERGE_TARGET_CONFLICT"})
+	void classifiesTargetStateAfterOwnershipValidation(UserStatus status, AuthErrorStatus expected) {
+		String targetId = member("target").getUserId();
+		User target = mock(User.class);
+		when(target.getStatus()).thenReturn(status);
+		when(target.isMember()).thenReturn(true);
+		when(firebaseRepository.findByFirebaseProjectIdAndFirebaseUid("project", "uid"))
+				.thenReturn(Optional.of(FirebaseIdentity.create("project", "uid", targetId, NOW)));
+		when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+		AuthException exception = catchThrowableOfType(AuthException.class,
+				() -> resolver.resolve(principal(List.of()), SOURCE_ID));
+		assertThat(exception.getErrorCode()).isEqualTo(expected);
+		assertThat(expected.getHttpStatus().value()).isEqualTo(status == UserStatus.MERGED ? 409 : 403);
+	}
+
+	@Test
+	void activeGuestTargetStillUsesOwnershipConflict() {
+		User target = User.createGuest("ccccccccccccccccccccccccccccccccccccccccccc",
+				"guest", UserConsents.unconsented(), NOW);
+		when(firebaseRepository.findByFirebaseProjectIdAndFirebaseUid("project", "uid"))
+				.thenReturn(Optional.of(FirebaseIdentity.create("project", "uid", target.getUserId(), NOW)));
+		when(userRepository.findById(target.getUserId())).thenReturn(Optional.of(target));
+		assertConflict(() -> resolver.resolve(principal(List.of()), SOURCE_ID));
+	}
+
+	@Test
+	void inconsistentWithdrawalLifecycleRetainsItsErrorPrecedence() {
+		String targetId = member("target").getUserId();
+		when(firebaseRepository.findByFirebaseProjectIdAndFirebaseUid("project", "uid"))
+				.thenReturn(Optional.of(FirebaseIdentity.create("project", "uid", targetId, NOW)));
+		doThrow(new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT))
+				.when(withdrawalEnrollmentGate).checkExistingOwner(targetId);
+		AuthException exception = catchThrowableOfType(AuthException.class,
+				() -> resolver.resolve(principal(List.of()), SOURCE_ID));
+		assertThat(exception.getErrorCode()).isEqualTo(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
 	}
 
 	private VerifiedFirebasePrincipal principal(List<VerifiedSocialPrincipal> social) {

@@ -61,6 +61,12 @@ public final class FirebaseGuestMergeTargetResolver {
 		}
 		User target = userRepository.findById(ownerIds.iterator().next())
 				.orElseThrow(this::conflict);
+		if (target.getStatus() == UserStatus.WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.GUEST_MERGE_TARGET_WITHDRAWN);
+		}
+		if (target.getStatus() == UserStatus.SUSPENDED) {
+			throw new AuthException(AuthErrorStatus.GUEST_MERGE_TARGET_NOT_ACTIVE);
+		}
 		if (target.getStatus() != UserStatus.ACTIVE
 				|| !target.isMember()
 				|| target.getMergedIntoUserId() != null) {

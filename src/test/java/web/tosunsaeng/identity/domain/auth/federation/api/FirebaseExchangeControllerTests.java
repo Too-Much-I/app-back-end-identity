@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -331,6 +333,26 @@ class FirebaseExchangeControllerTests {
 
 		assertThat(result.getResponse().getContentAsString()).doesNotContain("merge-proof");
 		assertThat(request.toString()).doesNotContain("merge-proof");
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = AuthErrorStatus.class, names = {
+			"GUEST_MERGE_TARGET_WITHDRAWN", "GUEST_MERGE_TARGET_NOT_ACTIVE",
+			"GUEST_MERGE_CONFLICT", "WITHDRAWAL_CLEANUP_PENDING", "FIREBASE_IDENTITY_CONFLICT"
+	})
+	void guestMergeReturnsDistinctTargetErrorsWithoutCredentials(AuthErrorStatus error) throws Exception {
+		when(firebaseGuestMergeUseCase.merge(new FirebaseGuestMergeRequest("test-merge-proof")))
+				.thenThrow(new AuthException(error));
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/merge")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firebaseIdToken\":\"test-merge-proof\"}"))
+				.andExpect(status().is(error.getHttpStatus().value()))
+				.andExpect(jsonPath("$.code").value(error.getCode()))
+				.andExpect(jsonPath("$.message").value(error.getMessage()))
+				.andExpect(jsonPath("$.result.accessToken").doesNotExist())
+				.andExpect(jsonPath("$.result.refreshToken").doesNotExist())
+				.andReturn();
+		assertThat(result.getResponse().getContentAsString()).doesNotContain("test-merge-proof");
 	}
 
 	@Test
