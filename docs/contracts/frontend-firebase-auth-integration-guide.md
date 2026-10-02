@@ -1,5 +1,7 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
+- TMI-191(2026-10-02): [SNS 연결 취소·실패 보고·진행 작업 복원 계약](provider-link-recovery-operations.md). 신규 기능 기본 OFF, 서버/프론트 호환 확인 후 별도 활성화. STARTED 취소는 원격 SDK 중단이나 잠금 해제를 보장하지 않는다.
+
 - 문서 성격: 현재 저장소 Controller·DTO·Service 기준 프론트 인계 명세. 구현 사실과 출시 정책, 미검증 설정을 구분한다.
 - 기준일: 2026-10-01 (TMI-189 후속: 동일 UID Google·Apple·Kakao 최초 연결의 단일 로그인 반영)
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자

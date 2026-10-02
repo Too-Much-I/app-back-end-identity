@@ -26,6 +26,7 @@ public class ProviderLinkService {
 	@io.swagger.v3.oas.annotations.media.Schema(name = "ProviderLinkStatus")
 	public record Status(String linkAttemptId, SocialProvider provider, String status, Instant expiresAt,
 			boolean linkAllowed) { }
+	public record Pending(List<Status> attempts, boolean hasMore) { }
 	private final ProviderChangeService changes;
 	private final MongoTemplate mongo;
 	private final SessionSecurityService security;
@@ -165,6 +166,71 @@ public class ProviderLinkService {
 		});
 	}
 
+	/** A report is not evidence of remote completion. STARTED keeps both fences. */
+	public Status cancel(String userId, String attemptId, String token) {
+		return report(userId, attemptId, token, null);
+	}
+	public Status failure(String userId, String attemptId, String token, ProviderLinkAttempt.FailureCode code) {
+		return report(userId, attemptId, token, Objects.requireNonNull(code));
+	}
+	private Status report(String userId, String attemptId, String token, ProviderLinkAttempt.FailureCode code) {
+		requireRecovery();
+		changes.rateLimit(userId);
+		var proof = changes.verify(token); var snapshot = changes.binding(userId, proof);
+		Status result = changes.transaction(() -> {
+			var binding = changes.binding(userId, proof); exactBinding(snapshot, binding);
+			var a = find(attemptId, userId, binding); authorizeStatus(a, proof);
+			// Reports cannot rescue stale work or change another operation's controls.
+			if (!a.resolved() && a.getState() != ProviderLinkAttempt.State.COMPLETED
+					&& a.getState() != ProviderLinkAttempt.State.ALREADY_LINKED) {
+				security.control(userId).requireEpoch(a.getEpoch());
+				if (changes.captureRevision(userId) != a.getRevision()) conflict();
+			}
+			Instant now = clock.instant();
+			boolean changed = code == null ? a.requestCancel(now, now.plus(properties.getPermitRetention()))
+					: a.reportFailure(code, now);
+			if (changed) mongo.save(a); // @Version makes start/cancel/report mutually consistent.
+			return view(a, false);
+		});
+		org.slf4j.LoggerFactory.getLogger(getClass()).atInfo()
+				.addKeyValue("event", code == null ? "provider_link_cancel" : "provider_link_failure_report")
+				.addKeyValue("outcome", result.status()).log("Provider link intent recorded.");
+		return result;
+	}
+
+	/** Recover only authenticated owner's active slot and a bounded page of PREPARED intents. */
+	public Pending pending(String userId, String token) {
+		requireRecovery();
+		changes.rateLimit(userId);
+		var proof = changes.verify(token); var snapshot = changes.binding(userId, proof);
+		return changes.transaction(() -> {
+			var binding = changes.binding(userId, proof); exactBinding(snapshot, binding);
+			var result = new java.util.ArrayList<Status>();
+			String slot = security.control(userId).getActiveLogoutId();
+			if (slot != null && slot.startsWith("link:")) {
+				var active = find(slot.substring(5), userId, binding); authorizeStatus(active, proof);
+				result.add(view(active, false));
+			} else {
+				changes.ownedSocial(userId, social(proof.signInMethod()), proof);
+				guard.authenticate(userId, binding.getFirebaseIdentityId(), proof.signInMethod(), proof.authTime());
+				var control = security.control(userId);
+				control.validate(control.getSessionEpoch(), security.firebase(userId, control.getSessionEpoch(), proof), true);
+			}
+			// While a STARTED slot exists, do not confuse it with other prepared candidates.
+			if (!result.isEmpty()) return new Pending(List.copyOf(result), false);
+			var prepared = mongo.find(Query.query(Criteria.where("userId").is(userId)
+					.and("bindingId").is(binding.getFirebaseIdentityId()).and("state").is(ProviderLinkAttempt.State.PREPARED)
+					.and("expiresAt").gt(clock.instant())).with(org.springframework.data.domain.Sort.by("preparedAt", "_id")).limit(21), ProviderLinkAttempt.class);
+			for (var a : prepared.stream().limit(20).toList()) {
+				match(a, userId, binding); authorizeStatus(a, proof); result.add(view(a, false));
+			}
+			return new Pending(List.copyOf(result), prepared.size() > 20);
+		});
+	}
+	private void requireRecovery() {
+		if (!properties.isLinkRecoveryEnabled()) throw error(AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
+	}
+
 	private void remainingProof(String userId, SocialProvider target, VerifiedFirebasePrincipal proof, FirebaseIdentity binding) {
 		if (!changes.remaining(userId, proof, target, guard.control(userId, binding.getFirebaseIdentityId())).contains(social(proof.signInMethod()))) {
 			throw error(AuthErrorStatus.PROVIDER_REMAINING_AUTH_REQUIRED);
@@ -199,8 +265,9 @@ public class ProviderLinkService {
 		boolean stale = security.captureEpoch(a.getUserId()) != a.getEpoch()
 				|| changes.captureRevision(a.getUserId()) != a.getRevision() + (a.getState() == ProviderLinkAttempt.State.COMPLETED ? 1 : 0);
 		String state = a.getState().name();
-		if (a.getState() == ProviderLinkAttempt.State.STARTED && (expired || stale)) state = "ACTION_REQUIRED";
-		else if (stale) state = "SUPERSEDED";
+		if (a.getState() == ProviderLinkAttempt.State.STARTED && (expired || stale
+				|| a.getCancelRequestedAt() != null || a.getFailureReportedAt() != null)) state = "ACTION_REQUIRED";
+		else if (stale && !a.resolved()) state = "SUPERSEDED";
 		else if (a.getState() == ProviderLinkAttempt.State.PREPARED && expired) state = "EXPIRED";
 		return new Status(a.getAttemptId(), a.getProvider(), state, a.getExpiresAt(), allowed);
 	}

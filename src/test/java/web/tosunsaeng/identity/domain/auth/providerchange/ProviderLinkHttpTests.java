@@ -58,4 +58,23 @@ class ProviderLinkHttpTests {
 				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"proof\"}"))
 				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"));
 	}
+	@Test void recoveryEndpointsValidateProofAndNeverAcceptUnknownFailureCode() throws Exception {
+		mvc.perform(post("/api/v1/auth/firebase/providers/link/cancel").contentType("application/json")
+				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\"}"))
+				.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
+		verify(service).cancel("owner", "attempt", "proof");
+		mvc.perform(post("/api/v1/auth/firebase/providers/link/pending").contentType("application/json")
+				.content("{\"firebaseIdToken\":\"proof\"}")).andExpect(status().isOk());
+		verify(service).pending("owner", "proof");
+		mvc.perform(post("/api/v1/auth/firebase/providers/link/failure-report").contentType("application/json")
+				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\",\"failureCode\":\"CREDENTIAL_ALREADY_IN_USE\"}"))
+				.andExpect(status().isOk());
+		verify(service).failure("owner", "attempt", "proof", ProviderLinkAttempt.FailureCode.CREDENTIAL_ALREADY_IN_USE);
+		mvc.perform(post("/api/v1/auth/firebase/providers/link/failure-report").contentType("application/json")
+				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\",\"failureCode\":\"untrusted-message\"}"))
+				.andExpect(status().isBadRequest());
+		mvc.perform(post("/api/v1/auth/firebase/providers/link/pending").contentType("application/json").content("{}"))
+				.andExpect(status().isBadRequest());
+		assertThat(new ProviderLinkController.ProofRequest("secret").toString()).doesNotContain("secret");
+	}
 }
