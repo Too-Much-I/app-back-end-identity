@@ -13876,3 +13876,19 @@
 - 예상 밖 변경: 없음. 작업 시작부터 있던 TMI-192 단일 SNS/계정 찾기·문서·테스트 도구 변경은 보존했다. 전체 diff에는 이전 변경이 포함되며 이번 작업은 병합 추적 및 필요한 회귀/문서만 추가. commit/push/배포 하지 않음.
 - Jira 댓글 초안(미등록): 별도 후속 Guest 병합 진행 조회 구현 완료. mergeprogress/Guest merge/owner publisher/config·API 문서·테스트 도구 변경, Java1108 및 Node3 테스트 통과. LC-only/Billing NOT_REQUIRED, strict204/CAS/IDOR/TTL/복구 적용. 실제 replica-set/LC 종단 검증·배포 전 인덱스/gate 확인 필요.
 - 다음 작업: 사용자가 diff 검토 및 커밋/push 진행. 별도 후속 이슈 관리 여부와 실제 LC E2E/배포 설정을 확인한 뒤 추적 ON 및 프론트 인계.
+
+## 2026-10-03 — Notion 로그인 가이드에 병합 진행 조회 계약 반영
+
+<!-- codex-turn:01a100c3-c1e0-7003-92b6-d71ca75d5d27 -->
+
+- 브랜치: develop (이번 작업 시작 시 확인; 브랜치 전환하지 않음).
+- 작업 목표: 사용자가 지정한 크롬의 Notion 로그인 문서에 직전 구현된 병합 진행 조회 계약을 반영.
+- 변경 대상: Notion 페이지 3d0dcc5dbaeb80528e0adad685a52dd7의 4.5, 병합 충돌 표, API 카탈로그 병합 응답, 8.6 및 신규 8.22~8.24. 로컬 파일은 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 변경.
+- 구현 내용: 문서 편집만 수행. mergeId 응답 예시, 회원용 GET 단건/목록, LC-only/Billing NOT_REQUIRED, 생성 시 대상 불변·과거 재실행 없음, strict204 및 응답 유실 복구, 오류·권한·no-store·30회/분·Retry-After·5/15초 polling·foreground2분 권고·보관/출시 gate 추가. 충돌만으로 merge 자동 재시도/Guest 인증 삭제 금지 명시.
+- 범위: 이번 병합 관련 계약만 갱신했으며 다른 로그인 기능의 과거 기술 내용은 전면 동기화하지 않음. 기준일에 부분 갱신 범위를 명시. 기존 문서 본문과 출시 설정 부록 링크를 보존.
+- 실행한 테스트와 결과: Notion 새로고침 후 새 절, mergeId 포함 JSON 예시, LC-only 문구 및 기준일 저장 확인. 편집 중 기준일 중복 문구를 정리하고 재로딩으로 확인. 제품 코드 변경 없어 Gradle/Node 테스트 미실행; 직전 구현 테스트 결과는 이번 실행과 구분해 문서에 기술. git diff --check 확인.
+- 유지한 계약: 기존 토큰 필드/signup/upgrade 및 외부 이벤트 JSON 유지. 예시 인증값은 placeholder만 사용, 실제 credential/개인정보 기록 없음. 공유/접근 권한 변경 없음.
+- 결정사항: 구현 완료와 실제 배포·활성화/LC E2E를 구분. 신규 추적 기본 OFF, 기본 회원 화면 허용·기록 영역 안내, 프론트 polling 별도 작업.
+- 위험 요소: Notion의 다른 기존 절(정책·선택 동의·SNS 연결 등)은 이번 병합 조회 편집 범위 밖이며 현재 구현과 별도 대조 필요. 실제 배포·LC/Mongo 종단 검증 미수행.
+- 예상 밖 변경: 없음. 로컬 제품 코드·브랜치·commit/push·배포·Jira 변경 없음.
+- 다음 작업: 프론트는 갱신한 4.5/8.6/8.22~8.24 기준으로 연동, 기능 노출 전 대상 환경 배포 및 LC 종단 검증 확인.
