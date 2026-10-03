@@ -5,10 +5,13 @@ import { fileURLToPath } from 'node:url';
 const identity = 'https://identity-test.to-teacher.com';
 const learning = 'https://api-test.to-teacher.com';
 export const routes = new Map([
+  ['POST /identity/api/v1/auth/account-recovery/prepare', identity],
+  ['POST /identity/api/v1/auth/account-recovery/lookup', identity],
   ['POST /identity/api/v1/auth/firebase/exchange', identity],
   ['POST /identity/api/v1/auth/firebase/signup', identity],
   ['POST /identity/api/v1/auth/reissue', identity],
   ['GET /identity/api/v1/users/me', identity],
+  ['GET /identity/api/v1/users/me/merges?activeOnly=false&limit=20', identity],
   ['GET /learning/api/v1/challenges/today', learning],
 ]);
 const assets = new Map([['/', ['index.html', 'text/html']], ['/app.js', ['app.js', 'text/javascript']], ['/session.mjs', ['session.mjs', 'text/javascript']]]);

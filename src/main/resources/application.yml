@@ -34,6 +34,15 @@ sentry:
     enabled: false
 
 app:
+  account-recovery:
+    enabled: ${ACCOUNT_RECOVERY_ENABLED:false}
+    key-ring: ${ACCOUNT_RECOVERY_KEY_RING:}
+    challenge-ttl: ${ACCOUNT_RECOVERY_CHALLENGE_TTL:PT5M}
+    recent-auth: ${ACCOUNT_RECOVERY_RECENT_AUTH:PT5M}
+    retry-ttl: ${ACCOUNT_RECOVERY_RETRY_TTL:PT5M}
+    prepare-per-minute: ${ACCOUNT_RECOVERY_PREPARE_PER_MINUTE:10}
+    lookup-per-minute: ${ACCOUNT_RECOVERY_LOOKUP_PER_MINUTE:20}
+    proof-per-quarter-hour: ${ACCOUNT_RECOVERY_PROOF_PER_QUARTER_HOUR:5}
   provider-change:
     fence-enabled: ${FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED:false}
     enabled: ${FIREBASE_PROVIDER_UNLINK_ENABLED:false}
@@ -177,6 +186,8 @@ app:
     read-timeout: ${USER_MERGED_PUBLISHER_READ_TIMEOUT:PT5S}
     max-batch-size: ${USER_MERGED_PUBLISHER_MAX_BATCH_SIZE:20}
   owner-event:
+    merge-progress-capture-enabled: ${OWNER_EVENT_MERGE_PROGRESS_CAPTURE_ENABLED:false}
+    merge-completion-profile: ${OWNER_EVENT_MERGE_COMPLETION_PROFILE:}
     user-merged-capture-enabled: ${OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED:false}
     trial-rebind-capture-enabled: ${OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED:false}
     billing-user-merged-publisher-enabled: ${OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED:false}

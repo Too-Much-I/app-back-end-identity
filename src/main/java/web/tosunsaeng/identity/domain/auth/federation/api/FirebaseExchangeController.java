@@ -34,6 +34,7 @@ import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseExcha
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponse;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestPrepareResponseEnvelope;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestMergeResponse;
 import web.tosunsaeng.identity.global.config.OpenApiConfig;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
@@ -229,7 +230,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "503", description = "Firebase 또는 Guest merge 기능 비활성", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
 	@PostMapping(value = "/guest/merge", consumes = "application/json", produces = "application/json")
-	public BaseResponse<FirebaseSignupResponse> mergeGuest(
+	public BaseResponse<FirebaseGuestMergeResponse> mergeGuest(
 			@Valid @RequestBody FirebaseGuestMergeRequest request
 	) {
 		return BaseResponse.success(firebaseGuestMergeUseCase.merge(request));

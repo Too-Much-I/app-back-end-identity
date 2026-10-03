@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.ownerevent.application;
 
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressStore;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -18,8 +20,12 @@ import web.tosunsaeng.identity.domain.auth.ownerevent.repository.OwnerEventCoreR
 import web.tosunsaeng.identity.domain.auth.ownerevent.repository.OwnerEventDeliveryRepository;
 import web.tosunsaeng.identity.domain.auth.ownerevent.repository.PhoneRejoinLineageRepository;
 
-public final class OwnerEventPublishTransactionService {
+public class OwnerEventPublishTransactionService {
 	private static final Duration CORE_RETENTION_MARGIN = Duration.ofHours(24);
+	private MergeProgressStore progressStore;
+	public void configureProgress(MergeProgressStore store) {
+		this.progressStore = Objects.requireNonNull(store);
+	}
 	private final OwnerEventDeliveryRepository deliveryRepository;
 	private final OwnerEventConsumerStateRepository stateRepository;
 	private final OwnerEventCoreRepository coreRepository;
@@ -46,9 +52,16 @@ public final class OwnerEventPublishTransactionService {
 		if (!stateRepository.advancePublished(delivery.getConsumer(), expectedCursor, publishedAt)) {
 			throw new IllegalStateException("Owner event cursor advance failed");
 		}
+		var core = coreRepository.findById(delivery.getEventId())
+				.orElseThrow(() -> new IllegalStateException("Owner event core missing"));
+		if (core.getProgressContractVersion() != 0) {
+			if (core.getProgressContractVersion() != 1 || progressStore == null)
+				throw new IllegalStateException("Merge progress contract unavailable");
+			progressStore.confirm(core, delivery.getConsumer(), publishedAt);
+		}
 		coreRepository.findById(delivery.getEventId())
-				.filter(core -> core.getEventType() == OwnerEventType.TRIAL_OWNER_REBIND_APPROVED)
-				.ifPresent(core -> lineageRepository.findByClaimedEventId(core.getEventId())
+				.filter(event -> event.getEventType() == OwnerEventType.TRIAL_OWNER_REBIND_APPROVED)
+				.ifPresent(event -> lineageRepository.findByClaimedEventId(event.getEventId())
 						.ifPresent(lineage -> {
 							lineage.markDeliveryPublished(deliveryCleanupAt);
 							lineageRepository.save(lineage);

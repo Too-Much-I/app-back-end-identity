@@ -17,7 +17,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 import static web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.*;
 
-/** LOGIN_EXCHANGE only. Local registration and token/session issuance commit together. */
+/** LOGIN_EXCHANGE transactional security/ownership fence. Never registers additional SNS identities. */
 public class ProviderLoginRegistrationService {
 	private final MongoTemplate mongo;
 	private final SessionSecurityService security;
@@ -50,31 +50,13 @@ public class ProviderLoginRegistrationService {
 				if (!users.findById(userId).orElseThrow(() -> error(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT)).isMember()) {
 					throw error(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
 				}
+				if (guard.unresolved(userId) || security.control(userId).getActiveLogoutId() != null) {
+					throw error(AuthErrorStatus.PROVIDER_CHANGE_CONFLICT);
+				}
 				guard.authenticate(userId, binding.getFirebaseIdentityId(), proof.signInMethod(), proof.authTime());
 				security.checkFirebaseAuthentication(userId, security.firebase(userId, epoch, proof));
-				SocialProvider provider = social(proof.signInMethod());
-				if (supportsFirstLoginRegistration(provider)) {
-					var targets = proof.linkedSocialPrincipals().stream().filter(p -> p.provider() == provider).toList();
-					if (targets.size() != 1) throw error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
-					var target = targets.getFirst();
-					var existing = socials.findByProviderAndProviderSubject(provider, target.providerSubject());
-					if (existing.isPresent() && !userId.equals(existing.orElseThrow().getUserId())) {
-						throw error(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
-					}
-					if (existing.isEmpty()) {
-						if (security.control(userId).getActiveLogoutId() != null || security.hasUnresolvedLogout(userId)) {
-							throw error(AuthErrorStatus.PROVIDER_CHANGE_CONFLICT);
-						}
-						var methods = guard.control(userId, binding.getFirebaseIdentityId());
-						if (methods.isBlocked(provider) || methods.getAuthenticationFloors().containsKey(provider.name())
-								|| socials.findAllByUserId(userId).stream().anyMatch(s -> s.getProvider() == provider)) {
-							throw error(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
-						}
-						socials.save(SocialIdentity.create(userId, provider, target.providerSubject(), clock.instant()));
-						methods.registerFirstProvider();
-						mongo.save(methods);
-					}
-				}
+				web.tosunsaeng.identity.domain.auth.federation.application.SingleSocialIdentityPolicy
+						.owned(proof, userId, socials.findAllByUserId(userId));
 				return issue.get();
 			});
 		} catch (DuplicateKeyException exception) {

@@ -24,7 +24,8 @@ public class FirebaseAuthMethodsSyncTransactionService {
 				Objects.requireNonNull(socialIdentities)
 		);
 		if (!requiredIdentities.isEmpty()) {
-			socialIdentityRepository.saveAll(requiredIdentities);
+			throw new web.tosunsaeng.identity.domain.auth.common.exception.AuthException(
+					web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.PROVIDER_LINK_RETIRED);
 		}
 	}
 }

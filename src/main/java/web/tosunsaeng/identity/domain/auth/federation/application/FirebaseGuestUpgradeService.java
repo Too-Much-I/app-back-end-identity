@@ -190,6 +190,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 					now
 			);
 		} catch (DuplicateKeyException exception) {
+			if (SingleSocialIdentityPolicy.isUserIndexConflict(exception)) throw new AuthException(AuthErrorStatus.SINGLE_SNS_REQUIRED);
 			throw classifyUniqueConflict(principal, userId, phoneFingerprints);
 		}
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(userId, user.getAccountType(), Set.of());
@@ -244,6 +245,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 			String userId,
 			Instant now
 	) {
+		SingleSocialIdentityPolicy.enrollment(principal);
 		List<SocialIdentity> missing = new ArrayList<>();
 		for (VerifiedSocialPrincipal social : principal.linkedSocialPrincipals()) {
 			Optional<SocialIdentity> existing = socialIdentityRepository
@@ -257,7 +259,7 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 						social.provider(),
 						social.providerSubject(),
 						now
-				));
+				).withEmailHint(social.emailHint(), principal.issuedAt()));
 			} else if (!userId.equals(existing.orElseThrow().getUserId())) {
 				throw new AuthException(AuthErrorStatus.MERGE_REQUIRED);
 			}

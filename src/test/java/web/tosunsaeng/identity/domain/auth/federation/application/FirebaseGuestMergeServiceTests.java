@@ -20,7 +20,7 @@ import org.mockito.InOrder;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
-import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestMergeResponse;
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
@@ -108,9 +108,9 @@ class FirebaseGuestMergeServiceTests {
 		when(security.firebase(target.getUserId(), 5, principal)).thenReturn(evidence);
 		when(security.transaction(any())).thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(0)).get());
 		when(transactionService.merge(any(), eq(source.getUpdatedAt()), any(), any(), eq(NOW)))
-				.thenReturn(issuedRefresh);
+				.thenReturn(new GuestMergeResult(issuedRefresh, "11111111-1111-4111-8111-111111111111"));
 
-		FirebaseSignupResponse response = service.merge(
+		FirebaseGuestMergeResponse response = service.merge(
 				new FirebaseGuestMergeRequest("fresh-proof")
 		);
 

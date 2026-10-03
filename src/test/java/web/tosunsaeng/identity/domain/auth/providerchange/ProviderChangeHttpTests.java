@@ -28,7 +28,7 @@ class ProviderChangeHttpTests {
 		when(service.unlink(any(), any(), any(), any())).thenReturn(new ProviderChangeService.Status("operation", SocialProvider.GOOGLE, "PROCESSING", Instant.EPOCH, null, 3));
 		var result = mvc.perform(post("/api/v1/auth/firebase/providers/unlink").header("Idempotency-Key", "request")
 				.contentType("application/json").content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"test-proof\"}"))
-				.andExpect(status().isAccepted()).andExpect(jsonPath("$.result.status").value("PROCESSING"))
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"))
 				.andExpect(header().string("Cache-Control", "no-store")).andReturn();
 		assertThat(result.getResponse().getContentAsString()).doesNotContain("test-proof", "accessToken", "refreshToken");
 	}
@@ -36,8 +36,8 @@ class ProviderChangeHttpTests {
 		when(service.status(any(), any())).thenThrow(new AuthException(AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN));
 		mvc.perform(post("/api/v1/auth/firebase/providers/unlink/status").contentType("application/json")
 				.content("{\"requestId\":\"request\",\"firebaseIdToken\":\"bad-proof\"}"))
-				.andExpect(status().isUnauthorized()).andExpect(header().string("Cache-Control", "no-store"));
-		verifyNoInteractions(current); verify(service).status("request", "bad-proof");
+				.andExpect(status().isGone()).andExpect(header().string("Cache-Control", "no-store"));
+		verifyNoInteractions(current, service);
 	}
 	@Test void missingProofIsRejected() throws Exception {
 		mvc.perform(post("/api/v1/auth/firebase/providers/unlink/status").contentType("application/json").content("{\"requestId\":\"request\"}"))
@@ -48,7 +48,7 @@ class ProviderChangeHttpTests {
 		when(provider.getIfAvailable()).thenReturn(null);
 		mvc.perform(post("/api/v1/auth/firebase/providers/unlink").contentType("application/json")
 				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"proof\"}"))
-				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"));
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"));
 	}
 	@Test void retiredRelinkRouteHasNoHandler() throws Exception {
 		var result = mvc.perform(post("/api/v1/auth/firebase/providers/relink/prepare").contentType("application/json")

@@ -177,6 +177,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 	) {
 		User user = requireActiveMember(firebaseIdentity);
 		ensureNoSocialIdentityOwner(principal, user.getUserId());
+		SingleSocialIdentityPolicy.owned(principal, user.getUserId(), socialIdentityRepository.findAllByUserId(user.getUserId()));
 		long epoch = refreshSessionIssuer.captureEpoch(firebaseIdentity.getUserId());
 
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
@@ -215,6 +216,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 			String expectedUserId
 	) {
 		for (VerifiedSocialPrincipal socialPrincipal : principal.linkedSocialPrincipals()) {
+			if (expectedUserId != null && socialPrincipal.provider() != SingleSocialIdentityPolicy.social(principal.signInMethod())) continue;
 			Optional<SocialIdentity> socialIdentity = socialIdentityRepository
 					.findByProviderAndProviderSubject(
 							socialPrincipal.provider(),
@@ -222,7 +224,7 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 					);
 			if (expectedUserId != null && socialIdentity.isEmpty()
 					&& web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.social(principal.signInMethod()) == socialPrincipal.provider()) {
-				throw new AuthException(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
+				throw new AuthException(AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 			}
 			if (socialIdentity.isPresent()
 					&& !Objects.equals(

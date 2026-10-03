@@ -71,6 +71,7 @@ import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -79,6 +80,30 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+    @Autowired private web.tosunsaeng.identity.domain.auth.mergeprogress.UserMergeQueryService mergeQuery;
+
+    @Test void mergeQueriesRequireMemberJwtAndNoStoreEvenOnErrors() throws Exception {
+        String path = "/api/v1/users/me/merges";
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized())
+                .andExpect(header().string("Cache-Control", "no-store"));
+        String guest = accessTokenIssuer.issue(USER_ID, UserAccountType.GUEST, Set.of()).tokenValue();
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + guest))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"))
+                .andExpect(header().string("Cache-Control", "no-store"));
+        String member = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of()).tokenValue();
+        when(mergeQuery.list("true", "20", null)).thenThrow(new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeQuerySupport.RateLimited(17));
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + member))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "17"))
+                .andExpect(jsonPath("$.code").value("MERGE_STATUS_RATE_LIMITED"))
+                .andExpect(header().string("Cache-Control", "no-store"));
+    }
+
+	@Test
+	void accountRecoveryIsPublicAndDisabledWithoutConfiguration() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/account-recovery/prepare").contentType("application/json").content("{}"))
+				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("RECOVERY_UNAVAILABLE"))
+				.andExpect(header().string("Cache-Control", "no-store"));
+	}
 	@MockitoBean
 	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
@@ -113,7 +138,7 @@ class SecurityIntegrationTests {
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 		mockMvc.perform(post("/api/v1/auth/firebase/providers/unlink/status")
 				.contentType(MediaType.APPLICATION_JSON).content("{\"requestId\":\"11111111-1111-4111-8111-111111111111\",\"firebaseIdToken\":\"test-only-proof\"}"))
-				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"))
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"))
 				.andExpect(header().string("Cache-Control", "no-store"));
 	}
 

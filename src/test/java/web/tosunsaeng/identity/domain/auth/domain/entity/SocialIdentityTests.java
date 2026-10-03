@@ -143,8 +143,8 @@ class SocialIdentityTests {
 		assertThat(providerSubjectIndex.unique()).isTrue();
 		assertThat(providerSubjectIndex.def())
 				.isEqualTo("{ 'provider': 1, 'providerSubject': 1 }");
-		assertThat(userIdIndex.name()).isEqualTo("ix_social_identities_user_id");
-		assertThat(userIdIndex.unique()).isFalse();
+		assertThat(userIdIndex.name()).isEqualTo("uk_social_identities_user_id");
+		assertThat(userIdIndex.unique()).isTrue();
 	}
 
 	@Test
@@ -157,7 +157,7 @@ class SocialIdentityTests {
 						"userId",
 						"provider",
 						"providerSubject",
-						"createdAt"
+						"createdAt", "maskedEmail", "emailHintKind", "emailHintUpdatedAt"
 				)
 				.doesNotContain(
 						"email",

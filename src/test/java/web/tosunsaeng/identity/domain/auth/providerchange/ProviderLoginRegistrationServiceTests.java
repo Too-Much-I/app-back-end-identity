@@ -79,34 +79,36 @@ class ProviderLoginRegistrationServiceTests {
 	}
 
 	@ParameterizedTest @EnumSource(value = SocialProvider.class, names = {"GOOGLE", "APPLE", "KAKAO"})
-	void firstLoginRegistersOnlyCurrentProviderAndRepeatedLoginConverges(SocialProvider provider) {
+	void onlyAlreadyApprovedProviderCanLoginRepeatedly(SocialProvider provider) {
+		denied(provider, AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
+		stored.add(SocialIdentity.create(USER, provider, provider.name().toLowerCase() + "-subject", NOW));
 		assertThat(login(provider)).isEqualTo("authenticated");
 		assertThat(login(provider)).isEqualTo("authenticated");
 		assertThat(stored).hasSize(1);
 		assertThat(stored.getFirst().getProvider()).isEqualTo(provider);
 		assertThat(stored.getFirst().getUserId()).isEqualTo(USER);
-		assertThat(methods.getRevision()).isEqualTo(1);
-		verify(socials, times(1)).save(any());
-		verify(tx, times(2)).execute(any());
+		assertThat(methods.getRevision()).isZero();
+		verify(socials, never()).save(any());
+		verify(tx, times(3)).execute(any());
 	}
 	@ParameterizedTest @EnumSource(value = SocialProvider.class, names = {"GOOGLE", "APPLE", "KAKAO"})
 	void preservesExistingOtherProvider(SocialProvider target) {
 		SocialProvider previous = target == SocialProvider.APPLE ? SocialProvider.GOOGLE : SocialProvider.APPLE;
 		stored.add(SocialIdentity.create(USER, previous, previous.name().toLowerCase() + "-subject", NOW));
-		login(target);
-		assertThat(stored).hasSize(2).extracting(SocialIdentity::getUserId).containsOnly(USER);
+		denied(target, AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
+		assertThat(stored).hasSize(1).extracting(SocialIdentity::getUserId).containsOnly(USER);
 	}
 	@Test void blockedProviderIsNeverReleased() { methods.block(SocialProvider.APPLE, NOW.minusSeconds(20)); denied(AuthErrorStatus.PROVIDER_RELINK_REQUIRED); }
 	@ParameterizedTest
 	@org.junit.jupiter.params.provider.ValueSource(strings = {"blocked", "history", "other-owner", "replacement", "pending", "guest", "withdrawn", "missing-subject"})
 	void kakaoFailsClosedAtSecurityBoundaries(String scenario) {
-		AuthErrorStatus expected = AuthErrorStatus.PROVIDER_RELINK_REQUIRED;
+		AuthErrorStatus expected = AuthErrorStatus.SNS_ACCOUNT_MISMATCH;
 		switch (scenario) {
-			case "blocked" -> methods.block(SocialProvider.KAKAO, NOW.minusSeconds(20));
+			case "blocked" -> { methods.block(SocialProvider.KAKAO, NOW.minusSeconds(20)); expected = AuthErrorStatus.PROVIDER_RELINK_REQUIRED; }
 			case "history" -> methods.release(SocialProvider.KAKAO, NOW.minusSeconds(20));
 			case "other-owner" -> {
 				stored.add(SocialIdentity.create(OTHER, SocialProvider.KAKAO, "kakao-subject", NOW));
-				expected = AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT;
+				expected = AuthErrorStatus.SNS_ACCOUNT_MISMATCH;
 			}
 			case "replacement" -> stored.add(SocialIdentity.create(USER, SocialProvider.KAKAO, "different-subject", NOW));
 			case "pending" -> {
@@ -121,21 +123,21 @@ class ProviderLoginRegistrationServiceTests {
 						original.authTime(), NOW, NOW.plusSeconds(3600), true, false, null,
 						Set.of(FirebaseAuthenticationMethod.KAKAO), List.of());
 				assertThatThrownBy(() -> service.authenticate(binding, missing, () -> { issued = true; return "unexpected"; }))
-						.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
+						.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SNS_ACCOUNT_MISMATCH));
 				assertThat(issued).isFalse(); verify(socials, never()).save(any()); return;
 			}
 			default -> throw new AssertionError(scenario);
 		}
 		denied(SocialProvider.KAKAO, expected);
 	}
-	@Test void historicalProviderIsNotFirstRegistration() { methods.release(SocialProvider.APPLE, NOW.minusSeconds(20)); denied(AuthErrorStatus.PROVIDER_RELINK_REQUIRED); }
+	@Test void historicalProviderIsNotFirstRegistration() { methods.release(SocialProvider.APPLE, NOW.minusSeconds(20)); denied(AuthErrorStatus.SNS_ACCOUNT_MISMATCH); }
 	@Test void otherOwnerDenied() {
 		stored.add(SocialIdentity.create(OTHER, SocialProvider.APPLE, "apple-subject", NOW));
-		denied(AuthErrorStatus.SOCIAL_IDENTITY_CONFLICT);
+		denied(AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 	}
 	@Test void sameProviderReplacementDenied() {
 		stored.add(SocialIdentity.create(USER, SocialProvider.APPLE, "different-subject", NOW));
-		denied(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
+		denied(AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 	}
 	@Test void occupiedSecuritySlotDenied() { control.claimLogout("pending-operation"); denied(AuthErrorStatus.PROVIDER_CHANGE_CONFLICT); }
 	@Test void unresolvedOperationDenied() {
@@ -168,6 +170,7 @@ class ProviderLoginRegistrationServiceTests {
 		denied(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
 	}
 	@Test void optimisticConflictOnSharedSecurityControlFailsClosed() {
+		stored.add(SocialIdentity.create(USER, SocialProvider.APPLE, "apple-subject", NOW));
 		when(mongo.save(any(UserSessionControl.class))).thenThrow(new OptimisticLockingFailureException("test-only conflict"));
 		denied(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE);
 	}
@@ -176,17 +179,19 @@ class ProviderLoginRegistrationServiceTests {
 		denied(AuthErrorStatus.PROVIDER_CHANGE_CONFLICT);
 	}
 	@ParameterizedTest @EnumSource(SocialProvider.class)
-	void guardDefersMissingProviderOnlyForLoginAndStillEnforcesBlocks(SocialProvider provider) {
+	void guardRejectsMissingProviderForEveryPurposeAndStillEnforcesBlocks(SocialProvider provider) {
 		when(mongo.findOne(any(), eq(FirebaseIdentity.class))).thenReturn(binding);
 		assertThatThrownBy(() -> guard.validatePrincipal(proof(provider)))
-				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
-		guard.validatePrincipal(proof(provider), true);
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SNS_ACCOUNT_MISMATCH));
+		assertThatThrownBy(() -> guard.validatePrincipal(proof(provider), true))
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SNS_ACCOUNT_MISMATCH));
 		methods.block(provider, NOW);
 		assertThatThrownBy(() -> guard.validatePrincipal(proof(provider), true))
 				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
 		verify(socials, never()).save(any());
 	}
 	@Test void issuanceFailureEscapesTransactionInsteadOfReturningSuccess() {
+		stored.add(SocialIdentity.create(USER, SocialProvider.APPLE, "apple-subject", NOW));
 		assertThatThrownBy(() -> service.authenticate(binding, proof(SocialProvider.APPLE),
 				() -> { throw new AuthException(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE); }))
 				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE));

@@ -12,7 +12,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.UserMergedOutbox;
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
-import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestMergeResponse;
 import web.tosunsaeng.identity.domain.auth.session.application.IssuedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
@@ -57,7 +57,7 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 	}
 
 	@Override
-	public FirebaseSignupResponse merge(FirebaseGuestMergeRequest request) {
+	public FirebaseGuestMergeResponse merge(FirebaseGuestMergeRequest request) {
 		FirebaseGuestMergeRequest requiredRequest = Objects.requireNonNull(request);
 		String sourceUserId = currentUserProvider.getCurrentUserId();
 		long sourceEpoch = refreshSessionIssuer.captureEpoch(sourceUserId);
@@ -88,22 +88,24 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 				target.getUserId(),
 				now
 		);
-		IssuedRefreshSession refreshSession = transactionService.merge(
+		GuestMergeResult mergeResult = transactionService.merge(
 				mergedSource,
 				expectedSourceUpdatedAt,
 				preparedTargetSession,
 				outbox,
 				now
 		);
+		IssuedRefreshSession refreshSession = mergeResult.refreshSession();
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				target.getUserId(), target.getAccountType(), Set.of()
 		);
-		return new FirebaseSignupResponse(
+		return new FirebaseGuestMergeResponse(
 				accessToken.tokenValue(),
 				refreshSession.tokenValue(),
 				IssuedAccessToken.BEARER_TOKEN_TYPE,
 				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
-				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
+				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis(),
+				mergeResult.mergeId()
 		);
 	}
 }

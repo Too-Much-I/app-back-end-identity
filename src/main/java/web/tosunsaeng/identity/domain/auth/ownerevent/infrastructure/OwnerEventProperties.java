@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure;
 
+import jakarta.annotation.PostConstruct;
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeCompletionProfile;
+
 import java.net.URI;
 import java.time.Duration;
 
@@ -8,6 +11,22 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.owner-event")
 public class OwnerEventProperties {
 	private boolean userMergedCaptureEnabled;
+	private boolean mergeProgressCaptureEnabled;
+	private MergeCompletionProfile mergeCompletionProfile;
+	public boolean isMergeProgressCaptureEnabled() { return mergeProgressCaptureEnabled; }
+	public void setMergeProgressCaptureEnabled(boolean value) { mergeProgressCaptureEnabled = value; }
+	public MergeCompletionProfile getMergeCompletionProfile() { return mergeCompletionProfile; }
+	public void setMergeCompletionProfile(MergeCompletionProfile value) { mergeCompletionProfile = value; }
+	@PostConstruct
+	public void validateMergeProgress() {
+		if (!mergeProgressCaptureEnabled) return;
+		if (!userMergedCaptureEnabled || mergeCompletionProfile == null || !learningCoreUserMergedPublisherEnabled) invalid();
+		validateLearningCore();
+		if (mergeCompletionProfile == MergeCompletionProfile.LEARNING_CORE_AND_BILLING) {
+			if (!billingUserMergedPublisherEnabled) invalid();
+			validateBilling();
+		}
+	}
 	private boolean trialRebindCaptureEnabled;
 	private boolean billingUserMergedPublisherEnabled;
 	private boolean learningCoreUserMergedPublisherEnabled;

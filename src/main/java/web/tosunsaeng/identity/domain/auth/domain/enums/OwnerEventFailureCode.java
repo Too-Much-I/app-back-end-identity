@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.domain.enums;
 
 public enum OwnerEventFailureCode {
+	ACK_CONTRACT_VIOLATION,
 	INVALID_PAYLOAD,
 	CREDENTIAL_UNAVAILABLE,
 	TIMEOUT,

@@ -314,12 +314,13 @@ class FirebaseExchangeControllerTests {
 	@Test
 	void guestMergeAcceptsOnlyFirebaseProofAndReturnsTargetTokens() throws Exception {
 		FirebaseGuestMergeRequest request = new FirebaseGuestMergeRequest("merge-proof");
-		when(firebaseGuestMergeUseCase.merge(request)).thenReturn(new FirebaseSignupResponse(
+		when(firebaseGuestMergeUseCase.merge(request)).thenReturn(new web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestMergeResponse(
 				"target-access",
 				"target-refresh",
 				"Bearer",
 				1_800_000,
-				1_209_600_000
+				1_209_600_000,
+                "11111111-1111-4111-8111-111111111111"
 		));
 
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/firebase/guest/merge")

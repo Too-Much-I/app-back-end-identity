@@ -63,6 +63,7 @@ import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 import web.tosunsaeng.identity.support.LogCapture;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest(properties = {
 		"sentry.enabled=true",
 		"sentry.dsn=https://public@example.invalid/1",

@@ -60,13 +60,14 @@ public class FirebaseGuestMergeTransactionService {
 	}
 
 	@Transactional(transactionManager = "mongoTransactionManager")
-	public IssuedRefreshSession merge(
+	public GuestMergeResult merge(
 			User mergedSource,
 			Instant expectedSourceUpdatedAt,
 			PreparedRefreshSession preparedTargetSession,
 			UserMergedOutbox outbox,
 			Instant mergedAt
 	) {
+		if (ownerEventProperties != null) ownerEventProperties.validateMergeProgress();
 		User requiredSource = Objects.requireNonNull(mergedSource);
 		PreparedRefreshSession requiredTargetSession = Objects.requireNonNull(
 				preparedTargetSession
@@ -122,16 +123,21 @@ public class FirebaseGuestMergeTransactionService {
 		IssuedRefreshSession issuedRefreshSession = refreshSessionIssuer.savePrepared(
 				requiredTargetSession
 		);
+		String mergeId = null;
 		if (ownerEventProperties != null && ownerEventProperties.isUserMergedCaptureEnabled()) {
 			if (ownerEventCaptureService == null) {
 				throw new IllegalStateException("Owner event capture service is unavailable.");
 			}
-			ownerEventCaptureService.captureUserMerged(
-					sourceUserId, targetUserId, requiredMergedAt);
+			var core = ownerEventCaptureService.captureUserMerged(sourceUserId, targetUserId, requiredMergedAt);
+			if (ownerEventProperties.isMergeProgressCaptureEnabled()) {
+				if (core == null || core.getProgressContractVersion() != 1)
+					throw new IllegalStateException("Tracked merge event unavailable");
+				mergeId = core.getEventId();
+			}
 		} else {
 			outboxRepository.save(requiredOutbox);
 		}
-		return issuedRefreshSession;
+		return new GuestMergeResult(issuedRefreshSession, mergeId);
 	}
 
 	private AuthException mergeConflict() {

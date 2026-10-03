@@ -1,5 +1,7 @@
 # 7단계 구현 계획: Billing SigV4 eligibility와 owner event durable fan-out
 
+> 2026-10-03 후속 구현: 새 추적 UserMerged는 명시적 profile에 따라 LEARNING_CORE만 또는 LEARNING_CORE+BILLING을 필수로 저장한다. 첫 출시는 LC-only/Billing NOT_REQUIRED, 과거 작업 재실행 없음. 추적 이벤트 완료 ACK는 204만 허용한다. 과거 미추적 이벤트·trial rebind 계약은 유지하며 [신규 진행 조회 계약](guest-merge-progress-api.md)이 이 범위에서 우선한다.
+
 - 상태: Billing·Learning Core phone continuation 구현 확인, Identity 구현 전 계획
 - 작성일: 2026-09-03
 - 대상 저장소: Identity 중심, Billing·Learning Core consumer와 AWS 배포 연동

@@ -1,9 +1,9 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
 import web.tosunsaeng.identity.domain.auth.federation.dto.request.FirebaseGuestMergeRequest;
-import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseSignupResponse;
+import web.tosunsaeng.identity.domain.auth.federation.dto.response.FirebaseGuestMergeResponse;
 
 public interface FirebaseGuestMergeUseCase {
 
-	FirebaseSignupResponse merge(FirebaseGuestMergeRequest request);
+	FirebaseGuestMergeResponse merge(FirebaseGuestMergeRequest request);
 }

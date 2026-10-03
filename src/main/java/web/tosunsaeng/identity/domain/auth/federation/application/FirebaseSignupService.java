@@ -135,6 +135,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 				requiredRequest.qualityReviewConsentVersion()
 		);
 
+		SingleSocialIdentityPolicy.enrollment(principal);
 		String normalizedPhone = normalizeVerifiedPhone(principal.verifiedPhoneNumber());
 		PhoneFingerprintSet phoneFingerprints = phoneFingerprintHasher.fingerprint(normalizedPhone);
 		List<PhoneEligibilityFingerprintCandidate> eligibilityCandidates =
@@ -158,7 +159,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 						social.provider(),
 						social.providerSubject(),
 						now
-				))
+				).withEmailHint(social.emailHint(), principal.issuedAt()))
 				.toList();
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(
 				user.getUserId()
@@ -183,6 +184,7 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 					now
 			);
 		} catch (DuplicateKeyException exception) {
+			if (SingleSocialIdentityPolicy.isUserIndexConflict(exception)) throw new AuthException(AuthErrorStatus.SINGLE_SNS_REQUIRED);
 			throw classifyUniqueConflict(principal, phoneFingerprints);
 		}
 

@@ -66,12 +66,14 @@ class SocialIdentityRepositoryIntegrationTests {
 	}
 
 	@Test
-	void storesMultipleProvidersForOneUserAndFindsCanonicalOwner() {
+	void rejectsMultipleProvidersForOneUserAndFindsCanonicalOwner() {
 		SocialIdentity google = identity(USER_A, SocialProvider.GOOGLE, "Google_Subject_ABC");
 		SocialIdentity kakao = identity(USER_A, SocialProvider.KAKAO, "kakao-subject");
 		SocialIdentity apple = identity(USER_A, SocialProvider.APPLE, "apple-subject");
 
-		repository.saveAll(List.of(google, kakao, apple));
+		repository.save(google);
+		assertThatThrownBy(() -> repository.save(kakao)).isInstanceOf(DuplicateKeyException.class);
+		assertThatThrownBy(() -> repository.save(apple)).isInstanceOf(DuplicateKeyException.class);
 
 		assertThat(repository.findByProviderAndProviderSubject(
 				SocialProvider.GOOGLE,
@@ -84,16 +86,14 @@ class SocialIdentityRepositoryIntegrationTests {
 		assertThat(repository.findAllByUserId(USER_A))
 				.extracting(SocialIdentity::getProvider)
 				.containsExactlyInAnyOrder(
-						SocialProvider.GOOGLE,
-						SocialProvider.KAKAO,
-						SocialProvider.APPLE
+						SocialProvider.GOOGLE
 				);
 	}
 
 	@Test
 	void allowsSameSubjectAcrossDifferentProviders() {
 		repository.save(identity(USER_A, SocialProvider.GOOGLE, "same-subject"));
-		repository.save(identity(USER_A, SocialProvider.APPLE, "same-subject"));
+		repository.save(identity(USER_B, SocialProvider.APPLE, "same-subject"));
 
 		assertThat(repository.count()).isEqualTo(2);
 	}
@@ -123,7 +123,7 @@ class SocialIdentityRepositoryIntegrationTests {
 				.findFirst()
 				.orElseThrow();
 		IndexInfo userIdIndex = indexes.stream()
-				.filter(index -> index.getName().equals("ix_social_identities_user_id"))
+				.filter(index -> index.getName().equals("uk_social_identities_user_id"))
 				.findFirst()
 				.orElseThrow();
 
@@ -131,7 +131,7 @@ class SocialIdentityRepositoryIntegrationTests {
 		assertThat(providerSubjectIndex.getIndexFields())
 				.extracting(IndexField::getKey)
 				.containsExactly("provider", "providerSubject");
-		assertThat(userIdIndex.isUnique()).isFalse();
+		assertThat(userIdIndex.isUnique()).isTrue();
 		assertThat(userIdIndex.getIndexFields())
 				.extracting(IndexField::getKey)
 				.containsExactly("userId");

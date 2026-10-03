@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.ownerevent.application;
 
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressStore;
+import web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure.OwnerEventProperties;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +17,14 @@ import web.tosunsaeng.identity.domain.auth.ownerevent.repository.OwnerEventConsu
 import web.tosunsaeng.identity.domain.auth.ownerevent.repository.OwnerEventCoreRepository;
 import web.tosunsaeng.identity.domain.auth.ownerevent.repository.OwnerEventDeliveryRepository;
 
-public final class OwnerEventCaptureService {
+public class OwnerEventCaptureService {
+	private MergeProgressStore progressStore;
+	private OwnerEventProperties properties;
+	public void configureProgress(MergeProgressStore store,
+			OwnerEventProperties properties) {
+		this.progressStore = Objects.requireNonNull(store);
+		this.properties = Objects.requireNonNull(properties);
+	}
 	private final OwnerEventCoreRepository coreRepository;
 	private final OwnerEventDeliveryRepository deliveryRepository;
 	private final OwnerEventConsumerStateRepository stateRepository;
@@ -33,6 +43,14 @@ public final class OwnerEventCaptureService {
 	public OwnerEventCore captureUserMerged(
 			String sourceUserId, String targetUserId, Instant occurredAt
 	) {
+		if (properties != null && properties.isMergeProgressCaptureEnabled()) {
+			properties.validateMergeProgress();
+			var profile = properties.getMergeCompletionProfile();
+			var core = persist(OwnerEventCore.trackedUserMerged(sourceUserId, targetUserId, occurredAt, profile));
+			if (progressStore == null) throw new IllegalStateException("Merge progress store unavailable");
+			progressStore.capture(core, profile);
+			return core;
+		}
 		return persist(OwnerEventCore.userMerged(sourceUserId, targetUserId, occurredAt));
 	}
 

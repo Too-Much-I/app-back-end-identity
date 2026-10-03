@@ -89,7 +89,7 @@ class FirebaseGuestMergeTransactionServiceTests {
 				aggregate.prepared(),
 				aggregate.outbox(),
 				MERGED_AT
-		)).isSameAs(issued);
+		)).isEqualTo(new GuestMergeResult(issued, null));
 		assertThat(sourceSession.getRevocationReason())
 				.isEqualTo(RevocationReason.GUEST_MERGED);
 		assertThat(sourceSession.getRevokedAt()).isEqualTo(MERGED_AT);
@@ -146,6 +146,30 @@ class FirebaseGuestMergeTransactionServiceTests {
 				aggregate.source().getUserId(), aggregate.target().getUserId(), MERGED_AT);
 		verify(outboxRepository, never()).save(any());
 	}
+
+
+    @Test void trackedMergeReturnsActualFanoutIdNotLegacyOutboxId() {
+        Aggregate a = aggregate();
+        var properties = new OwnerEventProperties();
+        properties.setUserMergedCaptureEnabled(true);
+        properties.setMergeProgressCaptureEnabled(true);
+        properties.setMergeCompletionProfile(web.tosunsaeng.identity.domain.auth.mergeprogress.MergeCompletionProfile.LEARNING_CORE_ONLY);
+        properties.setLearningCoreUserMergedPublisherEnabled(true);
+        properties.setLearningCoreEndpoint(java.net.URI.create("https://learning.example.com/internal/v1/events/user-merged"));
+        var capture = mock(OwnerEventCaptureService.class);
+        var event = web.tosunsaeng.identity.domain.auth.domain.entity.OwnerEventCore.trackedUserMerged(
+                a.source().getUserId(), a.target().getUserId(), MERGED_AT, properties.getMergeCompletionProfile());
+        when(capture.captureUserMerged(a.source().getUserId(), a.target().getUserId(), MERGED_AT)).thenReturn(event);
+        when(userRepository.findById(a.target().getUserId())).thenReturn(Optional.of(a.target()));
+        when(userRepository.mergeGuestIfUnchanged(any(), any())).thenReturn(true);
+        when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(any())).thenReturn(List.of());
+        var issued = new IssuedRefreshSession("test-refresh", MERGED_AT, MERGED_AT.plusSeconds(3600));
+        when(sessionIssuer.savePrepared(a.prepared())).thenReturn(issued);
+        var tx = new FirebaseGuestMergeTransactionService(userRepository, sessionRepository, sessionIssuer, outboxRepository, capture, properties);
+        var result = tx.merge(a.mergedSource(), a.source().getUpdatedAt(), a.prepared(), a.outbox(), MERGED_AT);
+        assertThat(result.mergeId()).isEqualTo(event.getEventId()).isNotEqualTo(a.outbox().getEventId());
+        verify(outboxRepository, never()).save(any());
+    }
 
 	@ParameterizedTest
 	@CsvSource({"WITHDRAWN,GUEST_MERGE_TARGET_WITHDRAWN",

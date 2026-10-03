@@ -73,6 +73,10 @@ public final class FirebaseAdminAuthenticationVerifier
 		}
 
 		validateIdentityAndTime(data, requiredPurpose);
+		if (requiredPurpose.requiresEnrollmentEvidence()
+				&& data.linkedProviders().stream().filter(p -> socialProviderForNullable(methodFor(p.providerId())) != null).count() > 1) {
+			throw new AuthException(AuthErrorStatus.SINGLE_SNS_REQUIRED);
+		}
 		ProviderResolution providers = resolveProviders(data, requiredPurpose);
 		validateProviderPolicy(data, providers, requiredPurpose);
 
@@ -91,7 +95,7 @@ public final class FirebaseAdminAuthenticationVerifier
 					providers.socialPrincipals()
 			);
 			// Sync/high-risk have operation-specific permit checks. Ordinary login/enrollment may never bypass a block.
-			if (providerChanges != null && purpose != FirebaseVerificationPurpose.AUTH_METHOD_SYNC
+			if (providerChanges != null && purpose != FirebaseVerificationPurpose.ACCOUNT_RECOVERY && purpose != FirebaseVerificationPurpose.AUTH_METHOD_SYNC
 					&& purpose != FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) {
 				providerChanges.validatePrincipal(principal, purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE);
 			}
@@ -168,7 +172,8 @@ public final class FirebaseAdminAuthenticationVerifier
 				try {
 					socialPrincipals.put(
 							socialProvider,
-							new VerifiedSocialPrincipal(socialProvider, providerUid)
+							new VerifiedSocialPrincipal(socialProvider, providerUid,
+									web.tosunsaeng.identity.domain.auth.domain.EmailHint.from(socialProvider, provider.email()))
 					);
 				} catch (IllegalArgumentException exception) {
 					throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
@@ -192,6 +197,14 @@ public final class FirebaseAdminAuthenticationVerifier
 			ProviderResolution providers,
 			FirebaseVerificationPurpose purpose
 	) {
+		if (purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY) {
+			if (providers.signInMethod() != FirebaseAuthenticationMethod.PHONE || !properties.phoneEnabled()
+					|| !data.phoneVerified() || data.verifiedPhoneNumber() == null
+					|| !providers.linkedMethods().contains(FirebaseAuthenticationMethod.PHONE)) {
+				throw new AuthException(AuthErrorStatus.INVALID_RECOVERY_PROOF);
+			}
+			return;
+		}
 		if (!isAllowedForPurpose(providers.signInMethod(), purpose)) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
 		}
@@ -262,6 +275,10 @@ public final class FirebaseAdminAuthenticationVerifier
 			case KAKAO -> SocialProvider.KAKAO;
 			case PASSWORD, PHONE -> null;
 		};
+	}
+
+	private static SocialProvider socialProviderForNullable(FirebaseAuthenticationMethod method) {
+		return method == null ? null : socialProviderFor(method);
 	}
 
 	private static AuthException mapClientException(FirebaseAdminClientException exception) {

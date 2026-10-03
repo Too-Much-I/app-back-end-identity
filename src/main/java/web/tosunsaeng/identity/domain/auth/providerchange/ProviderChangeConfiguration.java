@@ -39,12 +39,6 @@ public class ProviderChangeConfiguration {
 	}
 	@Bean
 	@ConditionalOnProperty(prefix = "app.provider-change", name = "fence-enabled", havingValue = "true")
-	ProviderLinkService providerLinkService(ProviderChangeService changes, MongoTemplate mongo, SessionSecurityService security,
-			ProviderChangeGuard guard, SocialIdentityRepository socials, ProviderChangeProperties properties, Clock clock) {
-		return new ProviderLinkService(changes, mongo, security, guard, socials, properties, clock);
-	}
-	@Bean
-	@ConditionalOnProperty(prefix = "app.provider-change", name = "fence-enabled", havingValue = "true")
 	ProviderChangeService providerChangeService(MongoTemplate mongo, MongoTransactionManager manager, SessionSecurityService security,
 			ProviderChangeGuard guard, FirebaseAuthenticationVerifier verifier, FirebaseIdentityRepository identities,
 			SocialIdentityRepository socials, UserRepository users, ProviderChangeProperties properties, FirebaseAuthProperties firebase, Clock clock) {

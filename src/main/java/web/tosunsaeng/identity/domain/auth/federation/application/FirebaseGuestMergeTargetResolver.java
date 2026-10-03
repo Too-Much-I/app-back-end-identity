@@ -49,7 +49,10 @@ public final class FirebaseGuestMergeTargetResolver {
 				requiredPrincipal.firebaseProjectId(),
 				requiredPrincipal.firebaseUid()
 		).map(FirebaseIdentity::getUserId).ifPresent(ownerIds::add);
-		for (VerifiedSocialPrincipal social : requiredPrincipal.linkedSocialPrincipals()) {
+		var currentSocials = requiredPrincipal.signInMethod() == FirebaseAuthenticationMethod.PASSWORD
+				&& requiredPrincipal.linkedSocialPrincipals().isEmpty() ? java.util.List.<VerifiedSocialPrincipal>of()
+				: java.util.List.of(SingleSocialIdentityPolicy.current(requiredPrincipal));
+		for (VerifiedSocialPrincipal social : currentSocials) {
 			socialIdentityRepository.findByProviderAndProviderSubject(
 					social.provider(),
 					social.providerSubject()
@@ -72,6 +75,7 @@ public final class FirebaseGuestMergeTargetResolver {
 				|| target.getMergedIntoUserId() != null) {
 			throw conflict();
 		}
+		SingleSocialIdentityPolicy.owned(requiredPrincipal, target.getUserId(), socialIdentityRepository.findAllByUserId(target.getUserId()));
 		return target;
 	}
 

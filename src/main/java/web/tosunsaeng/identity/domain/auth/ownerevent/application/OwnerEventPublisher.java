@@ -105,7 +105,13 @@ public final class OwnerEventPublisher {
 	private Outcome handleStatus(OwnerEventCore core, OwnerEventDelivery delivery,
 			WorkloadDeliveryResult result, Instant now) {
 		int status = result.statusCode();
+		if (status >= 200 && status < 300 && core.getProgressContractVersion() != 0 && status != 204) {
+			var code = OwnerEventFailureCode.ACK_CONTRACT_VIOLATION;
+			boolean paused = transactionService.pause(delivery, leaseOwner, code, clock.instant());
+			return record(core, paused ? Outcome.CIRCUIT_PAUSED : Outcome.LEASE_LOST, code);
+		}
 		if (status >= 200 && status < 300) {
+			now = clock.instant();
 			boolean completed = transactionService.complete(delivery, leaseOwner, now,
 					now.plus(properties.getPublishedRetention()));
 			return record(core, completed ? Outcome.PUBLISHED : Outcome.LEASE_LOST, null);

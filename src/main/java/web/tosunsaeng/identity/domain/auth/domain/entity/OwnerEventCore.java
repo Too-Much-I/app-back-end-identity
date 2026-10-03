@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.auth.domain.entity;
 
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeCompletionProfile;
+
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
@@ -44,6 +46,8 @@ public class OwnerEventCore {
 	@Field(write = Field.Write.ALWAYS) private Long targetBindingRevision;
 	@Field(write = Field.Write.ALWAYS) private String phoneRejoinLineageId;
 	private Set<OwnerEventConsumer> requiredConsumers;
+	private int progressContractVersion;
+	public int getProgressContractVersion() { return progressContractVersion; }
 	@Field(write = Field.Write.ALWAYS) private Instant allPublishedAt;
 	@Indexed(name = "ttl_owner_event_core_cleanup_at", expireAfter = "0s")
 	@Field(write = Field.Write.ALWAYS) private Instant cleanupAt;
@@ -85,6 +89,14 @@ public class OwnerEventCore {
 				Set.of(OwnerEventConsumer.BILLING, OwnerEventConsumer.LEARNING_CORE));
 	}
 
+	public static OwnerEventCore trackedUserMerged(String source, String target, Instant now,
+			MergeCompletionProfile profile) {
+		OwnerEventCore core = new OwnerEventCore(UUID.randomUUID().toString(), OwnerEventType.USER_MERGED,
+				source, target, now, null, null, null, null, null, null, profile.consumers());
+		core.progressContractVersion = 1;
+		return core;
+	}
+
 	public static OwnerEventCore trialOwnerRebindApproved(
 			String sourceUserId, String targetUserId, String consumerScopeId,
 			long sourceBindingRevision, long targetBindingRevision,
@@ -103,8 +115,8 @@ public class OwnerEventCore {
 			if (producer != null || consumerScopeId != null || lifecycleReason != null
 					|| sourceBindingRevision != null || targetBindingRevision != null
 					|| phoneRejoinLineageId != null
-					|| !requiredConsumers.equals(Set.of(
-							OwnerEventConsumer.BILLING, OwnerEventConsumer.LEARNING_CORE))) {
+					|| !(requiredConsumers.equals(Set.of(OwnerEventConsumer.LEARNING_CORE))
+						|| requiredConsumers.equals(Set.of(OwnerEventConsumer.BILLING, OwnerEventConsumer.LEARNING_CORE)))) {
 				throw new IllegalArgumentException("USER_MERGED shape is invalid");
 			}
 		} else if (!PRODUCER.equals(producer) || !PHONE_REJOIN.equals(lifecycleReason)
@@ -152,7 +164,10 @@ public class OwnerEventCore {
 	public Long getSourceBindingRevision() { return sourceBindingRevision; }
 	public Long getTargetBindingRevision() { return targetBindingRevision; }
 	public String getPhoneRejoinLineageId() { return phoneRejoinLineageId; }
-	public Set<OwnerEventConsumer> getRequiredConsumers() { return Set.copyOf(requiredConsumers); }
+	public Set<OwnerEventConsumer> getRequiredConsumers() {
+        if (requiredConsumers == null) throw new IllegalStateException("Owner event required consumers missing");
+        return Set.copyOf(requiredConsumers);
+    }
 	public Instant getAllPublishedAt() { return allPublishedAt; }
 	public Instant getCleanupAt() { return cleanupAt; }
 	public Instant getCreatedAt() { return createdAt; }

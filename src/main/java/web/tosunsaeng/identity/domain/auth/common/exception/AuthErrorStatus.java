@@ -5,6 +5,20 @@ import org.springframework.http.HttpStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum AuthErrorStatus implements ErrorCode {
+    INVALID_MERGE_STATUS_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_MERGE_STATUS_REQUEST", "병합 조회 요청이 올바르지 않습니다."),
+    MERGE_STATUS_NOT_FOUND(HttpStatus.NOT_FOUND, "MERGE_STATUS_NOT_FOUND", "병합 작업을 찾을 수 없습니다."),
+    MERGE_STATUS_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "MERGE_STATUS_RATE_LIMITED", "잠시 후 다시 조회해 주세요."),
+    MERGE_STATUS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MERGE_STATUS_UNAVAILABLE", "병합 상태를 확인할 수 없습니다."),
+	PROVIDER_LINK_RETIRED(HttpStatus.GONE, "PROVIDER_LINK_RETIRED", "SNS 추가 연결 및 해제를 더 이상 지원하지 않습니다."),
+	SINGLE_SNS_REQUIRED(HttpStatus.CONFLICT, "SINGLE_SNS_REQUIRED", "하나의 SNS 계정으로 가입해 주세요."),
+	SNS_ACCOUNT_MISMATCH(HttpStatus.CONFLICT, "SNS_ACCOUNT_MISMATCH", "가입한 SNS 계정으로 인증해 주세요."),
+	INVALID_RECOVERY_PROOF(HttpStatus.UNAUTHORIZED, "INVALID_RECOVERY_PROOF", "전화번호 인증을 다시 진행해 주세요."),
+	RECOVERY_RECENT_AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "RECOVERY_RECENT_AUTH_REQUIRED", "최근 전화번호 인증이 필요합니다."),
+	RECOVERY_EXPIRED(HttpStatus.GONE, "RECOVERY_EXPIRED", "계정 찾기 유효시간이 지났습니다. 다시 시작해 주세요."),
+	RECOVERY_CONFLICT(HttpStatus.CONFLICT, "RECOVERY_CONFLICT", "새 전화번호 인증으로 계정 찾기를 다시 시작해 주세요."),
+	INVALID_RECOVERY_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_RECOVERY_REQUEST", "계정 찾기 요청이 올바르지 않습니다."),
+	RECOVERY_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "RECOVERY_RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+	RECOVERY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "RECOVERY_UNAVAILABLE", "계정 찾기를 일시적으로 사용할 수 없습니다."),
 	PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "PROVIDER_RATE_LIMITED", "인증 수단 변경 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 	PROVIDER_CHANGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_CHANGE_UNAVAILABLE", "인증 수단 변경을 일시적으로 사용할 수 없습니다."),
 	PROVIDER_CHANGE_CONFLICT(HttpStatus.CONFLICT, "PROVIDER_CHANGE_CONFLICT", "인증 수단 변경 상태를 확인해 주세요."),

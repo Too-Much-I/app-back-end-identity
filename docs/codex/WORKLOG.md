@@ -12982,3 +12982,897 @@
 - 예상 밖 변경: 이번 범위 밖 수정 없음. 기존 WORKLOG 누적 미커밋 기록과 앱 전환 조사 문서 변경 보존. 배포/commit/push 미수행.
 - Jira 댓글 초안(미등록): 대상 탈퇴·정지 오류 분리 및 소스/문서/테스트 갱신, 전체 1,045 tests 통과. 실DB/모바일 QA 필요.
 - 다음 작업: 사용자 diff 검토/직접 commit·push, 프론트 반영 후 배포 및 실제 병합 QA.
+
+<!-- codex-turn:01a0fc3f-f94b-7b73-822d-2fe242d0fb61 -->
+
+## 2026-10-02 병합 API 요청 형식 안내
+- 브랜치: develop. 작업 목표: 현재 Guest merge API 경로 및 인증 전달 방법 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 확인 내용: FirebaseExchangeController 및 FirebaseGuestMergeRequest에서 POST /api/v1/auth/firebase/guest/merge, Guest Bearer 인증, 기존 MEMBER의 fresh firebaseIdToken 본문 확인. 성공 시 대상 MEMBER 토큰 반환.
+- 테스트: 코드 읽기 및 git diff --check. 안내 작업으로 Gradle/실API 미실행.
+- 유지 계약/결정사항: source는 Guest JWT로 결정하며 임의 userId를 요청하지 않음. prepare MERGE_REQUIRED 뒤 병합 흐름 안내.
+- 위험 요소: 실제 배포 상태는 이번에 조회하지 않음. 기존 코드/문서 변경 보존, 외부 상태 무변경.
+- 다음 작업: 프론트 요청 형식 반영. 배포/commit/push/Jira 변경 없음.
+
+## 2026-10-02 Guest merge 오류 카카오톡용 안내
+- 브랜치: develop. 작업 목표: 병합 API의 주요 응답 코드와 대응을 복사용 텍스트로 제공.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 확인 내용: merge 서비스/대상 resolver/transaction, Firebase 검증기, withdrawal gate, 공통 예외 코드 대조. 새 대상 WITHDRAWN/NOT_ACTIVE 분리와 기존 CONFLICT의 의미 구분. 성공은 Identity 병합 완료이며 LC 비동기 이전 완료와 구분.
+- 테스트: 정적 코드 확인 및 git diff --check. 설명 작업으로 실행 테스트/실API 호출 없음.
+- 유지 계약/결정사항: message 아닌 code 분기, 응답 유실 시 무조건 재병합 금지. 개인정보/토큰 비기록.
+- 위험 요소: 최신 코드 기준이며 이번 배포 여부는 미확인. 주요 코드 안내로 전체 인프라/보안 오류를 망라하지 않음.
+- 다음 작업: 프론트 오류 처리 적용 및 배포 버전 확인. 외부 전송/계정 변경/commit/push 없음.
+
+<!-- codex-turn:01a0fc41-2e10-7e63-983e-d91ec9c684c2 -->
+
+### 2026-10-02 Guest merge 오류 안내 작업 기록 보완
+- 브랜치: develop. 작업 목표: 병합 API 주요 오류 안내의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 앞선 코드 대조 및 카카오톡 복사용 안내 결과 유지. 성공/인증/병합 조건/일시 장애를 구분하고 새 오류의 배포 확인 필요성을 명시함.
+- 테스트: git diff --check. 문서 보완만 수행하여 실행 테스트 없음.
+- 유지 계약/결정사항: code 기반 분기, 응답 유실 시 무조건 재병합 금지, 비밀값 비기록. 기존 기록 및 다른 작업 변경 보존.
+- 위험 요소: 실배포 확인 및 전체 보안 오류 망라 검증은 미수행.
+- 다음 작업: 필요 시 프론트 적용 및 배포 버전 확인. 외부 변경/commit/push 없음.
+
+<!-- codex-turn:01a0fc45-f9e6-7b33-b2d1-9f8873ca01b6 -->
+
+## 2026-10-02 인증 장애 및 설정 문의 접수 API 제안
+- 브랜치: develop. 작업 목표: 사용자 문의 DB 저장과 Slack/Discord 알림 연동 가능성 및 설계 기준 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 구현 없이 제안만 제공. 인증/비인증 접수 구분, DB 저장과 알림 outbox의 원자적 접수, 비동기 제한 재시도 및 실패 보존, 요청 중복 방지, 최소 진단정보/개인정보 보호 권고.
+- 테스트: git diff --check. 설계 질의로 제품 코드/외부 API 테스트 미수행.
+- 유지 계약: 클라이언트 userId 불신, 인증된 사용자만 서버에서 식별, 비밀값/전체 요청 로그 수집 금지. 무인증 문의가 인증 오류를 우회하지 않음.
+- 결정사항: 문의 저장 성공과 알림 성공을 분리하며 알림 실패로 접수 실패를 반환하지 않는 방향 권고. 일반 고객지원의 서비스 소유권은 구현 전 결정 필요.
+- 위험 요소: 공개 접수 스팸, 개인정보 외부 전달, 중복 알림, 재시도 불가능한 인증 오류의 반복 처리. 기존 기능 구현 여부는 조사하지 않았으며 제안 경로는 미구현.
+- 다음 작업: 담당 서비스/알림 채널/회신 및 보존 정책 확정 후 계획·구현 승인. 외부 상태 변경/commit/push 없음.
+
+## 2026-10-02 — PROVIDER_RELINK_REQUIRED 의미와 프론트 재연결 순서 설명
+
+<!-- codex-turn:01a0fc5e-3ef7-7d01-8815-078a2d59a1ff -->
+
+- 브랜치: develop. 이번 요청에 지정된 Jira 키 없음.
+- 작업 목표: RELINK_REQUIRED의 발생 이유 및 기존 SNS 재인증/link prepare 관계를 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderChangeGuard, ProviderLoginRegistrationService, ProviderLinkService.prepare/remainingProof 및 프론트 가이드 읽기 확인.
+- 실행한 테스트와 결과: 소스/계약 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 인증된 MEMBER 및 동일 Firebase binding, 기존 승인 SNS 증명, 대상 SDK link는 최초 start 허가 후, 소유권/차단/floor 유지. 원격 선연결을 소급 승인하지 않음.
+- 결정사항: RELINK_REQUIRED는 SNS 로그인 허용 상태/명시 재연결 문제이며 단순 최근 재인증 부족 오류와 다름. 일반 재연결에는 기존 승인된 다른 SNS 재인증 후 MEMBER 인증과 prepare 요청 필요. prepare에는 기존 SNS proof, SDK 연결 후 complete에는 대상 SNS 재인증 proof 사용. 로그인 중이라면 기존 MEMBER 인증 사용 가능하나 최신 proof 필요. 남은 승인 수단 없거나 원격/서버 상태 불일치·작업 불명은 자동 우회하지 않음.
+- 위험 요소: 모든 RELINK_REQUIRED가 prepare 한 번으로 해결되지 않음. Google/Apple 같은 UID 최초 등록은 지원 조건에서 자동 처리되므로 미등록 전체를 재연결로 단정하지 않음. 실제 프론트/배포 설정/E2E 미조회.
+- 예상 밖 변경: 없음. 코드/환경변수/배포/커밋/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): SNS 재연결 오류 의미 및 기존 SNS 인증→prepare/start→대상 연결/인증→complete 순서 설명, 소스/계약 확인만 수행.
+- 다음 작업: 프론트에 오류와 재인증의 차이 및 이미 진행 중인 작업 status/pending 처리 계약 전달.
+
+## 2026-10-02 — 재연결 시 기존 SNS 확인 방법 설명
+
+<!-- codex-turn:01a0fc62-31a7-7bf3-a431-64e79eb6f511 -->
+
+- 브랜치: develop. 지정된 Jira 키 없음.
+- 작업 목표: 프론트가 재연결에 사용할 기존 SNS를 어떻게 식별하는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. FirebaseAuthMethodsSyncService/Response 및 프론트 가이드의 linkedProviders/프로필 provider 계약 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: sync MEMBER 인증+동일 Firebase proof 필요, 기존 연결 승인 확인만 수행. provider 분류로 SNS 추측/공개 계정 탐색/다른 UID 자동 병합 금지.
+- 결정사항: 기존 로그인 수단 이력과 현재 서버 연결 SNS 목록을 구분. 로그인된 회원은 sync 성공 응답 linkedProviders 사용, Firebase providerData와 마지막 로그인 로컬 기록은 힌트만 사용. 로그인 전 RELINK_REQUIRED 응답에는 기존 SNS 정보가 없어 prepare 즉시 호출 불가, 사용자 기존 SNS 선택/인증 후 회원/binding 확인 필요. 이메일/전화로 기존 SNS 계정 임의 추정하지 않음.
+- 위험 요소: sync 자체도 승인 proof/서버 상태 검사가 필요하여 재연결 오류 중 항상 조회 가능한 수단은 아님. 공개 연결 목록 API 미제공. 실제 프론트 캐시/로그인 이력 저장 여부 미조회.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/커밋/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 기존 SNS 식별은 인증된 sync linkedProviders 사용, 로그인 전 오류만으로 목록 판별 불가 및 힌트/승인 근거 구분 설명.
+- 다음 작업: 프론트 로그인 상태별 기존 수단 선택 UI 및 sync/복구 실패 안내 확인.
+
+## 2026-10-02 — Guest merge의 PROVIDER_RELINK_REQUIRED 가능 여부 확인
+
+<!-- codex-turn:01a0fc76-7443-7350-8eb6-7040026a0e2c -->
+
+- 브랜치: develop. 지정된 Jira 키 없음.
+- 작업 목표: RELINK_REQUIRED가 Guest merge에서는 발생하지 않는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. GuestMergeService의 GUEST_MERGE proof 검증과 FirebaseAdminAuthenticationVerifier의 providerChanges.validatePrincipal 호출 조건, Guard의 block/미등록 subject 검사 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 원 Guest source와 MEMBER target 증명 분리, 차단된 SNS 우회 금지, LOGIN_EXCHANGE 최초 등록 예외의 merge 확대 금지.
+- 결정사항: provider guard 설치 환경에서 merge도 해당 오류 발생 가능. 대상 MEMBER에 허용되지 않은 SNS 인증이 이유이며 Guest 자체의 SNS 연결 문제가 아님. 원 Guest 인증 보존 후 대상의 기존 승인 SNS proof로 merge 수행 가능, 실제 SNS 재연결은 MEMBER 인증이 필요한 별도 흐름. Guest bearer로 link/prepare 자동 호출하지 않음.
+- 위험 요소: 실제 배포 guard 설정/요청 상태 미조회. 기존 승인 수단을 사용할 수 없으면 자동 가입/병합/선연결 우회하지 않고 복구 안내 필요.
+- 예상 밖 변경: 없음. 코드/환경변수/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): Guest merge provider guard 오류 발생 가능 및 원 Guest 인증 보존/대상 승인 SNS 재인증 분기 설명.
+- 다음 작업: 프론트 Guest merge 오류 목록에 RELINK_REQUIRED 유지 및 MEMBER 재연결과 Guest 병합 UI 분리 확인.
+
+## 2026-10-02 — 로그인 전 대상 SNS 목록 부재와 재연결 안내 정정
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 대상 MEMBER 승인 SNS를 프론트가 모르는 상황에서 기존 설명의 가정을 정정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. RELINK_REQUIRED는 승인 SNS 목록을 제공하지 않고 linkedProviders sync는 MEMBER 인증이 필요한 현 계약 재확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명만 수행하여 Gradle 미실행.
+- 유지한 계약: 원 Guest 인증 보존, 승인되지 않은 SNS로 MEMBER 권한 발급/병합 우회 금지, 다른 계정 자동 연결 금지.
+- 결정사항: 대상 SNS를 이미 알고 있다는 앞선 예시 가정을 명시적으로 정정. 현재 API만으로 구체 SNS를 자동 선택/안내할 수 없음. 다른 기존 SNS 재인증은 신규 연결이 아니라 소유권 증명이며 사용자 기억/로컬 힌트는 보장되지 않음. 구체 안내에는 검증된 Firebase proof 기반 제한 복구 정보/작업 계약의 별도 보안 설계 필요.
+- 위험 요소: 공개 이메일 기반 연결 수단 조회는 계정 탐색 위험, Firebase providerData만으로 Identity 허용 여부 단정 불가. 기존 SNS 기억하지 못하는 사용자 복구 UX 공백 존재.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): Guest merge RELINK_REQUIRED의 대상 승인 SNS 조회 공백 및 기존 설명 정정, 제한 복구 계약 추가 검토 필요.
+- 다음 작업: 사용자 요청 시 복구 요구사항/정보 노출 범위/인증 정책을 확정한 뒤 계약 설계, 구현은 미승인.
+
+## 2026-10-02 — 대상 SNS 복구 정보 공백 설명 기록 보완
+
+<!-- codex-turn:01a0fc78-2b7f-7f21-ba7a-6f7e5d86f08e -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 설명 작업의 정확한 현재 식별자 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. Guest 상태에서 대상 MEMBER 연결 목록을 조회할 수 없는 복구 계약 공백과 앞선 안내의 가정 정정 기록 보완.
+- 실행한 테스트와 결과: git diff --check. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 승인되지 않은 SNS로 MEMBER 인증/병합 우회 금지.
+- 결정사항: 제한 복구 정보 제공은 별도 보안 설계 필요하며 현재 API로 대체 SNS 자동 안내 불가.
+- 위험 요소: 기존 로그인 방법을 모르는 사용자 복구 UX 공백. 공개 계정 탐색 API를 임의 추가하지 않음.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 대상 승인 SNS 조회 공백 정정 설명 완료, 복구 계약 별도 검토 필요.
+- 다음 작업: 사용자 요청 시 복구 계약 설계 검토.
+
+## 2026-10-02 — Guest merge 전용 오류 목록 정리
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: Guest merge에만 정의된 오류와 공통 오류 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. AuthErrorStatus와 전용 코드 발생 위치 확인, 5개 merge 전용 code/status/원인/프론트 대응 요약.
+- 실행한 테스트와 결과: 소스 검색 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 기존 오류 상태/코드 변경 없음, 원본/대상 및 성공/충돌 구분 유지.
+- 결정사항: NOT_ALLOWED, TARGET_CONFLICT, TARGET_WITHDRAWN, TARGET_NOT_ACTIVE, CONFLICT만 전용 목록 포함. RELINK_REQUIRED/ACCOUNT_MERGED_TOKEN_REJECTED/cleanup pending 등 공통 오류는 별도이며 merge에서도 발생 가능.
+- 위험 요소: 신규 대상 상태 code의 실제 배포 여부 미조회. 전용 오류 목록은 merge 전체 발생 가능 오류 목록이 아님.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): merge 전용 오류 5개 원인/대응 요약, 공통 오류와 분리.
+- 다음 작업: 필요 시 프론트에 전용/공통 오류 처리 목록 전달.
+
+## 2026-10-02 — Guest merge 전용 오류 정리 기록 보완
+
+<!-- codex-turn:01a0fc7a-708e-7293-99cc-13260143d218 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 전용 오류 설명의 정확한 현재 작업 식별자 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. merge 전용 오류 5개와 공통 오류 구분 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 오류 코드/상태 및 인증 계약 변경 없음.
+- 결정사항: 전용 목록은 전체 merge 발생 가능 오류 목록과 다름. source/target 상태 및 충돌 대응을 구분.
+- 위험 요소: 신규 오류의 실제 배포 여부 미확인.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): merge 전용 오류 5개 정리 완료, 공통 오류는 별도 처리 필요.
+- 다음 작업: 필요 시 프론트 오류 분기 확인.
+
+## 2026-10-02 — Guest merge 전체 오류 전달용 정리 요청 중단
+
+<!-- codex-turn:01a0fc7b-a86e-7a00-817e-791bf15c8061 -->
+
+- 브랜치: develop.
+- 작업 목표: Guest merge 전체 발생 가능 오류를 카카오톡 복사용으로 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 요청 시작 전 중단되어 전체 조사/복사용 결과 작성 미수행. 중단 상태 기록만 추가.
+- 실행한 테스트와 결과: git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 코드/API/외부 설정 변경 없음.
+- 결정사항: 중단 후 요청 본문 작업 진행하지 않음.
+- 위험 요소: 전용 오류 목록은 앞서 확인했지만 공통 오류 포함 전체 목록은 이번 요청에서 미검증.
+- 예상 밖 변경: 없음. 배포/commit/push/Jira 변경 없음.
+- 다음 작업: 사용자 재개 요청 시 전체 경로 확인 후 복사용 텍스트 작성.
+
+<!-- codex-turn:01a0fc7c-80da-7f10-aa30-97391c14a869 -->
+
+## 2026-10-02 Guest merge 오류 전체 경로 정리
+- 브랜치: develop. 작업 목표: merge 전용/공통/Firebase/세션 보호/네트워크 오류를 구분한 복사용 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 확인 내용: merge service/target/transaction, Firebase verifier와 provider guard, SessionSecurityService/RefreshSessionIssuer/UserSessionControl, JwtCurrentUserProvider, 공통 예외 처리 및 owner event capture 경로 대조. 세션 보호 활성 시 SESSION_LOGGED_OUT/SESSION_SECURITY_UNAVAILABLE와 계정 활성 검사 오류도 가능. merge는 enrollment evidence를 요구하지 않아 PHONE/EMAIL_VERIFICATION_REQUIRED를 이 endpoint 목록에 넣지 않음.
+- 테스트: 정적 호출 경로 확인 및 git diff --check. 실API/실배포/Gradle 미실행(설명 작업).
+- 유지 계약: API code와 외부 HTTP/네트워크 오류 구분, LC 비동기 실패를 merge 동기 응답과 구분, 결과 불명 시 자동 재병합 금지.
+- 결정사항: 현재 소스에서 확인되는 오류 목록을 제공하며 환경·검사 순서·동시성에 따른 차이를 명시. 무한 재시도나 내부 재시도 횟수를 보장하지 않음.
+- 위험 요소: 배포 버전과 인프라별 응답은 미확인. 임의 외부 오류까지 고정 목록으로 보장할 수 없음.
+- 다음 작업: 프론트 code 분기 및 알 수 없는 오류 fallback 적용. 외부 변경/commit/push/Jira 변경 없음. 기존 변경 보존.
+
+## 2026-10-02 — PROVIDER_RELINK_REQUIRED와 SNS 연결 개수 조건 확인
+
+<!-- codex-turn:01a0fc80-a90d-7cd0-b2af-ab9fb71cecc4 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 오류가 SNS 두 개 이상 연결된 대상의 merge에서만 발생하는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderChangeGuard의 현재 signInMethod provider 차단/subject 등록 검사 재확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: SNS 개수가 아니라 현재 인증 수단의 승인/차단 및 소유권 기준으로 검사, LOGIN_EXCHANGE 전용 최초 등록 예외 유지.
+- 결정사항: 최소 두 개 연결 조건 없음. 한 개 상태도 불일치/차단이면 거절 가능, 여러 개 정상 승인 상태면 병합 가능. Guest merge 전용 오류도 아님.
+- 위험 요소: 실제 대상의 연결 상태 및 배포 버전 미조회, 마지막 SNS 해제 제한과 불일치 오류 조건은 별개.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): RELINK_REQUIRED는 연결 개수가 아니라 현재 인증 SNS 허용 여부 조건임을 설명.
+- 다음 작업: 프론트는 연결 개수로 오류 발생/복구 여부를 추정하지 않도록 분기 확인.
+
+## 2026-10-02 — 유일 SNS 차단 시 로그인 불가와 마지막 수단 보호 확인
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 승인 SNS 하나가 차단되면 로그인할 수 없다는 사용자 지적에 정상 정책/예외 상태 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderChangeService.unlink의 remaining.isEmpty 검사 및 PROVIDER_LAST_METHOD 반환이 block 전에 실행됨을 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 마지막 승인 SNS 해제 금지, 기존 다른 SNS 소유 증명 필요, 차단 상태 자동 우회 금지.
+- 결정사항: 정상 흐름에서 SNS 하나뿐인 계정의 유일 수단 차단을 허용하지 않음. 앞선 단일 SNS 차단 예시는 일반 정상 흐름으로 해석하지 않도록 정정. 유일 수단 사용 불가 상태면 다른 SNS 선택으로 해결되지 않으므로 상태 조회/안전한 복구 필요.
+- 위험 요소: 실제 계정 상태/외부 Admin 변경/서버와 Firebase 불일치 여부는 미조회. 예외 상태 원인 특정하지 않음.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 마지막 SNS unlink 보호 확인 및 단일 차단 상태를 복구 예외로 구분 설명.
+- 다음 작업: 실제 단일 로그인 수단 거절 사례라면 차단/등록/binding 상태를 안전하게 확인 후 복구 설계.
+
+## 2026-10-02 — 마지막 SNS 보호 설명 기록 보완
+
+<!-- codex-turn:01a0fc81-9f1d-7182-8db5-424acfc6f1fd -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 마지막 SNS 보호 설명의 정확한 현재 식별자 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 정상 unlink에서 마지막 승인 SNS 해제를 PROVIDER_LAST_METHOD로 거절하며, 단일 수단 차단 예외 상태는 복구 대상임을 설명한 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 마지막 로그인 수단 보호 및 차단 우회 금지.
+- 결정사항: 오류 조건의 개수 독립성과 정상 마지막 수단 보호를 구분.
+- 위험 요소: 실제 단일 수단 거절 계정 상태는 미조회.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 마지막 수단 보호 확인/예외 상태 복구 설명 완료.
+- 다음 작업: 필요 시 실제 계정 상태 확인 및 안전한 복구 검토.
+
+## 2026-10-02 — SNS 차단 상태의 실제 코드 경로 확인
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 현재 코드에 SNS block을 설정하는 실제 경로가 있는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderChangeService.unlink의 block, ProviderLinkService.start의 block 및 complete의 release, AuthMethodChangeControl 상태 갱신 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: 마지막 승인 SNS 해제 금지, 미완료 연결 SNS로 로그인/merge 우회 금지, 명시 completion 전 승인 금지.
+- 결정사항: 코드상 block 경로는 존재하며 로그인 실패 자동 차단/외부 SNS 계정 정지와 다른 내부 승인 fence임을 설명. 해제한 SNS와 새 연결 중 SNS에 적용, 완료 시 대상 release. 새 연결 중 Firebase만 반영되고 Identity complete 전이면 RELINK_REQUIRED가 가능.
+- 위험 요소: 배포 기능 flag 및 실제 회원 block 상태 미조회. 정상 단일 승인 SNS의 임의 차단을 뜻하지 않음.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): SNS 내부 block 설정 위치와 외부 계정 차단/자동 로그인 차단의 차이 확인.
+- 다음 작업: 필요 시 실제 오류 요청과 미완료 link/unlink 상태를 안전하게 대조.
+
+## 2026-10-02 — SNS 내부 차단 경로 설명 기록 보완
+
+<!-- codex-turn:01a0fc83-4846-73b2-8245-7ba52222832d -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 SNS 내부 차단 설명의 정확한 현재 작업 식별자 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 연결/해제 작업의 내부 block과 외부 SNS 제재·로그인 실패 자동 차단을 구분한 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 미완료 연결 승인 금지 및 마지막 SNS 보호 유지.
+- 결정사항: 코드상 block 설정 경로 존재와 실제 배포/계정 적용 여부를 구분.
+- 위험 요소: 실제 배포 flag 및 해당 회원 상태는 미조회.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): SNS block 내부 의미와 설정 경로 확인 완료, 실환경 상태 미조회.
+- 다음 작업: 필요 시 실제 오류와 link/unlink 작업 상태 대조.
+
+## 2026-10-02 — PROVIDER_RELINK_REQUIRED 프론트 실행 가능한 대응 정리
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 로그인/Guest merge와 SNS 연결 작업 문맥별 프론트 행동을 명확하게 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 프론트 계약의 status/start/complete 유실 및 로그인 수단 복구 경계 재확인.
+- 실행한 테스트와 결과: 계약 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: Guest source 인증 보존, MEMBER 전용 prepare, start 허가 없는 SDK 실행 금지, 불명 상태 성공 간주 금지.
+- 결정사항: 자동 반복/새 가입/새 Guest 생성 및 code만으로 prepare 호출 금지. 진행 중인 작업이 있으면 기존 작업 상태 기반 복구, SDK 실행 결과가 확인된 경우에만 기존 complete 계약 사용. 로그인/merge에서는 다른 기존 수단 선택 또는 복구 지원 안내, 구체 provider 추정 금지. 현재 응답만으로 자동 원인 분류/완전 복구는 불가.
+- 위험 요소: 실제 프론트 작업 보존/계정 상태/배포 recovery flag 미조회. 사용자에게 원인이나 다른 SNS 종류를 단정한 안내를 하지 않음.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): RELINK_REQUIRED 문맥별 프론트 대응 및 자동 우회 금지 정리, 복구 계약 공백 유지.
+- 다음 작업: 필요 시 프론트 분기/안내 문구와 추가 복구 응답 요구사항 검토.
+
+## 2026-10-02 — 재연결 오류 프론트 대응 설명 기록 보완
+
+<!-- codex-turn:01a0fc84-fc41-7a83-85c5-ef14d9d6c09f -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 프론트 오류 대응 설명의 정확한 작업 식별자 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 로그인/Guest merge와 진행 중 연결 작업의 대응을 구분한 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, Guest 인증 유지 및 허가 없는 SDK 재실행 금지.
+- 결정사항: 오류만으로 prepare 자동 호출 또는 원인·대체 SNS 추정하지 않음.
+- 위험 요소: 현 응답만으로 원인별 자동 복구 불가, 실제 프론트 및 배포 상태 미조회.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 문맥별 프론트 대응 및 복구 공백 설명 완료.
+- 다음 작업: 필요 시 프론트 분기 검토 및 추가 복구 계약 설계.
+
+<!-- codex-turn:01a0fc90-cc96-77e0-90e9-0a766b820f71 -->
+
+## 2026-10-02 문의 접수 API 구현 구조 제안
+- 브랜치: develop. 작업 목표: POST /api/v1/support/inquiries의 요청·저장·알림·실패 처리 설계 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 구현 내용: 미구현 제안으로 인증 선택형 문의 접수, invalid Bearer의 익명 자동 강등 금지, 별도 무인증 접수 허용, 내용 최소 수집/검증/중복 방지, DB 문의와 outbox 원자 저장 및 비동기 알림을 설명. 서버 발급 접수번호와 제한 재시도/실패 상태·알림 중복 가능성 안내.
+- 테스트: git diff --check. 설계 설명만 수행하여 실행 테스트 미수행.
+- 유지 계약: 사용자 ID는 검증된 인증에서만 도출. 토큰·비밀번호·전체 요청 로그 비수집, Secret은 외부 관리. 사용자 문의 본문은 외부 채널에 기본 미전달.
+- 결정사항: 정확한 오류 코드/횟수/보관 기간/담당 서비스는 설계 제안이며 기존 구현 계약으로 주장하지 않음. 일반 문의 서비스 소유권 확정 필요.
+- 위험 요소: 익명 스팸/중복 알림/개인정보/운영 조회 권한, webhook 성공 응답 유실 시 정확히 한 번 전달 보장 불가.
+- 다음 작업: 서비스 소유권·알림 채널·회신 및 보관 정책 확정 후 구현 승인. 외부 변경/commit/push/Jira 작업 없음. 기존 변경 보존.
+
+## 2026-10-02 — 전화번호 단일 계정과 OTP 기반 연결 SNS 안내 검토
+
+<!-- codex-turn:01a0fcc9-d4ac-7363-8718-a705e6f66a98 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 전화번호 인증으로 연결 계정을 안내하는 사용자 제안의 현 구현/추가 요구사항 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. PhoneIdentity/PhoneIdentityService/PhoneIdentityTransactionService의 활성 alias 소유권 검사 및 PHONE_ALREADY_LINKED, FirebaseVerificationPurpose와 인증 정책 소스 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 설계 검토만 수행하여 Gradle 미실행.
+- 유지한 계약: 동일 번호의 타 계정 활성 중복 연결 거절 유지. 원문 번호/토큰 비기록, 임의 userId 요청 금지. 전화 증명으로 기존 SNS block 우회/자동 병합하지 않음.
+- 결정사항: 번호 1개와 활성 회원 1개 연결은 현 코드 정책과 부합. 별도 recovery 전용 전화 인증 조회를 도입하면 기존 SNS를 기억하지 못하는 사용자에게 종류만 안내 가능. 최근 전화 OTP proof 서버 검증 후 활성 소유자/승인된 사용 가능 provider만 반환하는 계약 제안이며 기존 API 구현으로 주장하지 않음.
+- 위험 요소: Firebase OTP 연결을 다른 UID에 새로 붙여 기존 회원 binding을 변경하는 우회 금지. 번호 재할당/SIM 탈취를 고려해 전화 OTP만으로 자동 로그인/기록 이전/계정 연결 변경 금지. 회원 부재/탈퇴/정지/미완료 보안 작업과 조회 제한 정책 미확정. 실제 배포 phone 활성 여부 및 인덱스 미조회.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 전화번호 단일 활성 owner 정책 확인, OTP 기반 로그인 SNS 종류 안내 전용 복구 계약 제안. 실제 구현/보안 정책 추가 확정 필요.
+- 다음 작업: 사용자 요청 시 recovery proof/노출 응답/제한/예외 상태 계약을 확정하여 계획 작성. 구현은 별도 요청 필요.
+
+## 2026-10-02 — 전화번호 다중 회원 연결 API 삭제 대상 조사
+
+<!-- codex-turn:01a0fccd-dd32-7661-9395-cb2abc66d700 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 전화번호당 하나의 회원 정책에 맞춰 다중 회원 연결 허용 API 제거 대상을 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 코드 변경 없음. Controller endpoint 및 phone link 호출 경로 확인. 현 API에는 전화번호 연결/변경/공개 rebind가 없고 signup/Guest upgrade는 번호 소유권 검사로 타 회원 중복 연결 거절. SNS link는 기존 MEMBER 인증수단 추가로 다중 userId 생성/동일 번호 공유 API가 아님.
+- 실행한 테스트와 결과: 소스/기존 PHONE_ALREADY_LINKED 테스트 및 프론트 계약 읽기 확인, git diff --check. 삭제할 코드 대상이 없으므로 Gradle 미실행. 실제 운영/테스트 DB 미조회.
+- 유지한 계약: 전화번호의 단일 활성 userId 소유, 동일 MEMBER의 다중 SNS 허용, signup/Guest upgrade/merge 및 탈퇴 후 release 정책 유지.
+- 결정사항: 존재하지 않는 다중 회원 연결 API를 삭제했다고 주장하지 않음. 별도 SNS link를 임의 삭제하지 않으며 제품 API/데이터 변경 없음. 전화 OTP 기반 SNS 안내 복구 API는 여전히 신규 개발 범위.
+- 위험 요소: 실제 배포 버전/DB 중복 여부/인덱스 적용 미확인. 사용자가 SNS 여러 개 연결 자체를 금지하려는 뜻이라면 계정 정책 변경이므로 별도 확인 필요.
+- 예상 밖 변경: 없음. 기존 기록 변경 보존. 삭제/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 다중 회원 전화 연결 API 부재와 기존 중복 거절 확인, SNS 인증수단 추가와 회원 추가 구분.
+- 다음 작업: 구체적으로 제거하려는 endpoint가 별도로 있으면 사용자 경로 확인 후 조사. 번호 인증 기반 복구 API 설계는 별도 요청 범위로 진행.
+
+## 2026-10-02 — 회원당 SNS 하나 정책 의도 확인 및 변경 범위 조사
+
+<!-- codex-turn:01a0fcdd-2053-7f83-b2ab-a7ae56df9d10 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 사용자의 추가 SNS 연결 금지 의도를 정정 이해하고 필요한 변경 경로 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. ProviderLinkService prepare/start/complete, ProviderLoginRegistrationService 최초 자동 등록, FirebaseSignupService/GuestUpgradeService 다중 SocialIdentity 저장 경로 확인.
+- 실행한 테스트와 결과: 소스 읽기 및 git diff --check. 정책 범위 조사로 Gradle 미실행.
+- 유지한 계약: 기존 회원/인증수단/보안 block·floor·작업 증거 임의 삭제 금지, 계정 접근 유지, 전화번호 단일 활성 owner 정책 유지.
+- 결정사항: 회원당 추가 SNS 금지는 link API 삭제/flag OFF만으로 달성되지 않음. 자동 최초 등록 및 가입·승격 다중 provider 처리까지 변경해야 함. 기존 복수 연결 회원은 유지하면서 신규 추가를 차단하고 진행 중 작업 조회/안전한 복구는 보존하는 방향 권장. 기존 연결 제거/기준 provider 임의 선택은 사용자 승인 없이 수행하지 않음.
+- 위험 요소: 이미 복수 SNS가 등록된 회원과 STARTED 원격 작업의 이행 정책 미확정. 기존 최초 자동 등록 기능과 정책 충돌, 프론트 가입/연결 UX 및 전화 OTP 안내 계약도 갱신 필요. 실제 DB 현황 미조회.
+- 예상 밖 변경: 없음. 제품 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 추가 SNS 금지 정책 의도 확인, link/auto-registration/signup/upgrade 경로 변경 및 기존 회원/진행 작업 이행 결정 필요.
+- 다음 작업: 기존 복수 연결 회원 유지 여부와 진행 중 작업 보존 기준 확인 후 구현 범위를 확정하여 회귀/전체 테스트 수행.
+
+## 2026-10-02 — SNS 추가 연결 prepare와 Guest prepare 구분
+
+<!-- codex-turn:01a0fcde-ecb2-7063-b31c-8c5bc6f1e36c -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 추가 SNS 연결 차단이 Guest 승격/병합을 막는지 설명하고 테스트 회원 부재 조건 반영.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. FirebaseExchangeController와 ProviderLinkController의 서로 다른 prepare endpoint 확인.
+- 실행한 테스트와 결과: endpoint 소스 읽기 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지한 계약: Guest prepare/upgrade/merge 유지, SNS 계정 연결과 Guest 데이터 병합의 경계 구분. 실제 테스트/운영 데이터 삭제 없음.
+- 결정사항: 추가 SNS 금지 범위는 providers/link 경로 및 자동 추가 등록이며 guest/prepare 차단 아님. Guest 승격은 단일 SNS 회원으로 전환, Guest merge는 기존 단일 SNS MEMBER로 기록 통합. 사용자 진술 기준 테스트 서버 회원 없음으로 기존 회원 이행 우려 해소하되 실제 DB/진행 작업 검증 사실로 주장하지 않음.
+- 위험 요소: 테스트 DB/Firebase 활성 사용자/진행 작업 실조회 없음. 테스트 대상 정책을 기존 운영 서버에 임의 적용하지 않음.
+- 예상 밖 변경: 없음. 제품 코드/API/환경변수/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): providers/link/prepare와 guest/prepare 구분 및 Guest 기능 유지 범위 설명, 테스트 회원 부재는 사용자 확인.
+- 다음 작업: 신규 단일 SNS 정책 구현 시 추가 등록/가입/승격 검증만 변경하고 Guest 병합 정상 경로 회귀 검증. 별도 전화 OTP 안내 API는 추가 계약 범위.
+
+## 2026-10-02 — Guest/SNS prepare 구분 설명 식별자 보완
+
+<!-- codex-turn:01a0fcde-ecb2-7962-86ad-5f3d9e956eb0 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 이번 설명의 정확한 현재 작업 식별자로 기록 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 코드 변경 없음. SNS 추가 연결용 providers/link/prepare와 Guest 승격용 guest/prepare를 구분한 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, Guest 승격·병합 정상 기능 유지.
+- 결정사항: 회원당 SNS 하나 정책에서 추가 SNS 연결/자동 추가 등록만 차단하는 방향. 테스트 회원 부재는 사용자 진술 기준이며 DB 조회 결과가 아님.
+- 위험 요소: 실제 DB/Firebase 및 진행 작업 상태 미조회, 정책 구현·배포 미수행.
+- 예상 밖 변경: 없음. 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): prepare endpoint 역할 구분 및 Guest 기능 유지 설명 완료.
+- 다음 작업: 구현 요청 시 단일 SNS 정책의 가입/로그인/Guest 승격·병합 회귀 검증.
+
+## 2026-10-02 — 단일 SNS 정책 수정 방향 설명
+
+<!-- codex-turn:01a0fcfd-d21d-78c3-98ea-b3d879fef1e3 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 회원당 SNS 하나 정책을 유지하면서 Guest 승격·병합을 보존하는 수정 방향 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 구현 내용: ProviderLinkController, ProviderChangeGuard, FirebaseSignupService, FirebaseGuestUpgradeService, PhoneIdentityTransactionService 경로 확인. 명시 link 및 exchange 자동 추가 등록 차단, 가입·승격의 단일 SNS 검증, Guest 정상 기능 유지 제안.
+- 실행한 테스트와 결과: 소스 정적 확인 및 git diff --check. 설명/기록 작업으로 Gradle 미실행.
+- 유지한 계약: Guest prepare/upgrade/merge 유지, 기존 승인 SNS의 소유권 검증 유지, 전화번호 단일 활성 owner 유지, 인증수단 block·floor 보안 검사 우회 금지.
+- 결정사항: SNS 추가 API 제거만으로 단일 정책 달성 불가. 가입/승격에서 복수 SNS 증명을 임의 선택하지 않고 거절하는 방향 제안(전화 인증은 SNS 개수에 포함하지 않음). 전화 OTP 기반 SNS 종류 안내는 별도 신규 기능이며 로그인/재연결/Guest 병합을 자동 허용하지 않음. 단일 SNS 교체 기능은 이번 범위에서 도입하지 않음.
+- 위험 요소: 테스트 회원 부재는 사용자 진술이며 DB/Firebase/진행 link 작업 상태 미조회. 신규 정책 오류 코드·전화 OTP 조회 계약·rate limit 및 번호 재할당 대응은 구현 전 확정 필요. Firebase 원격 연결 자체를 Identity API 차단만으로 방지할 수 없음.
+- 예상 밖 변경: 기존 문서 변경 보존, 이번 추가는 기록뿐. 코드/API/외부 설정/계정 삭제/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 단일 SNS 정책의 link/자동 등록/가입/승격 수정 범위와 Guest 기능 유지 방향 설명. 신규 전화 OTP 복구 안내는 별도 계약 필요.
+- 다음 작업: 사용자 구현 요청 후 정책 오류·API 폐지 계약 확정, 회귀 테스트 및 전체 clean test 실행. 배포 전 진행 link 작업과 실제 데이터/인덱스 확인.
+
+## 2026-10-02 — 전화 인증 후 계정 안내 표시 범위 설명
+
+<!-- codex-turn:01a0fd07-e129-7f23-9e3e-809e6bcfac7f -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 계정 안내가 이메일 주소 표시를 의미하는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 코드 변경 없음. 앞선 SNS 종류 안내 제안과 선택적인 마스킹 이메일 힌트를 구분. SocialIdentity/VerifiedSocialPrincipal 관련 email 필드 검색 수행, 전체 이메일 취득/보관 경로는 미조사.
+- 실행한 테스트와 결과: git diff --check 실행. 설명/기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 서버가 전화 인증을 검증한 후 제한된 계정 힌트 제공, 자동 로그인·SNS 연결·Guest 병합 권한 부여 없음.
+- 결정사항: SNS 종류를 기본 안내하고 이메일 힌트 추가 시 마스킹 권장. 이메일 미제공 시 SNS만 안내, Apple 비공개 중계 주소를 실제 개인 이메일로 표현하지 않음. 표시 계약은 제안이며 미구현.
+- 위험 요소: 전화번호 재할당 가능성, SNS별 이메일 제공 여부 및 정확한 저장/조회 출처 미확인.
+- 예상 밖 변경: 없음. 기존 기록 보존, 제품 코드/API/외부 설정/배포/commit/push/Jira 변경 없음.
+- 다음 작업: 이메일 힌트 도입 시 제공 가능한 데이터 출처와 응답 필드·마스킹 규칙 확인.
+
+## 2026-10-02 — 계정 안내 기능 개발 범위 설명
+
+<!-- codex-turn:01a0fd07-e129-7f23-9e3e-809e6bcfac7f -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 전화 인증 기반 계정 안내와 이메일 힌트의 추가 개발 범위 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 코드 변경 없음. 신규 계정 찾기 API의 인증 검증/회원 조회/요청 제한/오류 처리/테스트와 이메일 표시 확장을 구분하여 설명.
+- 실행한 테스트와 결과: git diff --check. 설명/기록 작업으로 Gradle 미실행.
+- 유지한 계약: 단일 SNS 정책 및 Guest 기능 유지 방향, 계정 안내만으로 인증 토큰 발급/계정 연결 허용하지 않음.
+- 결정사항: SNS 종류 안내를 우선 구현하고 이메일 힌트는 데이터 출처 확인 후 확장하는 방향 권장. 이메일이 이미 신뢰 가능한 형태로 확보되면 증분 범위는 작지만 수집/저장이 필요하면 범위 증가. 확정 일정은 제시하지 않음.
+- 위험 요소: 이메일 취득/보관 경로 미확인, Firebase 전화 인증을 계정 찾기에 사용하는 구체 계약 미확정.
+- 예상 밖 변경: 없음. 기존 문서 변경 보존, 코드/API/외부 설정/배포/commit/push 변경 없음.
+- 다음 작업: 구현 요청 시 계정 찾기 범위 및 이메일 데이터 출처 확인 후 계약·테스트 구체화.
+
+## 2026-10-02 — 계정 안내 개발 범위 설명 기록 보완
+
+<!-- codex-turn:01a0fd0a-0b97-7ca1-ba5c-d7c0c061b6b8 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 계정 안내 개발 범위 설명을 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 전화 인증 기반 계정 찾기가 주요 신규 범위이며 이메일 마스킹의 증분 작업량은 데이터 확보 여부에 따라 달라짐을 설명한 결과 기록.
+- 실행한 테스트와 결과: git diff --check 통과. 문서 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 WORKLOG 보존, 비밀정보 비기록, Guest 기능 유지 및 단일 SNS 정책 방향 유지.
+- 결정사항: 빠른 적용을 위해 단일 SNS 제한 우선, 계정 찾기는 후속 작업으로 분리 권장. 이메일 출처 확인 후 마스킹 힌트 포함 여부 판단.
+- 위험 요소: 이메일 취득/저장 경로 및 계정 찾기 API 구체 계약 미확정.
+- 예상 밖 변경: 없음. 제품 코드/API/외부 설정/배포/commit/push 변경 없음.
+- 다음 작업: 구현 요청 시 단일 SNS 제한과 계정 찾기 범위를 구체화하고 관련 테스트 수행.
+
+## 2026-10-03 — 단일 SNS·전화 인증 계정 찾기 통합 계획서 작성
+
+<!-- codex-turn:01a0fd29-eae2-7e42-823b-f2a76ca3cf73 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: SNS 하나 제한과 전화번호 인증 후 SNS/마스킹 이메일 안내를 동일 개발·출시 범위로 계획.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md 신규, docs/codex/CURRENT_STATE.md 갱신, docs/codex/WORKLOG.md 끝에 append.
+- 구현 내용: 제품 코드 변경 없음. SocialIdentity/Firebase provider DTO에 이메일 주소가 없고 FEDERATED User.email이 null임을 확인. userId unique, signup/upgrade 단일 검증, exchange 자동 추가 제거, Guest merge 현재 승인 SNS 검증, link/unlink 제품 API 폐지, 이메일 힌트 수집/마스킹 snapshot, recovery prepare/lookup·전용 전화 verifier·proof 소비/재시도·공유 rate limit·프론트/환경 설정/테스트/배포 계획 작성.
+- 실행한 테스트와 결과: 계획서 로컬 링크 28개 존재 검사 통과. git diff --check 및 신규 문서 whitespace 검사 수행. 문서만 변경하여 Gradle/외부 인프라 테스트 미실행.
+- 유지한 계약: Guest prepare/upgrade/merge 및 기존 LOCAL 기능 유지, JWT/하위 서비스 이벤트에 이메일·전화 추가 금지, 전화 proof만으로 회원 인증/연결/병합 불가, 번호 단일 활성 owner와 보안 block/floor 유지, 과거 WORKLOG 보존.
+- 결정사항: 사용자의 한 번에 개발 요청으로 이전 분리 출시 권고 대체. 마스킹 이메일을 이번 범위에 포함하되 미제공/Apple relay 정상 처리. SNS 이메일은 User.email 대신 SocialIdentity의 표시용 힌트로 보관. 전화 인증은 별도 프로젝트/클라이언트 Auth 격리를 권고하고 실제 환경 선택은 구현 시 확정할 항목으로 명시. 신규 API/오류/설정값은 제안이며 현재 구현 사실과 구분.
+- 위험 요소: 실제 DB/Firebase 회원·진행 작업 미조회, provider별 이메일 제공 및 별도 OTP 환경 검증 미수행. 앱 저장소 구현/통합 QA 필요, unique 인덱스·분산 제한·응답 유실·기존 보안 경합 테스트 필요.
+- 예상 밖 변경: 없음. 기존 CURRENT_STATE/WORKLOG 변경을 보존하고 이번 계획서와 작업 기록만 추가. 코드/API/계정 삭제/외부 인프라/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 단일 SNS 제한·전화 인증 계정 찾기·마스킹 이메일을 동일 출시 범위로 계획. 관련 코드 근거와 오류/필드/TTL/재시도/보안/프론트/테스트/배포 점검 수록, 실제 구현·환경 검증은 미수행.
+- 다음 작업: 구현 요청 시 전용 OTP 환경 선택 및 계약 확정 후 계획 순서대로 서버/테스트 도구 구현·회귀 테스트 수행, 앱 연동/배포 전 데이터·인덱스 점검.
+
+## 2026-10-03 — 통합 계획서 사용자 흐름 중심 설명
+
+<!-- codex-turn:01a0fd39-00ea-7533-960e-dff9a444171f -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 단일 SNS·전화 인증 계정 찾기 통합 계획을 사용자 눈높이로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 코드/계획서 변경 없음. 특정 SNS 계정 하나와 활성 전화번호 owner 하나의 정책, Guest 승격·병합과 SNS 추가의 차이, 전화 OTP/힌트 안내/실제 SNS 로그인 단계, 이메일 미제공 및 전용 Firebase 권고안 설명.
+- 실행한 테스트와 결과: 계획서·최신 기록 확인, git diff --check 통과. 설명/기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 통합 개발·출시 범위, Guest 기능, 계정 안내만으로 회원 로그인/병합 불가, 마스킹 힌트 및 원문 비노출, 기존 LOCAL 기능 유지.
+- 결정사항: 계정 찾기 prepare는 조회 접수번호 발급이며 Guest prepare와 별개. 이메일 힌트 저장·DB 단일 제약·자동 등록 차단·재시도/제한은 해당 사용자 경험을 구현하는 내부 작업. 별도 Firebase 프로젝트는 권고 설계이며 실제 선택은 구현 착수 시 확인.
+- 위험 요소: 계획은 미구현, provider별 이메일 제공과 OTP 환경/실제 앱 연동 검증 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 제품 코드/API/외부 상태/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 통합 계획을 가입/Guest/계정 찾기 사용자 흐름으로 설명. OTP는 번호 소유 확인과 계정 힌트 안내에 사용하고 회원 로그인은 기존 SNS 재인증 필요.
+- 다음 작업: 구현 요청 시 통합 계획에 따라 환경 선택·구현·테스트·앱 연동 진행.
+
+## 2026-10-03 — Guest JWT와 Firebase 인증 상태 구분 정정
+
+<!-- codex-turn:01a0fd4e-fce1-7673-bfe5-ee21facd843e -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 계정 찾기 전화 인증 격리 설명에서 Guest 인증과 Firebase SDK 로그인 상태 혼동 해소.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 변경 없음. FirebaseGuestMergeService에서 CurrentUserProvider source와 Firebase 증명 target 분리를 확인. 계획서에 Guest JWT는 Firebase 전화 로그인만으로 폐기되지 않으며 앱의 토큰 저장/교체 처리와 Firebase currentUser를 구분하는 설명 추가.
+- 실행한 테스트와 결과: 코드·계획서 정적 확인, git diff --check 통과. 설명/문서 변경으로 Gradle 미실행.
+- 유지한 계약: Guest source는 인증된 Identity 사용자에서 결정, target은 Firebase SNS 증명으로 검증. 전화 인증은 계정 안내용이며 Guest 병합/회원 인증을 대신하지 않음.
+- 결정사항: 별도 Auth 인스턴스는 클라이언트 로그인 상태, 별도 Firebase 프로젝트는 서버 사용자 공간 격리라는 차이를 설명. Guest 인증 보존만으로 새 프로젝트가 필수라는 주장은 정정. 기존 권고안은 원격 부작용 격리 선택으로 명확히 하며 실제 SDK/프로젝트 선택은 아직 미확정.
+- 위험 요소: 실제 앱의 Firebase SDK 사용법/로그인 리스너/토큰 저장 구현 미조사. 같은 프로젝트의 별도 Auth 인스턴스는 전화 credential 소유권·원격 계정 상태를 분리하지 않음.
+- 예상 밖 변경: 없음. 기존 기록 보존, 계획서 설명 보완 및 작업 기록만 변경. 코드/외부 인프라/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): Guest JWT/Firebase currentUser 구분과 프로젝트 격리 선택 설명 보완. Guest merge source/target 분리 확인, 앱 구현 및 원격 phone 흐름 확인 필요.
+- 다음 작업: 구현 시 앱 상태 관리와 같은 프로젝트 전화 인증 부작용을 확인하여 격리 방식을 결정.
+
+## 2026-10-03 — 계정 찾기와 Guest 병합의 독립성 설명
+
+<!-- codex-turn:01a0fd51-cd56-7b10-a6a3-3416f0226c92 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 계정 찾기가 Guest 병합에 의존하는 것처럼 전달된 설명 정정.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 코드 변경 없음. 계획서에 계정 찾기는 SNS/이메일 힌트 안내로 완료되고 Guest 토큰/병합이 필요 없음을 명시. 이후 사용자가 선택하는 로그인 및 Guest 병합은 별도 기존 흐름으로 구분.
+- 실행한 테스트와 결과: 계획서 확인 및 git diff --check 통과. 설명/문서 변경으로 Gradle 미실행.
+- 유지한 계약: 통합 개발 범위는 유지하되 계정 찾기와 병합 API의 책임 분리. 전화 proof로 로그인/병합 권한 발급 없음.
+- 결정사항: Guest 상태 보존은 찾기 구현이 기존 앱 상태를 변경하지 않도록 하는 일반 연동 조건이며 계정 찾기 자체의 병합 의존성이 아님. 별도 프로젝트 필요 여부는 병합과 무관한 Firebase 인증 설계 문제.
+- 위험 요소: 실제 앱 로그인/계정 찾기 연동 및 Firebase 환경 선택 미확인.
+- 예상 밖 변경: 없음. 기존 기록 보존, 코드/외부 상태/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 계정 찾기/Guest 병합의 독립성과 선택적 후속 로그인 흐름 문서 명확화.
+- 다음 작업: 구현 시 계정 찾기 API를 Guest 없이 사용 가능하게 만들고 기존 인증 상태에 부작용이 없음을 검증.
+
+## 2026-10-03 — 기존 Firebase 프로젝트 재사용 계획 반영
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: Firebase 프로젝트를 추가하지 않는 방향과 필요한 기존 Firebase 설정 설명.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 코드 변경 없음. 기존 project/tenant/Admin 설정을 재사용하고 서버 검증만 계정 찾기 목적별로 추가하는 안으로 계획 수정. Phone/SMS/플랫폼 앱 검증 설정과 기존 phone UID/미등록 번호의 phone-only UID 생성·후속 가입 테스트 항목 반영. 공용 프로젝트의 무조건 계정 삭제/30일 정리 제안 제거.
+- 실행한 테스트와 결과: FirebaseAuthProperties/application 설정 정적 확인 및 git diff --check. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: Guest JWT 독립, 번호로 계정 힌트 조회, 전화 proof만으로 회원 세션 발급 없음. 기존 가입/승격 enrollment 조건과 SNS 로그인 검증 유지.
+- 결정사항: 새 Firebase 프로젝트/service account 불필요. 이미 같은 앱에서 실제 전화 인증이 동작하면 관련 콘솔 설정 재사용 가능. 현재 설정의 활성 여부는 소스의 기본값으로 단정하지 않음. 같은 프로젝트의 일반 PHONE 증명과 계정 찾기 목적 검증을 구분.
+- 위험 요소: 실제 Firebase 콘솔·SMS 결제/할당량·앱 SDK 설정 미조회. 미등록 번호의 phone-only 계정 생성 및 후속 가입/정리 상호작용은 통합 검증 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 제품 코드/외부 설정/계정 삭제/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 계정 찾기는 기존 Firebase 프로젝트 재사용. 콘솔 Phone/SMS/앱 검증 확인 및 별도 서버 목적 검증, 기존 UID/신규 phone-only UID 회귀 계획 반영.
+- 다음 작업: 구현 요청 시 기존 전화 인증 설정과 앱 SDK 흐름을 확인하고 통합 계획 구현.
+
+## 2026-10-03 — 기존 Firebase 재사용 작업 식별 기록 보완
+
+<!-- codex-turn:01a0fd53-58b8-7e53-ab0f-7fc7aa4d8bdc -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 기존 Firebase 프로젝트 재사용 계획 반영 작업을 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 앞선 계획서 수정 결과 유지.
+- 구현 내용: 제품 변경 없음. 기존 프로젝트/tenant/Admin 설정 재사용, 콘솔 Phone/SMS/앱 검증 확인 및 서버 목적별 전화 증명 검증 추가 방향의 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 계정 찾기와 Guest 병합 분리, 기존 가입/로그인 보안 조건 유지.
+- 결정사항: 새 Firebase 프로젝트 생성 없이 진행하는 계획 유지. 실제 콘솔 및 앱 SDK 설정은 미조회.
+- 위험 요소: 미가입 번호의 phone-only UID 생성과 후속 가입 상호작용 통합 검증 필요.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- 다음 작업: 구현 요청 시 기존 전화 인증 설정 확인 후 통합 계획 구현 및 테스트.
+
+## 2026-10-03 — 기존 SMS 인증 재사용 및 Phone 로그인 용어 설명
+
+<!-- codex-turn:01a0fd55-b681-7a20-b213-8c6b85d78420 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: SMS 설정이 이미 있는 상황에서 Phone 로그인이라는 표현이 의미하는 바를 설명.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 변경 없음. 기존 SMS 설정 재사용을 명시하고 Firebase SDK의 전화 인증 증명 획득과 앱 회원 로그인 기능을 구분하도록 계획서 표현 보완.
+- 실행한 테스트와 결과: 계획서 확인 및 git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 기존 Firebase 프로젝트 재사용, 전화 인증 결과로 계정 힌트만 조회, 회원 토큰 발급/자동 병합 없음.
+- 결정사항: 사용자 확인 기준 SMS 설정 완료. Phone 제공업체를 새로 켜거나 앱에 전화번호 로그인 메뉴를 추가하는 작업을 요구하지 않음. 기존 SMS 흐름의 서버 검증 가능한 Firebase 증명 전달은 구현 대상.
+- 위험 요소: 앱 SDK의 기존 SMS 확인/증명 획득 코드는 미조회, 콘솔 상태는 사용자 확인 기준.
+- 예상 밖 변경: 없음. 과거 기록 보존, 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- 다음 작업: 구현 시 기존 SMS 인증 결과 전달을 재사용하고 계정 찾기 서버 검증/API 추가.
+
+## 2026-10-03 — SMS 재사용 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a0fd55-b681-7541-b03d-c12d81013760 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: SMS 재사용 및 Phone 인증 용어 설명을 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. Firebase 전화 인증 증명 획득과 Identity 회원 로그인 기능을 구분한 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 기존 SMS/Firebase 설정 재사용, 전화 인증으로 회원 토큰 발급 없음.
+- 결정사항: 별도 전화번호 로그인 기능이나 신규 Firebase 설정을 요구하지 않는 방향 유지.
+- 위험 요소: 실제 앱 SDK 흐름 미조회, SMS 설정 완료는 사용자 확인 기준.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push 변경 없음.
+- 다음 작업: 구현 요청 시 기존 SMS 인증 결과를 계정 찾기 API에 연동.
+
+## 2026-10-03 — 통합 계획의 남은 사용자 결정사항 점검
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 사용자에게 다시 확정받아야 할 사항과 구현 검증 사항 구분.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 코드 변경 없음. 기존 대화와 계획서 결정 섹션을 확인하고 필수 미결정 사항이 없음을 문서에 반영. 기본 표시 정책/인증 유효기간/제한과 SDK·인덱스·데이터 검증을 구분.
+- 실행한 테스트와 결과: 계획서 정적 확인 및 git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지한 계약: 단일 SNS/활성 전화번호 owner, Guest 기능, 전화 인증 후 힌트 안내, 기존 Firebase/SMS 재사용, 통합 개발 범위.
+- 결정사항: 이미 정한 방향을 재승인받지 않음. 이메일 미제공/Apple relay는 계획 기본안 적용. 기존 SNS에 접근할 수 없는 사용자의 SNS 교체/접근 복구 기능은 이번 범위에 포함하지 않음.
+- 위험 요소: 실제 앱 SDK/콘솔/DB 상태와 provider별 이메일 제공은 구현 시 검증 필요하며 사용자 미결정 사항과 구분.
+- 예상 밖 변경: 없음. 기존 기록 보존, 제품 코드/외부 설정/배포/commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): 통합 계획의 필수 사용자 결정 완료 상태 확인. 남은 SDK/환경/인덱스 검증과 기존 SNS 접근 복구 제외 범위 문서 명확화.
+- 다음 작업: 구현 요청 시 계획 기본안으로 구현 및 회귀 테스트 진행.
+
+## 2026-10-03 — 사용자 결정사항 점검 식별 기록 보완
+
+<!-- codex-turn:01a0fd57-258b-7082-8719-b1260e55b435 -->
+
+- 브랜치: develop. 지정된 Jira 없음.
+- 작업 목표: 남은 결정사항 점검 결과를 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 필수 사용자 결정이 남아 있지 않고 계획 기본안으로 진행 가능하다는 설명 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 문서 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 기존 Firebase/SMS 재사용 및 통합 개발 범위 유지.
+- 결정사항: 이미 합의한 방향을 재승인받지 않으며 기존 SNS 접근 복구/교체는 이번 범위 밖으로 유지.
+- 위험 요소: 앱 SDK/데이터/인덱스/이메일 제공 여부는 구현 검증 필요.
+- 예상 밖 변경: 없음. 코드/외부 설정/배포/commit/push 변경 없음.
+- 다음 작업: 구현 요청 시 계획 기본안에 따라 구현·회귀 테스트 수행.
+
+## 2026-10-03 — 통합 구현 Jira 생성안 준비
+
+- 브랜치: develop.
+- Jira: TMI-136 (상위 에픽 조회 및 제안, 신규 작업 이슈 미생성).
+- 작업 목표: 통합 구현 계획을 Jira 작업 하나로 등록할 구체적인 생성안 준비.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md 부록 E, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 공식 Atlassian MCP로 부모 에픽/이슈 유형/생성 필드를 조회하고 제목·본문·완료 조건·제외 범위를 작성. 제품 코드 변경 없음.
+- 실행한 테스트와 결과: Jira read 조회 성공, Rovo 검색은 403 권한 오류로 중복 검색 실패. git diff --check 통과. 문서 작업으로 Gradle 미실행.
+- 유지한 계약: Jira 쓰기 전 내용 제시 및 승인, 비밀정보/사용자 개인정보 미기록, 통합 개발 및 기존 Firebase/SMS 재사용 범위 유지.
+- 결정사항: TMI-136 하위 작업 유형의 생성안을 제시하되 실제 이슈 유형은 일반 작업(에픽 자식)으로 선택. 담당자/기한 임의 지정 없음. 사용자에게 생성안 확인 요청.
+- 위험 요소: 중복 이슈 미확인, 실제 생성 권한은 쓰기 호출 전이므로 미검증.
+- Jira 작업: 조회만 수행. 댓글 목적/상태 변경 없음. 승인 여부: 생성 요청 수신, 구체 생성안의 사전 확인 대기.
+- 예상 밖 변경: 없음. 기존 기록 보존, Jira 생성/수정/댓글/상태 전환/제품 코드/배포/commit/push 없음.
+- 다음 작업: 제시한 생성안 승인 후 신규 작업 생성 및 반환된 이슈/부모/본문 확인, 문서에 새 키 반영.
+
+## 2026-10-03 — Jira 생성안 준비 식별 기록 보완
+
+<!-- codex-turn:01a0fd59-0d07-78a1-92ea-a885691cbd5e -->
+
+- 브랜치: develop.
+- Jira: TMI-136 (상위 에픽 조회, 신규 이슈 미생성).
+- 작업 목표: Jira 생성안 준비 결과를 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 계획서 부록 E의 생성안 제시 및 승인 대기 상태 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, Jira 쓰기 전 내용 제시/승인 규칙 유지.
+- 결정사항: 신규 작업 제목/본문/부모 제시 완료, 사용자 승인 후 생성.
+- Jira 작업: 추가 조회/쓰기 없음. 댓글 목적/상태 변경 없음. 생성안 승인 대기.
+- 위험 요소: 검색 권한 오류로 중복 이슈 여부 미확인.
+- 예상 밖 변경: 없음. 제품 코드/외부 상태/배포/commit/push 변경 없음.
+- 다음 작업: 승인 후 Jira 작업 생성 및 반환된 키/부모/본문 검증.
+
+## 2026-10-03 — TMI-192 통합 구현 Jira 생성 완료
+
+- 브랜치: develop (이슈 생성·문서 반영 작업, 구현 브랜치 생성 없음).
+- Jira: TMI-192. 상위 에픽 TMI-136.
+- 작업 목표: 사용자 승인한 단일 SNS·SMS 계정 찾기 작업 이슈 생성.
+- 변경 파일: docs/contracts/single-sns-account-recovery-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 공식 Atlassian MCP로 승인된 제목/본문의 작업 이슈 생성. 재조회하여 부모 TMI-136, 상태 해야 할 일 및 본문 일치 확인. 계획서에 새 이슈 링크 반영. 제품 코드 변경 없음.
+- 실행한 테스트와 결과: 생성 및 재조회 성공, Markdown 목록 기호 정규화 후 승인 본문 일치. git diff --check 통과. 문서/Jira 작업으로 Gradle 미실행.
+- 유지한 계약: 기존 Firebase/SMS 재사용, 단일 SNS·계정 찾기 통합 범위, Guest 기능 유지, Jira 비밀정보/개인정보 미기록.
+- 결정사항: 사용자 '어' 응답으로 제시한 생성안 승인 확인 후 1개 작업 생성. 담당자 미지정·프로젝트 기본값 사용. 이슈 구현은 별도 요청 전 미착수.
+- Jira 작업: TMI-192 생성. 댓글 목적: 해당 없음(댓글 미등록). 상태: 생성 기본 상태 해야 할 일, 별도 전환 없음. 승인 여부: 생성 전 본문 제시 후 명시 승인 받음.
+- 위험 요소: 앞선 검색 권한 오류로 기존 중복 이슈 여부 미확인, 실제 Firebase/앱/DB 통합 검증은 구현 단계 필요.
+- 예상 밖 변경: 없음. 기존 기록 보존, 제품 코드/배포/commit/push 변경 없음.
+- Jira 댓글 초안(미등록): 승인된 통합 계획으로 이슈 생성 및 부모/본문 확인, 계획서 링크 반영. 제품 구현·테스트·배포는 미착수.
+- 다음 작업: 구현 요청 시 TMI-192를 기준으로 이슈 키를 포함한 구현 브랜치 및 코드/테스트 작업 진행.
+
+## 2026-10-03 — TMI-192 생성 완료 식별 기록 보완
+
+<!-- codex-turn:01a0fd5b-8e27-72e0-831e-4a79cb1f5fff -->
+
+- 브랜치: develop.
+- Jira: TMI-192 (상위 TMI-136).
+- 작업 목표: Jira 생성 완료 결과를 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 승인 후 TMI-192 생성 및 제목/본문/부모 확인 결과의 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 승인 범위 내 Jira 생성.
+- 결정사항: 생성 완료 상태 유지, 추가 이슈 생성/수정 없음.
+- Jira 작업: 앞선 생성은 사용자 승인 후 수행. 이번 보완 중 Jira 호출 없음. 댓글 미등록, 상태 전환 없음.
+- 위험 요소: 기존 중복 이슈 검색 권한 미확보, 제품 구현/환경 검증 미착수.
+- 예상 밖 변경: 없음. 코드/외부 상태/배포/commit/push 변경 없음.
+- 다음 작업: 구현 요청 시 TMI-192와 통합 계획에 따라 진행.
+
+## 2026-10-03 — 정지 회원 병합 및 downstream 이전 UI 의미 설명
+
+- 브랜치: develop.
+- 작업 목표: 정지 회원의 재로그인/복구 가능성과 병합 성공 후 비동기 이전·Guest 승격 차이 설명.
+- 변경 파일: docs/contracts/frontend-firebase-auth-integration-guide.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 코드 변경 없음. Guest merge resolver/transaction의 SUSPENDED 거절 및 exchange 비활성 거절 확인. upgrade는 동일 userId이고 merge는 source/target 변경 및 outbox 저장임을 확인. 가이드에 출시 gate와 요청별 완료 표시를 구분하고 공개 이전 완료 API 미구현 사실/새 조회 계약 필요성 명시.
+- 실행한 테스트와 결과: 소스/프론트 계약/LC 인계서/owner fanout 계획 정적 확인, git diff --check 통과. 설명·문서 변경으로 Gradle 미실행.
+- 유지한 계약: 정지 대상에 세션 발급/병합 금지, 실패 시 Guest 상태 보존, 전화 owner 검증 유지, merge의 비동기 전달과 upgrade userId 보존, 하위 서비스 권한 검증 유지.
+- 결정사항: 정지는 재로그인으로 해제되지 않으며 현재 사용자용 해제 API 없음. 안내·문의/이의 제기 경로 권고, 실제 운영 해제 절차는 별도. UI gate는 출시 조건이며 앱 전체 대기 요구가 아님. 완료 표시를 원하면 LC/Billing 실제 처리 완료를 조회하는 별도 계약 필요; 이번 작업에서 API 구현/이슈 범위 확대 없음.
+- 위험 요소: LC/Billing 실제 저장소·배포/consumer 완료 상태 미검증. 사용자별 migration 상태 API는 Identity에 없고 외부 서비스의 현 구현은 미확인. upgrade 후 Billing 권리 반영은 별도 비동기 상태일 수 있음.
+- 예상 밖 변경: 없음. 기존 문서/기록 보존, 제품 코드/외부 상태/Jira/배포/commit/push 변경 없음.
+- Jira 댓글 초안(미등록): 정지 대상 재로그인 해결 불가 및 merge 출시 gate/비동기 완료/동일 ID upgrade 구분 명확화. 완료 조회·정지 해제는 별도 계약 필요.
+- 다음 작업: 실제 consumer 준비 여부 확인 및 필요 시 사용자별 이전 완료 UX/API와 정지 해제 운영 정책 별도 설계.
+
+## 2026-10-03 — 정지 회원·병합 UI 설명 식별 기록 보완
+
+<!-- codex-turn:01a0fd5c-ec5a-7152-94f6-6b05d4e4f9d9 -->
+
+- 브랜치: develop.
+- 작업 목표: 정지 계정 복구 및 병합/승격 UI 설명을 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 정지 계정은 재로그인으로 복구되지 않고, 병합 UI gate는 출시 조건이며, 승격은 동일 userId라는 설명 결과 기록 보완.
+- 실행한 테스트와 결과: git diff --check 통과. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 기록 보존, 비밀정보 비기록, 정지 대상 인증 거절, Guest 인증 보존, 비동기 병합 및 승격 ID 유지.
+- 결정사항: 전체 앱 차단을 필수 동작으로 해석하지 않음. 사용자별 이전 완료 표시는 별도 조회 계약이 필요하며 현재 Identity 공개 API 없음.
+- 위험 요소: 외부 consumer 실제 구현/배포 및 정지 해제 운영 절차 미확인.
+- 예상 밖 변경: 없음. 코드/외부 상태/Jira/배포/commit/push 변경 없음.
+- 다음 작업: 필요 시 하위 서비스 완료 조회 계약과 정지 해제 정책 설계.
+
+## 2026-10-03 — TMI-192 단일 SNS 정책·SMS 계정 찾기 구현
+
+<!-- codex-turn:01a0fd60-52ad-7831-a34f-61c46b6e75ac -->
+
+- 날짜: 2026-10-03.
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192 (상위 TMI-136).
+- 작업 목표: 승인 계획의 단일 SNS·전화번호당 활성 회원 하나·SMS 계정 찾기/마스킹 이메일을 Identity 저장소에서 구현. 정지 해제 및 downstream 이전 완료 조회는 범위 제외.
+- 변경 파일: 신규 domain/auth/accountrecovery 9개 구현 클래스, domain/auth/domain/EmailHint, federation/application/SingleSocialIdentityPolicy 및 SocialIdentity; Firebase signup/upgrade/exchange/merge target/sync/verifier/SDK/principal; providerchange guard/login fence/config/retired controllers/request filter; SecurityConfig/ReissueNoStoreFilter/IdentityOpenApiExamples/application.yml/.env.example. 대응 신규·기존 Java 테스트, tools/auth-test app/index/server/UI mock tests/README, frontend-firebase-auth-integration-guide, single-sns-account-recovery-implementation-plan/runbook, docs/swagger/index.html, CURRENT_STATE/WORKLOG.
+- 구현 내용: SocialIdentity userId unique 및 단일 SNS 검증, 기존 SNS에 대해서만 로그인 권한 부여, 자동 추가 등록 제거. 공개 link/unlink는 410으로 폐지하고 런타임 ProviderLinkService bean 제거. Guest/LOCAL/PASSWORD 및 기존 보안 이력 처리 유지. 이메일 원문 대신 provider별 마스킹 힌트를 가입·승격 시 저장.
+- 계정 찾기: 공개 prepare/lookup 추가. 기존 Firebase project/tenant/Admin과 PHONE 인증 재사용, 최근 auth_time/prepare 시각/만료/폐기/disabled/토큰과 Admin 번호 일치 검사. 전용 HMAC(project,tenant,uid,auth_time,phone) retained keys로 proof unique claim 및 attempt CAS를 Mongo transaction에 묶고 재시도 시 현재 owner/상태 재조회. UID/IP/번호 HMAC counter 공유 요청 제한, 본문 크기 제한, no-store. 계정 찾기로 회원 토큰/enrollment/merge 권한을 발급하지 않음.
+- UI·문서: 동일 Firebase 프로젝트의 별도 in-memory Auth로 기존 로그인 보존하는 로컬 테스트 화면 추가. 원문 증명 표시/저장/자동 사용자 삭제 없음. 프론트의 과거 자동 등록/추가 연결 안내는 폐지 계약으로 교체, 정확한 오류/설정/인덱스/출시 QA 런북 작성.
+- 실행한 테스트와 결과: 최종 ./gradlew clean test 성공 — 157 suite, 1083 tests, failures/errors/skipped 모두 0. node --test tools/auth-test/*.test.mjs 성공 — 3/3. git diff --check 및 변경 계약 문서 상대 링크 검사 통과. 중간 실패는 구 다중 SNS/자동 연결 기대치와 fixture/OpenAPI 예제 갱신, Mockito stubbing 수정으로 해소. Gradle 캐시·로컬 포트의 sandbox 제한은 승인된 확장 실행으로 해결. 실제 Atlas/OAuth 호출 없이 mock/인메모리 Mongo 사용.
+- 유지한 계약: UUID userId/JWT sub, RS256/JWKS/issuer/audience, 기존 전화 fingerprint active unique, Guest 승격 동일 ID·병합 source/target 및 outbox, LOCAL/PASSWORD, 로그아웃/탈퇴 epoch 및 provider block/floor, 토큰·비밀번호·원문 PII 비기록.
+- 변경한 외부 계약: SNS link/unlink 유효 요청 410 PROVIDER_LINK_RETIRED, 복수 SNS 가입·승격 409 SINGLE_SNS_REQUIRED, 승인 SNS 불일치 SNS_ACCOUNT_MISMATCH. sync legacy linkAttemptId 410. 신규 recovery prepare/lookup 및 전용 오류·한도·환경변수. Firebase 프로젝트 신규 생성 없음.
+- 결정사항: 계정 찾기 기본 OFF. Attempt는 proofIds null/비null로 PENDING/CONSUMED 표현하며 retryUntil을 원자 기록. 힌트는 가입/승격 snapshot만 저장하고 로그인 자동 갱신/백필 제외. legacy ProviderChangeTests는 과거 보안 상태 fixture에서만 userId unique를 제외하고 실제 repository 테스트는 새 unique를 검증. 기존 보안 worker/이력은 삭제하지 않음.
+- 위험 요소: 실DB 회원·진행 작업 부재 미확인. unique 이행/TTL/replica-set rollback 및 실 다중 인스턴스 경쟁/키 회전 미검증. 실제 앱·Firebase SMS/Apple·Kakao 이메일 제공 여부·phone-only UID 후속 가입 credential 충돌 QA 필요. Identity IP 제한이 Firebase 직접 SMS 남용을 제한하지 않음. 프록시 실 IP 신뢰 설정 확인 필요.
+- 배포 전 확인: 런북 순서대로 쓰기 중단/중복·진행 작업 검사 후 정확한 userId 인덱스 전환, 기존 phone unique/신규 TTL 검증, 독립 recovery 키 및 기존 Firebase/phone 설정 준비. old/new HMAC 키 overlap 및 >=24h retained 유지. 앱과 단일 SNS·계정 찾기 동일 출시 gate 준수. 기존 merge LC/Billing E2E gate 유지.
+- 예상 밖 변경: 없음. 시작 당시 미커밋 WORKLOG/CURRENT_STATE/프론트 가이드/계획서는 보존. 과거 WORKLOG 항목은 수정·삭제하지 않고 실제 EOF에 append. commit/push/배포/외부 인프라 변경·사용자 삭제 없음.
+- Jira 작업: 구현 전 공식 MCP로 TMI-192 조회. 이번 구현에서 생성/수정/댓글/상태 전환 없음. 사용자 구현 승인 범위만 수행.
+- Jira 댓글 초안(미등록): TMI-192 단일 SNS 정책·추가 연결 폐지·SMS 계정 찾기/마스킹 힌트·재시도/분산 제한·프론트 계약/테스트 UI 구현. auth/federation/providerchange/accountrecovery, 설정·문서·테스트 변경. clean test 1083개 및 Node 3개 통과. 배포 전 데이터/unique/TTL/실 Firebase 및 앱·replica-set 검증 필요.
+- 다음 작업: 사용자 diff 검토 후 직접 commit/push/PR. 별도 앱 저장소 구현·환경 설정·런북의 실제 통합 QA 완료 후 배포 승인. 정지 복구 및 downstream 이전 상태 API는 별도 요구사항으로 유지.
+
+## 2026-10-03 — 병합 downstream 전체 완료 조회 API 유무 확인
+
+<!-- codex-turn:01a10082-bb5b-7010-8e29-8daa0ade9886 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192 (현재 브랜치 문맥; 추가 이슈 작업 없음).
+- 작업 목표: Identity 병합 확정 이후 Learning Core/Billing 전체 처리 완료 조회 API 존재 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. Firebase merge Controller 및 공개 Controller 경로, 프론트 계약 4.5, TMI-192 런북 확인. Identity에 downstream 종합 완료 조회 API가 없고 TMI-192 범위에서도 추가하지 않았음을 재확인.
+- 실행한 테스트와 결과: 소스·계약 정적 검색 및 git diff --check. 설명/기록만 변경하여 Gradle 미실행.
+- 유지한 계약: merge 성공은 Identity 사용자/세션 변경·이벤트 저장 성공이며 하위 서비스 기록 이전 완료가 아님. 기존 Guest 승격·병합 계약 불변.
+- 결정사항: 프론트가 전체 완료를 polling하려면 하위 서비스 처리 완료 수집과 조회 계약을 별도로 설계해야 함. 이번 요청은 API 구현 승인이 아님.
+- 위험 요소: Learning Core/Billing 저장소의 개별 API 구현 여부는 미확인. 이벤트 전달 완료를 실제 처리 완료로 해석하면 안 됨.
+- 예상 밖 변경: 없음. 기존 코드/문서 변경 보존, 외부 상태·Jira·배포·commit/push 변경 없음.
+- Jira 댓글 초안(미등록): 종합 이전 완료 조회 API 미구현 확인. 코드 변경 및 테스트 실행 없음; 외부 consumer 완료 확인 계약은 별도 필요.
+- 다음 작업: 필요 시 완료 상태 소유 서비스·서비스별 처리 결과 전달·프론트 조회 API 계약을 별도 결정.
+
+## 2026-10-03 — Guest 병합 전체 이전 완료 조회 구현 계획 작성
+
+<!-- codex-turn:01a10082-bb5b-7010-8e29-8daa0ade9886 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 현재 브랜치 문맥만 해당. 본 조회 API는 별도 후속 범위이며 신규 이슈 미생성.
+- 작업 목표: Identity 병합 이후 Learning Core/Billing 전체 완료 조회 API의 구현 계획과 쉬운 사용자 설명 작성.
+- 변경 파일: docs/contracts/guest-merge-progress-query-implementation-plan.md(신규), docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 제품 코드 변경 없음. 기존 merge transaction, owner fanout capture/core/delivery/publisher/완료 transaction, 공용 응답 DTO, LC consumer 인계서와 Stage 7 계약 확인. 기존 consumer commit 후 ACK 계약을 활용한 strict 204 기반 완료 증거·최소 progress 모델·mergeId·단건/목록 GET 계획 작성.
+- 주요 확인 사실: 현재 publisher는 모든 2xx를 성공 처리함. LC 문서 계약은 direct local transaction commit 뒤 204, 202 금지. fanout eventId는 legacy outbox 객체와 별도로 생성되므로 실제 capture 반환 ID를 response/progress와 연결해야 함. Billing 정확한 ACK 코드와 실서비스 준수는 미확인.
+- 계획: 추적 대상 USER_MERGED에 한해 strict ACK 및 progress/delivery/cursor 원자 확정, 응답 유실 시 동일 event retry, 필수 두 consumer만으로 합산. 본인 ACTIVE MEMBER 권한·404 비노출·no-store·분산 조회 한도·목록 복구·복수 기기·TTL·FIFO blocker·운영 확인 상태·앱 polling 제한 포함. 과거 자동 backfill 및 신규 callback은 기본안 제외.
+- 실행한 테스트와 결과: 신규 계획서 상대 파일 링크 검사 통과, git diff --check 통과. 문서 작업이므로 Gradle/실외부 서비스 테스트 미실행.
+- 유지한 계약: Guest merge/source·target/JWT/기존 이벤트 v1 필드/LOCAL/PASSWORD/계정 찾기 계약 변경 없음. 학습·Billing 업무는 각 저장소 소유. Guest upgrade는 이번 진행 조회 대상 아님. 기록 이전 증거 없이 완료 표시 금지.
+- 결정사항: 권장 기본안으로 public GET 2개와 merge 전용 응답 mergeId 제안. callback 대신 기존 완료 ACK를 활용하되 LC/Billing 준비 확인이 출시 조건. 아직 구현 계약으로 확정·배포하지 않음.
+- 위험 요소: 실제 consumer commit 범위/204 준수/기본 3초 timeout 내 완료 여부, progress retention·탈퇴 정리, 오래된 PUBLISHED에 strict ACK 증거 부재. worker/202 처리 구조라면 별도 receipt/callback 계약 재설계 필요.
+- 예상 밖 변경: 없음. 기존 TMI-192 코드·문서 작업 보존. 외부 상태/Jira/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): 병합 진행 조회 계획 작성. 실제 eventId 연계·commit ACK·progress 및 본인 조회 API/복구/출시 테스트 범위 정리. 코드 테스트 없음, consumer 실제 계약 검증 필요.
+- 다음 작업: 사용자 계획 검토 및 필요 시 별도 Jira 생성 승인, LC/Billing 정확한 완료 계약 확인 후 후속 구현 착수.
+
+## 2026-10-03 — 병합 완료 조회 계획의 현재 작업 식별 기록 보완
+
+<!-- codex-turn:01a10084-f10d-7243-947c-3d0e79ed35df -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 현재 브랜치 문맥이며 조회 API는 별도 후속 범위. 신규 이슈 미생성.
+- 작업 목표: 병합 전체 완료 조회 계획 작성 결과를 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 본 작업의 계획서: docs/contracts/guest-merge-progress-query-implementation-plan.md.
+- 구현 내용: 계획서 작성·사용자 설명 완료 사실 기록 보완. 실제 eventId와 연계한 progress, consumer commit 후 strict 204 확인, 회원용 단건/목록 조회, 응답 유실 복구·영역별 UI·출시 검증 계획 유지. 제품 API 미구현.
+- 실행한 테스트와 결과: git diff --check 확인. 기록 보완만 수행하여 Gradle 미실행. 앞선 계획서 상대 링크 검사 통과.
+- 유지한 계약: 기존 병합/승격/JWT/이벤트 계약 불변, 과거 WORKLOG 보존, 비밀정보 비기록.
+- 결정사항: 추가 callback 없이 기존 완료 ACK 활용을 권장하되 실제 LC/Billing 준수 확인 선행. 현재는 문서상 제안이며 배포 계약 아님.
+- 위험 요소: 외부 consumer의 commit 범위·204 응답·timeout 내 처리 및 세 서비스 E2E 미확인.
+- 예상 밖 변경: 없음. 기존 코드/문서 작업 보존, Jira/배포/commit/push 변경 없음.
+- 다음 작업: 계획 검토 후 별도 후속 이슈 승인 및 consumer 계약 확인, 구현 착수.
+
+## 2026-10-03 — 첫 출시 Billing 미배포와 병합 진행 조회 계획의 공백 확인
+
+<!-- codex-turn:01a1008e-be6d-7883-b31a-d35d2fd2d73f -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥이며 조회 API 후속 이슈는 미생성.
+- 작업 목표: 첫 업데이트에서 Billing을 배포하지 않을 때 기존 조회 계획이 정상 완료를 지원하는지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. 조회 계획의 필수 consumer 두 개 고정 snapshot 및 양쪽 consumer 준비 gate 재확인. Billing 미배포 정상 출시 모드는 아직 없음을 확인.
+- 실행한 테스트와 결과: 문서 정적 검색 및 git diff --check. 분석·기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 실제 처리 증거 없이 Billing 완료 표시 금지, 기존 생성 작업의 필수 consumer를 flag 변경으로 축소하지 않음, 과거 Billing 자동 backfill 미승인.
+- 결정사항: 보완 제안은 첫 출시에서 LC만 필수/Billing NOT_REQUIRED를 생성 시 기록하고 추후 신규 작업부터 양쪽 필수 적용. 일시 장애는 대상 제외와 구분. OwnerEventCore 불변식/delivery 생성/출시 gate 변경까지 필요하며 아직 구현·계획서에 적용하지 않음.
+- 위험 요소: 첫 출시 데이터의 향후 Billing 필요 여부, 권리 관련 기능의 서버 차단/출시 범위 및 historical migration 정책 미확정.
+- 예상 밖 변경: 없음. 기존 작업 보존, 외부/Jira/commit/push/배포 변경 없음.
+- 다음 작업: 출시별 consumer 범위와 향후 Billing 데이터 이행 정책을 정하고 조회 계획·서버 간 이벤트 계약을 함께 보완.
+
+## 2026-10-03 — Billing 미배포 조건 분석 식별 기록 보완
+
+<!-- codex-turn:01a1008e-7eaa-7a73-bc5e-244a6b6c7dc6 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 현재 브랜치 문맥. 별도 후속 이슈 미생성.
+- 작업 목표: 첫 출시 Billing 미배포 조건 분석을 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기록 보완만 수행. 현재 계획은 두 consumer 필수이며 첫 출시 LC만 필수/Billing NOT_REQUIRED 제안은 아직 계획서·코드에 반영하지 않음.
+- 실행한 테스트와 결과: git diff --check 확인. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 WORKLOG 보존, Billing 미처리를 완료로 표시하지 않음, 과거 병합 자동 재전송 금지.
+- 결정사항: 생성 시 필수 consumer snapshot, 장애와 출시 대상 제외 구분, 이벤트 생성과 조회 계약 동시 보완 필요.
+- 위험 요소: 과거 병합의 향후 Billing 이행 정책 미확정.
+- 예상 밖 변경: 없음. 제품 코드/계획서/외부 상태/Jira/commit/push/배포 변경 없음.
+- 다음 작업: 출시 범위와 이행 정책 확정 후 후속 계획 보완.
+
+## 2026-10-03 — Learning Core 병합 완료 응답 유실 복구 설명
+
+<!-- codex-turn:01a10082-bb5b-7010-8e29-8daa0ade9886 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥. 조회 API는 별도 후속 범위.
+- 작업 목표: LC commit 후 완료 응답 유실 시 재시도·중복 처리·조회 상태 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 변경 없음. LC consumer 계약 4.2와 progress 계획의 ACK/응답 유실 규칙 확인. 동일 eventId/payload 재전송, 이전+inbox 원자 commit, PROCESSED 중복 요청의 204 재응답, 미확인 상태 보수적 표시를 설명.
+- 실행한 테스트와 결과: 문서 정적 확인 및 git diff --check. 설명/기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 성공 응답은 consumer commit 뒤 전송, 같은 이벤트 재시도로 데이터 이전 중복 금지, 응답 유실을 rollback/실패 확정으로 간주하지 않음.
+- 결정사항: 신규 완료 조회는 확인까지 PROCESSING, 재시도 소진/격리는 운영 확인 필요로 표시하는 계획 유지. 프론트 merge 재호출은 복구 수단이 아님.
+- 위험 요소: 실제 Learning Core inbox 구현·원자성·중복 재응답 E2E 미검증. 무한 재시도나 반드시 즉시 복구된다고 보장하지 않음.
+- 예상 밖 변경: 없음. 기존 제품 변경 보존, Jira/외부/배포/commit/push 변경 없음.
+- 다음 작업: 실제 LC의 commit 후 응답 유실·동일 이벤트 재전송·Identity ACK 저장 실패 통합 테스트를 후속 구현에서 수행.
+
+## 2026-10-03 — 완료 응답 유실 복구 설명 식별 기록 보완
+
+<!-- codex-turn:01a10090-cc2e-73b1-9224-e0548e5606ba -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥이며 조회 API는 후속 범위.
+- 작업 목표: Learning Core 완료 응답 유실 복구 설명을 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기록 보완만 수행. 동일 eventId/payload 재전송, LC의 이전+inbox 원자 commit, 완료된 중복 요청의 204 재응답, Identity 완료 기록 실패 복구 설명 유지. 제품 변경 없음.
+- 실행한 테스트와 결과: git diff --check 확인. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 WORKLOG 보존, 중복 이전 금지, 실제 완료 확인 전 성공 추정 금지, 비밀정보 비기록.
+- 결정사항: 프론트 merge 재호출 대신 상태 조회, 자동 재시도 소진 시 운영 확인 필요. 조회 상태는 아직 구현 계획임.
+- 위험 요소: 실제 LC consumer 구현 및 응답 유실 통합 검증 미확인.
+- 예상 밖 변경: 없음. 코드/계획서/Jira/외부 상태/배포/commit/push 변경 없음.
+- 다음 작업: 후속 구현에서 consumer 멱등성과 양쪽 저장·응답 유실 복구 E2E 검증.
+
+## 2026-10-03 — 병합 완료 조회 사용자 결정사항 정리
+
+<!-- codex-turn:01a10092-723d-7583-9760-553b747aeeb3 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥이며 병합 완료 조회는 별도 후속 범위.
+- 작업 목표: 이미 정해진 첫 출시 조건과 사용자 제품 결정/개발 검증 책임 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 코드 변경 없음. 계획서 기본값 및 이전 Billing 미배포 논의 확인. LC만 필수/Billing NOT_REQUIRED를 출시 조건으로 반영할 필요, 이전 중 화면 정책과 향후 Billing 과거 데이터 이행 방향을 사용자 확인 항목으로 정리.
+- 실행한 테스트와 결과: 문서 정적 확인 및 git diff --check. 기록/설명 작업으로 Gradle 미실행.
+- 유지한 계약: Billing 미처리를 완료로 표시하지 않음, 기존 병합을 미래 flag 변경으로 미완료 전환하지 않음, 과거 자동 재전송 금지, 서버 권한 검증 유지.
+- 결정사항: 기본 회원 화면 사용 허용 및 미반영 영역 안내 권장. Billing 도입 시 기존 병합 데이터의 필요 이행은 별도 검토하며 자동 재병합하지 않는 방향 권장. 아직 신규 사용자 승인이나 계획서 수정으로 간주하지 않음.
+- 위험 요소: 실제 consumer 완료/멱등성 검증, Billing 도입 시 과거 권리·사용 이력 반영 여부 미확정. 첫 출시 LC-only 제안은 계획서에 아직 미반영.
+- 예상 밖 변경: 없음. 기존 코드/계획서 보존, Jira/외부 상태/commit/push/배포 변경 없음.
+- 다음 작업: 사용자 제품 방향 확인 후 LC-only 조건을 포함해 조회 계획을 보완하고 후속 구현 범위 확정.
+
+## 2026-10-03 — 프론트 책임 구분 및 첫 출시 LC-only 병합 조회 계획 반영
+
+<!-- codex-turn:01a10082-bb5b-7010-8e29-8daa0ade9886 -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥. 병합 완료 조회는 별도 후속 범위, 이슈 미생성.
+- 작업 목표: 사용자의 프론트 책임 지적 및 과거 병합 재실행 불필요 결정을 조회 계획에 반영.
+- 변경 파일: docs/contracts/guest-merge-progress-query-implementation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: 문서만 수정. 화면·polling을 프론트 인계 사항으로 분리. 첫 출시 Learning Core만 필수/Billing NOT_REQUIRED, 도입 후 신규 작업만 두 서비스 필수, 과거 Billing backfill/replay 없음으로 계획 보완. core/progress/delivery의 생성 당시 필수 consumer snapshot 일치·LC-only의 Billing delivery/sequence 미생성·출시 profile 명시·응답 예제·aggregate·gate·테스트 항목을 함께 수정.
+- 실행한 테스트와 결과: 계획서 상대 파일 링크 검사 통과, git diff --check 확인. 문서 작업이므로 Gradle 미실행.
+- 유지한 계약: 실제 처리 없이 Billing 완료 표시 금지, 현재 flag로 과거 필수 consumer 변경 금지, 응답 유실 시 같은 event 멱등 재시도, 서버 권한 검증 유지. 제품 코드의 기존 동작은 변경하지 않음.
+- 결정사항: Identity 계획 진행을 막는 추가 사용자 결정 없음. 과거 병합을 Billing 도입 때문에 다시 실행하지 않음. 이미 필수로 생성된 미완료 작업의 정상 retry와 과거 대상 제외 작업 backfill은 구분. 프론트 화면 구현은 서버 작업 완료 조건으로 요구하지 않음.
+- 위험 요소: 현재 OwnerEventCore는 여전히 두 consumer 고정으로 후속 구현 필요. 첫 출시는 LC ACK/원자성/E2E 확인, Billing은 도입 시 별도 검증. 실제 API는 미구현 상태.
+- 예상 밖 변경: 없음. 기존 코드/과거 기록 보존, 외부 상태/Jira/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): 완료 조회 계획에 LC-only 첫 출시와 NOT_REQUIRED, 미래 신규 작업만 Billing 포함, 과거 재실행 없음 반영. 프론트 책임 분리. 문서 링크/공백 검사 통과, 구현·외부 E2E는 후속.
+- 다음 작업: 필요 시 별도 후속 이슈 승인 후 계획에 따른 Identity 조회·publisher·consumer snapshot 구현 및 LC 계약 검증.
+
+## 2026-10-03 — LC-only 조회 계획 반영 식별 기록 보완
+
+<!-- codex-turn:01a10094-39c2-71f3-a0b8-7f6c264a27cc -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192는 브랜치 문맥이며 조회 API는 별도 후속 범위.
+- 작업 목표: 프론트 책임 구분과 첫 출시 LC-only 계획 반영 결과를 정확한 현재 turn 식별자로 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기록 보완만 수행. 앞선 계획서의 LC-only/Billing NOT_REQUIRED, 향후 신규 작업만 Billing 포함, 과거 병합 재실행 없음, 프론트 화면·polling 책임 분리 결정을 유지.
+- 실행한 테스트와 결과: git diff --check 확인. 기록만 변경하여 Gradle 미실행.
+- 유지한 계약: 과거 WORKLOG 보존, 생성 당시 필수 consumer 불변, 처리하지 않은 Billing을 완료로 표시하지 않음, 비밀정보 비기록.
+- 결정사항: 추가 사용자 결정 없이 후속 구현 계획 진행 가능. API는 아직 미구현.
+- 위험 요소: consumer 실제 ACK/멱등성·출시 E2E와 서버의 필수 consumer 모델 변경은 후속 작업.
+- 예상 밖 변경: 없음. 제품 코드/계획서 추가 변경, Jira/외부 상태/commit/push/배포 작업 없음.
+- 다음 작업: 별도 후속 구현 범위에 따라 Identity 조회 API 및 LC 계약 검증 진행.
+
+## 2026-10-03 — Guest 병합 진행 조회 및 LC-only 완료 추적 구현
+
+<!-- codex-turn:01a1009a-6e25-7f03-8c9a-5098353f662c -->
+
+- 브랜치: feat/TMI-192-single-sns-account-recovery.
+- Jira: TMI-192
+- Jira 구분/작업: 브랜치의 TMI-192 본문을 공식 Atlassian MCP로 조회했다. 이번 병합 진행 조회는 사용자 승인한 별도 후속 범위이며 신규 이슈는 없다. Jira 생성/댓글/상태 변경/Done 처리 없음.
+- 작업 목표: 승인된 guest-merge-progress-query-implementation-plan에 따라 회원용 단건/목록 조회, 실제 eventId 응답, LC-only 첫 출시 및 strict 204 완료 증거를 구현.
+- 변경 파일: 신규 domain/auth/mergeprogress 패키지(요약 엔티티/repository/profile/store/query/controller/cursor/quota/privacy), GuestMergeResult, FirebaseGuestMergeResponse. 기존 FirebaseGuestMergeService/UseCase/DisabledUseCase/TransactionService/Controller, OwnerEventCore/FailureCode/CaptureService/PublishTransactionService/Publisher/Configuration/Properties, AuthErrorStatus, ReissueNoStoreFilter, UserWithdrawalIdentityReleaseTransactionService, IdentityOpenApiExamples, application.yml, .env.example 수정. 관련 Java 테스트/전체 Spring 테스트의 mock 인프라, tools/auth-test의 app/server/UI/테스트/README, API 신규 문서·계획서·프론트 가이드·fanout 런북/Stage7 보완, CURRENT_STATE/WORKLOG 갱신.
+- 구현 내용: 실제 OwnerEventCore.eventId를 mergeId로 반환하고 source/세션/event/delivery/progress를 같은 Mongo 트랜잭션에서 생성. profile 명시/필수 publisher 및 endpoint 설정 검증. LC-only에서는 Billing sequence/delivery를 만들지 않음. 생성 profile/필수 집합 불변. 신규 GET 2개는 MEMBER JWT와 현재 ACTIVE MEMBER, 본인 target 조건·논리 만료를 검증. 동일 404로 타인/미존재/만료 숨김. keyset 목록·사용자/필터 바인딩 1시간 서버 저장 opaque cursor·분당30회 분산 공유 quota·Retry-After·no-store 구현.
+- 완료/복구: tracked USER_MERGED의 204만 ACK로 인정, 다른 2xx는 ACK_CONTRACT_VIOLATION circuit pause. delivery/cursor/progress 갱신을 동일 Mongo 트랜잭션에서 처리, @Version CAS로 ACK 덮어쓰기 차단. lease 패자는 완료 못함. 응답 유실은 동일 eventId/payload 재전송, 기록·상태 누락은 503. publisher OFF/PAUSED/본인 또는 FIFO 선행 DEAD_LETTER/비활성 채널은 ACTION_REQUIRED. 완료 요약은 core/delivery TTL과 독립.
+- 보관/탈퇴: 완료+30일 TTL, 미완료+90일 review/자동삭제 없음. 탈퇴는 현재 User 검사로 즉시 조회 차단. 기존 identity release에서 완료 요약 즉시 만료·cursor 제거, 미완료는 privacyCleanupRequested로 최소 참조 보존 후 ACK 완료 즉시 만료.
+- 구현 보완: 기존 owner-event 두 transactional service의 final을 제거해 Spring CGLIB transaction proxy 가능하도록 했다. Spring advice 실패 rollback 호출 테스트 추가. 실제 DB 트랜잭션 rollback 검증을 대체하지 않는다.
+- 실행한 테스트와 결과: 최종 ./gradlew clean test exportOpenApi 성공. Java 160 suites / 1108 tests, 실패/오류/skip 0. Node --test tools/auth-test/*.test.mjs 3/3 성공. git diff --check 통과. Gradle 캐시/로컬 테스트 소켓 권한은 승인받아 실행. 생성 OpenAPI는 build/generated/openapi 아래 출력, 32 operations / 31 paths 검증.
+- 검증 상세: 실제 eventId/legacy null, LC-only allocation/NOT_REQUIRED, profile 변경 불변, ACK 양 순서/CAS, query IDOR·만료·paging/cursor 바인딩/공유 quota, FIFO/비활성/누락 상태, strict 비204 pause·동일 payload 재시도, 프록시 rollback, privacy, JWT/no-store/Retry-After, Swagger와 기존 인증 회귀.
+- 유지한 계약: RS256/sub/audience, 기존 token 필드, signup/upgrade DTO, UserMerged v1 wire JSON, trial rebind·legacy ACK 의미, 게스트 병합 보안 검사, 외부 도메인 경계 유지. 실제 LC/Billing 이전 코드를 Identity에 추가하지 않음.
+- 결정사항: 첫 출시 LC만 필수/Billing NOT_REQUIRED. 향후 신규 profile만 양쪽 필수, 과거 backfill/재실행 없음. 서버 저장 cursor로 별도 서명 secret 환경변수 불필요. capture OFF 후에도 기존 조회/엄격 ACK 지원. 실제 UI/polling은 프론트 책임.
+- 위험 요소: 실제 Mongo replica set 원자성/동시성, LC의 전체 이전/inbox commit 뒤 204·source guard·탈퇴 경합·원격 데이터와 완료 일치 E2E 미수행. in-memory Mongo partial unique index 미지원으로 다중 UserMerged fixture에서 trial-only 인덱스만 테스트 환경에서 제외, 운영 인덱스는 유지. 조회 중 ACK 경합은 보수적 503일 수 있음. 외부 알람/대시보드·실제 배포는 미수행.
+- 배포 전 확인: 신규 컬렉션 목록/TTL/review 인덱스, 기존 core/delivery unique·partial 인덱스, LC endpoint/workload 자격·commit/멱등204, Billing 완전 미설정 LC-only E2E 확인. 신규 플래그 기본 OFF, 명시 profile 필요. 프론트 회원 토큰 전환/mergeId 보관/목록 복구·polling 연결은 별도.
+- 예상 밖 변경: 없음. 작업 시작부터 있던 TMI-192 단일 SNS/계정 찾기·문서·테스트 도구 변경은 보존했다. 전체 diff에는 이전 변경이 포함되며 이번 작업은 병합 추적 및 필요한 회귀/문서만 추가. commit/push/배포 하지 않음.
+- Jira 댓글 초안(미등록): 별도 후속 Guest 병합 진행 조회 구현 완료. mergeprogress/Guest merge/owner publisher/config·API 문서·테스트 도구 변경, Java1108 및 Node3 테스트 통과. LC-only/Billing NOT_REQUIRED, strict204/CAS/IDOR/TTL/복구 적용. 실제 replica-set/LC 종단 검증·배포 전 인덱스/gate 확인 필요.
+- 다음 작업: 사용자가 diff 검토 및 커밋/push 진행. 별도 후속 이슈 관리 여부와 실제 LC E2E/배포 설정을 확인한 뒤 추적 ON 및 프론트 인계.

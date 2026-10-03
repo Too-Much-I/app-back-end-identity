@@ -24,6 +24,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest(properties = {
 		"springdoc.api-docs.enabled=false",
 		"springdoc.swagger-ui.enabled=false"

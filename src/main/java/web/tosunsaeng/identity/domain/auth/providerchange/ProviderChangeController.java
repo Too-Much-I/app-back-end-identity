@@ -31,22 +31,20 @@ public class ProviderChangeController {
 	public ProviderChangeController(ObjectProvider<ProviderChangeService> service, CurrentUserProvider currentUser) {
 		this.service = service; this.currentUser = currentUser;
 	}
-	@Operation(summary = "SNS 연결 해제 접수", description = "남는 수단의 최근 Firebase 인증 및 사용자 JWT가 필요합니다. 202는 접수이며 모든 자체 세션을 종료합니다.")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "해제 접수 (완료 아님)", useReturnTypeSchema = true)
+	@Operation(summary = "[폐지] SNS 연결 해제 접수", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "410", description = "PROVIDER_LINK_RETIRED")
 	@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 	@PostMapping(value = "/unlink", consumes = "application/json", produces = "application/json")
 	public ResponseEntity<BaseResponse<ProviderChangeService.Status>> unlink(@Valid @RequestBody ChangeRequest request,
 			@RequestHeader(value = "Idempotency-Key", required = false) List<String> keys) {
 		return ResponseEntity.accepted().body(BaseResponse.success(required().unlink(currentUser.getCurrentUserId(), request.provider(), request.firebaseIdToken(), keys)));
 	}
-	@Operation(summary = "SNS 연결 해제 상태 조회", description = "남는 SNS의 Firebase 증거로 본인 확인합니다. 사용자 JWT 없이 조회하지만 요청 ID만으로 조회할 수 없습니다. Token을 발급하지 않습니다.")
+	@Operation(summary = "[폐지] SNS 연결 해제 상태 조회", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/unlink/status", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderChangeService.Status> status(@Valid @RequestBody StatusRequest request) {
 		return BaseResponse.success(required().status(request.requestId(), request.firebaseIdToken()));
 	}
 	private ProviderChangeService required() {
-		var value = service.getIfAvailable();
-		if (value == null) throw ProviderChangeGuard.error(AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
-		return value;
+		throw ProviderChangeGuard.error(AuthErrorStatus.PROVIDER_LINK_RETIRED);
 	}
 }

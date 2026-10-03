@@ -24,7 +24,7 @@ public class SocialIdentity {
 	@Id
 	private String socialIdentityId;
 
-	@Indexed(name = "ix_social_identities_user_id")
+	@Indexed(name = "uk_social_identities_user_id", unique = true)
 	private String userId;
 
 	private SocialProvider provider;
@@ -32,6 +32,21 @@ public class SocialIdentity {
 	private String providerSubject;
 
 	private Instant createdAt;
+	private String maskedEmail;
+	private web.tosunsaeng.identity.domain.auth.domain.EmailHint.Kind emailHintKind;
+	private Instant emailHintUpdatedAt;
+
+	public SocialIdentity withEmailHint(web.tosunsaeng.identity.domain.auth.domain.EmailHint hint, Instant observedAt) {
+		if (emailHintUpdatedAt == null || observedAt.isAfter(emailHintUpdatedAt)) {
+			maskedEmail = hint.maskedEmail(); emailHintKind = hint.kind(); emailHintUpdatedAt = observedAt;
+		}
+		return this;
+	}
+	public String getMaskedEmail() { return maskedEmail; }
+	public web.tosunsaeng.identity.domain.auth.domain.EmailHint.Kind getEmailHintKind() {
+		return emailHintKind == null ? web.tosunsaeng.identity.domain.auth.domain.EmailHint.Kind.UNAVAILABLE : emailHintKind;
+	}
+	public Instant getEmailHintUpdatedAt() { return emailHintUpdatedAt; }
 
 	private SocialIdentity() {
 	}

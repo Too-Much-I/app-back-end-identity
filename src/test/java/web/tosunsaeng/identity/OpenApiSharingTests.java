@@ -33,6 +33,7 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -113,15 +114,15 @@ class OpenApiSharingTests {
 				documented.add(operation.getKey() + " " + path.getKey());
 			}
 		}));
-		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(28);
-		assertThat(spec.path("paths").size()).isEqualTo(27);
+		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(32);
+		assertThat(spec.path("paths").size()).isEqualTo(31);
 		assertThat(spec.path("paths").has("/api/v1/auth/firebase/providers/relink/prepare")).isFalse();
 	}
 
 	private void assertResponseExamples(JsonNode spec) {
 		spec.path("paths").fields().forEachRemaining(path -> path.getValue().fields().forEachRemaining(operation -> {
 			JsonNode responses = operation.getValue().path("responses");
-			String code = path.getKey().endsWith("/providers/unlink") ? "202" : "200";
+			String code = path.getKey().contains("/providers/") ? "410" : "200";
 			JsonNode media = responses.path(code).path("content").path("application/json");
 			assertThat(media.path("examples").size()).as(operation.getKey() + " " + path.getKey()).isPositive();
 			assertThat(media.has("schema")).as(path.getKey() + " response schema").isTrue();
@@ -129,6 +130,9 @@ class OpenApiSharingTests {
 				JsonNode value = example.path("value");
 				if (path.getKey().equals("/.well-known/jwks.json")) {
 					assertThat(value.path("keys").isArray()).isTrue();
+				} else if (code.equals("410")) {
+					assertThat(value.path("isSuccess").asBoolean()).isFalse();
+					assertThat(value.path("code").asText()).isEqualTo("PROVIDER_LINK_RETIRED");
 				} else {
 					assertThat(value.path("isSuccess").asBoolean()).isTrue();
 					assertThat(value.path("code").asText()).isEqualTo("SUCCESS");
@@ -138,17 +142,12 @@ class OpenApiSharingTests {
 		}));
 		JsonNode unlink = spec.path("paths").path("/api/v1/auth/firebase/providers/unlink").path("post").path("responses");
 		assertThat(unlink.has("200")).isFalse();
-		JsonNode unlinkEnvelope = resolve(spec, unlink.path("202").path("content").path("application/json").path("schema"));
-		JsonNode unlinkResult = resolve(spec, unlinkEnvelope.path("properties").path("result"));
-		assertThat(fieldNames(unlinkResult.path("properties"))).contains("operationId", "acceptedAt", "completedAt", "nextPollAfterSeconds")
-				.doesNotContain("linkAttemptId", "linkAllowed");
+		assertThat(unlink.has("202")).isFalse();
+		assertThat(unlink.has("410")).isTrue();
 		JsonNode link = spec.path("paths").path("/api/v1/auth/firebase/providers/link/start").path("post")
-				.path("responses").path("200").path("content").path("application/json");
-		JsonNode linkEnvelope = resolve(spec, link.path("schema"));
-		assertThat(fieldNames(resolve(spec, linkEnvelope.path("properties").path("result")).path("properties")))
-				.contains("linkAttemptId", "expiresAt", "linkAllowed").doesNotContain("operationId", "nextPollAfterSeconds");
-		assertThat(link.at("/examples/STARTED/value/result/linkAllowed").asBoolean()).isTrue();
-		assertThat(link.at("/examples/START_REPLAY/value/result/linkAllowed").asBoolean()).isFalse();
+				.path("responses");
+		assertThat(link.has("200")).isFalse();
+		assertThat(link.has("410")).isTrue();
 		JsonNode prepareExamples = spec.path("paths").path("/api/v1/auth/firebase/guest/prepare").path("post")
 				.path("responses").path("200").path("content").path("application/json").path("examples");
 		assertThat(prepareExamples.at("/MERGE_REQUIRED/value/result").size()).isEqualTo(1);

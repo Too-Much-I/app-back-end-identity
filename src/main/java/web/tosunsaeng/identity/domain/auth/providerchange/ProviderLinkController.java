@@ -36,43 +36,41 @@ public class ProviderLinkController {
 	public ProviderLinkController(ObjectProvider<ProviderLinkService> service, CurrentUserProvider currentUser) {
 		this.service = service; this.currentUser = currentUser;
 	}
-	@Operation(summary = "SNS 공통 연결 준비", description = "최초/재연결 구분 없이 기존 SNS로 재인증합니다. 준비만으로 Firebase link를 실행하면 안 됩니다.")
+	@Operation(summary = "[폐지] SNS 공통 연결 준비", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/prepare", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> prepare(@Valid @RequestBody ProviderChangeController.ChangeRequest request,
 			@RequestHeader(value = "Idempotency-Key", required = false) List<String> keys) {
 		return BaseResponse.success(required().prepare(currentUser.getCurrentUserId(), request.provider(), request.firebaseIdToken(), keys));
 	}
-	@Operation(summary = "SNS 연결 시작", description = "linkAllowed=true인 최초 응답에만 Firebase link 1회를 허용합니다. 재요청은 허가를 다시 발급하지 않습니다.")
+	@Operation(summary = "[폐지] SNS 연결 시작", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/start", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> start(@Valid @RequestBody AttemptRequest request) {
 		return BaseResponse.success(required().start(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken()));
 	}
-	@Operation(summary = "SNS 공통 연결 완료", description = "동일 Firebase User에서 대상 SNS 재인증 후 갱신한 Token이 필요합니다. 대상 SNS만 저장합니다.")
+	@Operation(summary = "[폐지] SNS 공통 연결 완료", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/complete", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> complete(@Valid @RequestBody AttemptRequest request) {
 		return BaseResponse.success(required().complete(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken()));
 	}
-	@Operation(summary = "SNS 연결 상태 조회", description = "준비 당시 requestId와 Firebase 본인 증거 및 사용자 JWT로 조회합니다. 새로운 Firebase link를 허가하지 않습니다.")
+	@Operation(summary = "[폐지] SNS 연결 상태 조회", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/status", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> status(@Valid @RequestBody ProviderChangeController.StatusRequest request) {
 		return BaseResponse.success(required().status(currentUser.getCurrentUserId(), request.requestId(), request.firebaseIdToken()));
 	}
 	private ProviderLinkService required() {
-		var value = service.getIfAvailable();
-		if (value == null) throw ProviderChangeGuard.error(AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
-		return value;
+		throw ProviderChangeGuard.error(AuthErrorStatus.PROVIDER_LINK_RETIRED);
 	}
-	@Operation(summary = "SNS 연결 취소 요청", description = "PREPARED만 즉시 취소합니다. STARTED의 원격 작업을 취소하거나 잠금을 해제하지 않습니다.")
+	@Operation(summary = "[폐지] SNS 연결 취소 요청", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/cancel", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> cancel(@Valid @RequestBody AttemptRequest request) {
 		return BaseResponse.success(required().cancel(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken()));
 	}
-	@Operation(summary = "SNS 연결 실패 보고", description = "허용된 오류 분류만 기록합니다. 실패 보고는 잠금 해제 증거가 아닙니다.")
+	@Operation(summary = "[폐지] SNS 연결 실패 보고", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/failure-report", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Status> failure(@Valid @RequestBody FailureRequest request) {
 		return BaseResponse.success(required().failure(currentUser.getCurrentUserId(), request.linkAttemptId(), request.firebaseIdToken(), request.failureCode()));
 	}
-	@Operation(summary = "본인 진행 중 SNS 연결 조회", description = "실행 중 작업 우선, 없으면 최대 20개 준비 작업. SDK 실행 허가는 반환하지 않습니다.")
+	@Operation(summary = "[폐지] 본인 진행 중 SNS 연결 조회", deprecated = true, description = "단일 SNS 정책으로 폐지. 유효 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.")
 	@PostMapping(value = "/pending", consumes = "application/json", produces = "application/json")
 	public BaseResponse<ProviderLinkService.Pending> pending(@Valid @RequestBody ProofRequest request) {
 		return BaseResponse.success(required().pending(currentUser.getCurrentUserId(), request.firebaseIdToken()));
