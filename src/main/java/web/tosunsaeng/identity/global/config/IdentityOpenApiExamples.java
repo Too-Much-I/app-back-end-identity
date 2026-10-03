@@ -22,8 +22,6 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
 import web.tosunsaeng.identity.domain.auth.federation.dto.response.*;
 import web.tosunsaeng.identity.domain.auth.local.dto.response.LoginResponse;
-import web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeService;
-import web.tosunsaeng.identity.domain.auth.providerchange.ProviderLinkService;
 import web.tosunsaeng.identity.domain.auth.registration.dto.response.*;
 import web.tosunsaeng.identity.domain.auth.session.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.domain.user.domain.enums.*;
@@ -72,33 +70,45 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 				FirebaseGuestPrepareResponse.enrollmentRequired(ID, Set.of(FirebaseEnrollmentRequirement.PROFILE), "privacy-v1", "term-v1", 240000));
 		success(api, FIREBASE + "guest/prepare", "post", "200", "MERGE_REQUIRED", "다른 MEMBER 소유 SNS: merge 흐름 사용",
 				FirebaseGuestPrepareResponse.mergeRequired());
-		for (String path : new String[]{"signup", "guest/upgrade", "guest/merge"}) {
+		for (String path : new String[]{"signup", "guest/upgrade"}) {
 			success(api, FIREBASE + path, "post", "200", "MEMBER_AUTHENTICATED", "MEMBER 인증 토큰 발급",
 					new FirebaseSignupResponse(ACCESS, REFRESH, "Bearer", 1800000, 1209600000));
 		}
-		success(api, FIREBASE + "auth-methods/sync", "post", "200", "SYNCED", "현재 연결된 SNS (신규 연결 기능 아님)",
-				new FirebaseAuthMethodsSyncResponse(Set.of(SocialProvider.GOOGLE, SocialProvider.APPLE)));
 
-		success(api, PROVIDERS + "unlink", "post", "202", "PROCESSING", "해제 접수, 3초 후 상태 조회",
-				new ProviderChangeService.Status(ID, SocialProvider.GOOGLE, "PROCESSING", NOW, null, 3));
-		success(api, PROVIDERS + "unlink/status", "post", "200", "PROCESSING", "원격 해제 진행 중",
-				new ProviderChangeService.Status(ID, SocialProvider.GOOGLE, "PROCESSING", NOW, null, 3));
-		success(api, PROVIDERS + "unlink/status", "post", "200", "COMPLETED", "원격 해제 완료, 토큰 발급 없음",
-				new ProviderChangeService.Status(ID, SocialProvider.GOOGLE, "COMPLETED", NOW, NOW.plusSeconds(8), null));
-		link(api, "prepare", "PREPARED", false, "준비 완료, 아직 SDK 연결 금지");
-		link(api, "prepare", "ALREADY_LINKED", false, "현재 MEMBER에 이미 연결됨 (Guest prepare와 별개)");
-		link(api, "start", "STARTED", true, "최초 start 성공에 한해 SDK 연결 허용");
-		success(api, PROVIDERS + "link/start", "post", "200", "START_REPLAY", "start 재시도는 SDK 재실행 허가 아님",
-				new ProviderLinkService.Status(ID, SocialProvider.GOOGLE, "STARTED", NOW.plusSeconds(300), false));
-		link(api, "complete", "COMPLETED", false, "서버 연결 확정");
-		link(api, "cancel", "CANCELLED", false, "시작 전 취소 완료");
-		link(api, "cancel", "ACTION_REQUIRED", false, "시작된 작업 취소 의도 기록, 보호 유지");
-		link(api, "failure-report", "ACTION_REQUIRED", false, "실패 보고는 잠금을 해제하지 않음");
-		success(api, PROVIDERS + "link/pending", "post", "200", "PENDING", "본인 작업 조회, SDK 실행 허가 없음",
-				new ProviderLinkService.Pending(java.util.List.of(new ProviderLinkService.Status(ID, SocialProvider.GOOGLE, "STARTED", NOW.plusSeconds(300), false)), false));
-		for (String state : new String[]{"PREPARED", "STARTED", "COMPLETED", "ALREADY_LINKED", "EXPIRED", "ACTION_REQUIRED", "SUPERSEDED", "CANCELLED", "FAILED"}) {
-			link(api, "status", state, false, "상태 조회는 SDK 실행을 허가하지 않음");
-		}
+        success(api, FIREBASE + "guest/merge", "post", "200", "MEMBER_AUTHENTICATED", "병합 확정; 이전 완료는 별도 조회",
+                new FirebaseGuestMergeResponse(ACCESS, REFRESH, "Bearer", 1800000, 1209600000, ID));
+        var progress = new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse(
+                ID, web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.Status.COMPLETED, NOW, NOW.plusSeconds(3),
+                new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.Component(
+                        web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.ComponentStatus.COMPLETED, NOW.plusSeconds(3)),
+                new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.Component(
+                        web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.ComponentStatus.NOT_REQUIRED, null), null);
+        success(api, USER + "me/merges/{mergeId}", "get", "200", "COMPLETED", "첫 출시 LC 완료; Billing 대상 제외", progress);
+        success(api, USER + "me/merges", "get", "200", "PAGE", "activeOnly=false 완료 포함 목록",
+                new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressResponse.Page(java.util.List.of(progress), null));
+        for (String path : new String[]{USER + "me/merges", USER + "me/merges/{mergeId}"}) {
+            for (ErrorCode code : new ErrorCode[]{AuthErrorStatus.INVALID_MERGE_STATUS_REQUEST,
+                    AuthErrorStatus.MERGE_STATUS_NOT_FOUND, AuthErrorStatus.MERGE_STATUS_RATE_LIMITED,
+                    AuthErrorStatus.MERGE_STATUS_UNAVAILABLE, web.tosunsaeng.identity.global.exception.CommonErrorStatus.UNAUTHORIZED,
+                    web.tosunsaeng.identity.domain.user.exception.UserErrorStatus.ACCOUNT_NOT_ACTIVE}) {
+                String status = Integer.toString(code.getHttpStatus().value());
+                media(api, path, "get", status).setSchema(new Schema<>().$ref("#/components/schemas/BaseResponse"));
+                example(api, path, "get", status, code.getCode(), code.getMessage(), BaseResponse.failure(code));
+            }
+        }
+		success(api, FIREBASE + "auth-methods/sync", "post", "200", "SYNCED", "현재 연결된 SNS (신규 연결 기능 아님)",
+				new FirebaseAuthMethodsSyncResponse(Set.of(SocialProvider.GOOGLE)));
+
+		success(api, AUTH + "account-recovery/prepare", "post", "200", "PREPARED", "SMS 인증 전 접수",
+				new web.tosunsaeng.identity.domain.auth.accountrecovery.AccountRecoveryService.Prepared(ID, NOW.plusSeconds(300)));
+		success(api, AUTH + "account-recovery/lookup", "post", "200", "FOUND", "마스킹 계정 힌트; 로그인 토큰 없음",
+				new web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryResult(
+						web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryResult.Status.FOUND, SocialProvider.GOOGLE,
+						"u***@example.com", web.tosunsaeng.identity.domain.auth.domain.EmailHint.Kind.EMAIL));
+		success(api, AUTH + "account-recovery/lookup", "post", "200", "NOT_FOUND", "현재 가입 계정 없음",
+				web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryResult.notFound());
+		success(api, AUTH + "account-recovery/lookup", "post", "200", "ACTION_REQUIRED", "고객 지원 확인 필요",
+				web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryResult.actionRequired());
 
 		success(api, USER + "me", "get", "200", "MEMBER", "SNS MEMBER 프로필",
 				new UserProfileResponse(ID, "user@example.com", "예시회원", UserAccountType.MEMBER, UserProvider.FEDERATED,
@@ -121,6 +131,16 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 						"alg", "RS256", "n", "<base64url-public-modulus>", "e", "AQAB"))));
 
 		error(api, AUTH + "login", AuthErrorStatus.INVALID_CREDENTIALS);
+		for (String path : new String[]{"account-recovery/prepare", "account-recovery/lookup"}) {
+			error(api, AUTH + path, AuthErrorStatus.RECOVERY_RATE_LIMITED);
+			error(api, AUTH + path, AuthErrorStatus.RECOVERY_UNAVAILABLE);
+		}
+		for (var code : new AuthErrorStatus[]{AuthErrorStatus.INVALID_RECOVERY_REQUEST, AuthErrorStatus.INVALID_RECOVERY_PROOF,
+				AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED, AuthErrorStatus.RECOVERY_CONFLICT, AuthErrorStatus.RECOVERY_EXPIRED}) {
+			error(api, AUTH + "account-recovery/lookup", code);
+		}
+		for (String path : new String[]{"signup", "guest/upgrade"}) error(api, FIREBASE + path, AuthErrorStatus.SINGLE_SNS_REQUIRED);
+		for (String path : new String[]{"exchange", "guest/merge", "auth-methods/sync"}) error(api, FIREBASE + path, AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 		error(api, AUTH + "signup", AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		error(api, AUTH + "guest", AuthErrorStatus.GUEST_ALREADY_EXISTS);
 		error(api, AUTH + "reissue", AuthErrorStatus.INVALID_REFRESH_TOKEN);
@@ -133,22 +153,18 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		error(api, FIREBASE + "guest/merge", AuthErrorStatus.GUEST_MERGE_CONFLICT);
 		error(api, FIREBASE + "guest/merge", AuthErrorStatus.WITHDRAWAL_CLEANUP_PENDING);
 		for (String path : new String[]{"unlink", "unlink/status", "link/prepare", "link/start", "link/complete", "link/status", "link/cancel", "link/failure-report", "link/pending"}) {
-			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_CHANGE_UNAVAILABLE);
+			api.getPaths().get(PROVIDERS + path).getPost().getResponses().remove("200");
+			api.getPaths().get(PROVIDERS + path).getPost().getResponses().remove("202");
+			api.getPaths().get(PROVIDERS + path).getPost().setDeprecated(true);
+			api.getPaths().get(PROVIDERS + path).getPost().setDescription("폐지: 단일 SNS 정책. 유효한 요청은 410 PROVIDER_LINK_RETIRED. Guest prepare/upgrade/merge는 유지됩니다.");
+			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_LINK_RETIRED);
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_RATE_LIMITED);
 		}
-		error(api, PROVIDERS + "unlink", AuthErrorStatus.PROVIDER_LAST_METHOD);
-		error(api, PROVIDERS + "link/start", AuthErrorStatus.PROVIDER_RELINK_EXPIRED);
-		error(api, PROVIDERS + "link/status", AuthErrorStatus.PROVIDER_OPERATION_NOT_FOUND);
 	}
 
 	private Set<FirebaseEnrollmentRequirement> signupRequirements() {
 		return Set.of(FirebaseEnrollmentRequirement.PHONE_VERIFICATION, FirebaseEnrollmentRequirement.PROFILE,
 				FirebaseEnrollmentRequirement.CONSENTS);
-	}
-
-	private void link(OpenAPI api, String action, String state, boolean allowed, String summary) {
-		success(api, PROVIDERS + "link/" + action, "post", "200", state, summary,
-				new ProviderLinkService.Status(ID, SocialProvider.GOOGLE, state, NOW.plusSeconds(300), allowed));
 	}
 
 	private void success(OpenAPI api, String path, String method, String status, String name, String summary, Object result) {

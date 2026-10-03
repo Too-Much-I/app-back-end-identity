@@ -1,19 +1,27 @@
 package web.tosunsaeng.identity.domain.auth.federation.application;
 
+import web.tosunsaeng.identity.domain.auth.domain.EmailHint;
+
 import java.util.Objects;
 
 import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
 
 public record VerifiedSocialPrincipal(
 		SocialProvider provider,
-		String providerSubject
+		String providerSubject,
+		EmailHint emailHint
 ) {
 
 	private static final int MAX_PROVIDER_SUBJECT_LENGTH = 255;
 
+	public VerifiedSocialPrincipal(SocialProvider provider, String providerSubject) {
+		this(provider, providerSubject, EmailHint.unavailable());
+	}
+
 	public VerifiedSocialPrincipal {
 		provider = Objects.requireNonNull(provider, "provider must not be null");
 		providerSubject = requireProviderSubject(providerSubject);
+		emailHint = Objects.requireNonNull(emailHint);
 	}
 
 	private static String requireProviderSubject(String value) {

@@ -147,6 +147,35 @@ class OwnerEventPublisherTests {
 		verify(fixture.deliveries, never()).claimExact(any(), anyLong(), any(), any(), any());
 	}
 
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {200, 201, 202, 206, 299})
+    void trackedMergeRejectsEveryNon204Success(int status) {
+        Fixture f = fixture((event, payload) -> new WorkloadDeliveryResult(status, null));
+        ReflectionTestUtils.setField(f.core, "progressContractVersion", 1);
+        when(f.transaction.pause(eq(f.delivery), any(), eq(OwnerEventFailureCode.ACK_CONTRACT_VIOLATION), eq(NOW))).thenReturn(true);
+        assertThat(f.publisher.publishNext()).isEqualTo(OwnerEventPublisher.Outcome.CIRCUIT_PAUSED);
+        verify(f.transaction, never()).complete(any(), any(), any(), any());
+    }
+
+    @Test
+    void lostAckRetriesIdenticalEventAndPayloadThenConfirms204() {
+        var ids = new java.util.ArrayList<String>();
+        var payloads = new java.util.ArrayList<byte[]>();
+        Fixture f = fixture((event, payload) -> {
+            ids.add(event.getEventId()); payloads.add(payload);
+            if (ids.size() == 1) throw new RuntimeException("simulated lost response after remote commit");
+            return new WorkloadDeliveryResult(204, null);
+        });
+        ReflectionTestUtils.setField(f.core, "progressContractVersion", 1);
+        when(f.deliveries.scheduleRetry(any(), any(), eq(OwnerEventFailureCode.DELIVERY_ERROR), any())).thenReturn(true);
+        when(f.transaction.complete(eq(f.delivery), any(), any(), any())).thenReturn(true);
+        assertThat(f.publisher.publishNext()).isEqualTo(OwnerEventPublisher.Outcome.RETRY_SCHEDULED);
+        assertThat(f.publisher.publishNext()).isEqualTo(OwnerEventPublisher.Outcome.PUBLISHED);
+        assertThat(ids).containsExactly(f.core.getEventId(), f.core.getEventId());
+        assertThat(payloads.get(0)).isEqualTo(payloads.get(1));
+    }
+
 	private Fixture fixture(OwnerEventDeliveryPort port) {
 		OwnerEventProperties properties = new OwnerEventProperties();
 		properties.setBillingUserMergedPublisherEnabled(true);
@@ -172,7 +201,7 @@ class OwnerEventPublisherTests {
 				transaction, new OwnerEventWireMapper(new ObjectMapper().findAndRegisterModules()),
 				port, new OwnerEventRetryPolicy(Duration.ofSeconds(5), Duration.ofMinutes(15),
 						() -> 0.5), new SimpleMeterRegistry(), Clock.fixed(NOW, ZoneOffset.UTC));
-		return new Fixture(publisher, properties, deliveries, transaction, delivery);
+		return new Fixture(publisher, properties, deliveries, transaction, delivery, core);
 	}
 
 	private OwnerEventPublisher publisher(
@@ -200,6 +229,7 @@ class OwnerEventPublisherTests {
 			OwnerEventProperties properties,
 			OwnerEventDeliveryRepository deliveries,
 			OwnerEventPublishTransactionService transaction,
-			OwnerEventDelivery delivery
+			OwnerEventDelivery delivery,
+            OwnerEventCore core
 	) {}
 }

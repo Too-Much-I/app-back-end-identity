@@ -1,9 +1,9 @@
 # 프론트엔드 Firebase·SNS 로그인 및 회원 전환 연동 가이드
 
-- TMI-191(2026-10-02): [SNS 연결 취소·실패 보고·진행 작업 복원 계약](provider-link-recovery-operations.md). 신규 기능 기본 OFF, 서버/프론트 호환 확인 후 별도 활성화. STARTED 취소는 원격 SDK 중단이나 잠금 해제를 보장하지 않는다.
+- TMI-192(2026-10-03): 단일 SNS·SMS 계정 찾기 구현. [배포 조건과 신규 계약](single-sns-account-recovery-runbook.md). 아직 실배포·실제 앱 검증 완료를 뜻하지 않습니다.
 
 - 문서 성격: 현재 저장소 Controller·DTO·Service 기준 프론트 인계 명세. 구현 사실과 출시 정책, 미검증 설정을 구분한다.
-- 기준일: 2026-10-01 (TMI-189 후속: 동일 UID Google·Apple·Kakao 최초 연결의 단일 로그인 반영)
+- 기준일: 2026-10-03 (TMI-192). 과거 TMI-189 자동 등록 및 TMI-191 공개 연결 흐름은 폐지.
 - 대상: 모바일·프론트엔드 개발자, QA, 제품 담당자
 - 적용 조건: 환경별 backend base URL, 활성 기능, Firebase project와 Provider 설정을 백엔드/모바일 담당자가 함께 확인한다. 코드 존재가 배포·활성화 완료를 뜻하지 않는다.
 
@@ -17,7 +17,7 @@ Swagger 공유: 배포 서버의 `/swagger-ui.html` 또는 `/v3/api-docs`를 사
 
 1. 앱은 Google·Apple·Kakao 인증을 Firebase Auth로 수행하고, Firebase ID Token을 Identity API에 교환한 뒤 Identity Access Token만 Learning Core에 보낸다.
 2. 기존 MEMBER는 `Firebase 로그인 → /firebase/exchange → AUTHENTICATED`, 신규 사용자는 `ENROLLMENT_REQUIRED → 같은 Firebase User에 phone link → /firebase/signup` 순서다.
-3. phone credential은 별도 로그인으로 사용하지 않고 현재 Firebase User에 `linkWithCredential`해야 하며, link 후 강제 갱신한 ID Token을 제출해야 한다.
+3. **회원가입용** phone credential은 현재 Firebase User에 `linkWithCredential`하고 갱신한 ID Token을 제출한다. **계정 찾기용** phone credential은 별도 인증 세션에서 sign-in하며 Identity 로그인으로 사용하지 않는다.
 4. Identity Refresh Token은 rotation되므로 재발급을 single-flight로 처리하고, 성공 시 Access/Refresh Token을 함께 교체해야 한다.
 5. 기존 Guest는 `/firebase/guest/prepare`의 유효한 enrollmentId·미충족 요건·정책 버전으로 가입을 재개하고, 만료되면 prepare를 재호출한다. 신규 Guest 생성은 호출하지 않는다. [재개 계약과 근거](#guest-resume)를 따른다.
 
@@ -52,7 +52,7 @@ Guest 승격은 `/users/me`의 nickname·동의 값만으로 phone proof나 enro
 - 다른 ACTIVE MEMBER owner면 mutation 없이 `MERGE_REQUIRED`를 반환한다.
 - 현재 Guest가 identity owner인 불가능 상태는 `409 IDENTITY_STATE_CONFLICT`이며 자동 승격·merge하지 않는다.
 
-Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는다. 이미 MEMBER인 사용자의 `/providers/link/prepare`가 반환하는 별도 `ALREADY_LINKED`는 완료된 SNS 연결의 멱등 상태이므로 그대로 유지한다.
+Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는다. MEMBER의 SNS 추가 연결 API도 TMI-192에서 폐지했다.
 
 프론트 변경 필수 사항: Guest prepare의 결과 타입은 `ENROLLMENT_REQUIRED | MERGE_REQUIRED`로 갱신하고, 409 `IDENTITY_STATE_CONFLICT`를 별도 오류로 처리한다. 신규 응답 필드가 없는 구 서버 응답을 받으면 빈 requirements나 임의 정책 버전으로 보완하지 말고 해당 배포의 API 계약을 확인한다.
 
@@ -68,20 +68,10 @@ Guest prepare 전용 `ALREADY_LINKED` 결과는 더 이상 사용하지 않는�
 
 `getIdToken(forceRefresh=true)`는 Firebase ID Token 내용을 새로 받지만 `auth_time` 자체를 갱신하지 않을 수 있다. `FIREBASE_RECENT_AUTH_REQUIRED`이면 현재 Firebase 사용자에게 Provider credential을 다시 제시하는 명시적 재인증을 수행한 뒤 새 ID Token을 받아야 한다.
 
-#### TMI-189 후속: 같은 Firebase UID에 새 Google·Apple·Kakao가 연결된 기존 MEMBER
+#### TMI-192: 단일 SNS 정책
+회원당 승인 SNS는 하나입니다. 같은 Firebase UID에 다른 SNS가 연결되어 있어도 자동 등록하지 않습니다. 현재 로그인 SNS의 provider/subject가 Identity의 승인 SNS와 같아야 합니다. 다르면 `SNS_ACCOUNT_MISMATCH`로 거절합니다. 등록된 SNS로 로그인하거나 계정 찾기를 이용하세요. 기존 block/authentication floor/session epoch/탈퇴 검사는 유지됩니다. 이메일이나 전화 일치만으로 기존 회원에 합치지 않습니다.
 
-정상 흐름은 **선택한 Google·Apple·Kakao 로그인 1회 → fresh Firebase ID Token으로 `/firebase/exchange` → `AUTHENTICATED`**다. Firebase가 기존 MEMBER와 같은 프로젝트·UID에 현재 SNS를 연결했고 안전 조건을 충족하면, 서버가 현재 로그인한 제공자만 등록한다. 기존 Google 재로그인이나 추가 `link/prepare → start → complete`를 정상 최초 연결의 필수 단계로 요구하지 않는다. 다른 UID 또는 이메일 일치만으로 기존 회원에 합치지 않는다. Kakao가 동일 이메일에서 항상 같은 UID에 자동 연결된다는 보장은 없으며 실제 Firebase OIDC 동작은 별도 검증한다.
-
-- 적용 조건: TMI-189 배포 및 `app.session-revocation.fence-enabled=true` (`AUTH_SESSION_FENCE_ENABLED`). fence OFF에서는 미등록 SNS를 기존처럼 거절한다. 명시 연결 API의 `link-enabled`와는 별개다. 배포·실기기 E2E 완료를 이 문서가 보증하지 않는다.
-- 자동 등록 후 제공자 보안 상태가 저장된다. 기존 `auth-methods/sync`도 사용하는 환경은 `FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED`를 함께 확인한다. 제공자 fence가 꺼진 상태에서 보안 상태가 있는 회원의 sync를 거절하는 기존 정책은 유지된다.
-- 서버 검증: Google/Apple/Kakao 로그인으로 발급된 Firebase 토큰의 서명·프로젝트·유효기간·최근 인증, 서명된 `firebase.identities`의 현재 제공자 subject와 Admin 최신 연결 일치, ACTIVE MEMBER·동일 Firebase binding, 차단·과거 해제/재연결 이력·다른 회원 소유·같은 제공자의 다른 계정·진행 중 보안 작업 여부. 원격 목록의 다른 제공자는 일괄 등록하지 않는다.
-- Kakao는 `FIREBASE_KAKAO_ENABLED=true`와 Firebase에 등록된 정확한 `FIREBASE_KAKAO_PROVIDER_ID`(기본 `oidc.kakao`)가 필요하다. 임의의 `oidc.*`는 허용하지 않는다. 클라이언트도 같은 ID를 사용하며 카카오 원본 Access Token 대신 Firebase ID Token을 전달한다. 기능 플래그 기본값 및 외부 배포 설정은 이번 변경으로 켜지지 않는다.
-- 요청/응답 필드·userId·JWT 계약 불변. signup/Guest 전환·sync·high-risk API에는 자동 등록을 추가하지 않는다. Android·iOS는 공통 OIDC 제공자를 사용하되 각 SDK 로그인·앱 복귀를 따로 검증한다.
-- `PROVIDER_RELINK_REQUIRED`는 차단/기존 연결 교체/과거 연결 이력 또는 fence OFF 등에서 여전히 발생할 수 있다. Firebase 연결을 지워서 우회하거나 무한 재시도하지 말고 기존 명시 연결·지원 절차를 따른다.
-- `SOCIAL_IDENTITY_CONFLICT`는 다른 회원 소유 충돌이며 자동 병합하지 않는다. `PROVIDER_CHANGE_CONFLICT` 또는 `SESSION_SECURITY_UNAVAILABLE` 경합은 즉시 성공으로 표시하지 않는다. 진행 중 작업을 확인한 뒤 제한적으로 exchange를 다시 요청하면 같은 회원이 먼저 등록한 경우 기존 연결로 수렴한다. 동일 Refresh Token 응답을 재전달하는 멱등 계약은 아니다.
-- 토큰 subject 증빙이 없거나 원격 연결과 다르면 `INVALID_FIREBASE_ID_TOKEN`. 현재 선택한 SNS로 재인증 후 반복되면 지원 안내. 토큰 강제 갱신만으로 최근 인증 오류를 해결하려 하지 않는다.
-
-구현 근거: [등록 트랜잭션](../../src/main/java/web/tosunsaeng/identity/domain/auth/providerchange/ProviderLoginRegistrationService.java), [검증 어댑터](../../src/main/java/web/tosunsaeng/identity/domain/auth/federation/infrastructure/firebase/FirebaseSdkAdminClient.java). 배포 전 검증 항목은 [TMI-189 QA](frontend-firebase-auth-integration-appendix.md#tmi-189)를 따른다.
+signup/Guest upgrade의 Firebase 증명에 SNS가 둘 이상 있으면 `SINGLE_SNS_REQUIRED`입니다. 자동 unlink나 다른 SNS 추가를 시도하지 마세요. LOCAL/PASSWORD-only 경로는 유지합니다.
 
 ### 2.5 `logout-all`의 Firebase 폐기는 비동기다
 
@@ -115,7 +105,7 @@ Provider 연결/해제는 이 문서 8.13~8.18을 사용한다. 전화번호 변
 
 | Token | 사용처 | 프론트 처리 |
 | --- | --- | --- |
-| Firebase ID Token | Identity의 Firebase exchange·signup·Guest 전환·인증수단 sync·SNS 연결/해제·Firebase 회원탈퇴 proof | Firebase SDK에서 필요 시 새로 받고 장기 세션 Token처럼 직접 관리하지 않음 |
+| Firebase ID Token | Identity의 Firebase exchange·signup·Guest 전환·인증수단 sync·계정 찾기·Firebase 회원탈퇴 proof | Firebase SDK에서 필요 시 새로 받고 장기 세션 Token처럼 직접 관리하지 않음 |
 | Identity Access Token | Identity 보호 API, Learning Core 등 사용자 API | `Authorization: Bearer <identity-access-token>` |
 | Identity Refresh Token | Identity `/reissue`, `/logout`, `/users/withdraw` | OS 보안 저장소에 저장하고 일반 API에는 전송하지 않음 |
 
@@ -257,30 +247,23 @@ Guest Identity Access Token 유지
 - 성공하면 target MEMBER Identity Token으로 로컬 Token을 모두 교체한다.
 - 이메일·phone·닉네임만 보고 프론트가 target User를 추정하지 않는다.
 - 이전 Guest Access Token의 보호 API 호출은 `ACCOUNT_MERGED_TOKEN_REJECTED`가 될 수 있다.
-- Billing·Learning Core의 `UserMerged` consumer와 종단 이전 검증이 끝나기 전 UI를 활성화하지 않는다. merge 성공 응답이 downstream의 모든 기록 이전 완료를 의미하지는 않는다.
+- 첫 출시는 Learning Core의 `UserMerged` commit/멱등 204 및 Identity+LC 종단 검증 후 병합 UI를 출시한다. Billing은 NOT_REQUIRED이며 도입 후 신규 양쪽 필수 작업에만 Billing 검증을 추가한다. 앱 전체 UI 비활성화 조건이 아니다.
+- merge 성공은 Identity 저장 확정이며 downstream 이전 완료가 아니다. 추적 ON이면 기존 토큰 필드와 `mergeId`를 반환한다. 회원 토큰으로 `GET /api/v1/users/me/merges/{mergeId}` 또는 목록 `GET /api/v1/users/me/merges?activeOnly=false&limit=20`을 조회한다. 상세 필드·오류·보관·polling은 [구현 계약](guest-merge-progress-api.md)을 따른다. capture OFF/legacy의 null mergeId는 완료가 아니라 미추적이다.
+
+대상 MEMBER 세션으로 기본 화면을 제공하고 기록 영역에 반영 중을 표시한다. PROCESSING의 nextPollAfterSeconds(5초/1분 이후15초) 이상 대기하며 foreground 2분 후 자동 polling 중지, 재진입/수동 갱신을 권장한다. ACTION_REQUIRED는 지원 안내, COMPLETED면 학습 기록 API를 다시 조회한다. Billing NOT_REQUIRED는 권한 부여가 아니다. 응답 유실은 exchange로 회원 토큰 복구 후 목록 조회하며 merge를 재실행하지 않는다. 빈 목록은 완료 증거가 아니다. 두 조회 합산 회원당30회/분이며 429 Retry-After를 따른다. 구현 완료와 실제 환경 배포 여부는 구분한다.
+
+Guest **승격(upgrade)**은 같은 userId의 계정 유형을 MEMBER로 바꾸므로 `UserMerged`에 따른 학습 기록 소유자 이전 대기가 없다. 새 MEMBER 인증으로 기존 userId 기록을 조회한다. 전화 binding/혜택 반영 등 별도의 비동기 처리는 남을 수 있으므로 upgrade 성공만으로 Billing 권리까지 즉시 확정됐다고 보지는 않는다.
 
 대상 상태는 최초 소유권 확인 이후와 저장 직전 모두 검사한다. `403 GUEST_MERGE_TARGET_WITHDRAWN`은 확인된 대상의 탈퇴, `403 GUEST_MERGE_TARGET_NOT_ACTIVE`는 정지 상태이며 자동 재시도하지 않는다. 탈퇴 lifecycle 검사가 먼저 `WITHDRAWAL_CLEANUP_PENDING` 또는 `FIREBASE_IDENTITY_CONFLICT`를 반환할 수 있으며 이 기존 우선순위를 유지한다. 따라서 모든 탈퇴가 새 코드로 반환된다고 가정하지 않는다. `GUEST_MERGE_CONFLICT`는 원본 상태 변경 등 재확인이 필요한 충돌이며 첫 요청 처리 중/완료를 나타내는 코드가 아니다. 같은 Guest의 merge는 앱 전체 single-flight로 실행하고 충돌만으로 Guest 인증을 삭제하거나 병합 완료를 표시하지 않는다.
 
+`GUEST_MERGE_TARGET_NOT_ACTIVE`에서 동일 회원으로 재로그인해도 정지가 해제되지 않는다. exchange 역시 비활성 회원을 거절한다. 정지 안내·문의/이의 제기 경로를 제공하고 실패한 merge 때문에 기존 Guest 인증을 삭제하지 않는다. 현재 저장소에는 사용자용 정지 해제 API나 자동 해제 절차가 확인되지 않는다. 정지 해제는 운영 정책/별도 기능이며 계정 찾기/SMS 인증은 이를 대체하지 않는다. 기존 전화 소유가 유지되는 한 같은 번호의 새 회원 가입도 소유권 충돌로 거절된다. 다른 번호로 새 계정을 만드는 것은 기존 정지 계정의 복구가 아니다.
+
 signup·upgrade·merge에는 `/reissue`처럼 응답 자체를 그대로 재전달하는 멱등 계약이 없다. 응답 유실 시 새 enrollment/Guest를 자동 만들지 않는다. fresh Firebase proof로 `/exchange`를 확인하여 `AUTHENTICATED`면 해당 MEMBER Token으로 복구하고, 신규 가입 안내나 충돌이면 기존 Guest Token을 성급히 삭제하지 말고 상태를 재확인한다. Guest 전환을 계속할 때는 `/exchange`에서 받은 direct signup enrollment 대신 `/guest/prepare`의 Guest 전용 enrollment를 사용한다. 불명 상태를 성공으로 표시하지 않는다.
 
-### 4.6 기존 MEMBER에 SNS 연결 — 최초/재연결 공통
+### 4.6 SNS 추가 연결 폐지 및 SMS 계정 찾기
+회원 설정의 SNS 추가/해제 버튼과 SDK SNS link 호출을 제거합니다. `/firebase/providers/link/*`, `/providers/unlink`, `/providers/unlink/status`는 유효 요청에 `410 PROVIDER_LINK_RETIRED`를 반환합니다. 기존 인증·요청 검증 오류가 먼저 발생할 수 있습니다. Guest prepare/upgrade/merge 및 가입용 phone link는 폐지 대상이 아닙니다.
 
-1. 사용자가 Google·Apple·Kakao 연결을 선택한다. 과거 해제 여부는 프론트가 판단하지 않는다.
-2. 기존에 연결된 다른 SNS로 재인증하고 `/providers/link/prepare`를 호출한다. 요청 ID를 보관한다.
-3. PREPARED이면 `/providers/link/start`를 호출한다. ALREADY_LINKED이면 추가 SDK 호출 없이 끝낸다.
-4. **최초 start 응답의 linkAllowed=true인 경우에만** 같은 Firebase User에 대상 credential을 한 번 link한다.
-5. 성공 및 기존 SDK 실행 종료를 확인한 뒤 대상 SNS로 start 이후 재인증하고 ID Token을 강제 갱신한다.
-6. 같은 linkAttemptId로 `/providers/link/complete`를 호출한다. COMPLETED에서만 연결 완료 UI를 표시한다.
-
-모든 API에 MEMBER Identity Bearer와 단계별 Firebase 증거를 제출한다. 예시·응답·status 처리는 [전용 계약](firebase-provider-unlink-stage-10-runbook.md#51-api와-응답)을 따른다.
-
-- prepare 응답 유실은 원래 requestId로 `/providers/link/status`를 조회한다.
-- start 응답 유실/중복 start는 **SDK 실행 허가를 재발급하지 않는다**. 조회 결과 STARTED만 보고 link를 다시 호출하지 않는다.
-- complete 응답 유실은 같은 linkAttemptId로 complete를 재시도한다. 새 prepare를 하지 않는다.
-- PREPARED 만료는 새 요청 ID로 재시작 가능하다. STARTED 만료/결과 불명은 운영 확인 대상이다.
-- 다른 User가 대상 SNS를 소유하면 자동 이전/merge하지 않는다. userId·번호·혜택은 바꾸지 않는다.
-- 기존 sync는 이미 승인된 연결 목록을 확인할 뿐, 추가·해제·재연결·phone 변경에 사용하지 않는다.
-- “SNS 하나만 로그아웃”은 연결 해제와 다르다. Firebase signOut은 현재 Firebase 세션 전체를 종료한다.
+계정 찾기: 공개 `/auth/account-recovery/prepare` → 기존 Firebase 프로젝트에서 전화 OTP → 전화 credential sign-in → `/auth/account-recovery/lookup` → SNS 종류/마스킹 이메일 안내. 이 전화 인증은 회원 로그인이 아니며 Identity 토큰을 발급하지 않습니다. 기존 Guest/MEMBER 토큰은 보존합니다. 상세 요청·오류·재시도는 [TMI-192 구현 계약](single-sns-account-recovery-runbook.md)을 따릅니다.
 
 ### 4.7 이메일·비밀번호 경로 — 이번 신규 UI 범위 밖
 
@@ -412,7 +395,7 @@ Stage 9 활성 환경의 `/reissue` 응답 유실 계약:
 | `401 SESSION_LOGGED_OUT` | 세션/epoch/인증 시각 무효화 | 자체 Token 삭제·Firebase signOut·재로그인 |
 | `503 SESSION_SECURITY_UNAVAILABLE` | 세션 처리를 확정할 수 없음 | 동일 요청으로 제한 재시도, 성공으로 간주하지 않음 |
 
-Provider 연결/해제 전용 오류는 8.19를 따른다. `401 ACCOUNT_WITHDRAWN`, `401 SESSION_LOGGED_OUT`, `401 ACCOUNT_MERGED_TOKEN_REJECTED`처럼 이유가 명확한 오류는 일반 Access Token 만료와 구분하며 무조건 reissue부터 호출하지 않는다.
+SNS 연결/해제는 폐지되었다. 단일 SNS·계정 찾기 신규 오류는 [TMI-192 계약](single-sns-account-recovery-runbook.md#5-프론트-계약)을 따른다. `401 ACCOUNT_WITHDRAWN`, `401 SESSION_LOGGED_OUT`, `401 ACCOUNT_MERGED_TOKEN_REJECTED`처럼 이유가 명확한 오류는 일반 Access Token 만료와 구분하며 무조건 reissue부터 호출하지 않는다.
 
 오류 `message`는 표시 가능한 기본 한국어 문구지만, 앱 분기는 번역 가능한 안정적 `code`를 기준으로 한다.
 
@@ -429,17 +412,19 @@ Provider 연결/해제 전용 오류는 8.19를 따른다. `401 ACCOUNT_WITHDRAW
 | `POST /api/v1/auth/firebase/guest/upgrade` | Guest Identity Bearer + Firebase ID Token body | Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/guest/merge` | Guest Identity Bearer + Firebase ID Token body | target MEMBER Identity Token 묶음 | 400, 401, 403, 409, 429, 503 |
 | `POST /api/v1/auth/firebase/auth-methods/sync` | MEMBER Identity Bearer + Firebase ID Token body | 기존 승인된 `linkedProviders` 검증만 | 400, 401, 403, 409, 429, 503 |
+| `POST /api/v1/auth/account-recovery/prepare` | 공개, 본문 `{}` | recoveryId + expiresAt | 400, 413, 429, 503 |
+| `POST /api/v1/auth/account-recovery/lookup` | 공개, recoveryId + PHONE Firebase ID Token | FOUND / NOT_FOUND / ACTION_REQUIRED | 400, 401, 409, 410, 413, 429, 503 |
 | `POST /api/v1/auth/reissue` | Refresh Token body + Idempotency-Key | 최초 Identity Token 묶음 또는 같은 결과 복구, 절대 만료 헤더 | 400, 401, 403, 409, 503 |
 | `POST /api/v1/auth/logout` | Refresh Token body | `null` | 400 |
 | `POST /api/v1/auth/logout-all` | Identity Bearer | `null` (원격 완료가 아닌 접수) | 401, 403, 503 |
 | `GET /api/v1/users/me` | Identity Bearer | 사용자 프로필 | 401, 403, 404 |
 | `POST /api/v1/users/withdraw` | Identity Bearer + account credential body | 탈퇴 상태 | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/unlink` | MEMBER Bearer + 남는 SNS proof + Idempotency-Key | 202 해제 작업 | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/unlink/status` | 공개 + 남는 SNS proof + requestId body | 200 해제 상태 | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/link/prepare` | MEMBER Bearer + 기존 SNS proof + Idempotency-Key | 200 연결 준비 상태 | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/link/start` | MEMBER Bearer + 기존 SNS proof | 200 상태 및 linkAllowed | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/link/complete` | MEMBER Bearer + 대상 SNS proof | 200 연결 완료 상태 | 400, 401, 403, 404, 409, 429, 503 |
-| `POST /api/v1/auth/firebase/providers/link/status` | MEMBER Bearer + Firebase proof + requestId body | 200 연결 상태 | 400, 401, 403, 404, 409, 429, 503 |
+| `POST /api/v1/auth/firebase/providers/unlink` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
+| `POST /api/v1/auth/firebase/providers/unlink/status` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
+| `POST /api/v1/auth/firebase/providers/link/prepare` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
+| `POST /api/v1/auth/firebase/providers/link/start` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
+| `POST /api/v1/auth/firebase/providers/link/complete` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
+| `POST /api/v1/auth/firebase/providers/link/status` | 기존 보안·본문 검증 유지 | 폐지, 성공 없음 | 410 PROVIDER_LINK_RETIRED (400/401/429 등이 선행 가능) |
 | `GET /api/v1/users/me/consents` | Identity Bearer | 200 정책 버전 및 사용자 동의 상태 | 401, 403, 404 |
 | `PUT /api/v1/users/me/consents` | Identity Bearer | 200 저장된 동의 상태 | 400, 401, 403, 404, 409 |
 | `GET /api/v1/policies/consents` | 공개, Identity Token 불필요 | 200 현재 필수·선택 정책 버전 | — |
@@ -642,7 +627,8 @@ prepare 뒤 정책이 바뀌어 `PRIVACY_CONSENT_VERSION_MISMATCH` 또는 `TERM_
     "refreshToken": "<target-member-identity-refresh-token>",
     "grantType": "Bearer",
     "accessTokenExpiresIn": 1800000,
-    "refreshTokenExpiresIn": 1209600000
+    "refreshTokenExpiresIn": 1209600000,
+    "mergeId": "11111111-1111-4111-8111-111111111111"
   }
 }
 ```
@@ -667,12 +653,12 @@ prepare 뒤 정책이 바뀌어 `PRIVACY_CONSENT_VERSION_MISMATCH` 또는 `TERM_
   "code": "SUCCESS",
   "message": "요청에 성공했습니다.",
   "result": {
-    "linkedProviders": ["GOOGLE", "APPLE", "KAKAO"]
+    "linkedProviders": ["GOOGLE"]
   }
 }
 ```
 
-`linkedProviders`는 집합이므로 배열 순서를 UI 계약으로 사용하지 않는다. 내부에서 승인된 Provider만 포함된다. 이 API는 읽기 검증으로 전환됐으며 Firebase에만 존재하는 신규 SNS를 저장하지 않는다. legacy `linkAttemptId`를 전달해도 409로 거절한다. 모든 신규/재연결은 공통 link API를 사용한다.
+`linkedProviders`는 집합이므로 배열 순서를 UI 계약으로 사용하지 않는다. 내부에서 승인된 Provider만 포함된다. 이 API는 읽기 검증으로 전환됐으며 Firebase에만 존재하는 신규 SNS를 저장하지 않는다. legacy `linkAttemptId`는 `410 PROVIDER_LINK_RETIRED`로 거절한다. SNS 추가/재연결 API는 제공하지 않는다.
 
 ### 8.8 `POST /api/v1/auth/reissue`
 
@@ -816,201 +802,19 @@ Firebase/SNS MEMBER는 `password`를 보내지 않는다. LOCAL MEMBER는 `fireb
 
 `cleanupStatus`의 enum은 `EXTERNAL_CLEANUP_PENDING`, `EXTERNAL_CLEANUP_IN_PROGRESS`, `EXTERNAL_CLEANUP_RETRY_WAIT`, `EXTERNAL_CLEANUP_COMPLETED`, `IDENTITY_RELEASE_PENDING`, `CLEANED`, `RECONCILIATION_REQUIRED`다. 모든 값이 최초 탈퇴 응답에 나온다는 뜻은 아니며, 이 API는 외부 cleanup polling API가 아니다. 실패 시 `INVALID_WITHDRAWAL_CREDENTIALS`, `WITHDRAWAL_FIREBASE_PROOF_REQUIRED`, `WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH`, `WITHDRAWAL_CONFLICT`, `WITHDRAWAL_LIFECYCLE_CONFLICT` 등도 처리한다. 응답 유실로 성공 여부가 불명확하면 탈퇴를 임의 성공 처리하거나 새 계정을 만들지 말고 현재 인증 상태를 확인한다.
 
-### 8.13 `POST /api/v1/auth/firebase/providers/unlink`
+### 8.13–8.19 SNS 연결/해제 API 폐지
+TMI-192부터 link prepare/start/complete/status/cancel/failure-report/pending 및 unlink/unlink-status는 제품 기능으로 사용하지 않습니다. 정상 형식·인증으로 호출해도 `410 PROVIDER_LINK_RETIRED`입니다. 준비/완료/SDK 실행 허가는 발급하지 않습니다. `/providers/relink/prepare`는 기존처럼 라우트가 없습니다.
 
-인증: MEMBER Identity Bearer + `Idempotency-Key`(단일 소문자 UUID v4). `provider`는 제거할 대상이고 Firebase proof는 **해제 후 남는 Google/Apple/Kakao**로 최근 재인증한 값이다. phone은 마지막 로그인 수단으로 계산하지 않는다.
+과거 상태 머신과 운영 복구 설명은 [Stage 10 runbook](firebase-provider-unlink-stage-10-runbook.md) 및 [TMI-191 기록](provider-link-recovery-operations.md)에 남아 있으나, 현재 앱에서 호출하는 계약이 아닙니다. 기존 진행 작업이 있으면 배포를 중단하고 운영 정리를 검토합니다.
 
-예시: Google을 해제하고 Apple을 유지한다.
-
-```json
-{
-  "provider": "GOOGLE",
-  "firebaseIdToken": "<recent-apple-firebase-id-token>"
-}
-```
-
-성공 HTTP **202**, `result`:
-
-```json
-{
-  "operationId": "550e8400-e29b-41d4-a716-446655440001",
-  "provider": "GOOGLE",
-  "status": "PROCESSING",
-  "acceptedAt": "2026-09-16T01:00:00Z",
-  "completedAt": null,
-  "nextPollAfterSeconds": 3
-}
-```
-
-8.13~8.18 및 8.20~8.21의 응답 예시는 공통 `BaseResponse` 안의 **result만** 표시한다. 202도 `isSuccess=true`, `code=SUCCESS` envelope를 사용한다. 재접수 응답에 이미 terminal status가 올 수 있으며 HTTP 202만으로 원격 작업 완료를 판단하지 않는다.
-
-접수 후 현재 기기를 포함한 자체 세션이 무효화되므로 Firebase signOut·자체 Token 삭제를 수행한다. status 조회용 원래 requestId는 별도로 보존한다. 앱이 Firebase SDK unlink를 직접 실행하지 않는다. 서버 worker가 해제와 revoke를 수행한다.
-
-### 8.14 `POST /api/v1/auth/firebase/providers/unlink/status`
-
-인증: Identity Bearer 불필요. Body의 **남는 SNS fresh Firebase proof**로 검증한다. 기존 만료 Access Token을 자동 첨부하지 않는다. `requestId`는 최초 unlink의 Idempotency-Key이며 operationId가 아니다.
-
-```json
-{
-  "requestId": "550e8400-e29b-41d4-a716-446655440002",
-  "firebaseIdToken": "<fresh-remaining-provider-firebase-id-token>"
-}
-```
-
-성공 HTTP 200, 완료 `result`:
-
-```json
-{
-  "operationId": "550e8400-e29b-41d4-a716-446655440001",
-  "provider": "GOOGLE",
-  "status": "COMPLETED",
-  "acceptedAt": "2026-09-16T01:00:00Z",
-  "completedAt": "2026-09-16T01:00:08Z",
-  "nextPollAfterSeconds": null
-}
-```
-
-| status | 프론트 동작 |
-| --- | --- |
-| `PROCESSING` | `nextPollAfterSeconds`(현재 3초)에 맞춰 제한 조회 |
-| `COMPLETED` | 연결 해제 완료 표시, 남은 수단으로 재인증·exchange |
-| `ACTION_REQUIRED` | 원격 결과 확인 필요. 무한 polling/새 unlink 금지, 지원 안내 |
-| `SUPERSEDED` | 탈퇴 등 더 최신 작업으로 대체. 현재 계정 상태 확인 |
-
-status 응답은 자체 Token을 발급하지 않는다. 조회 proof가 지연 revoke로 무효화되면 남는 SNS로 재인증한다. 404는 미접수 증명이 아니므로 새로운 요청 ID로 즉시 unlink를 재실행하지 않는다.
-
-### 8.15 `POST /api/v1/auth/firebase/providers/link/prepare`
-
-인증: MEMBER Identity Bearer + `Idempotency-Key`(단일 소문자 UUID v4). 신규/재연결 모두 동일 API다. 아래 예시는 기존 Google에 Apple을 추가한다. 동일한 Firebase User를 유지한다.
-
-```json
-{
-  "provider": "APPLE",
-  "firebaseIdToken": "<recent-existing-google-firebase-id-token>"
-}
-```
-
-성공 HTTP 200, `result`:
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "provider": "APPLE",
-  "status": "PREPARED",
-  "expiresAt": "2026-09-16T01:05:00Z",
-  "linkAllowed": false
-}
-```
-
-prepare 전에 대상 SDK link를 실행하지 않는다. 이미 서버/Firebase 양쪽에서 승인된 연결이면 같은 schema의 `status=ALREADY_LINKED`, `linkAllowed=false`를 반환한다. 추가 link 없이 종료한다. 준비 응답 유실은 최초 requestId로 8.18을 조회한다.
-
-### 8.16 `POST /api/v1/auth/firebase/providers/link/start`
-
-인증: MEMBER Identity Bearer. Body는 기존 로그인 수단의 recent Firebase proof다.
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "firebaseIdToken": "<recent-existing-google-firebase-id-token>"
-}
-```
-
-최초 성공 HTTP 200, `result`:
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "provider": "APPLE",
-  "status": "STARTED",
-  "expiresAt": "2026-09-16T01:06:00Z",
-  "linkAllowed": true
-}
-```
-
-**이 최초 응답에서 linkAllowed=true를 받았을 때만 SDK link를 한 번 실행한다.** 재요청의 `STARTED` 응답은 linkAllowed=false다. start 응답 유실은 status 확인 대상으로 전환하고 SDK를 추정 실행하지 않는다. 준비와 시작은 각각 기본 최대 5분이며 start에서 실제 SDK 작업용 기한이 다시 정해진다.
-
-### 8.17 `POST /api/v1/auth/firebase/providers/link/complete`
-
-인증: MEMBER Identity Bearer. SDK link 완료 및 호출 종료를 확인한 뒤 **대상 SNS(예: Apple)**로 재인증하고 강제 갱신한 Firebase proof를 보낸다. Firebase `auth_time`은 start 시각보다 엄격히 뒤여야 한다. 강제 갱신만으로 auth_time이 새로워지는 것은 아니며 초 단위 경계도 고려한다.
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "firebaseIdToken": "<target-apple-reauthenticated-after-start-firebase-id-token>"
-}
-```
-
-성공 HTTP 200, `result`:
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "provider": "APPLE",
-  "status": "COMPLETED",
-  "expiresAt": "2026-09-16T01:06:00Z",
-  "linkAllowed": false
-}
-```
-
-서버가 대상 Provider 연결을 승인한 상태다. 연결 완료 API는 새 Access/Refresh Token을 발급하지 않는다. 응답 유실은 같은 linkAttemptId로 complete를 재시도한다. lifecycle이 바뀌면 재시도도 거절될 수 있으며 새 prepare로 우회하지 않는다.
-
-### 8.18 `POST /api/v1/auth/firebase/providers/link/status`
-
-인증: MEMBER Identity Bearer + Firebase proof. `requestId`는 최초 prepare의 Idempotency-Key이며 linkAttemptId가 아니다.
-
-```json
-{
-  "requestId": "550e8400-e29b-41d4-a716-446655440004",
-  "firebaseIdToken": "<authorized-current-firebase-id-token>"
-}
-```
-
-성공 HTTP 200, 예시 `result`:
-
-```json
-{
-  "linkAttemptId": "550e8400-e29b-41d4-a716-446655440003",
-  "provider": "APPLE",
-  "status": "STARTED",
-  "expiresAt": "2026-09-16T01:06:00Z",
-  "linkAllowed": false
-}
-```
-
-| status | 프론트 동작 |
-| --- | --- |
-| `PREPARED` | 기한 내 start 진행 가능, SDK는 아직 실행하지 않음 |
-| `STARTED` | 진행 중/불명 상태 확인. status는 link 실행 허가를 주지 않음 |
-| `COMPLETED`, `ALREADY_LINKED` | 이미 승인된 연결. 추가 SDK link 없음 |
-| `EXPIRED` | PREPARED 만료. 새 요청 ID로 prepare 가능 |
-| `ACTION_REQUIRED` | STARTED 기한 초과 또는 상태 변경. 새 link/자동 취소 금지, 지원 안내 |
-| `SUPERSEDED` | 세션/연결 상태가 바뀜. 현재 인증을 재확인 |
-
-기존 SNS 증명을 기본 사용한다. STARTED/COMPLETED에서는 start 이후 재인증한 대상 SNS proof로도 조회 가능한 경로가 있다. 조회 성공이 exchange 또는 추가 mutation 권한을 부여하는 것은 아니다. 상세 중단·복구 제약은 [Stage 10 runbook](firebase-provider-unlink-stage-10-runbook.md#22-공통-연결의-5분과-앱-중단)을 따른다.
-
-### 8.19 SNS 연결/해제 공통 검증·오류
-
-- `provider` 허용값: `GOOGLE`, `APPLE`, `KAKAO`. SDK provider ID 문자열과 구분한다.
-- `firebaseIdToken` 필수, 최대 16,384자. requestId/linkAttemptId는 소문자 UUID v4, 길이 36자다.
-- Provider API 요청 Body는 최대 24,576바이트다. 초과 시 `413 PROVIDER_REQUEST_TOO_LARGE`이며 같은 Body를 그대로 재시도하지 않는다.
-- recent-auth와 prepare/start 허용 기간 기본 최대 5분. 실제 반환 `expiresAt`을 우선한다.
-- `/providers/relink/prepare`는 서버 라우트와 Swagger에서 제거했다. `/providers/link/prepare → start → complete`를 사용한다. 제거된 경로에 유효한 사용자 인증으로 요청하면 404이며, 인증 없는 요청은 기존 Security 정책에 따라 먼저 401이 될 수 있다.
-- 원격 Firebase 상태가 바뀌어도 서버 완료 전에는 연결/해제 완료로 표시하지 않는다.
-
-| HTTP/code | 처리 |
-| --- | --- |
-| 400 `INVALID_PROVIDER_REQUEST_ID` | 요청 식별자 검증 실패, 자동 재시도 중지 |
-| 403 `PROVIDER_LAST_METHOD` | 마지막 로그인 수단 제거 불가 |
-| 403 `PROVIDER_REMAINING_AUTH_REQUIRED` | 해당 단계가 요구하는 SNS로 재인증. complete에서는 대상 SNS 필요 |
-| 409 `PROVIDER_CHANGE_CONFLICT` | 현재 작업/소유/세션 상태 재조회, SDK mutation 반복 금지 |
-| 409 `PROVIDER_RELINK_REQUIRED` | 승인되지 않은 연결. 공통 link 흐름 필요, sync 우회 금지 |
-| 409 `PROVIDER_RELINK_EXPIRED` | 준비/실행 기한 만료. PREPARED와 STARTED 처리 구분 |
-| 404 `PROVIDER_OPERATION_NOT_FOUND` | 상태를 찾을 수 없음, remote 미실행 증거로 사용하지 않음 |
-| 413 `PROVIDER_REQUEST_TOO_LARGE` | 요청 Body 크기 초과, 불필요한 필드·중복 데이터 확인 |
-| 429 `PROVIDER_RATE_LIMITED` | 중복 탭 방지, Retry-After가 있으면 준수하며 제한 재시도 |
-| 503 `PROVIDER_CHANGE_UNAVAILABLE` | 기능 OFF/일시 오류/결과 불명. 기존 requestId로 status 우선 |
-
-공통 Firebase·세션 오류도 발생할 수 있다. `Retry-After`는 정수 초 등 유효한 값만 사용하고 무한 재시도하지 않는다.
+### 8.19A 계정 찾기 공개 API
+- `POST /api/v1/auth/account-recovery/prepare`: 본문 `{}`, 결과 `recoveryId`, `expiresAt`.
+- `POST /api/v1/auth/account-recovery/lookup`: 본문 `recoveryId`, `firebaseIdToken`. 검증된 PHONE 인증만 허용합니다.
+- 결과: `status=FOUND|NOT_FOUND|ACTION_REQUIRED`, `provider`, `maskedEmail`, `emailHintKind`. FOUND 외에는 힌트 필드가 null입니다.
+- 기존 Firebase 프로젝트·SMS 설정을 재사용합니다. Identity JWT는 필요하지 않고 모든 응답은 no-store입니다.
+- 전화 인증을 현재 SNS 계정에 link하지 마세요. 기존 Firebase 상태가 필요한 앱은 별도 in-memory Auth 인스턴스를 사용합니다.
+- 응답 유실 시 동일 recoveryId와 동일 전화 인증으로 재조회합니다. 토큰 refresh는 가능하나 새 인증으로 바꿔서 재사용하지 않습니다.
+- 상세 enum/시간/한도/오류는 [정확한 신규 계약](single-sns-account-recovery-runbook.md#5-프론트-계약)을 따릅니다.
 
 ### 8.20 `GET /api/v1/users/me/consents`
 

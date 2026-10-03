@@ -18,13 +18,14 @@ public class ProviderChangeRequestFilter extends OncePerRequestFilter {
 	@Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 		String path = request.getRequestURI().substring(request.getContextPath().length());
-		if (!path.startsWith("/api/v1/auth/firebase/providers/")) { chain.doFilter(request, response); return; }
+		boolean recovery = path.startsWith("/api/v1/auth/account-recovery/");
+		if (!path.startsWith("/api/v1/auth/firebase/providers/") && !recovery) { chain.doFilter(request, response); return; }
 		long minute = System.currentTimeMillis() / 60_000;
 		// Do not trust X-Forwarded-For. Deployment ingress must enforce distributed quotas too.
 		String address = request.getRemoteAddr();
-		if (!budget.admit(address, minute)) { reject(response, 429, "PROVIDER_RATE_LIMITED"); return; }
+		if (!budget.admit(address, minute)) { reject(response, 429, recovery ? "RECOVERY_RATE_LIMITED" : "PROVIDER_RATE_LIMITED"); return; }
 		byte[] body = request.getInputStream().readNBytes(MAX_BYTES + 1);
-		if (body.length > MAX_BYTES) { java.util.Arrays.fill(body, (byte) 0); reject(response, 413, "PROVIDER_REQUEST_TOO_LARGE"); return; }
+		if (body.length > MAX_BYTES) { java.util.Arrays.fill(body, (byte) 0); reject(response, 413, recovery ? "RECOVERY_REQUEST_TOO_LARGE" : "PROVIDER_REQUEST_TOO_LARGE"); return; }
 		var wrapped = new HttpServletRequestWrapper(request) {
 			@Override public ServletInputStream getInputStream() {
 				var input = new ByteArrayInputStream(body);

@@ -87,7 +87,7 @@ class FirebaseExchangeServiceTests {
 
 	@org.junit.jupiter.params.ParameterizedTest
 	@org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
-	void existingFirebaseIdentityIssuesIdentityAccessAndRefreshTokensForActiveMember(boolean firstProviderRegistration) {
+	void existingFirebaseIdentityIssuesIdentityAccessAndRefreshTokensForActiveMember(boolean transactionalFence) {
 		VerifiedFirebasePrincipal principal = principal(
 				FirebaseAuthenticationMethod.GOOGLE,
 				true,
@@ -121,7 +121,9 @@ class FirebaseExchangeServiceTests {
 		var security = new web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService(
 				mock(org.springframework.data.mongodb.core.MongoTemplate.class), mock(org.springframework.transaction.support.TransactionTemplate.class),
 				userRepository, firebaseIdentityRepository);
-		if (firstProviderRegistration) {
+		when(socialIdentityRepository.findAllByUserId(USER_ID)).thenReturn(List.of(
+				SocialIdentity.create(USER_ID, SocialProvider.GOOGLE, "google-subject", NOW.minusSeconds(60))));
+		if (transactionalFence) {
 			var mongo = mock(org.springframework.data.mongodb.core.MongoTemplate.class);
 			var tx = mock(org.springframework.transaction.support.TransactionTemplate.class);
 			when(tx.execute(any())).thenAnswer(i -> ((org.springframework.transaction.support.TransactionCallback<?>) i.getArgument(0))
@@ -131,10 +133,6 @@ class FirebaseExchangeServiceTests {
 					mongo, tx, userRepository, firebaseIdentityRepository);
 			registrationSecurity.setProviderChanges(guard);
 			when(firebaseIdentityRepository.findById(identity.getFirebaseIdentityId())).thenReturn(Optional.of(identity));
-			var stored = new java.util.concurrent.atomic.AtomicReference<SocialIdentity>();
-			when(socialIdentityRepository.findByProviderAndProviderSubject(SocialProvider.GOOGLE, "google-subject"))
-					.thenAnswer(i -> Optional.ofNullable(stored.get()));
-			when(socialIdentityRepository.save(any())).thenAnswer(i -> { stored.set(i.getArgument(0)); return stored.get(); });
 			service.setLoginRegistration(new web.tosunsaeng.identity.domain.auth.providerchange.ProviderLoginRegistrationService(
 					mongo, registrationSecurity, guard, firebaseIdentityRepository, socialIdentityRepository, userRepository, Clock.fixed(NOW, ZoneOffset.UTC)));
 		}
@@ -164,7 +162,7 @@ class FirebaseExchangeServiceTests {
 		verify(accessTokenIssuer).issue(USER_ID, UserAccountType.MEMBER, Set.of());
 		verify(refreshSessionIssuer).issueAuthenticated(USER_ID, evidence);
 		verifyNoInteractions(enrollmentAttemptService);
-		if (firstProviderRegistration) verify(socialIdentityRepository).save(any(SocialIdentity.class));
+		verify(socialIdentityRepository, never()).save(any(SocialIdentity.class));
 	}
 
 	@Test
@@ -178,7 +176,7 @@ class FirebaseExchangeServiceTests {
 		User existingMember = member(UserStatus.ACTIVE);
 		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(existingMember));
 		assertThatThrownBy(() -> service.exchange(new FirebaseExchangeRequest("firebase-test-credential")))
-				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SNS_ACCOUNT_MISMATCH));
 		verify(socialIdentityRepository, never()).save(any());
 		verifyNoInteractions(accessTokenIssuer, refreshSessionIssuer, enrollmentAttemptService);
 	}

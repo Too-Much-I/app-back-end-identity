@@ -83,6 +83,10 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 				&& user.getPhoneNumber() != null
 				&& !user.getPhoneNumber().isBlank();
 		String verifiedPhoneNumber = phoneVerified ? user.getPhoneNumber() : null;
+		if (PHONE_PROVIDER_ID.equals(requireSignInProvider(claims))
+				&& (!phoneVerified || !Objects.equals(claims.get("phone_number"), verifiedPhoneNumber))) {
+			throw invalidToken();
+		}
 
 		return new FirebaseAdminPrincipalData(
 				firebaseProjectId,
@@ -129,7 +133,7 @@ final class FirebaseSdkAdminClient implements FirebaseAdminClient {
 					|| PHONE_PROVIDER_ID.equals(providerId)
 					? null
 					: provider.getUid();
-			linkedProviders.add(new FirebaseLinkedProviderData(providerId, providerUid));
+			linkedProviders.add(new FirebaseLinkedProviderData(providerId, providerUid, provider.getEmail()));
 		}
 		return linkedProviders;
 	}

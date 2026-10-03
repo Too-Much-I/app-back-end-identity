@@ -17,7 +17,11 @@ body{font:16px/1.6 system-ui;background:#f3f6fa;color:#172536;max-width:820px;ma
 <p>배포 담당자가 확인한 현재 정책 버전을 입력하고 해당 약관을 읽은 뒤 직접 동의하세요. 버전은 자동 추정하지 않습니다.</p>
 <label>개인정보 정책 버전<input id="privacyVersion" autocomplete="off"></label><label><input id="privacy" type="checkbox"> 해당 개인정보 처리방침을 확인하고 동의합니다.</label>
 <label>이용약관 버전<input id="termsVersion" autocomplete="off"></label><label><input id="terms" type="checkbox"> 해당 이용약관을 확인하고 동의합니다.</label><button id="signup" disabled>동의한 내용으로 회원가입</button></section>
-<section><h2>5. 서버 인증 확인</h2><button id="me" disabled>내 프로필 인증 확인</button><button id="refresh" disabled>토큰 재발급</button><button id="today" disabled>Learning Core 접근 확인</button><button id="clear">로컬 인증정보 지우기</button>
+<section><h2>5. 서버 인증 확인</h2><button id="me" disabled>내 프로필 인증 확인</button><button id="merges" disabled>내 병합 이전 상태 조회</button><button id="refresh" disabled>토큰 재발급</button><button id="today" disabled>Learning Core 접근 확인</button><button id="clear">로컬 인증정보 지우기</button>
 <p><small>자동 재시도 없음. 재발급 응답 유실 시 이 도구는 세션을 버리고 다시 로그인하도록 합니다(Stage 9 복구 테스트 도구가 아닙니다). 로컬 삭제는 서버 세션 폐기가 아닙니다.</small></p></section>
+<section><h2>6. SMS 계정 찾기 (가상 번호 전용)</h2><p>기존 로그인은 보존합니다. 같은 Firebase 프로젝트의 별도 메모리 인증 세션으로 SNS·마스킹 이메일만 안내합니다. 회원 로그인이나 Guest 병합을 실행하지 않습니다.</p>
+<label>테스트 번호<input id="recoveryPhone" type="tel" autocomplete="off"></label><button id="recoverSend" disabled>계정 찾기 인증 시작</button>
+<label>등록된 6자리 코드<input id="recoveryOtp" type="password" inputmode="numeric" autocomplete="off" maxlength="6"></label>
+<button id="recoverConfirm" disabled>인증 후 계정 안내</button><button id="recoverRetry" disabled>응답 유실 시 같은 인증으로 재조회</button><div id="recoveryRecaptcha"></div></section>
 <section><h2>결과 (민감정보 제외)</h2><pre id="status" role="status" aria-live="polite">Firebase SDK 로딩 중…</pre></section>
 <script type="module" src="/app.js"></script></html>

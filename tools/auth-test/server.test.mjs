@@ -29,6 +29,11 @@ test('local gateway: fixed upstream, host/origin guards, no secret logs or redir
     assert.equal(calls.length, 1); assert.equal(calls[0][0], 'https://identity-test.to-teacher.com/api/v1/auth/reissue');
     assert.equal(calls[0][1].redirect, 'error'); assert.equal(calls[0][1].headers.cookie, undefined);
     assert.equal(calls[0][1].headers['idempotency-key'], 'fake-test-id');
+    assert.equal((await request('/identity/api/v1/users/me/merges?activeOnly=false&limit=20', 'GET',
+      { 'X-Local-Auth-Test': '1', Authorization: 'Bearer fake-member' })).status, 200);
+    assert.equal(calls.at(-1)[0], 'https://identity-test.to-teacher.com/api/v1/users/me/merges?activeOnly=false&limit=20');
+    assert.equal(calls.at(-1)[1].headers.authorization, 'Bearer fake-member');
+    assert.equal((await request('/identity/api/v1/users/me/merges?redirect=evil', 'GET', { 'X-Local-Auth-Test': '1' })).status, 404);
     assert.equal((await request('/identity/api/v1/auth/reissue', 'POST', { Origin: origin, 'X-Local-Auth-Test': '1', 'Content-Type': 'application/json' }, 'x'.repeat(33000))).status, 413);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

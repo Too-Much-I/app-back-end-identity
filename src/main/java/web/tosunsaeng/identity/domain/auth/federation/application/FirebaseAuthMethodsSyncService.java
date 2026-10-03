@@ -103,9 +103,10 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 				|| !firebaseIdentity.getFirebaseUid().equals(principal.firebaseUid())) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
 		}
-		// Retained endpoint is validation-only. Both first links and relinks use common link/complete.
-		if (requiredRequest.linkAttemptId() != null) throw new AuthException(AuthErrorStatus.PROVIDER_RELINK_REQUIRED);
+		// Retained endpoint validates the sole approved identity; it never adds a provider.
+		if (requiredRequest.linkAttemptId() != null) throw new AuthException(AuthErrorStatus.PROVIDER_LINK_RETIRED);
 		ensureAllPrincipalSocialIdentitiesOwnedBy(principal, userId);
+		SingleSocialIdentityPolicy.owned(principal, userId, socialIdentityRepository.findAllByUserId(userId));
 		if (sessionSecurity != null) sessionSecurity.transactionKeepingUniqueConflicts(() -> {
 			if (providerChanges != null) providerChanges.synchronize(userId, expectedEpoch, expectedChangeRevision, principal, null, () -> {});
 			else {
@@ -123,6 +124,7 @@ public final class FirebaseAuthMethodsSyncService implements FirebaseAuthMethods
 			String userId
 	) {
 		for (VerifiedSocialPrincipal social : principal.linkedSocialPrincipals()) {
+			if (social.provider() != SingleSocialIdentityPolicy.social(principal.signInMethod())) continue;
 			SocialIdentity existing = socialIdentityRepository
 					.findByProviderAndProviderSubject(
 							social.provider(),

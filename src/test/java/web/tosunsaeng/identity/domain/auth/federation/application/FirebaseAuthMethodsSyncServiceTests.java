@@ -93,7 +93,7 @@ class FirebaseAuthMethodsSyncServiceTests {
 	@Test
 	void legacyPermitCannotBypassStartAndComplete() {
 		assertThatThrownBy(() -> service.sync(new FirebaseAuthMethodsSyncRequest("sync-credential", "11111111-1111-4111-8111-111111111111")))
-				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_RELINK_REQUIRED));
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.PROVIDER_LINK_RETIRED));
 		verify(transactionService, never()).saveMissing(any());
 	}
 
@@ -112,12 +112,6 @@ class FirebaseAuthMethodsSyncServiceTests {
 						SocialProvider.GOOGLE,
 						"google-subject-sensitive",
 						NOW
-				),
-				SocialIdentity.create(
-						member.getUserId(),
-						SocialProvider.APPLE,
-						"apple-subject-sensitive",
-						NOW
 				)
 		));
 
@@ -126,7 +120,7 @@ class FirebaseAuthMethodsSyncServiceTests {
 		);
 
 		verify(transactionService, never()).saveMissing(any());
-		assertThat(response.linkedProviders()).hasSize(2);
+		assertThat(response.linkedProviders()).containsExactly(SocialProvider.GOOGLE);
 	}
 
 	@Test

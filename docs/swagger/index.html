@@ -17,7 +17,7 @@
     <h1>Identity API · 프론트 공유본</h1>
     <p>현재 소스에서 생성한 읽기 전용 Swagger입니다. 배포·기능 활성화 여부는 별도 확인이 필요합니다.</p>
     <p>Guest 가입 재개, 로그아웃, 회원 탈퇴를 포함합니다. 학습 기록만 삭제하는 API는 미확정이며 포함하지 않습니다.</p>
-    <p>Identity Controller 전체 23개 경로·24개 작업을 포함합니다. 폐기된 relink/prepare는 제거했으며 providers/link/prepare → start → complete를 사용합니다.</p>
+    <p>Identity Controller 전체 29개 경로·30개 작업을 포함합니다. SNS 추가 연결·해제 경로는 410으로 폐지되었으며 Guest 전환은 유지합니다. 공개 account-recovery/prepare → SMS 인증 → lookup으로 가입 SNS를 안내합니다.</p>
     <p>Responses의 Example Value 선택 목록에서 정상·재개·상태별·주요 오류 응답을 확인하세요. 값은 가상 예시이며 실제 응답을 우선합니다.</p>
     <p>도구로 가져오려면 <a href="identity-openapi.json" download>OpenAPI JSON</a>을 사용하세요. 실제 호출은 전달받은 서버의 Swagger에서 수행하세요.</p>
   </section>

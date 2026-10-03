@@ -1,10 +1,11 @@
 import { tokenPair, claimSummary } from './session.mjs';
 const $ = id => document.getElementById(id);
 let sdk, auth, user, enrollment, pair, verifier, verification, busy = false;
+let recoveryAuth, recovery, recoveryVerifier, recoveryVerification, recoveryUser;
 const show = text => { $('status').textContent = text; };
 const need = (condition, code) => { if (!condition) throw new Error(code); };
 function controls() {
-  for (const id of ['init','google','exchange','send','link','signup','me','refresh','today','clear']) $(id).disabled = busy;
+  for (const id of ['init','google','exchange','send','link','signup','me','merges','refresh','today','clear','recoverSend','recoverConfirm','recoverRetry']) $(id).disabled = busy;
   if (busy) return;
   $('init').disabled = !!auth;
   $('google').disabled = !auth;
@@ -12,7 +13,10 @@ function controls() {
   $('send').disabled = !enrollment || !!user?.phoneNumber;
   $('link').disabled = !verification;
   $('signup').disabled = !enrollment || !user?.phoneNumber;
-  for (const id of ['me','refresh','today']) $(id).disabled = !pair;
+  for (const id of ['me','merges','refresh','today']) $(id).disabled = !pair;
+  $('recoverSend').disabled = !recoveryAuth;
+  $('recoverConfirm').disabled = !recoveryVerification;
+  $('recoverRetry').disabled = !recoveryUser || !recovery;
 }
 async function api(path, body, access, key) {
   const headers = { 'X-Local-Auth-Test': '1' };
@@ -49,6 +53,10 @@ async function clear() {
   pair = null; enrollment = null; verification = null; user = null;
   verifier?.clear(); verifier = null;
   if (auth) await sdk.signOut(auth);
+  if (recoveryAuth) await sdk.signOut(recoveryAuth);
+  recovery = null; recoveryUser = null; recoveryVerification = null;
+  recoveryVerifier?.clear(); recoveryVerifier = null;
+  for (const id of ['recoveryPhone','recoveryOtp']) $(id).value = '';
   for (const id of ['phone','otp','nickname']) $(id).value = '';
   show('로컬 인증정보 삭제 완료. 서버 세션은 폐기하지 않았습니다.');
 }
@@ -62,6 +70,11 @@ action('init', async () => {
   await sdk.setPersistence(auth, sdk.inMemoryPersistence);
   // Fictional phone numbers only: no real SMS, no global production setting changed.
   auth.settings.appVerificationDisabledForTesting = true;
+  // Same project, isolated in-memory Auth instance. Never overwrite the main/Guest session.
+  recoveryAuth = sdk.getAuth(sdk.initializeApp({ apiKey: config.apiKey, authDomain: config.authDomain,
+    projectId: config.projectId, appId: config.appId }, 'account-recovery'));
+  await sdk.setPersistence(recoveryAuth, sdk.inMemoryPersistence);
+  recoveryAuth.settings.appVerificationDisabledForTesting = true;
   $('config').value = '';
   show('설정 완료. Google 로그인 버튼을 누르세요.');
 });
@@ -117,8 +130,49 @@ action('refresh', async () => {
   accept(await api('/identity/api/v1/auth/reissue', { refreshToken: previous.refreshToken }, null, crypto.randomUUID()));
 });
 action('me', async () => { await api('/identity/api/v1/users/me', null, pair.accessToken); show('프로필 API 인증 성공. 개인정보는 표시하지 않습니다.'); });
+action('merges', async () => {
+  const result = await api('/identity/api/v1/users/me/merges?activeOnly=false&limit=20', null, pair.accessToken);
+  need(Array.isArray(result.items), 'INVALID_MERGE_RESPONSE');
+  const rows = result.items.map(item => {
+    need(['PROCESSING','ACTION_REQUIRED','COMPLETED'].includes(item.status), 'INVALID_MERGE_RESPONSE');
+    return { status: item.status, learningCore: item.learningCore?.status, billing: item.billing?.status,
+      nextPollAfterSeconds: item.nextPollAfterSeconds };
+  });
+  show(JSON.stringify(rows, null, 2) + '\\n최근 20건. 빈 목록은 전체 이전 완료를 뜻하지 않습니다. 자동 polling/병합 재실행 없음.');
+});
 action('today', async () => { await api('/learning/api/v1/challenges/today', null, pair.accessToken); show('Learning Core today 호출 성공. 응답 본문은 표시하지 않습니다.'); });
 action('clear', clear);
+async function lookupRecovery() {
+  need(recovery && recoveryUser, 'RESTART_RECOVERY');
+  const result = await api('/identity/api/v1/auth/account-recovery/lookup', {
+    recoveryId: recovery.recoveryId, firebaseIdToken: await recoveryUser.getIdToken(true) });
+  need(['FOUND','NOT_FOUND','ACTION_REQUIRED'].includes(result.status), 'INVALID_RECOVERY_RESPONSE');
+  if (result.status === 'FOUND') {
+    need(['GOOGLE','APPLE','KAKAO'].includes(result.provider), 'INVALID_RECOVERY_RESPONSE');
+    show(`가입 SNS: ${result.provider}\n이메일 힌트: ${result.maskedEmail || (result.emailHintKind === 'APPLE_PRIVATE_RELAY' ? 'Apple 비공개 이메일' : '제공되지 않음')}\n해당 SNS로 다시 로그인하세요. 기존 Identity 세션은 변경하지 않았습니다.`);
+  } else show(result.status === 'NOT_FOUND' ? '가입 계정을 찾지 못했습니다.' : '추가 확인이 필요합니다. 고객 지원에 문의하세요.');
+}
+action('recoverSend', async () => {
+  need(/^\+[1-9]\d{7,14}$/.test($('recoveryPhone').value.trim()), 'INVALID_PHONE_FORMAT');
+  recovery = null; recoveryUser = null; recoveryVerification = null;
+  await sdk.signOut(recoveryAuth);
+  recovery = await api('/identity/api/v1/auth/account-recovery/prepare', {});
+  need(recovery?.recoveryId, 'INVALID_RECOVERY_RESPONSE');
+  recoveryVerifier?.clear();
+  recoveryVerifier = new sdk.RecaptchaVerifier(recoveryAuth, 'recoveryRecaptcha', { size: 'invisible' });
+  recoveryVerification = await new sdk.PhoneAuthProvider(recoveryAuth).verifyPhoneNumber($('recoveryPhone').value.trim(), recoveryVerifier);
+  $('recoveryPhone').value = '';
+  show('계정 찾기용 테스트 인증 준비 완료. 가상 번호의 고정 코드를 입력하세요.');
+});
+action('recoverConfirm', async () => {
+  need(recoveryVerification && /^\d{6}$/.test($('recoveryOtp').value), 'INVALID_CODE_FORMAT');
+  const credential = sdk.PhoneAuthProvider.credential(recoveryVerification, $('recoveryOtp').value);
+  $('recoveryOtp').value = '';
+  recoveryUser = (await sdk.signInWithCredential(recoveryAuth, credential)).user;
+  recoveryVerification = null;
+  await lookupRecovery();
+});
+action('recoverRetry', lookupRecovery);
 try {
   const [appSdk, authSdk] = await Promise.all([import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'), import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js')]);
   sdk = { ...appSdk, ...authSdk }; show('Firebase 웹 구성 JSON을 입력하세요.');

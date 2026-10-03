@@ -40,6 +40,7 @@ import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepo
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

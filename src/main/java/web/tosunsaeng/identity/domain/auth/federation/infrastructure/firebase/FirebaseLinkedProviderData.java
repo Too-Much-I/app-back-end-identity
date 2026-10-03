@@ -4,8 +4,10 @@ import java.util.Objects;
 
 record FirebaseLinkedProviderData(
 		String providerId,
-		String providerUid
+		String providerUid,
+		String email
 ) {
+	FirebaseLinkedProviderData(String providerId, String providerUid) { this(providerId, providerUid, null); }
 
 	FirebaseLinkedProviderData {
 		providerId = Objects.requireNonNull(providerId, "providerId must not be null");

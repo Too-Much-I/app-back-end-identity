@@ -16,6 +16,8 @@ public class ReissueNoStoreFilter extends OncePerRequestFilter {
 			throws ServletException, IOException {
 		String path = request.getRequestURI().substring(request.getContextPath().length());
 		if ("/api/v1/auth/reissue".equals(path) || path.startsWith("/api/v1/auth/firebase/providers/")
+				|| path.startsWith("/api/v1/auth/account-recovery/")
+                || path.equals("/api/v1/users/me/merges") || path.startsWith("/api/v1/users/me/merges/")
 				|| "/api/v1/auth/firebase/auth-methods/sync".equals(path)) {
 			response.setHeader("Cache-Control", "no-store"); response.setHeader("Pragma", "no-cache");
 		}

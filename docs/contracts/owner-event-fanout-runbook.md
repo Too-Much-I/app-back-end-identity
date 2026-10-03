@@ -1,5 +1,7 @@
 # Identity owner event durable fan-out 운영 절차
 
+> 2026-10-03 후속 구현: 새 추적 UserMerged는 명시적 profile에 따라 LEARNING_CORE만 또는 LEARNING_CORE+BILLING을 필수로 저장한다. 첫 출시는 LC-only/Billing NOT_REQUIRED, 과거 작업 재실행 없음. 추적 이벤트 완료 ACK는 204만 허용한다. 과거 미추적 이벤트·trial rebind 계약은 유지하며 [신규 진행 조회 계약](guest-merge-progress-api.md)이 이 범위에서 우선한다.
+
 ## 1. 5줄 결론
 
 1. 모든 capture와 publisher 플래그는 기본값 `false`이며 consumer가 준비되기 전에는 활성화하지 않는다.

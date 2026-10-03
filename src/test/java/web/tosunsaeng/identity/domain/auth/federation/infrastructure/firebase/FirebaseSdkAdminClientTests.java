@@ -83,6 +83,30 @@ class FirebaseSdkAdminClientTests {
 	}
 
 	@Test
+	void phoneClaimMustMatchCurrentAdminPhoneAndMissingClaimIsRejected() throws Exception {
+		AbstractFirebaseAuth auth = mock(AbstractFirebaseAuth.class);
+		FirebaseToken token = mock(FirebaseToken.class);
+		UserRecord user = mock(UserRecord.class);
+		when(auth.verifyIdToken(ID_TOKEN, true)).thenReturn(token);
+		when(auth.getUser(FIREBASE_UID)).thenReturn(user);
+		when(token.getUid()).thenReturn(FIREBASE_UID);
+		when(token.getIssuer()).thenReturn("https://securetoken.google.com/test-project");
+		UserInfo phoneProvider = provider("phone", "+16505550123");
+		when(user.getProviderData()).thenReturn(new UserInfo[]{phoneProvider});
+		when(user.getPhoneNumber()).thenReturn("+16505550123");
+		var claims = new java.util.HashMap<String, Object>();
+		claims.put("aud", "test-project"); claims.put("auth_time", 100L); claims.put("iat", 100L); claims.put("exp", 400L);
+		claims.put("firebase", Map.of("sign_in_provider", "phone"));
+		when(token.getClaims()).thenReturn(claims);
+		var client = new FirebaseSdkAdminClient(auth, "test-project");
+		assertThatThrownBy(() -> client.verify(ID_TOKEN, true)).isInstanceOf(FirebaseAdminClientException.class);
+		claims.put("phone_number", "+16505550999");
+		assertThatThrownBy(() -> client.verify(ID_TOKEN, true)).isInstanceOf(FirebaseAdminClientException.class);
+		claims.put("phone_number", "+16505550123");
+		assertThat(client.verify(ID_TOKEN, true).verifiedPhoneNumber()).isEqualTo("+16505550123");
+	}
+
+	@Test
 	void mapsSdkObjectsToMinimalSnapshotAndDropsPhoneProviderUid() throws Exception {
 		AbstractFirebaseAuth firebaseAuth = mock(AbstractFirebaseAuth.class);
 		FirebaseToken token = mock(FirebaseToken.class);

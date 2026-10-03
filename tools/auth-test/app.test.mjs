@@ -16,18 +16,27 @@ test('UI flow with mocked Firebase and HTTP: consent, same UID, rotation and saf
   globalThis.fetch = async (path, options) => {
     requests.push({ path, options });
     if (path.endsWith('/reissue') && failRefresh) throw new Error('sensitive response must not appear');
-    const result = path.endsWith('/exchange') ? { type: 'ENROLLMENT_REQUIRED', enrollmentId: 'fake-enrollment', expiresIn: 600000 } : { accessToken: jwt, refreshToken: 'fake-refresh' };
+    const result = path.endsWith('/account-recovery/prepare') ? { recoveryId: 'fake-recovery', expiresAt: '2099-01-01T00:00:00Z' }
+      : path.endsWith('/account-recovery/lookup') ? { status: 'FOUND', provider: 'GOOGLE', maskedEmail: 'a***@example.com', emailHintKind: 'EMAIL' }
+      : path.includes('/users/me/merges?') ? { items: [{ status: 'COMPLETED', learningCore: {status: 'COMPLETED'}, billing: {status: 'NOT_REQUIRED'}, nextPollAfterSeconds: null }], nextCursor: null }
+      : path.endsWith('/exchange') ? { type: 'ENROLLMENT_REQUIRED', enrollmentId: 'fake-enrollment', expiresIn: 600000 } : { accessToken: jwt, refreshToken: 'fake-refresh' };
     return new Response(JSON.stringify({ isSuccess: true, result }));
   };
   const mock = `
     const user = { uid: 'fake-uid', phoneNumber: null, getIdToken: async () => 'fake-firebase' };
     const auth = { currentUser: null, settings: {} };
-    export const initializeApp = x => x, getAuth = () => auth;
+    const recoveryAuth = { currentUser: null, settings: {} };
+    export const initializeApp = (x, name) => ({...x, name}), getAuth = app => app.name ? recoveryAuth : auth;
     export const setPersistence = async () => {}, inMemoryPersistence = {};
     export class GoogleAuthProvider { setCustomParameters() {} }
     export const signInWithPopup = async () => { auth.currentUser = user; };
     export const reauthenticateWithPopup = async () => {};
-    export const signOut = async () => { auth.currentUser = null; };
+    export const signOut = async instance => { instance.currentUser = null; };
+    export const signInWithCredential = async instance => {
+      if (instance !== recoveryAuth) throw new Error('MUST_ISOLATE_AUTH');
+      instance.currentUser = { uid: 'phone-uid', getIdToken: async () => 'fake-recovery-proof' };
+      return { user: instance.currentUser };
+    };
     export class RecaptchaVerifier { clear() {} }
     export class PhoneAuthProvider { async verifyPhoneNumber() { return 'fake-verification'; } static credential() { return {}; } }
     export const linkWithCredential = async () => { user.phoneNumber = 'fake-linked'; return {user}; };
@@ -55,8 +64,23 @@ test('UI flow with mocked Firebase and HTTP: consent, same UID, rotation and saf
     assert.equal(JSON.parse(requests[1].options.body).firebaseIdToken, 'fake-firebase');
     await el('refresh').onclick();
     assert.match(requests[2].options.headers['Idempotency-Key'], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    el('recoveryPhone').value = '+16505550123'; await el('recoverSend').onclick();
+    el('recoveryOtp').value = '000000'; await el('recoverConfirm').onclick();
+    assert.match(el('status').textContent, /a\*\*\*@example.com/);
+    assert.equal(el('refresh').disabled, false); assert.equal(el('exchange').disabled, false);
+    await el('recoverRetry').onclick();
+    const lookups = requests.filter(r => r.path.endsWith('/account-recovery/lookup'));
+    assert.equal(lookups.length, 2);
+    assert.equal(lookups[0].options.body, lookups[1].options.body);
+    assert.equal(lookups[0].options.headers.Authorization, undefined);
+    await el('me').onclick();
+    assert.equal(requests.at(-1).options.headers.Authorization, `Bearer ${jwt}`);
+    await el('merges').onclick();
+    assert.equal(requests.at(-1).options.headers.Authorization, `Bearer ${jwt}`);
+    assert.match(el('status').textContent, /NOT_REQUIRED/);
+    assert.equal(el('status').textContent.includes(jwt), false);
     failRefresh = true; await el('refresh').onclick();
-    assert.equal(el('refresh').disabled, true); assert.equal(el('me').disabled, true);
+    assert.equal(el('refresh').disabled, true); assert.equal(el('me').disabled, true); assert.equal(el('merges').disabled, true);
     assert.equal(el('status').textContent.includes('sensitive response'), false);
     await el('clear').onclick(); assert.equal(el('exchange').disabled, true);
   } finally { globalThis.document = originalDocument; globalThis.fetch = originalFetch; }

@@ -27,8 +27,9 @@ class FirebaseAdminAuthenticationVerifierTests {
 	private static final Instant NOW = Instant.parse("2026-08-13T12:00:00Z");
 
 	@Test
-	void onlyLoginDefersMissingProviderToRegistrationAndInvalidProofNeverReachesGuard() {
+	void loginUsesPolicyGuardAndInvalidProofNeverReachesGuard() {
 		for (FirebaseVerificationPurpose purpose : FirebaseVerificationPurpose.values()) {
+			if (purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY) continue; // PHONE-only purpose tested separately.
 			var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
 			var verifier = verifier(new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30))), properties(true, true, false));
 			verifier.setProviderChanges(guard);
@@ -83,7 +84,9 @@ class FirebaseAdminAuthenticationVerifierTests {
 	void everyFirebaseVerificationPurposeChecksRevocation() {
 		for (FirebaseVerificationPurpose purpose : FirebaseVerificationPurpose.values()) {
 			StubFirebaseAdminClient client = new StubFirebaseAdminClient(
-					validGoogleData(NOW.minusSeconds(30))
+					purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+							? data(NOW.minusSeconds(30), "phone", false, true, false, List.of(new FirebaseLinkedProviderData("phone", null)))
+							: validGoogleData(NOW.minusSeconds(30))
 			);
 
 			assertThat(verifier(client, properties(true, true, false)).verify(
@@ -91,6 +94,33 @@ class FirebaseAdminAuthenticationVerifierTests {
 					purpose
 			)).isNotNull();
 			assertThat(client.checkRevoked).as(purpose.name()).isTrue();
+		}
+	}
+
+	@Test
+	void recoveryAllowsPhoneOnlyButDoesNotRelaxMemberLogin() {
+		var snapshot = data(NOW.minusSeconds(30), "phone", false, true, false, List.of(new FirebaseLinkedProviderData("phone", null)));
+		var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false));
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		verifier.setProviderChanges(guard);
+		assertThat(verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.ACCOUNT_RECOVERY).signInMethod()).isEqualTo(FirebaseAuthenticationMethod.PHONE);
+		org.mockito.Mockito.verifyNoInteractions(guard);
+		for (var purpose : List.of(FirebaseVerificationPurpose.LOGIN_EXCHANGE, FirebaseVerificationPurpose.GUEST_MERGE,
+				FirebaseVerificationPurpose.DIRECT_ENROLLMENT, FirebaseVerificationPurpose.GUEST_ENROLLMENT)) {
+			assertThatThrownBy(() -> verifier.verify(ID_TOKEN, purpose)).isInstanceOf(AuthException.class);
+		}
+		assertThatThrownBy(() -> verifier(new StubFirebaseAdminClient(validGoogleData(NOW)), properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.ACCOUNT_RECOVERY)).isInstanceOf(AuthException.class);
+	}
+
+	@Test
+	void multiSocialEnrollmentRejectsEvenDisabledSecondaryProviders() {
+		var snapshot = data(NOW.minusSeconds(30), "google.com", true, true, false, List.of(
+				new FirebaseLinkedProviderData("google.com", "google"), new FirebaseLinkedProviderData("oidc.kakao", "kakao"),
+				new FirebaseLinkedProviderData("phone", null)));
+		for (var purpose : List.of(FirebaseVerificationPurpose.DIRECT_ENROLLMENT, FirebaseVerificationPurpose.GUEST_ENROLLMENT)) {
+			assertThatThrownBy(() -> verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false)).verify(ID_TOKEN, purpose))
+					.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SINGLE_SNS_REQUIRED));
 		}
 	}
 

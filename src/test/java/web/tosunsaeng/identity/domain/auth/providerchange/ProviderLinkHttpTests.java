@@ -29,16 +29,15 @@ class ProviderLinkHttpTests {
 		when(service.prepare(any(), any(), any(), any())).thenReturn(new ProviderLinkService.Status("attempt", SocialProvider.GOOGLE, "PREPARED", Instant.EPOCH, false));
 		var result = mvc.perform(post("/api/v1/auth/firebase/providers/link/prepare").header("Idempotency-Key", "request")
 				.contentType("application/json").content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"test-proof\"}"))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.result.status").value("PREPARED"))
-				.andExpect(jsonPath("$.result.linkAllowed").value(false))
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"))
 				.andExpect(header().string("Cache-Control", "no-store")).andReturn();
 		assertThat(result.getResponse().getContentAsString()).doesNotContain("test-proof", "accessToken", "refreshToken");
-		verify(service).prepare(eq("owner"), eq(SocialProvider.GOOGLE), eq("test-proof"), eq(java.util.List.of("request")));
+		verifyNoInteractions(service, current);
 	}
 	@Test void statusRequiresAuthenticatedOwnerAndFirebaseProof() throws Exception {
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/status").contentType("application/json")
-				.content("{\"requestId\":\"request\",\"firebaseIdToken\":\"proof\"}")).andExpect(status().isOk());
-		verify(current).getCurrentUserId(); verify(service).status("owner", "request", "proof");
+				.content("{\"requestId\":\"request\",\"firebaseIdToken\":\"proof\"}")).andExpect(status().isGone());
+		verifyNoInteractions(service, current);
 	}
 	@ParameterizedTest @ValueSource(strings = {"start", "complete"})
 	void attemptOperationsRequireProofAndDelegateOwner(String action) throws Exception {
@@ -47,29 +46,26 @@ class ProviderLinkHttpTests {
 		verifyNoInteractions(service);
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/" + action).contentType("application/json")
 				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\"}"))
-				.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
-		if (action.equals("start")) verify(service).start("owner", "attempt", "proof");
-		else verify(service).complete("owner", "attempt", "proof");
+				.andExpect(status().isGone()).andExpect(header().string("Cache-Control", "no-store"));
+		verifyNoInteractions(service, current);
 		assertThat(new ProviderLinkController.AttemptRequest("id", "test-secret").toString()).doesNotContain("test-secret");
 	}
 	@Test void disabledCommonServiceFailsClosed() throws Exception {
 		when(provider.getIfAvailable()).thenReturn(null);
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/prepare").contentType("application/json")
 				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"proof\"}"))
-				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("PROVIDER_CHANGE_UNAVAILABLE"));
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"));
 	}
 	@Test void recoveryEndpointsValidateProofAndNeverAcceptUnknownFailureCode() throws Exception {
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/cancel").contentType("application/json")
 				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\"}"))
-				.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
-		verify(service).cancel("owner", "attempt", "proof");
+				.andExpect(status().isGone()).andExpect(header().string("Cache-Control", "no-store"));
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/pending").contentType("application/json")
-				.content("{\"firebaseIdToken\":\"proof\"}")).andExpect(status().isOk());
-		verify(service).pending("owner", "proof");
+				.content("{\"firebaseIdToken\":\"proof\"}")).andExpect(status().isGone());
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/failure-report").contentType("application/json")
 				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\",\"failureCode\":\"CREDENTIAL_ALREADY_IN_USE\"}"))
-				.andExpect(status().isOk());
-		verify(service).failure("owner", "attempt", "proof", ProviderLinkAttempt.FailureCode.CREDENTIAL_ALREADY_IN_USE);
+				.andExpect(status().isGone());
+		verifyNoInteractions(service, current);
 		mvc.perform(post("/api/v1/auth/firebase/providers/link/failure-report").contentType("application/json")
 				.content("{\"linkAttemptId\":\"attempt\",\"firebaseIdToken\":\"proof\",\"failureCode\":\"untrusted-message\"}"))
 				.andExpect(status().isBadRequest());

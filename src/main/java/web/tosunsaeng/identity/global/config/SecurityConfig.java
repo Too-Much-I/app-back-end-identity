@@ -37,6 +37,8 @@ public class SecurityConfig {
 								"/api/v1/auth/signup",
 								"/api/v1/auth/guest",
 								"/api/v1/auth/firebase/exchange",
+								"/api/v1/auth/account-recovery/prepare",
+								"/api/v1/auth/account-recovery/lookup",
 								"/api/v1/auth/firebase/providers/unlink/status",
 								"/api/v1/auth/firebase/signup",
 								"/api/v1/auth/login",

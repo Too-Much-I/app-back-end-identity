@@ -62,6 +62,8 @@ class FirebaseGuestMergeTargetResolverTests {
 						"project", "uid", target.getUserId(), NOW
 				)));
 		when(userRepository.findById(target.getUserId())).thenReturn(Optional.of(target));
+		when(socialRepository.findAllByUserId(target.getUserId())).thenReturn(List.of(
+				SocialIdentity.create(target.getUserId(), SocialProvider.GOOGLE, "google-subject", NOW)));
 
 		assertThat(resolver.resolve(principal(List.of()), SOURCE_ID)).isSameAs(target);
 	}
@@ -169,7 +171,7 @@ class FirebaseGuestMergeTargetResolverTests {
 				false,
 				null,
 				Set.of(FirebaseAuthenticationMethod.GOOGLE),
-				social
+				social.isEmpty() ? List.of(new VerifiedSocialPrincipal(SocialProvider.GOOGLE, "google-subject")) : social
 		);
 	}
 

@@ -1,5 +1,8 @@
 package web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure;
 
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressStore;
+import web.tosunsaeng.identity.global.workload.BillingSigV4JsonTransport;
+
 import java.time.Clock;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -43,9 +46,13 @@ public class OwnerEventConfiguration {
 	OwnerEventCaptureService ownerEventCaptureService(
 			OwnerEventCoreRepository coreRepository,
 			OwnerEventDeliveryRepository deliveryRepository,
-			OwnerEventConsumerStateRepository stateRepository
+			OwnerEventConsumerStateRepository stateRepository,
+			MergeProgressStore progressStore,
+			OwnerEventProperties properties
 	) {
-		return new OwnerEventCaptureService(coreRepository, deliveryRepository, stateRepository);
+		var service = new OwnerEventCaptureService(coreRepository, deliveryRepository, stateRepository);
+		service.configureProgress(progressStore, properties);
+		return service;
 	}
 
 	@Bean
@@ -69,10 +76,13 @@ public class OwnerEventConfiguration {
 			OwnerEventDeliveryRepository deliveryRepository,
 			OwnerEventConsumerStateRepository stateRepository,
 			OwnerEventCoreRepository coreRepository,
-			PhoneRejoinLineageRepository lineageRepository
+			PhoneRejoinLineageRepository lineageRepository,
+			MergeProgressStore progressStore
 	) {
-		return new OwnerEventPublishTransactionService(
+		var service = new OwnerEventPublishTransactionService(
 				deliveryRepository, stateRepository, coreRepository, lineageRepository);
+		service.configureProgress(progressStore);
+		return service;
 	}
 
 	@Bean
@@ -102,7 +112,7 @@ public class OwnerEventConfiguration {
 				@Qualifier("ownerEventAwsCredentialsProvider") AwsCredentialsProvider credentialsProvider
 		) {
 			properties.validateBilling();
-			return new BillingOwnerEventDeliveryAdapter(new web.tosunsaeng.identity.global.workload.BillingSigV4JsonTransport(
+			return new BillingOwnerEventDeliveryAdapter(new BillingSigV4JsonTransport(
 					properties.getBillingBaseUrl(), properties.getBillingRegion(),
 					properties.getConnectTimeout(), properties.getReadTimeout(), credentialsProvider));
 		}

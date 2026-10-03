@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressPrivacyCleanup;
+
 import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
@@ -38,6 +40,11 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
 
 public class UserWithdrawalIdentityReleaseTransactionService {
+	private MergeProgressPrivacyCleanup mergePrivacyCleanup;
+	@Autowired(required = false)
+	public void setMergePrivacyCleanup(MergeProgressPrivacyCleanup cleanup) {
+		mergePrivacyCleanup = cleanup;
+	}
 	private SessionSecurityService sessionSecurity;
 	@Autowired(required = false)
 	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
@@ -237,6 +244,7 @@ public class UserWithdrawalIdentityReleaseTransactionService {
 			identity.release(requiredReleasedAt);
 			phoneIdentityRepository.save(identity);
 		}
+		if (mergePrivacyCleanup != null) mergePrivacyCleanup.release(lifecycle.getUserId(), requiredReleasedAt);
 		if (!lifecycleRepository.markIdentityReleaseCleaned(
 				lifecycle.getWithdrawalId(),
 				expectedVersion,
