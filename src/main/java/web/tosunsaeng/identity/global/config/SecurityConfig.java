@@ -31,7 +31,7 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(authorize -> authorize
-						// 인증 진입점과 정책 버전, 문서, 상태 확인, JWKS만 공개한다.
+						// 인증 진입점과 앱·정책 버전, 문서, 상태 확인, JWKS만 공개한다.
 						.requestMatchers(HttpMethod.POST,
 								"/api/v1/auth/check-email",
 								"/api/v1/auth/signup",
@@ -47,6 +47,7 @@ public class SecurityConfig {
 						)
 						.permitAll()
 						.requestMatchers(HttpMethod.GET,
+								"/api/v1/app/version",
 								"/api/v1/policies/consents",
 								"/.well-known/jwks.json",
 								"/actuator/health",

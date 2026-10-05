@@ -72,7 +72,10 @@ import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 
 @web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
-@SpringBootTest
+@SpringBootTest(properties = {
+		"app.version.android-latest-version=1.10.0",
+		"app.version.ios-latest-version=2.0.1"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({
@@ -80,6 +83,24 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+	@Test
+	void appVersionGetIsPublicButOtherMethodsAndRoutesRemainProtected() throws Exception {
+		for (String platform : List.of("android", "ios")) {
+			mockMvc.perform(get("/api/v1/app/version").param("platform", platform))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.result.platform").value(platform))
+					.andExpect(header().string("Cache-Control", "no-store"));
+		}
+		mockMvc.perform(get("/api/v1/app/version"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		mockMvc.perform(post("/api/v1/app/version")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/app/private")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/app/version").param("platform", "ios")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer invalid"))
+				.andExpect(status().isUnauthorized());
+	}
+
     @Autowired private web.tosunsaeng.identity.domain.auth.mergeprogress.UserMergeQueryService mergeQuery;
 
     @Test void mergeQueriesRequireMemberJwtAndNoStoreEvenOnErrors() throws Exception {

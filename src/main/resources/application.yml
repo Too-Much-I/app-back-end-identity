@@ -34,6 +34,9 @@ sentry:
     enabled: false
 
 app:
+  version:
+    android-latest-version: ${APP_ANDROID_LATEST_VERSION:}
+    ios-latest-version: ${APP_IOS_LATEST_VERSION:}
   account-recovery:
     enabled: ${ACCOUNT_RECOVERY_ENABLED:false}
     key-ring: ${ACCOUNT_RECOVERY_KEY_RING:}
