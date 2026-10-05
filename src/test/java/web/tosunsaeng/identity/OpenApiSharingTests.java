@@ -54,6 +54,13 @@ class OpenApiSharingTests {
 				.andExpect(status().isOk())
 				.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 		ObjectNode spec = (ObjectNode) objectMapper.readTree(body);
+		JsonNode appVersion = spec.path("paths").path("/api/v1/app/version").path("get");
+		assertThat(appVersion.path("security").size()).isZero();
+		assertThat(appVersion.path("parameters").get(0).path("required").asBoolean()).isTrue();
+		assertThat(appVersion.path("parameters").get(0).path("schema").path("enum").toString())
+				.contains("android", "ios");
+		assertThat(appVersion.path("responses").has("400")).isTrue();
+		assertThat(appVersion.path("responses").has("503")).isTrue();
 		JsonNode prepare = spec.path("paths").path("/api/v1/auth/firebase/guest/prepare").path("post");
 		assertThat(prepare.path("security").get(0).has("bearerAuth")).isTrue();
 		JsonNode envelope = resolve(spec, prepare.path("responses").path("200")
@@ -114,8 +121,8 @@ class OpenApiSharingTests {
 				documented.add(operation.getKey() + " " + path.getKey());
 			}
 		}));
-		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(32);
-		assertThat(spec.path("paths").size()).isEqualTo(31);
+		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(33);
+		assertThat(spec.path("paths").size()).isEqualTo(32);
 		assertThat(spec.path("paths").has("/api/v1/auth/firebase/providers/relink/prepare")).isFalse();
 	}
 

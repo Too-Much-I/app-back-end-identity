@@ -47,6 +47,18 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 
 	@Override
 	public void customise(OpenAPI api) {
+		String appVersionPath = "/api/v1/app/version";
+		for (String platform : new String[]{"android", "ios"}) {
+			success(api, appVersionPath, "get", "200", platform, "최신 출시 버전 예시 (실제 출시값 아님)",
+					new web.tosunsaeng.identity.domain.appversion.AppVersionResponse(platform, "1.2.0"));
+		}
+		for (ErrorCode code : new ErrorCode[]{
+				web.tosunsaeng.identity.global.exception.CommonErrorStatus.INVALID_REQUEST,
+				web.tosunsaeng.identity.domain.appversion.AppVersionErrorStatus.APP_VERSION_UNAVAILABLE}) {
+			String status = Integer.toString(code.getHttpStatus().value());
+			media(api, appVersionPath, "get", status).setSchema(new Schema<>().$ref("#/components/schemas/BaseResponse"));
+			example(api, appVersionPath, "get", status, code.getCode(), code.getMessage(), BaseResponse.failure(code));
+		}
 		success(api, AUTH + "check-email", "post", "200", "AVAILABLE", "사용 가능한 이메일", CheckEmailResponse.from(true));
 		success(api, AUTH + "check-email", "post", "200", "UNAVAILABLE", "이미 사용 중인 이메일", CheckEmailResponse.from(false));
 		success(api, AUTH + "signup", "post", "200", "SIGNED_UP", "이메일 가입 완료 (토큰 발급 아님)",

@@ -13876,3 +13876,219 @@
 - 예상 밖 변경: 없음. 작업 시작부터 있던 TMI-192 단일 SNS/계정 찾기·문서·테스트 도구 변경은 보존했다. 전체 diff에는 이전 변경이 포함되며 이번 작업은 병합 추적 및 필요한 회귀/문서만 추가. commit/push/배포 하지 않음.
 - Jira 댓글 초안(미등록): 별도 후속 Guest 병합 진행 조회 구현 완료. mergeprogress/Guest merge/owner publisher/config·API 문서·테스트 도구 변경, Java1108 및 Node3 테스트 통과. LC-only/Billing NOT_REQUIRED, strict204/CAS/IDOR/TTL/복구 적용. 실제 replica-set/LC 종단 검증·배포 전 인덱스/gate 확인 필요.
 - 다음 작업: 사용자가 diff 검토 및 커밋/push 진행. 별도 후속 이슈 관리 여부와 실제 LC E2E/배포 설정을 확인한 뒤 추적 ON 및 프론트 인계.
+
+## 2026-10-03 — Notion 로그인 가이드에 병합 진행 조회 계약 반영
+
+<!-- codex-turn:01a100c3-c1e0-7003-92b6-d71ca75d5d27 -->
+
+- 브랜치: develop (이번 작업 시작 시 확인; 브랜치 전환하지 않음).
+- 작업 목표: 사용자가 지정한 크롬의 Notion 로그인 문서에 직전 구현된 병합 진행 조회 계약을 반영.
+- 변경 대상: Notion 페이지 3d0dcc5dbaeb80528e0adad685a52dd7의 4.5, 병합 충돌 표, API 카탈로그 병합 응답, 8.6 및 신규 8.22~8.24. 로컬 파일은 docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 변경.
+- 구현 내용: 문서 편집만 수행. mergeId 응답 예시, 회원용 GET 단건/목록, LC-only/Billing NOT_REQUIRED, 생성 시 대상 불변·과거 재실행 없음, strict204 및 응답 유실 복구, 오류·권한·no-store·30회/분·Retry-After·5/15초 polling·foreground2분 권고·보관/출시 gate 추가. 충돌만으로 merge 자동 재시도/Guest 인증 삭제 금지 명시.
+- 범위: 이번 병합 관련 계약만 갱신했으며 다른 로그인 기능의 과거 기술 내용은 전면 동기화하지 않음. 기준일에 부분 갱신 범위를 명시. 기존 문서 본문과 출시 설정 부록 링크를 보존.
+- 실행한 테스트와 결과: Notion 새로고침 후 새 절, mergeId 포함 JSON 예시, LC-only 문구 및 기준일 저장 확인. 편집 중 기준일 중복 문구를 정리하고 재로딩으로 확인. 제품 코드 변경 없어 Gradle/Node 테스트 미실행; 직전 구현 테스트 결과는 이번 실행과 구분해 문서에 기술. git diff --check 확인.
+- 유지한 계약: 기존 토큰 필드/signup/upgrade 및 외부 이벤트 JSON 유지. 예시 인증값은 placeholder만 사용, 실제 credential/개인정보 기록 없음. 공유/접근 권한 변경 없음.
+- 결정사항: 구현 완료와 실제 배포·활성화/LC E2E를 구분. 신규 추적 기본 OFF, 기본 회원 화면 허용·기록 영역 안내, 프론트 polling 별도 작업.
+- 위험 요소: Notion의 다른 기존 절(정책·선택 동의·SNS 연결 등)은 이번 병합 조회 편집 범위 밖이며 현재 구현과 별도 대조 필요. 실제 배포·LC/Mongo 종단 검증 미수행.
+- 예상 밖 변경: 없음. 로컬 제품 코드·브랜치·commit/push·배포·Jira 변경 없음.
+- 다음 작업: 프론트는 갱신한 4.5/8.6/8.22~8.24 기준으로 연동, 기능 노출 전 대상 환경 배포 및 LC 종단 검증 확인.
+
+## 2026-10-03 — 배포 후 병합 진행 추적 활성화 설정 안내
+
+<!-- codex-turn:01a10137-a985-7210-b69e-57c1222cafc4 -->
+
+- 브랜치: develop.
+- 작업 목표: 사용자의 배포 완료 이후 신규 병합 진행 추적에 필요한 환경변수와 선행 조건 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (기록만).
+- 확인 내용: application.yml/.env.example, OwnerEventProperties, WorkloadJwtConfiguration/Properties, WorkloadIdentityPurpose, fanout/진행조회 계약 대조. 신규 capture 기본 OFF, 명시 LEARNING_CORE_ONLY profile 및 owner capture/LC publisher ON 필요. LC HTTPS endpoint와 workload JWT enabled/issuer 설정 필요, audience는 learning-core-user-merged로 코드 고정. 기존 Guest merge 기능 활성화도 유지해야 함.
+- 실행한 테스트와 결과: 설정/코드 정적 확인 및 git diff --check. 제품 변경 없어 Gradle/Node 미실행. 실제 배포 환경변수·LC 상태는 조회하지 않음.
+- 유지한 계약: Billing NOT_REQUIRED·과거 작업 재실행 없음, 실제 commit 후204만 완료, 기존 조회 자체에는 별도 활성화 플래그 없음.
+- 결정사항: LC consumer 준비/멱등204 검증 후 연관 설정을 함께 적용하고 서버 재시작·재배포. 레거시 publisher와 신규 owner publisher는 별도이며 기존 미발행 작업 유무 확인 없이 레거시 설정을 끄지 않음.
+- 위험 요소: 플래그 일부만 켜거나 profile/endpoint/workload 설정이 없으면 기동 실패 가능. 코드 배포만으로 새 progress가 생성되지 않음. 과거 미추적 작업은 자동 생성되지 않음.
+- 예상 밖 변경: 없음. 환경 설정 변경·재배포·commit/push·Jira 작업 없음.
+- 다음 작업: 사용자가 배포 환경 설정과 LC 준비 상태 확인 후 활성화, 신규 merge의 mergeId 및 회원 조회에서 LC COMPLETED/Billing NOT_REQUIRED 확인.
+
+## 2026-10-03 — Learning Core 수정 필요 여부 설명
+
+- 브랜치: develop.
+- 작업 목표: 신규 Identity 진행 조회 도입에 따른 Learning Core 변경 필요성을 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (기록만).
+- 확인 내용: 기존 learning-core-user-merged-consumer-handoff의 4.2 및 QA 조건에 이미 이전/guard/inbox PROCESSED 동일 트랜잭션 commit 후204, 동일 eventId/payload 중복204, 미확정425/503, 접수만 하는202 금지가 규정돼 있다. 이번 UserMerged wire JSON은 유지되고 완료 조회는 Identity 소유다.
+- 실행한 테스트와 결과: 기존 계약 문서 정적 확인. 제품 변경 없어 테스트 미실행. Learning Core 실제 저장소·배포는 확인하지 않음.
+- 유지한 계약: 기존 이벤트 endpoint/본문, commit 완료 확인, 응답 유실 시 동일 이벤트 멱등 처리.
+- 결정사항: LC가 기존 계약대로 구현돼 있으면 새 callback/프론트 조회 API나 필드 추가 불필요. 200/202 성공·commit 이전 응답·중복 이전 구현이면 수정 필요.
+- 위험 요소: 문서상의 요구를 LC 실제 구현 완료로 간주하지 않는다.
+- 다음 작업: LC 담당자가 정상/중복204·원자적 이전·응답 유실 재시도 검증 후 Identity 신규 추적 활성화.
+
+## 2026-10-03 — Learning Core 수정 필요 여부 설명 기록 보완
+
+<!-- codex-turn:01a10139-c9ee-7ae2-91f6-d7e05be1f4e0 -->
+
+- 브랜치: develop.
+- 작업 목표: 이번 Learning Core 변경 필요성 설명에 현재 작업 식별자를 정확히 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 기록만 보완. 기존 consumer 계약의 commit 후204·동일 이벤트 중복204를 준수하면 신규 callback/조회 API/요청 필드 추가 불필요하다는 결론 유지.
+- 실행한 테스트와 결과: git diff --check 확인. 기록만 변경하여 제품 테스트 미실행.
+- 유지한 계약: 기존 UserMerged wire 형식과 멱등 처리, Identity 소유의 진행 조회 유지. 과거 WORKLOG 수정 없음.
+- 결정사항: LC가200/202 또는 commit 전 성공을 반환한다면 수정 필요. 실제 구현 확인 전 활성화 완료로 간주하지 않음.
+- 위험 요소: Learning Core 실제 저장소·배포 상태는 확인하지 않음.
+- 다음 작업: LC 정상/중복204·원자적 이전·응답 유실 검증 뒤 Identity 추적 활성화.
+
+## 2026-10-03 — Learning Core 실제 UserMerged 완료 계약 확인
+
+<!-- codex-turn:01a1013b-91c3-7b12-a3d7-e8358e17b200 -->
+
+- 브랜치: Identity develop, Learning Core develop. Jira 작업 없음.
+- 작업 목표: 신규 병합 진행 조회에 필요한 LC 수정 여부를 실제 로컬 저장소 구현으로 확인.
+- 변경 파일: Identity docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. LC 제품 코드와 기존 작업 기록 변경은 보존.
+- 확인 내용: LC UserMergedInternalController는 consumer 반환 뒤 빈204 응답. UserMergedTransactionService는 ExamSession/ExamResult/ExamSummary owner 이전, source guard와 PROCESSED inbox를 UserOwnedTransactionExecutor의 Mongo TransactionTemplate에서 함께 처리한다. 동일 eventId/digest는 중복 mutation 없이 성공, 상이 digest는409. unknown commit/중복 경합은 inbox 재확인 후 성공 또는503으로 수렴한다. 시험 생성 미완료 등 선행조건은503/Retry-After로 처리한다.
+- 설정: LC USER_MERGED_WRITER_ENABLED, USER_MERGED_SOURCE_DENY_ENABLED, USER_MERGED_CONSUMER_ENABLED 및 USER_MERGED_WORKLOAD_ISSUER/JWK_SET_URI가 필요하다. 기본 flag OFF, consumer만 단독 ON은 startup 검증 실패. 활성화 전 guard/index 준비와 구 writer drain 필요.
+- 실행한 테스트와 결과: LC ./gradlew test --tests 'web.tosunsaeng.domain.usermerge.*' 성공. 정적 코드·설정 대조 및 Identity git diff --check 수행. 분석 범위의 focused test이며 전체 clean test와 실제 replica-set/staging E2E는 이번에 실행하지 않음.
+- 유지한 계약: UserMerged v1 body/endpoint, commit 이후204 및 중복 멱등성, Identity 소유 진행 조회. 코드/API/배포/환경 변경 없음.
+- 결정사항: 이번 조회 연동을 위한 LC 신규 callback/status API 추가는 필요하지 않다. 로컬 구현 확인과 실제 배포 준비 완료는 구분한다.
+- 위험 요소: 현재 배포 revision/환경변수, 실제 Mongo 장애·응답 유실, 3초 read timeout 내 성능과 종단 완료 일치는 미검증.
+- 예상 밖 변경: 없음. LC의 기존 WORKLOG 수정 및 Identity의 기존 기록 변경 보존. commit/push 없음.
+- 다음 작업: 대상 환경 설정·인덱스·배포 revision 확인 후 신규 병합 및 동일 이벤트 재전송의204/Identity COMPLETED 종단 검증.
+
+## 2026-10-03 — 테스트 Identity 병합 진행 추적 설정 활성화·재배포
+
+<!-- codex-turn:01a10141-313e-77f3-a08a-d3cf5299ee61 -->
+
+- 브랜치: develop. 별도 Jira 작업 없음.
+- 작업 목표: 사용자 요청에 따라 필요한 병합 진행 설정을 켜고 테스트 서버 재배포·기동 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 및 GitHub workflow 변경 없음.
+- 외부 변경: 기존 테스트 서비스의 tosunsaeng-identity-test:17에서 개정18 생성·배포. OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED=true, OWNER_EVENT_MERGE_PROGRESS_CAPTURE_ENABLED=true, OWNER_EVENT_MERGE_COMPLETION_PROFILE=LEARNING_CORE_ONLY, OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED=true, OWNER_EVENT_LEARNING_CORE_ENDPOINT=https://api-test.to-teacher.com/internal/v1/events/user-merged의 5개 값만 변경.
+- 유지한 설정: 이미지52690d210e6a921d5378a9345a8d418ab65899c1, 기존 Secret 참조·역할·네트워크·desired1 유지. 편집 JSON을 재읽어 환경변수 외 필드 불변 확인. Guest merge/workload 인증 및 legacy publisher ON 유지, Billing user-merged/trial-rebind와 trial capture OFF 유지. main 운영 서버 미변경.
+- 선행 확인: Learning Core 테스트 서비스 개정12 성공/running1/pending0/ALB정상 확인. writer/source-deny/consumer 모두 true, 테스트 Identity issuer/JWKS 사용으로 추가 재배포 불필요. Identity 배포 이미지의 application.yml에 새 progress/profile 설정 존재 및 현재 src/main과 diff 없음 확인.
+- 테스트와 결과: ./gradlew test --tests '*OwnerEvent*Tests' --tests '*MergeProgress*Tests' 성공(9 suites/42 tests, 실패0/오류0). 신규 태스크 Started IdentityApplication 로그10:21:23Z, ALB Healthy, 공개 /actuator/health UP 확인. 19:24 KST ECS 배포 성공, 개정18/running1/pending0/태스크 실패0, 이전 개정17 태스크 종료 확인. git diff --check 통과.
+- 유지한 계약: LC-only/Billing NOT_REQUIRED, 기존 UserMerged wire 및 JWT 계약 유지. 신규 병합부터 추적, 과거 병합 backfill/replay 없음. 실제 credential 원문 조회·변경·기록 없음.
+- 결정사항: 사용자 요청 범위의 테스트 환경 설정 배포 완료. LC 이미 준비돼 있어 변경하지 않음. 새로운 IAM 권한이나 AWS 리소스 추가 없음.
+- 위험·미확인: 지정 계정의 실제 병합→기록 이전→Identity COMPLETED, 동일 이벤트 응답 유실 재전송과 실환경 성능 E2E는 수행하지 않음. 인덱스는 코드의 auto-index-creation 및 정상 기동 확인까지이며 원격 DB 인덱스 목록 직접 대조는 미수행. 기동 성공을 종단 기능 검증으로 간주하지 않는다.
+- 예상 밖 변경: 없음. 기존 로컬 기록 변경 보존, commit/push 없음.
+- 다음 작업: 지정 테스트 계정으로 mergeId 응답·회원 조회 LC COMPLETED/Billing NOT_REQUIRED 및 기록 소유권 이전 확인. 후속 배포 시 현재 서비스 개정의 설정을 보존.
+
+## 2026-10-05 — 최신 앱 버전 조회 API 존재 여부 확인
+
+<!-- codex-turn:01a10b0b-dae8-7660-8531-24d899eef061 -->
+
+- 브랜치: develop. Jira 작업 없음.
+- 작업 목표: 현재 앱 버전 조회 API 구현 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: Identity src의 버전 관련 키워드 및 Controller 매핑에 앱 버전 조회 API 없음. Learning Core 로컬 src/main·docs/contracts에서도 관련 구현 검색 결과 없음. guest-app-update-transition-review.md 3.1~3.2에는 최신 출시 앱 버전 조회 요구사항만 기록돼 있으며 담당 서비스/경로/응답/갱신 방식 미확정.
+- 테스트와 결과: 코드·문서 정적 검색, git diff --check. 제품 변경 없는 조회이므로 Gradle 미실행.
+- 유지한 계약: 기존 인증·정책 조회/API 변경 없음. 정책 동의 버전과 앱 출시 버전을 구분.
+- 결정사항: 확인한 로컬 저장소 기준 아직 미구현으로 안내. 원격 배포 API/다른 브랜치는 미조회.
+- 위험 요소: 로컬에 없는 원격 변경은 이번 확인에 포함하지 않음.
+- 다음 작업: 필요 시 공개 플랫폼별 최신 버전 API의 소유 서비스·응답·관리 방식을 확정 후 구현. 기존 변경 보존, commit/push/배포 없음.
+
+## 2026-10-05 — 앱 버전 조회 API 구현 방향 제안
+
+<!-- codex-turn:01a10b0b-dae8-7660-8531-24d899eef061 -->
+
+- 브랜치: develop. Jira 작업 없음.
+- 작업 목표: 최신 출시 앱 버전 조회 구현 계획을 쉽게 설명하고 미확정 결정을 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 제안 내용: 인증 없는 GET /api/v1/app/version?platform=android|ios, 최신 출시 latestVersion와 플랫폼별 storeUrl 반환. 기존 응답 wrapper 준수. 앱이 설치 버전과 숫자 단위 비교하며 서버는 단말 버전을 추정하지 않음. 최초는 환경변수 기반으로 DB/관리자 API 없이 제공하고 설정 변경 후 재배포. 공개 라우트만 허용, 플랫폼/설정 검증과 무인증·응답·기존 보안 회귀 테스트 추가.
+- 계약 구분: 최신 버전 조회와 최소 지원 버전/강제 업데이트는 별개. 이번 권장안은 안내 전용이고 minSupportedVersion/차단 정책은 추가 합의 전 도입하지 않음. Identity 공개 메타데이터 영역 배치는 제안으로만 두며 기존 소유 범위와 다르므로 서비스 배치 확정 후 구현.
+- 위험 요소: 스토어 실제 배포 전 버전 올림, 단계적 출시·플랫폼별 출시 차이, 문자열 버전 비교, 조회 장애로 로그인 차단, 기존 구앱의 미호출. 빌드별 비교나 OTA는 초기 범위 밖.
+- 테스트와 결과: 기존 요구사항 문서 대조·git diff --check. 제품 변경 없는 설계 설명으로 Gradle 미실행.
+- 유지한 계약: 기존 API/JWT/동의 버전 유지. 신규 API는 미구현·미배포이며 경로/필드 모두 제안.
+- 결정사항: 사용자 확인 필요 — 담당 서버, 최신 안내만 할지 강제 업데이트까지 할지, 환경변수 관리 허용. 스토어 URL·플랫폼별 실제 버전은 구현/배포 전 제공 필요.
+- 다음 작업: 위 결정 후 상세 계약·계획 확정 및 구현. 기존 변경 보존, commit/push/외부 변경 없음.
+
+## 2026-10-05 — 앱 버전 조회 계획 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a10b0d-f3ea-7920-aa3a-5288a1a184dc -->
+
+- 브랜치: develop. 작업 목표: 이번 계획 설명의 정확한 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG는 수정하지 않음.
+- 내용: 플랫폼별 공개 최신 버전/storeUrl 조회, 앱 측 비교, 환경변수 관리 제안 유지. 담당 서버·강제 업데이트 포함 여부·관리 방식은 사용자 확정 전이며 구현하지 않음.
+- 테스트와 결과: git diff --check 통과. 기록만 보완하여 제품 테스트 미실행.
+- 유지한 계약: 기존 API/JWT 및 도메인 경계 변경 없음. 외부 시스템 변경 없음.
+- 결정사항·위험: 제안을 확정 계약 또는 배포 완료로 간주하지 않음. Secret 기록 없음.
+- 다음 작업: 사용자 결정 후 상세 계약 확정·구현.
+
+## 2026-10-05 — 앱 버전 API와 프론트 업데이트 처리 책임 구분
+
+<!-- codex-turn:01a10b15-b1d2-70e2-9608-6ce1ec1e977d -->
+
+- 브랜치: develop. 작업 목표: 업데이트 UI/앱 진입 제한과 버전 정보 제공의 책임 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 설명 내용: 서버는 플랫폼별 최신 출시 버전을 제공하고 프론트는 설치 버전 비교·안내·스토어 이동·앱 진입 제한을 구현한다. 이번 API 범위에 강제 차단 정책/최소 지원 버전/API 요청 차단을 자동 포함하지 않는다.
+- 결정사항: 안내/강제 여부는 이번 최신 버전 조회 API 설계를 막는 필수 결정이 아니다. 추후 원격으로 최소 지원 기준을 관리하려면 별도 계약이 필요하며 단순 최신 버전과 최소 지원 버전은 다르다.
+- 유지한 계약: 기존 API/JWT/도메인 경계 불변. 신규 API는 아직 미구현.
+- 테스트와 결과: git diff --check 통과. 설명·기록만 변경하여 제품 테스트 미실행.
+- 위험 요소: 프론트의 화면 제한은 서버 API의 구버전 요청 차단을 보장하지 않음. Secret 기록/외부 변경 없음.
+- 다음 작업: 공개 최신 버전 조회 계약의 서비스 배치·필드·관리 방식 확정 후 구현. 기존 변경 보존.
+
+## 2026-10-05 — TMI-136 하위 앱 버전 조회 이슈 생성안 준비
+
+<!-- codex-turn:01a10b18-3fba-7c72-81ab-04792f774dae -->
+
+- 브랜치: develop. Jira: TMI-136.
+- 작업 목표: 사용자 요청으로 구현보다 Jira 등록을 먼저 진행하기 위해 생성안 준비.
+- Jira 조회: 공식 Atlassian MCP로 TMI-136의 제목 sns 로그인, 유형 에픽, 상태 해야 할 일을 확인. 생성/수정/댓글/상태 변경 없음. 생성 내용 사전 승인 대기.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 직전 구현 준비는 소스 확인만 했으며 제품 파일 변경 없음.
+- 제안 내용: TMI-136 하위 작업으로 [Identity] 플랫폼별 최신 앱 버전 공개 조회 API 구현. GET /api/v1/app/version?platform=android|ios, 기존 BaseResponse에 platform/latestVersion 반환, 무인증 GET만 공개, 환경변수 기반 관리, 플랫폼 검증과 미설정503, 계약·보안 회귀 및 전체 테스트.
+- 제외 범위: 업데이트 안내/강제 차단/최소 지원 버전/스토어 이동/DB·관리자 API/배포. 실제 최신 버전은 별도 배포 설정으로 제공.
+- 테스트와 결과: Jira/로컬 코드 확인 및 git diff --check. 제품 코드 변경 없어 테스트 미실행.
+- 유지한 계약: 기존 인증·JWT·약관 API 유지. 이번 내용은 등록 초안이며 API 미구현.
+- 결정사항·위험: AGENTS 규칙에 따라 사용자에게 생성 내용을 제시한 후 승인받아 생성. 상위 이슈 상태는 변경하지 않음.
+- 다음 작업: 사용자 승인 후 하위 작업 생성 및 키 기록. commit/push 없음.
+
+## 2026-10-05 — TMI-195 앱 버전 조회 API 이슈 생성
+
+<!-- codex-turn:01a10b18-3fba-7c72-81ab-04792f774dae -->
+
+- 브랜치: develop(이슈 등록만 수행, 전환 없음). Jira: TMI-195. 상위 TMI-136.
+- 작업 목표: 사전 제시한 생성안에 대한 사용자 승인 후 Jira 작업 등록.
+- Jira 작업: 공식 Atlassian MCP로 [Identity] 플랫폼별 최신 앱 버전 공개 조회 API 구현 생성, 재조회로 parent=TMI-136 확인. 상태는 기본 해야 할 일, 별도 상태 변경·댓글 등록 없음. 승인 여부: 사용자 승인 완료.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 내용: 공개 플랫폼별 최신 버전 조회, 환경변수 관리, 입력400/미설정503, 기존 응답·인증 유지 및 테스트/문서 범위 등록. 업데이트 UI·강제 차단·스토어 이동·DB/관리자 API·배포 제외.
+- 테스트와 결과: 생성 결과 및 parent 재조회 확인, git diff --check. 제품 변경 없어 Gradle 미실행.
+- 유지한 계약: 기존 제품 API/JWT 변경 없음. 구현·배포는 미수행.
+- 위험 요소: 실제 출시 버전 값과 배포 설정은 후속 확인 필요. Secret 기록 없음.
+- 다음 작업: 구현 요청 시 TMI-195 완료 조건을 기준으로 작업. 댓글 초안(미등록): 이슈 생성 및 상위 연결 확인 완료, 코드·테스트 변경 없음, 실제 버전 설정 후속 확인 필요.
+
+## 2026-10-05 — TMI-195 생성 작업 식별 기록 보완
+
+<!-- codex-turn:01a10b19-26f2-7d50-97ef-1b70781c2d17 -->
+
+- 브랜치: develop. Jira: TMI-195, 상위 TMI-136.
+- 작업 목표: 이번 Jira 생성 작업의 정확한 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 수정 없음.
+- 작업 결과: 사용자 승인 후 공식 MCP로 이슈 생성 및 parent=TMI-136 확인 완료. 이번 보완에서 Jira 추가 변경 없음. 댓글 미등록, 상태 전환 없음.
+- 테스트와 결과: git diff --check 통과. 기록만 변경하여 제품 테스트 미실행.
+- 유지한 계약: 최신 버전 조회만 구현 예정, 제품 코드·배포·기존 API 변경 없음.
+- 결정사항·위험: 실제 출시 버전과 배포 설정은 후속 확인. Secret 기록 없음.
+- 다음 작업: 구현 요청 시 TMI-195 완료 조건 기준 개발.
+
+## 2026-10-05 — TMI-195 최신 앱 버전 공개 조회 구현 완료
+
+<!-- codex-turn:01a10b18-3fba-7c72-81ab-04792f774dae -->
+
+- 브랜치: feat/TMI-195-app-version-api(시작 시 이미 선택돼 있었으며 전환 없음). Jira: TMI-195, 상위 TMI-136.
+- 작업 목표: 승인된 Jira 완료 조건에 따라 최신 출시 버전 조회만 구현. 구현 전 공식 MCP로 TMI-195 재조회.
+- 변경 파일: domain/appversion의 AppVersionController/Service/Response/ErrorStatus, SecurityConfig, IdentityOpenApiExamples, application.yml, .env.example, AppVersionTests, SecurityIntegrationTests, OpenApiSharingTests, docs/contracts/app-version-api.md 및 guest-app-update-transition-review.md, WORKLOG/CURRENT_STATE.
+- 구현 내용: 무인증 exact GET /api/v1/app/version?platform=android|ios. BaseResponse result에 platform/latestVersion만 반환. 플랫폼 누락/빈 값/대소문자·공백·미지원·중복400 INVALID_REQUEST, 해당 플랫폼 설정 누락503 APP_VERSION_UNAVAILABLE. 성공·컨트롤러400/503 no-store. 다른 플랫폼 미설정은 정상 플랫폼을 차단하지 않음.
+- 설정: APP_ANDROID_LATEST_VERSION/APP_IOS_LATEST_VERSION을 읽으며 기본 빈값. 공백 정리 후 숫자 major.minor.patch(최대32자, 불필요한 선행0 불가) 검증, 잘못된 비공백 설정은 기동 실패. 운영값을 임의 지정하지 않음. 버전 갱신은 스토어 출시 확인 후 환경변수 변경·재배포.
+- 유지한 계약: 기존 BaseResponse/JWT/인증·약관 API 유지. GET 외 메서드와 다른 API는 기존 인증 요구 유지. 잘못된 Bearer 헤더는 기존401. 업데이트 안내/차단/minimumVersion/storeUrl/DB/관리자API/배포 추가 없음.
+- 테스트와 결과: 집중 AppVersionTests/SecurityIntegrationTests 성공. 최초 전체1129 중 OpenAPI 고정 경로 개수 검증1 실패를 새 경로 및 DTO 기반 예시 추가로 수정. 최종 ./gradlew clean test exportOpenApi 성공, 161 suites/1129 tests 실패0/오류0/skip0. OpenAPI33 operations/32 paths, 공개 security·필수 platform enum·200/400/503·스키마/예시 검증 성공. git diff --check 통과. 실제 외부 Provider/DB 미호출.
+- 결정사항: 최신 버전 조회만 구현, 강제 업데이트 판단은 포함하지 않음. 버전 미설정으로 전체 서버 기동은 차단하지 않음. API 문서에 설정/기동실패/미설정/스토어 배포 주의사항 기록.
+- 위험·배포 전 확인: 플랫폼별 실제 출시 버전과 설정 형식 확인 필요. 기본값 그대로 배포하면 조회503. 실서버/실앱 smoke·실제 스토어 공개 검증은 미수행. 버전 비교·업데이트 UI는 프론트 책임.
+- 예상 밖 변경: 없음. 시작부터 있던 WORKLOG/CURRENT_STATE 변경 보존. 전체 diff에 과거 기록 포함. commit/push/배포·Jira 상태/댓글 변경 없음.
+- Jira 댓글 초안(미등록): 최신 버전 공개 조회 및 설정·보안·Swagger·문서 구현 완료. 전체1129 테스트/OpenAPI 생성 통과. 실제 버전 환경변수와 배포 후 smoke 확인 필요.
+- 다음 작업: 사용자 diff 검토·커밋/push, 실제 버전 설정 후 배포 및 두 플랫폼 무인증 GET 검증. PR 병합 확인 전 Jira Done 전환하지 않음.
+
+## 2026-10-05 — TMI-195 구현 작업 식별 기록 보완
+
+<!-- codex-turn:01a10b1c-0cee-7291-b87e-5cb9ee74bbc2 -->
+
+- 브랜치: feat/TMI-195-app-version-api. Jira: TMI-195.
+- 작업 목표: 이번 구현 작업의 정확한 식별 기록 보완. 과거 WORKLOG 수정 없음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 결과: 공개 플랫폼별 최신 앱 버전 조회, 환경변수 설정, 플랫폼400/미설정503, 보안 회귀·Swagger·계약 문서 구현 완료 상태 유지. 이번 보완은 기록만 변경.
+- 테스트와 결과: 이번 구현에서 ./gradlew clean test exportOpenApi 성공(1129 tests, 실패0). 기록 보완 후 git diff --check 통과.
+- 유지한 계약: 기존 JWT·BaseResponse·인증 경계 유지. 업데이트 정책·강제 차단·DB 기능 제외.
+- 결정사항·위험: 실제 출시 버전 설정·배포 후 조회 검증 필요. Secret 기록 없음.
+- 다음 작업: 사용자 diff 검토/커밋·배포 준비. 추가 Jira 변경·commit/push·배포 없음.

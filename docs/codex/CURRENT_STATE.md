@@ -1,5 +1,99 @@
 # Codex Current State
 
+## 2026-10-05 — TMI-195 구현 완료, 커밋·배포 대기
+
+<!-- codex-turn:01a10b1c-0cee-7291-b87e-5cb9ee74bbc2 -->
+
+- 이번 구현 작업의 식별 기록 보완 완료. 추가 제품 변경 없이 전체1129 테스트 통과 및 배포 대기 상태 유지.
+
+- 현재 브랜치 feat/TMI-195-app-version-api, Jira TMI-195. 공식 MCP 완료 조건 확인 후 최신 버전 조회만 구현. Jira 상태/댓글 변경 없음.
+- 공개 GET /api/v1/app/version?platform=android|ios, result={platform,latestVersion}. 기존 BaseResponse 및 인증 경계 유지. 잘못된 플랫폼400, 미설정503, 성공/컨트롤러 오류 no-store. 안내/강제 차단/최소 지원 버전/스토어 이동 제외.
+- APP_ANDROID_LATEST_VERSION/APP_IOS_LATEST_VERSION 기본 빈값. 숫자 major.minor.patch 최대32자 검증. 실제 출시 버전을 설정해야 조회200이며 잘못된 비공백 설정은 기동 실패한다. 신규 DB/키/관리 API 없음.
+- 최종 ./gradlew clean test exportOpenApi 성공: 161 suites/1129 tests 실패0, Swagger33 operations/32 paths. [API 계약](../contracts/app-version-api.md) 및 예시 갱신. 기존 작업 기록 보존, 예상 밖 변경 없음.
+- 실제 배포·실앱 조회는 미수행. 다음은 사용자 diff 검토/커밋과 실제 출시 버전 설정·배포 smoke다. 아래 구현 대기 기록은 본 결과로 대체한다.
+
+## 2026-10-05 — TMI-195 생성 완료, 구현 대기
+
+<!-- codex-turn:01a10b19-26f2-7d50-97ef-1b70781c2d17 -->
+
+- 이번 생성 작업의 식별 기록 보완 완료. 추가 Jira 변경·제품 구현·배포 없음.
+
+- 현재 작업 Jira: TMI-195 `[Identity] 플랫폼별 최신 앱 버전 공개 조회 API 구현`, 상위 TMI-136. 사용자 승인 후 공식 MCP로 생성하고 parent를 재확인했다. 상태는 해야 할 일이며 별도 전환/댓글 없음.
+- 공개 GET /api/v1/app/version의 platform/latestVersion 조회만 구현 범위. 환경변수 관리 및 플랫폼400/미설정503·테스트/문서 포함, 프론트 업데이트 처리·배포 제외.
+- 로컬 기록만 갱신, 제품 코드/배포 변경 없음. 다음은 구현 요청 후 TMI-195 기준 개발이다. 아래 생성 승인 대기 기록은 본 결과로 대체한다.
+
+## 2026-10-05 — TMI-136 하위 버전 조회 이슈 등록 준비
+
+<!-- codex-turn:01a10b18-3fba-7c72-81ab-04792f774dae -->
+
+- 현재 관련 Jira: TMI-136(sns 로그인 에픽). 공식 MCP로 조회 완료. 구현 전 Jira 생성 요청에 따라 제품 구현은 중단했고 소스 변경 없음.
+- 하위 작업 초안: Identity 공개 GET /api/v1/app/version?platform=android|ios, platform/latestVersion만 반환, 환경변수 관리, 잘못된 플랫폼400/미설정503, 테스트·문서 추가. 프론트 안내/강제 정책 및 배포 제외.
+- 생성 내용 사전 승인 대기. 이슈 생성·댓글·상태 변경은 아직 수행하지 않음. 다음은 승인 후 생성이다.
+
+## 2026-10-05 — 버전 조회 책임 범위 정리
+
+<!-- codex-turn:01a10b15-b1d2-70e2-9608-6ce1ec1e977d -->
+
+- 이번 서버 범위는 플랫폼별 최신 출시 버전 정보 제공이다. 설치 버전 비교·업데이트 안내·스토어 이동·앱 진입 제한은 프론트 역할이다.
+- 안내/강제 정책 선택을 이번 조회 API 구현의 필수 선결정으로 요구하지 않는다. 원격 최소 지원 버전 관리나 서버 API 차단은 별도 요구사항으로 구분한다.
+- 기록만 수정, 제품 구현·배포 없음. 기존 계획의 안내/강제 정책 확정 대기 표현은 위 책임 구분으로 보완한다.
+
+## 2026-10-05 — 앱 버전 조회 설계 제안, 구현 전
+
+<!-- codex-turn:01a10b0d-f3ea-7920-aa3a-5288a1a184dc -->
+
+- 이번 계획 설명의 작업 식별 기록 보완 완료. 아래 내용은 제안 상태이며 추가 구현·배포 없음.
+
+- 공개 GET /api/v1/app/version?platform=android|ios에서 latestVersion/storeUrl을 제공하고 앱에서 설치 버전과 비교하는 안내 전용 1차안을 제안. 환경변수 관리·재배포 방식이며 DB/관리자 API/강제 차단은 초기 범위 밖.
+- Identity 공개 메타데이터 배치는 아직 제안으로 소유 서비스 확인 필요. 최소 지원 버전·강제 업데이트 및 빌드/OTA 비교를 자동 포함하지 않는다. 실제 스토어 공개 이후 설정 갱신, 조회 장애로 로그인 차단 금지 권장.
+- 코드/계약 미변경, 기록만 갱신. 다음은 서비스 배치·안내/강제 정책·관리 방식 확정 후 구현이다.
+
+## 2026-10-05 — 앱 버전 조회 API 확인
+
+- Identity develop Controller/소스와 로컬 Learning Core 소스·계약 검색 기준 최신 출시 앱 버전 API는 아직 없다. 10월2일 요구사항은 `docs/contracts/guest-app-update-transition-review.md` 3.1~3.2에만 기록돼 있고 담당 서비스·경로·응답·갱신 방식 미확정이다.
+- 정책 동의 버전 조회는 앱 버전 조회가 아니다. 제품 변경 없이 기록만 갱신했고 정적 검색·diff 검사 수행. 원격 배포 상태 미조회, 다음은 API 계약 확정이다.
+
+<!-- codex-turn:01a10139-c9ee-7ae2-91f6-d7e05be1f4e0 -->
+
+- 2026-10-03 이번 LC 변경 필요성 설명의 작업 식별 기록 보완 완료. 기존 계약 준수 시 추가 API 불필요, 실제 LC 코드/배포 확인 필요라는 결론 유지. 제품 코드·외부 설정 변경 없음.
+
+## 2026-10-03 — 테스트 병합 진행 추적 활성화 배포 완료
+
+<!-- codex-turn:01a10141-313e-77f3-a08a-d3cf5299ee61 -->
+
+- develop 작업. 사용자 요청으로 Identity 테스트 개정17→18 설정 배포 완료(19:24 KST). ECS 성공/running1/pending0, 이전 태스크 종료, 신규 ALB Healthy와 공개 health UP 확인.
+- owner UserMerged capture·merge progress capture·LC publisher ON, profile LEARNING_CORE_ONLY, LC 테스트 endpoint 지정. 이 5개 환경변수만 변경하고 이미지52690d2·Secret 참조·역할·네트워크·태스크 수 유지. Billing/trial OFF, 기존 workload/Guest merge/legacy publisher ON 유지. 운영 서버 미변경.
+- LC 테스트 개정12는 이미 writer/source-deny/consumer ON 및 배포·ALB 정상이라 추가 변경 없음.
+- 집중 회귀42 tests 성공. 로컬 변경은 기록2개뿐, 예상 밖 변경 없음. 실제 사용자 병합/응답 유실/COMPLETED 종단 검증과 DB 인덱스 목록 직접 대조는 미수행. 다음은 지정 테스트 계정 E2E.
+
+## 2026-10-03 — LC 실제 코드 확인 완료
+
+<!-- codex-turn:01a1013b-91c3-7b12-a3d7-e8358e17b200 -->
+
+- Identity/LC develop 기준 LC 실제 consumer를 확인했다. 기록 이전·source guard·PROCESSED inbox 동일 Mongo Transaction 후204, 동일 이벤트/digest 중복 성공, 미확정503이 구현돼 있어 이번 조회를 위한 추가 callback/status API는 불필요하다.
+- LC `./gradlew test --tests 'web.tosunsaeng.domain.usermerge.*'` 성공. 제품 코드 변경 없이 Identity 기록만 갱신했고 기존 변경은 보존했다.
+- LC writer/source-deny/consumer flag와 workload issuer/JWKS, guard/index·구 writer drain이 선행 조건이다. 실제 배포 설정/revision, replica-set 장애와 응답 유실·성능·Identity COMPLETED 종단 검증은 이번 확인에 포함하지 않았다.
+- 다음: 대상 환경 설정 확인 및 신규 merge/중복 재전송 E2E. 과거의 LC 실제 코드 미조회 표기는 본 확인으로 대체하되 배포 미확인 상태는 유지한다.
+
+## 2026-10-03 — 배포 후 활성화 설정 안내
+
+<!-- codex-turn:01a10137-a985-7210-b69e-57c1222cafc4 -->
+
+- 브랜치 develop. 사용자가 배포 완료를 알렸으나 실제 환경 설정/LC 상태는 이번에 조회하지 않았다.
+- 신규 추적 기본 OFF: owner UserMerged capture + merge progress capture + LC publisher ON 및 명시 LEARNING_CORE_ONLY 필요. LC endpoint/workload JWT enabled·issuer, 기존 Guest merge 활성화 확인. Billing 관련 기능은 첫 출시 OFF 유지.
+- 조회 API 자체는 별도 ON 플래그가 없으며 새 병합의 추적 생성에 설정이 필요하다. 과거 미추적 작업 자동 생성 없음. legacy publisher 잔량 확인 없이 OFF하지 않도록 안내.
+- 제품/환경 변경 없이 설정 정적 확인·기록만 수행. 다음은 LC commit/멱등204 준비 확인, 설정 적용·재시작 후 신규 mergeId/완료 상태 검증.
+
+## 2026-10-03 최신 문서 작업 — Notion 병합 진행 조회 인계 완료
+
+<!-- codex-turn:01a100c3-c1e0-7003-92b6-d71ca75d5d27 -->
+
+- 현재 확인 브랜치 develop. 브랜치 이동/제품 코드/commit/push/배포/Jira 작업 없음.
+- 사용자 지정 Notion 로그인 문서의 4.5·병합 충돌 처리·카탈로그·8.6을 갱신하고 8.22~8.24에 회원용 단건/목록 GET, 상태/오류/권한/polling/복구·LC-only/Billing NOT_REQUIRED·출시 조건을 추가했다.
+- 새로고침 후 JSON mergeId, 신규 절과 기준일의 저장 상태 확인. 기존 출시 설정 부록 보존. 다른 로그인 기능은 전면 동기화하지 않았으며 기준일에 이번 부분 갱신 범위를 명시했다.
+- 로컬 변경은 작업 기록 2개 파일뿐. 제품 테스트 재실행 없음(문서 작업); 기존 Java1108/Node3 검증과 실제 배포·LC E2E 미확인 상태를 구분했다.
+- 다음: 프론트 인계 및 실제 배포/LC 종단 검증. 다른 과거 Notion 절은 최신 저장소 계약과 별도 대조 필요.
+
 ## 2026-10-03 최신 상태 — Guest 병합 진행 조회 구현 완료, 실제 종단 검증·배포 대기
 
 <!-- codex-turn:01a1009a-6e25-7f03-8c9a-5098353f662c -->
