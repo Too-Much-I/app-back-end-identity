@@ -47,6 +47,26 @@ class SupportWebTests {
         when(service.submit(any(), anyString(), any(), any())).thenReturn(new SupportService.Result("receipt", true));
         mvc.perform(post(PATH).contentType("application/json").header("Idempotency-Key", KEY).content(BODY)).andExpect(status().isOk());
     }
+    @Test void refundCategoryIsAcceptedAndPassedToService() throws Exception {
+        User user = mock(User.class); when(user.getUserId()).thenReturn(USER);
+        when(user.getStatus()).thenReturn(UserStatus.ACTIVE); when(user.getAccountType()).thenReturn(UserAccountType.MEMBER);
+        when(users.findById(USER)).thenReturn(Optional.of(user));
+        mvc.perform(post(PATH).with(jwt().jwt(j -> j.subject(USER)))
+                        .contentType("application/json").header("Idempotency-Key", KEY)
+                        .content(BODY.replace("AUTH", "REFUND")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.result.status").value("RECEIVED"));
+        verify(service).submit(eq(new SupportService.Actor(USER, "MEMBER")), anyString(), eq(KEY),
+                argThat(request -> request.category() == SupportRequest.Category.REFUND));
+    }
+    @Test void anonymousRefundRequiresAuthenticationAndCannotSupplyUserId() throws Exception {
+        mvc.perform(post(PATH).contentType("application/json").header("Idempotency-Key", KEY)
+                        .content(BODY.replace("AUTH", "REFUND")))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("SUPPORT_REFUND_AUTH_REQUIRED"));
+        mvc.perform(post(PATH).contentType("application/json").header("Idempotency-Key", KEY)
+                        .content(BODY.replace("AUTH", "REFUND").replace("}", ",\"userId\":\"" + USER + "\"}")))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).submit(any(), any(), any(), any());
+    }
     @Test void invalidBearerIsNeverDowngradedToAnonymous() throws Exception {
         mvc.perform(post(PATH).contentType("application/json").header("Authorization", "Bearer invalid").content(BODY))
                 .andExpect(status().isUnauthorized()).andExpect(header().string("Cache-Control", "no-store"));

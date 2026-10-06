@@ -10,7 +10,13 @@ import org.springframework.transaction.TransactionException;
 import io.micrometer.core.instrument.MeterRegistry;
 
 public final class SupportService {
-    public record Actor(String userId, String type) { }
+    public record Actor(String userId, String type) {
+        public void requireFor(SupportRequest.Category category) {
+            if (category == SupportRequest.Category.REFUND && (userId == null || userId.isBlank())) {
+                throw SupportError.SUPPORT_REFUND_AUTH_REQUIRED.exception();
+            }
+        }
+    }
     public record Result(String inquiryId, boolean replay) { }
     private final SupportStore store;
     private final SupportCrypto crypto;
@@ -25,6 +31,7 @@ public final class SupportService {
         guarded(() -> { store.quota(bucket("burst", crypto.hash("ip", ip), now, 60), 30, now.plusSeconds(120)); return null; });
     }
     public Result submit(Actor actor, String ip, String requestId, SupportRequest request) {
+        actor.requireFor(request.category());
         if (requestId == null || !requestId.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")) {
             throw SupportError.INVALID_SUPPORT_REQUEST_ID.exception();
         }

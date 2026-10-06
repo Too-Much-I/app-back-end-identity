@@ -6,7 +6,7 @@ import jakarta.validation.constraints.*;
 public record SupportRequest(@NotNull Category category,
         @NotBlank @Size(min=10, max=2000) String message,
         @Email @Size(max=254) String replyEmail, @Valid Context context) {
-    public enum Category { AUTH, GENERAL }
+    public enum Category { AUTH, GENERAL, REFUND }
     public enum Platform { ANDROID, IOS, WEB, UNKNOWN }
     public record Context(
             @Size(max=64) @Pattern(regexp="[A-Za-z0-9_.-]*") String screen,

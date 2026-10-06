@@ -6,6 +6,7 @@ import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum SupportError implements ErrorCode {
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 문의 요청입니다."),
+    SUPPORT_REFUND_AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "환불 문의는 로그인 후 접수해 주세요."),
     INVALID_SUPPORT_REQUEST_ID(HttpStatus.BAD_REQUEST, "문의 요청 식별자가 올바르지 않습니다."),
     SUPPORT_INQUIRY_REQUEST_CONFLICT(HttpStatus.CONFLICT, "동일 요청 식별자에 다른 내용이 사용되었습니다."),
     SUPPORT_INQUIRY_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "문의 요청 크기를 초과했습니다."),

@@ -3,7 +3,7 @@
 ## 1. 5줄 결론
 
 1. `POST /api/v1/support/inquiries`가 DB 접수 후 응답하며 Slack은 별도 worker가 보낸다.
-2. MEMBER/GUEST는 검증된 인증과 현재 DB 계정으로 식별하고, 비로그인은 userId 없이 접수한다.
+2. MEMBER/GUEST는 검증된 인증과 현재 DB 계정으로 식별한다. 비로그인은 AUTH/GENERAL만 접수하며 REFUND는 인증된 userId가 필수다.
 3. 동일 요청 키/정규화된 본문은 7일간 같은 접수번호를 반환한다. Slack 전송의 exactly-once는 보장하지 않는다.
 4. 문의/알림은 최대90일, 요청 식별 기록은7일 보관한다. TTL 삭제는 비동기다.
 5. 기본값은 모두 OFF다. 실제 ECS Secret 연결·Slack 전송·프론트 화면은 이번 구현에 포함되지 않는다.
@@ -12,7 +12,7 @@
 
 ### 프론트 요청
 
-`Content-Type: application/json`, `Idempotency-Key: <문의별 소문자 UUID v4>`가 필요하다. 로그인한 경우에만 Identity Access Token을 Authorization Bearer로 보낸다. Firebase ID Token을 보내지 않는다. 응답 유실/503 재시도는 **동일 키와 내용**을 유지한다. 내용을 변경하면 새 키를 사용한다.
+`Content-Type: application/json`, `Idempotency-Key: <문의별 소문자 UUID v4>`가 필요하다. 로그인한 경우 Identity Access Token을 Authorization Bearer로 보낸다. REFUND는 이 인증이 필수이며 활성 MEMBER/GUEST의 서버 확인 userId를 사용한다. Firebase ID Token이나 요청 본문의 userId로 대신할 수 없다. 응답 유실/503 재시도는 **동일 키와 내용**을 유지한다. 내용을 변경하면 새 키를 사용한다.
 
 ```json
 {
@@ -35,9 +35,11 @@
 
 사용자 안내 예시: “비밀번호, 인증번호, 카드정보 등 민감정보를 입력하지 마세요.” 별도 Slack 전달 문구는 화면에 넣지 않는 승인안이다. 개인정보 처리방침·처리위탁/국외 이전 등 필요한 고지 검토를 면제하는 의미는 아니다.
 
+분류 `category`는 `AUTH`(인증), `GENERAL`(일반), `REFUND`(환불)을 지원한다. `REFUND`는 환불 문의 접수 분류이며 결제 취소나 환불을 자동 실행하지 않는다. Slack 전송 형식은 기존 접수번호+본문을 유지한다.
+
 ### 인증과 한계
 
-인증이 없으면 익명, 잘못된 인증이 있으면 인증 오류다. 임의 본문 userId는 받지 않는다. 실제 userId는 현재 활성 DB 계정에서 가져오며 병합·탈퇴·비활성 상태는 기존 인증/계정 오류로 거절한다.
+인증이 없으면 AUTH/GENERAL은 익명 접수, REFUND는 `401 SUPPORT_REFUND_AUTH_REQUIRED`로 거절한다. 잘못된 인증이 있으면 기존 인증 오류다. 임의 본문 userId는 받지 않는다. 실제 userId는 현재 활성 DB 계정에서 가져오며 병합·탈퇴·비활성 상태는 기존 인증/계정 오류로 거절한다. REFUND 필수 검사는 신규 저장과 멱등 재응답보다 먼저 적용하며 기존 익명 데이터는 소급 수정하지 않는다.
 
 **기존 Access JWT에는 sessionId/폐기 epoch가 없어 개별 로그아웃 세션 폐기를 추가로 확인하지 못한다.** 만료 전 토큰의 세션 단위 즉시 차단은 별도 인증 계약 변경이 필요하다. 이번 변경은 JWT/JWKS/로그인·병합 계약을 바꾸지 않는다.
 
@@ -89,6 +91,7 @@ worker는5초마다1건 claim, lease60초, 외부 요청10초/connect3초. 최�
 | HTTP | 코드 |
 | --- | --- |
 | 400 | INVALID_REQUEST, INVALID_SUPPORT_REQUEST_ID |
+| 401 | SUPPORT_REFUND_AUTH_REQUIRED (환불 문의의 인증된 사용자 ID 없음) |
 | 409 | SUPPORT_INQUIRY_REQUEST_CONFLICT |
 | 413 | SUPPORT_INQUIRY_TOO_LARGE |
 | 429 | SUPPORT_INQUIRY_RATE_LIMITED |

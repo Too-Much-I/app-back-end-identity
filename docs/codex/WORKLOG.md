@@ -14411,3 +14411,379 @@
 - 결정/위험: 기존 Access JWT의 sessionId/epoch 부재로 개별 로그아웃 즉시 판별은 구현하지 못함(사용자 고지). 인증 상태는 기존 JWT+현재 계정으로 검증. Slack at-least-once 중복 가능. 고정 UTC quota/NAT 오탐, HMAC 교체 시 멱등/제한 초기화, TTL 비동기, Slack 별도 삭제 필요. backlog gauge/경보/실행용 운영 CLI 미구성.
 - 배포 전/다음 작업: flags OFF 유지. 별도 HMAC Secret·webhook 주입·최소권한, Mongo replica/index, 실제 ALB trusted proxy와 forward headers NONE 충돌 검사, 합성 Slack 전송, 개인정보 고지·채널 권한·보관/삭제 담당 확인. 사용자가 commit/push. 자동 배포/Slack 전송/Secret 조회/Jira 댓글·상태 변경 없음.
 - Jira 댓글 초안(미등록): “문의 API·엄격 입력/선택 인증·멱등/제한·Mongo outbox·Slack 비동기 전송 및 제한된 수동 복구 primitive 구현. 변경: support 모듈/테스트, 보안·설정·OpenAPI·계약 문서. 회귀1160개 및 별도 replica 통합6개 통과. 잔여: 실제 Secret/프록시/Slack 검증, 개인정보 운영 및 경보 준비; 기존 JWT의 세션 단위 즉시 폐기 검증 한계.”
+
+## 2026-10-06 문의 REFUND 분류 추가
+- 브랜치: develop(현재 체크아웃 유지). 목표: 사용자 요청 환불 문의 분류 추가.
+- 변경 파일: SupportRequest.java, SupportWebTests.java, docs/contracts/support-inquiry-api.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현: Category에 REFUND 추가, HTTP201 접수 및 서비스에 REFUND 전달 테스트. API 문서에 AUTH/GENERAL/REFUND와 환불 자동 실행이 아님을 명시.
+- 테스트: `./gradlew clean test exportOpenApi` 성공. tests1167/failures0/errors0/skipped6, 실행1161 통과. Mongo opt-in6개는 이번 enum 변경에서 미실행. 생성 OpenAPI category enum 확인, git diff --check 통과.
+- 유지 계약/결정: 기존 AUTH/GENERAL, 선택 인증·서버 userId·멱등·rate limit·저장·Slack 접수번호+본문 그대로. 결제/환불 실행은 범위 밖.
+- 위험/배포 전: 배포한 구버전은 REFUND를 거절하므로 새 서버 배포 후 프론트 옵션을 활성화. 실제 인프라 및 Slack 미호출. 예상 밖 변경 없음, 기존 미커밋 WORKLOG 기록 보존.
+- 다음 작업: 사용자 commit/push/재배포 및 프론트 category REFUND 연결. Jira 댓글 초안(미등록): “문의 REFUND 분류와 HTTP 검증·문서 추가, 전체1161 테스트 통과. 프론트 활성화 전 서버 배포 필요.” Jira/배포/commit/push 미수행.
+
+<!-- codex-turn:01a10b58-4c5c-7651-8cc9-0ad1de41fe34 -->
+
+## 2026-10-05 문의 접수 사용자 식별 설계 보완
+- 브랜치: develop. 작업 목표: 문의에 가능한 경우 사용자 ID를 저장하는 요구사항 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 제품 구현 없이 설계 보완. 유효한 Identity Access Token의 검증된 sub로 문의 userId를 서버에서 기록하고 Guest/Member 구분도 서버 확인. 비로그인 접수 userId는 null이며 임의 userId 요청 필드는 추가하지 않음.
+- 테스트: git diff --check. 설계 설명으로 실행 테스트 없음.
+- 유지 계약: 클라이언트 userId 불신, 외부 Request Body 임의 userId 추가 금지, 토큰 원문 저장/로그 금지.
+- 결정사항: 만료/잘못된 Bearer를 조용히 익명 전환하지 않음. 인증 불가 시 명시적 비로그인 문의 및 요청 추적번호로 조사 가능하게 제안.
+- 위험 요소: 비로그인 문의의 계정 소유권은 확정할 수 없음. 실제 문의 API 구현/배포 없음.
+- 다음 작업: 문의 구현 계획에 nullable 서버 식별 userId 반영. 외부 상태/Jira/commit/push 변경 없음, 기존 변경 보존.
+
+## 2026-10-05 문의 접수 API 구현 계획서 작성
+- 브랜치: develop. Jira: 이번 작업에 지정 없음.
+- 작업 목표: 인증 실패/설정 문의 공통 접수 API의 상세 구현 계획 작성.
+- 변경 파일: docs/contracts/support-inquiry-implementation-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 계획서만 작성. 인증 주체별 userId, 명시적 익명 접수, 요청/오류 계약 제안, 원자 DB+outbox 저장, 멱등 범위/보관/동시성, 비동기 claim/lease/재시도, 개인정보/남용 보호, 구현 순서/테스트/출시 체크리스트 포함.
+- 테스트: git diff --check 및 문서 근거 경로 존재 확인. 제품 변경 없어 Gradle 미실행.
+- 유지 계약: 임의 body userId 불허, 기존 JWT/인증 보호 경계 유지, 토큰 원문/실제 Secret 비기록. 일반 고객지원 소유권 승인 전 구현 보류.
+- 결정사항: 소유 서비스·알림 채널·회신/보관 정책 미확정으로 구분. 제한 수치는 확정 설정이 아닌 제안. 알림 정확히 한 번 전달 보장 없음.
+- 위험 요소: 익명 스팸/개인정보/응답 유실/운영 조회 권한 및 공유 인프라 장애. 실제 배포 검증 없음.
+- 예상 밖 변경: 없음. 기존 작업 기록 수정 보존, 제품 코드/외부 상태 변경 없음.
+- 다음 작업: 사용자 계획 검토 후 미확정 정책 승인 및 필요 시 Jira 생성. commit/push/배포 미수행.
+
+<!-- codex-turn:01a10b59-4d9a-7561-9cc5-0ce90d2da38d -->
+
+### 2026-10-05 문의 접수 계획서 작업 식별 기록 보완
+- 브랜치: develop. 작업 목표: 이번 계획서 작성의 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 본 작업 계획서는 docs/contracts/support-inquiry-implementation-plan.md.
+- 구현 내용: 계획서 작성 완료 상태 유지. 제품 구현/외부 변경 없음.
+- 테스트: git diff --check. 문서 작업으로 실행 테스트 미수행.
+- 유지 계약/결정사항: 인증에서 userId 식별, 비로그인 null, 비밀값 비기록 및 기존 기록 보존.
+- 위험 요소: 담당 서비스/알림 채널/회신·보관 정책 미확정.
+- 다음 작업: 사용자 계획 검토 후 정책 확정. commit/push/배포/Jira 변경 없음.
+
+## 2026-10-06 — 전화번호 인증 후 가입 SNS 조회 API 안내
+
+<!-- codex-turn:01a10ec5-9764-7970-b4cd-2b4aaa3dbc48 -->
+
+- 브랜치: develop. 작업 목표: 계정 찾기 API 경로 및 의미 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: AccountRecoveryController의 POST /api/v1/auth/account-recovery/prepare 후 SMS PHONE 인증, POST /api/v1/auth/account-recovery/lookup에 recoveryId/firebaseIdToken 제출. 마지막 로그인 이력 조회가 아니라 인증한 번호에 연결된 가입 SNS 및 마스킹 이메일 안내.
+- 테스트와 결과: 컨트롤러·응답·계약 정적 확인 및 git diff --check. 제품 변경 없어 테스트 미실행.
+- 유지 계약: Identity 토큰 없는 계정 찾기, 회원 로그인/병합/토큰 발급 없음. 개인정보·Secret 비기록.
+- 결정사항·위험: 배포 환경 활성화 여부는 이번에 확인하지 않음.
+- 다음 작업: 프론트 prepare→전화 인증→lookup 순서 연동. 외부 변경 없음.
+
+<!-- codex-turn:01a10ec8-ada9-7182-9907-f70c1c170a42 -->
+
+## 2026-10-06 문의 접수 미확정 항목 선택지 안내
+- 브랜치: develop. 작업 목표: 문의 접수 계획의 결정 항목별 장단점과 초기 권고안 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 계획서 결정 표 확인 후 서비스 배치/알림 채널/회신/운영 조회/보관/남용 제한 비교. Identity 독립 모듈과 대체 연락처, 팀 사용 채널 하나, 이메일 선택형 회신, 최소권한 조회, 보관 및 제한 수치의 승인 필요성을 설명.
+- 테스트: 문서 대조 및 git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 유지 계약: 서버 식별 userId/비로그인 null, 외부 개인정보 최소화, 인증 도메인과 지원 도메인 분리. 실제 설정 변경 없음.
+- 결정사항: 권고안은 사용자 확정이 아님. 법정 보관 의무와 내부 제안 수치를 구분하고 이메일 소유권 미검증 회신의 민감정보 제한 명시.
+- 위험 요소: 공동 장애/공개 접수 남용/관리 접근 권한/보관 정책 확인 필요.
+- 다음 작업: 사용자 선택 후 계획서 확정. 제품 코드/배포/Jira/commit/push 변경 없음, 기존 기록 보존.
+
+<!-- codex-turn:01a10ed0-dfeb-7c01-9438-490a2f848b2d -->
+
+## 2026-10-06 문의 알림/스팸/상세 조회 선택 반영
+- 브랜치: develop. 목표: Slack·횟수 제한만·DB 상세 조회 선택 및 Slack 본문 표시 가능성 설명.
+- 변경 파일: docs/contracts/support-inquiry-implementation-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 문서에 선택사항 반영, 요약 없는 Slack 본문 표시 변경안 추가. 별도 이메일/userId/진단 필드 제외, 접수번호 포함 여부 미확정. 실제 전송 전 개인정보 안내·수신 범위·별도 Slack 보관/삭제 검토 필요.
+- 테스트: git diff --check. 문서 변경만 수행하여 실행 테스트 미수행.
+- 유지 계약: 본문을 로그에 남기지 않음, 서버 식별 userId 유지, 실제 외부 전송 및 설정 변경 없음.
+- 위험/결정: DB 삭제로 Slack 사본은 삭제되지 않으며 webhook만으로 삭제 기능을 보장하지 않음. 원문 개인정보 자동 제거를 보장하지 않음.
+- 다음 작업: 표시 범위/접수번호 및 남은 소유권·회신·보관 정책 확정. 코드/배포/Jira/commit/push 없음.
+
+## 2026-10-06 문의 입력 화면 주의 문구 선택 반영
+- 브랜치: develop. 목표: 별도 Slack 전달 안내 대신 입력 주의 문구를 두는 사용자 선택 반영.
+- 변경 파일: docs/contracts/support-inquiry-implementation-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 화면 Slack 명시 문구 제외, 비밀번호/인증번호/결제정보 비입력 주의 문구 제안. 개인정보 처리방침 및 실제 계약/위치별 필요한 고지·동의 검토는 유지.
+- 테스트: git diff --check. 문서 변경으로 실행 테스트 없음.
+- 유지 계약: 본문 외부 전송 미실행, 비밀값 비기록. 주의 문구로 법적 고지를 대체하지 않음.
+- 결정/위험: 화면 간소화 선택이며 개인정보 처리 의무 면제의 의미가 아님. 실제 위탁/국외 이전 조건 미확인.
+- 다음 작업: 남은 정책 확정 후 구현. 제품 코드/배포/외부 설정/Jira 변경 없음, 기존 기록 보존.
+
+<!-- codex-turn:01a10ed2-c1af-7a10-9220-b5cc9c5fdd92 -->
+
+### 2026-10-06 문의 입력 안내 작업 식별 기록 보완
+- 브랜치: develop. 작업 목표: 이번 문의 입력 안내 선택 반영의 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 계획서의 Slack 별도 문구 제외 및 민감정보 입력 주의 문구 선택 상태 유지. 추가 제품 구현 없음.
+- 테스트: git diff --check. 문서 보완으로 실행 테스트 미수행.
+- 유지 계약: 개인정보 처리방침의 필요한 고지·동의 검토 유지, 비밀값 비기록 및 과거 기록 보존.
+- 결정사항/위험: 화면 주의 문구만으로 법적 의무를 대체하지 않으며 실제 처리 조건은 미확인.
+- 다음 작업: 남은 정책 확정 후 구현. 외부 전송/설정/배포/Jira/commit/push 없음.
+
+## 2026-10-06 문의 접수 계획 현황 요약 안내
+- 브랜치: develop. 목표: 현재 계획서의 선택사항과 미확정 사항을 구분해 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 확인 내용: Slack/횟수 제한만/DB 상세 조회/화면 주의 문구 선택과 본문 표시안, 인증 기반 userId/익명 null, DB 원자 저장/중복 방지/비동기 재시도 구조 요약. 문서의 잔여 Discord 일반화 표현보다 최신 Slack 선택을 기준으로 안내.
+- 테스트: 계획서 정적 대조 및 git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 유지 계약: 개인정보 처리 고지 검토와 비밀값 비기록, 제품 코드/외부 전송 없음.
+- 결정/위험: 소유 서비스·회신·보관·제한 수치·접수번호 Slack 표시 여부는 아직 미확정. 알림 중복/공유 장애 가능성 유지.
+- 다음 작업: 남은 선택 확인 후 계획 확정 및 구현 요청. Jira/배포/commit/push 없음.
+
+<!-- codex-turn:01a10ed4-6d36-7761-a710-70cac13f1f21 -->
+
+### 2026-10-06 문의 계획 현황 설명 기록 보완
+- 브랜치: develop. 작업 목표: 현재 계획 요약 안내에 이번 작업 식별자 연결.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 선택된 Slack·DB 조회·횟수 제한·주의 문구와 미확정 운영 정책을 구분한 설명 결과 유지. 제품 구현 없음.
+- 테스트: git diff --check. 문서 보완으로 실행 테스트 미수행.
+- 유지 계약: 서버 기반 사용자 식별, 익명 접수, 개인정보 보호 및 과거 기록 보존.
+- 결정사항/위험: 보관·회신·서비스 소유권 등 정책은 아직 확정 전이며 추가 외부 전송 없음.
+- 다음 작업: 사용자 선택 후 계획 확정. Jira/배포/commit/push 없음.
+
+## 2026-10-06 — 계정 찾기 prepare 요청과 가입 중복 진입 순서 설명
+
+<!-- codex-turn:01a10ed5-6c44-7792-8b50-b555497427f4 -->
+
+- 브랜치: develop. 작업 목표: prepare 입력 및 기존 회원 여부 사전 확인 필요성 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: prepare는 사용자 입력 필드 없이 접수번호/만료시간 발급, 문서상 본문 {}. lookup은 prepare 뒤 PHONE 인증을 요구하며 MongoRecoveryStore가 proof.authTime을 접수 생성시각(초 단위)과 비교한다. Firebase SNS 계정에 번호 연결하는 동작과 계정 찾기용 전화 sign-in은 다름.
+- 설명: 회원 여부를 미리 알 필요 없이 계정 찾기 진입 가능. lookup의 FOUND/NOT_FOUND/ACTION_REQUIRED로 안내. 가입 중 번호 중복 오류 뒤 계정 찾기로 유도할 수 있으나 필수 선행 단계는 아님. 새 prepare 이전 인증을 단순 토큰 refresh로 재사용하는 흐름은 보장되지 않음.
+- 테스트와 결과: 컨트롤러·서비스·MongoRecoveryStore·resolver·프론트 계약 정적 확인, git diff --check. 제품 변경 없어 테스트 미실행.
+- 유지한 계약: 기존 Identity Guest/MEMBER 세션 보존, 조회는 자동 회원 로그인/병합/가입 아님. Secret/사용자 번호 기록 없음.
+- 결정사항·위험: 실제 중복 오류의 발생 주체를 Firebase link와 Identity PHONE_ALREADY_LINKED로 구분해야 함. 실앱·배포 설정 미조회.
+- 다음 작업: 프론트 계정 찾기 진입과 prepare→PHONE 인증→lookup 연동 확인. 제품/외부/Jira 변경 없음.
+
+<!-- codex-turn:01a10edd-1cc6-7250-94ba-2becea23bf6b -->
+
+## 2026-10-06 문의 접수 권장안 사용자 승인 반영
+- 브랜치: develop. 목표: 남은 권장안 승인에 따라 문의 계획 확정 상태 갱신.
+- 변경 파일: docs/contracts/support-inquiry-implementation-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: Identity 독립 support 모듈/선택 이메일 수동 회신/문의90일·멱등7일/시간5건·일10건/Slack 접수번호+본문 확정. 앞선 DB 조회·CAPTCHA 제외·화면 주의 문구 유지. 잔여 Discord 및 소유권 미승인 표현 정리.
+- 테스트: git diff --check, 잔여 미확정 표현 검토. 제품 미변경으로 Gradle 미실행.
+- 유지 계약: userId 서버 식별, 개인정보·Secret 비기록, 문의와 인증 도메인 분리, 기존 작업 기록 보존.
+- 결정/위험: 기능 승인과 실제 개인정보 고지·Slack 채널/권한/삭제 준비를 구분. 구현 요청이나 외부 전송 승인으로 확대 해석하지 않음.
+- 다음 작업: 별도 구현 요청 후 개발. 실제 채널/담당자/Secret 및 법적·운영 준비는 출시 전 확인. 코드/배포/Jira/commit/push 변경 없음.
+
+## 2026-10-06 — 가입 중 전화번호 중복 시 가입 계정 힌트 안내 검토
+
+<!-- codex-turn:01a10ee5-22a2-7fe0-b0c9-4bc0d1d5a47b -->
+
+- 브랜치: develop. 작업 목표: 새 SNS 가입 중 이미 사용 중인 전화번호의 가입 SNS 안내 UX 타당성 검토.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 검토 내용: 서버가 최근 전화 소유 증명을 검증한 이후 provider/마스킹 이메일을 안내하는 것은 기존 계정 찾기와 같은 경계에서 타당하다. 전화번호 입력 또는 클라이언트/Firebase link 중복 오류만으로 계정 힌트를 반환하면 안 된다. 정지 등은 기존 ACTION_REQUIRED 처리 유지, 자동 로그인/새 SNS 연결/병합 금지.
+- 제안: 별도 계정 찾기 화면 대신 가입 화면에서 기존 lookup 결과를 안내하는 통합 UX. 재인증 부담 감소를 위해 전화 인증 시작 전 recovery prepare 발급 후 중복 시 PHONE proof 확보·lookup하는 안을 검토한다. 기존 SNS link용 토큰과 PHONE sign-in proof가 다르며 동일 SMS credential 재사용 가능 여부는 프론트 SDK/경합 조건 검증 필요.
+- 테스트와 결과: signup/upgrade 중복 처리 위치 및 이전 확인 recovery 계약 대조, git diff --check. 코드 변경 없어 테스트 미실행.
+- 유지 계약: 전화 인증이 기존 SNS 소유권/회원 로그인 자체를 대체하지 않음. 원문 이메일/사용자 ID/토큰 안내 없음. 기존 Guest Identity 및 진행 SNS 상태 보존 필요.
+- 결정사항·위험: 방향 제안만 수행, 한 번의 SMS로 완료 가능하다고 보증하지 않음. 기존 API 그대로 연결할지 가입 proof 전용 계약이 필요한지는 상세 설계 전 미확정.
+- 다음 작업: 사용자 방향 확정 후 가입 전화 인증·Firebase link 충돌·PHONE proof 확보 순서 설계 및 E2E 검증. 제품/배포/Jira 변경 없음.
+
+## 2026-10-06 — recoveryId와 서버 사전 접수의 역할 설명
+
+- 브랜치: develop. 작업 목표: 프론트 UUID로 prepare를 대체할 수 있는지 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: prepare는 UUID뿐 아니라 서버 시각 기준 Attempt(createdAt/expiresAt)를 저장하고 요청 한도를 적용한다. lookup은 저장된 시도 존재, PHONE authTime의 접수 이후 여부, 만료, proof 사용 및 동일 시도 재시도 조건을 검사한다.
+- 결정사항: UUID 생성 위치 자체가 보안 근거는 아니다. 클라이언트 UUID를 서버가 사전 등록하는 설계는 가능하지만 사전 접수 역할은 남는다. 현재 API에 임의 UUID를 바로 보내면 INVALID_RECOVERY_REQUEST. prepare 이후 인증 요구는 현재 계약 선택이며 모든 가입에 본질적으로 필수인 단계는 아니다.
+- 유지 계약: recoveryId 단독은 인증 증명이 아니고 Firebase 전화 proof 검증이 필수. 기존 API/코드 변경 없음.
+- 테스트와 결과: 서비스/저장소 정적 확인, git diff --check. 설명만 수행하여 제품 테스트 미실행.
+- 위험 요소: prepare 생략 또는 enrollment 재사용은 기존 최근 인증·재사용·재시도 조건을 재설계해야 하며 이번에는 승인·구현하지 않음.
+- 다음 작업: 가입 중 계정 안내 통합 시 기존 enrollment 활용 또는 recovery 유지 여부 별도 설계. Secret/외부/Jira 변경 없음.
+
+## 2026-10-06 — recoveryId 설명 작업 식별 기록 보완
+
+<!-- codex-turn:01a10ee6-7ba7-7083-8fc0-470b2c34ef5a -->
+
+- 브랜치: develop. 작업 목표: 이번 recoveryId 설명의 정확한 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 수정 없음.
+- 내용·결정사항: UUID 생성 위치보다 서버 사전 접수·시각·만료·proof 사용 검증이 중요하다는 설명 유지. 임의 클라이언트 UUID로 현재 prepare를 대체할 수 없음.
+- 유지한 계약: 기존 recovery API·전화 인증 검증 유지. 제품 코드/외부/Jira 변경 없음.
+- 테스트와 결과: git diff --check 통과. 기록만 변경하여 제품 테스트 미실행.
+- 위험 요소: enrollment 재사용 등 대안은 추가 설계 필요, 구현 완료로 간주하지 않음. Secret 기록 없음.
+- 다음 작업: 가입 중 계정 안내 통합 흐름 별도 설계.
+
+<!-- codex-turn:01a10eeb-3ff8-7ec3-9c98-19c000ac8d1c -->
+
+## 2026-10-06 확정된 문의 접수 계획 재설명
+- 브랜치: develop. 목표: 승인된 문의 접수 기본안을 사용자 흐름 중심으로 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 입력→서버 사용자 식별→DB 접수→Slack 접수번호/본문→DB 조사/선택 이메일 수동 회신 흐름, 요청 횟수와 보관 기간, 중복 방지/전송 실패 보존 설명. 계획 내용 추가 변경 없음.
+- 테스트: 계획서 대조 및 git diff --check. 문서 설명으로 실행 테스트 미수행.
+- 유지 계약: 인증 기반 userId와 익명 null, 본문 외 메타데이터 Slack 미첨부, 개인정보/Secret 비기록.
+- 결정/위험: 아직 미구현, 실제 채널·담당자·개인정보 고지 및 Slack 삭제 운영은 출시 준비 사항. 문의가 자동 계정 복구 기능은 아님.
+- 다음 작업: 별도 구현 요청 시 개발. 제품/외부 설정/Jira/commit/push 변경 없음, 기존 기록 보존.
+
+<!-- codex-turn:01a10eee-8fe3-7cb0-bb7c-4198221c4961 -->
+
+## 2026-10-06 문의 접수 Jira 생성안 승인 준비
+- 브랜치: develop. 작업 목표: 확정 계획을 Jira 생성 초안으로 제시.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 제목·범위·완료 조건·제외 범위 및 기존 맥락의 TMI-136 상위 배치 제안. Jira: TMI-136 (상위 후보, 이번 조회/확정 전). 공식 Atlassian 도구 가용성 확인만 수행.
+- 테스트: git diff --check. 문서 작업으로 실행 테스트 없음.
+- 유지 계약: Jira 변경 전 내용 제시/승인 규칙, 개인정보·Secret 비기록.
+- 결정/위험: 실제 Jira 생성/댓글/상태 변경 없음. 내용 및 상위 배치 승인 대기.
+- 다음 작업: 승인 후 상위 이슈·유형 확인 및 생성. 제품/배포/commit/push 없음.
+
+<!-- codex-turn:01a10ef1-07cb-7d42-93d8-903c20e323d2 -->
+
+## 2026-10-06 TMI-197 문의 접수 Jira 생성 완료
+- 브랜치: develop. Jira: TMI-197 (상위 TMI-136).
+- 작업 목표: 승인된 문의 접수 API/Slack 알림 구현 이슈 생성.
+- 변경 파일: docs/contracts/support-inquiry-implementation-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 수행 내용: 공식 Atlassian MCP로 TMI-136 에픽과 유형 확인, 사용자 승인 내용으로 작업 TMI-197 생성. 재조회로 parent TMI-136 및 해야 할 일 상태 확인.
+- Jira 작업/승인: 생성 사전 내용 제시 후 사용자 승인 받음. 댓글 추가 없음, 별도 상태 전환 없음. 초기 상태 해야 할 일.
+- 테스트: Jira 생성 결과/parent 재조회, git diff --check. 제품 구현 없어 Gradle 미실행.
+- 유지 계약: 개인정보/Secret 비기록, 구현·실배포·외부 문의 전송 제외. 기존 작업 기록 보존.
+- 결정/위험: 이슈 생성 완료는 기능 구현 완료가 아님. 실제 채널·권한·보관/삭제 운영은 출시 전 필요.
+- 다음 작업: 구현 요청 시 TMI-197을 읽고 해당 키를 포함한 작업 브랜치에서 개발. commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 구현 계획 연결 및 생성 확인, 변경 파일은 계획서·기록, 검증은 parent 확인과 문서 검사, 제품 구현과 운영 준비는 후속 필요.
+
+## 2026-10-06 — 가입 SNS 토큰과 계정 찾기 PHONE 토큰 구분
+
+<!-- codex-turn:01a10ef3-6252-7f71-9ac7-f222a68ced6f -->
+
+- 브랜치: develop. 작업 목표: 번호 중복 시 새 SNS 계정 토큰으로 lookup을 호출할 수 있는지 설명 및 이전 안내 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: AccountRecoveryService 및 Firebase verifier는 ACCOUNT_RECOVERY에 PHONE sign-in과 검증된 번호를 요구한다. 새 SNS A에 기존 번호 link가 실패하면 A 토큰은 계정 찾기 전화 증명이 되지 않으며 강제 refresh로 해결되지 않는다.
+- 설명: 계정 찾기는 유효한 전화 credential로 별도의 Firebase phone sign-in을 완료하고 그 결과의 ID Token을 보내는 흐름이다. 동일 Firebase 프로젝트/tenant에서 번호가 B 사용자에 연결돼 있으면 그 번호 로그인은 B로 인증되는 것이며 A에 번호를 연결하는 동작이 아니다. Identity 회원 토큰 발급/자동 병합과 구분한다.
+- 결정사항: prepare 선호출만으로 가입 토큰을 lookup에 사용할 수 있다는 인상을 정정. 기존 API 연계에는 프론트 PHONE sign-in 전환과 기존 SNS/Guest 상태 보존이 필요. 동일 SMS credential 재사용은 SDK 동작/오류·만료 조건 검증 필요.
+- 테스트와 결과: verifier/service 정적 확인, git diff --check. 설명·기록만 변경하여 테스트 미실행.
+- 유지한 계약: lookup의 PHONE 검증·기존 SNS 소유권 경계 유지. 사용자 번호/원문 토큰·Secret 미기록, 제품/배포/Jira 변경 없음.
+- 위험 요소: 같은 Firebase Auth 인스턴스 sign-in은 현재 SNS 사용자를 바꿀 수 있음. secondary Auth 지원·credential 유효성·기존 enrollment 유지의 실앱 검증 미수행.
+- 다음 작업: 가입 중 계정 안내를 통합하려면 프론트 인증 전환/격리 설계 확정 및 실제 SDK 검증.
+
+## 2026-10-06 — 가입 중 계정 찾기의 SMS 재인증 필요성 설명
+
+<!-- codex-turn:01a10ef8-100e-70d2-a8e6-231ffcf3414e -->
+
+- 브랜치: develop. 작업 목표: SMS 입력 두 번과 Firebase link/sign-in 처리 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 설명: 가입 인증 완료 뒤 새 prepare를 발급하고 별도 계정 찾기를 시작하는 기존 순차 흐름은 새 전화 인증이 필요할 수 있다. 다만 link 실패 후 유효한 동일 전화 credential을 PHONE sign-in에 활용할 수 있다면 SMS 입력을 반복하지 않는 통합 흐름이 가능하며, 두 인증 동작이 반드시 SMS 두 번을 뜻하지 않는다.
+- 결정사항: 현재 실앱에서 SMS 1회 흐름이 구현·검증됐다고 주장하지 않는다. 사용 SDK의 credential 재사용·실패 후 상태·authTime 및 prepare 순서를 확인한 뒤 단일 SMS UX 설계가 필요하다.
+- 테스트와 결과: 직전 코드 확인 결과 기반 설명, git diff --check. 제품 변경 없어 테스트 미실행.
+- 유지 계약: PHONE proof 검증과 기존 SNS/Guest 인증 보존. prepare 선호출만으로 모든 조건이 충족되는 것은 아님.
+- 위험 요소: credential 만료/재사용 제한, 기존 Firebase 인증 상태 변경은 미검증. Secret 기록·외부 변경 없음.
+- 다음 작업: 실제 프론트 SDK 흐름 확인 후 SMS 1회 통합 가능 여부 검증. 제품/배포/Jira 변경 없음.
+
+<!-- codex-turn:01a10efa-eec3-73b1-ba40-3825c82fb58d -->
+
+## 2026-10-06 Slack 연동 사전 설정 안내
+- 브랜치: develop. Jira: TMI-197.
+- 작업 목표: Slack 설정과 개발/실연동 테스트의 선후관계 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 개발은 mock 기반 선행 가능, 실제 전송 전 비공개 채널/Slack app Incoming Webhooks 활성화/워크스페이스 설치 승인/채널 지정/웹훅 Secret 보관 필요 안내. 테스트·운영 분리 권고.
+- 테스트: git diff --check. 설정 안내만 수행, Slack 실제 상태/설치/전송 미실행.
+- 유지 계약: 웹훅 URL을 채팅/저장소/로그에 노출하지 않음. 최소 권한 및 실제 승인 절차 유지.
+- 결정/위험: 관리자 설치 제한 가능, Secret 저장만으로 서버 주입이 완료되는 것은 아님. 문서상 설정명은 구현 시 확정.
+- 다음 작업: 사용자 Slack 채널·앱 설정 후 안전한 Secret 등록과 별도 테스트. 코드/배포/Jira/commit/push 변경 없음.
+
+## 2026-10-06 Slack 앱 생성 선택지 안내
+- 브랜치: develop. Jira: TMI-197. 목표: 사용자가 제공한 Slack 생성 메뉴에서 필요한 선택 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 웹훅 알림용 Blank app 선택 및 후속 Incoming Webhooks 설정 안내. 사용자 제공 메뉴 기준이며 직접 브라우저 조회/앱 생성 없음.
+- 테스트: git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 유지 계약: 불필요한 AI/명령어 권한 추가하지 않음, Secret 비기록.
+- 결정/위험: 실제 화면 후속 구성/관리자 승인 여부 미확인.
+- 다음 작업: 앱 생성 후 Incoming Webhooks 활성화 및 대상 채널 지정. 외부 변경/배포/Jira 변경 없음.
+
+<!-- codex-turn:01a10efc-f6ef-72c3-901c-f3ad63f856e6 -->
+
+### 2026-10-06 Slack 앱 생성 안내 기록 보완
+- 브랜치: develop. Jira: TMI-197. 목표: 현재 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 사용자 제공 메뉴 기준 Blank app 및 Incoming Webhooks 설정 안내 결과 유지. 제품/외부 변경 없음.
+- 테스트: git diff --check. 기록 보완으로 실행 테스트 미수행.
+- 유지 계약: Secret 비기록 및 기존 기록 보존.
+- 결정사항/위험: 실제 Slack 생성/설치/권한 상태 미확인.
+- 다음 작업: 사용자 앱 생성 후 웹훅 설정 진행. Jira/배포/commit/push 없음.
+
+## 2026-10-06 Slack 설정 완료 보고 및 Secret 보관 안내
+- 브랜치: develop. Jira: TMI-197. 목표: 사용자 웹훅 설정 완료 보고에 후속 보관 단계 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: Slack 설정 완료는 사용자 보고로 기록하며 원격 검증하지 않음. AWS Secrets Manager의 테스트 전용 신규 Secret 이름과 키/값 저장 예시 안내. 서버 환경변수명은 구현 시 확정하며 저장만으로 연동되지 않음을 명시.
+- 테스트: 관련 계획/설정 검색 및 git diff --check. 제품 변경 없이 실행 테스트 미수행.
+- 유지 계약: 웹훅 URL 채팅/저장소/로그 비노출, 외부 Secret 생성/전송/권한 변경 없음.
+- 결정/위험: 채널 실제 대상·권한·Secret 저장 상태 미확인. 기존 Secret 덮어쓰기 금지.
+- 다음 작업: 사용자 안전한 Secret 저장 후 별도 구현 요청과 테스트 채널 검증. Jira/배포/commit/push 없음.
+
+<!-- codex-turn:01a10efe-c718-7d50-9428-e0478975d850 -->
+
+### 2026-10-06 Slack 설정 완료 후속 안내 기록 보완
+- 브랜치: develop. Jira: TMI-197. 목표: 이번 작업 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 사용자 Slack 설정 완료 보고 및 안전한 Secret 보관 안내 결과 유지. 실제 Secret 생성/서버 연결/전송 없음.
+- 테스트: git diff --check. 문서 보완으로 실행 테스트 미수행.
+- 유지 계약: 비밀값 비기록, 과거 작업 기록 보존.
+- 결정/위험: 실제 채널·저장 상태는 미검증, 저장만으로 연동 완료되지 않음.
+- 다음 작업: 사용자 보관 완료 후 구현 요청 및 테스트 연동. Jira/배포/commit/push 없음.
+
+## 2026-10-06 문의 Slack 웹훅 Secret 등록 완료 보고
+- 브랜치: develop. Jira: TMI-197. 작업 목표: 사용자 Secret 등록 완료 보고와 후속 단계 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 사용자가 앞서 안내한 테스트 Secret 등록을 완료했다고 보고함. 실제 AWS 저장값·권한은 조회하지 않았으며 등록 검증 완료로 주장하지 않음.
+- 테스트: git diff --check. 기록 작업으로 실행 테스트 미수행.
+- 유지 계약: Secret 원문 조회/기록/출력 없음. 서버 구현·외부 전송·권한 변경 없음.
+- 결정/위험: 저장과 ECS 주입/알림 연동은 별개. 기능은 미구현이며 실제 채널·권한·전송은 미검증.
+- 다음 작업: 구현 요청 후 TMI-197 기반 개발, 별도 배포 단계에서 Secret 주입/최소권한 및 합성 문의 테스트. Jira/배포/commit/push 없음.
+
+<!-- codex-turn:01a10f00-f666-79e3-9142-33cd134048a6 -->
+
+### 2026-10-06 Secret 등록 완료 보고 기록 보완
+- 브랜치: develop. Jira: TMI-197. 목표: 이번 작업의 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 사용자 Secret 등록 완료 보고 및 후속 구현/배포 연결 안내 결과 유지. 실제 저장값·권한 검증이나 외부 변경 없음.
+- 테스트: git diff --check. 문서 보완으로 실행 테스트 미수행.
+- 유지 계약: Secret 원문 비기록, 기존 기록 보존.
+- 결정/위험: 등록 보고와 실제 서버 연동 검증은 별개이며 기능 미구현 상태.
+- 다음 작업: 구현 승인 후 TMI-197 개발. Jira/배포/commit/push 없음.
+
+<!-- codex-turn:01a10f04-4e9c-78a3-b53e-bc138986d9f0 -->
+
+## 2026-10-06 TMI-197 문의 접수 API·Slack outbox 구현
+
+- Jira: TMI-197. 브랜치: 사용자 변경 후 지정한 feat/TMI-197-support-inquiry에서 작업 유지. 목표: 승인된 문의 접수/DB 저장/Slack 본문 알림 구현.
+- 변경 파일: domain/support 신규 모듈, 대응 support 테스트6개 파일, SecurityConfig, IdentityOpenApiExamples, application.yml, OpenApiSharingTests, support-inquiry-api.md, support-inquiry-implementation-plan.md, CURRENT_STATE.md, 본 WORKLOG.
+- 구현: POST 선택 인증/현재 ACTIVE 계정에서 userId 결정, 익명 null, invalid Bearer 비강등. strict JSON/16KiB/10~2000자 검증, HMAC IP·주체별 quota/멱등 키, 문의+receipt+outbox+quota Mongo 트랜잭션, 동일키 재전송200/신규201, 충돌409/과다429/장애503 등. 문의90일·receipt7일 TTL. 공개 조회/첨부/자동 회신 없음.
+- 알림: Slack receipt+전체 본문 plain_text만 전달, URL/멘션 해석 억제, webhook allowlist/redirect 금지/timeout, 원문 로그 금지. 5초 scheduler/60초 lease/최대5회 전송/Retry-After/지수형 간격, low-card counters. FAILED만 내부 CAS 수동 replay1회 및 문의 삭제 감사 primitive; 공개 endpoint/운영 runner는 없음.
+- 테스트: compileJava 성공. 초기 mock 설정 및 OpenAPI operation 수 회귀 실패를 수정한 뒤 `./gradlew clean test exportOpenApi` 성공: tests1166/failures0/errors0/skipped6, 실행1160 통과. 이어 별도 opt-in SupportReplicaSetTests6/6 통과: 전체 rollback, commit 응답 유실,6동시 중복 접수, quota 거절 원자성, lease 재확보/stale CAS, 승인 재처리·삭제. 로컬 임시 Mongo만 사용, 합성 DB 삭제. 실제 Atlas/OAuth/Slack 테스트 없음.
+- 유지 계약: RS256/JWKS/audience/기존 인증·병합 무변경, 외부 body userId 금지, Secret 원문 비기록, 테스트 외부 인프라 미사용. 사용자 선행 문서 변경은 보존, 예상 밖 제품 파일 변경 없음.
+- 결정/위험: 기존 Access JWT의 sessionId/epoch 부재로 개별 로그아웃 즉시 판별은 구현하지 못함(사용자 고지). 인증 상태는 기존 JWT+현재 계정으로 검증. Slack at-least-once 중복 가능. 고정 UTC quota/NAT 오탐, HMAC 교체 시 멱등/제한 초기화, TTL 비동기, Slack 별도 삭제 필요. backlog gauge/경보/실행용 운영 CLI 미구성.
+- 배포 전/다음 작업: flags OFF 유지. 별도 HMAC Secret·webhook 주입·최소권한, Mongo replica/index, 실제 ALB trusted proxy와 forward headers NONE 충돌 검사, 합성 Slack 전송, 개인정보 고지·채널 권한·보관/삭제 담당 확인. 사용자가 commit/push. 자동 배포/Slack 전송/Secret 조회/Jira 댓글·상태 변경 없음.
+- Jira 댓글 초안(미등록): “문의 API·엄격 입력/선택 인증·멱등/제한·Mongo outbox·Slack 비동기 전송 및 제한된 수동 복구 primitive 구현. 변경: support 모듈/테스트, 보안·설정·OpenAPI·계약 문서. 회귀1160개 및 별도 replica 통합6개 통과. 잔여: 실제 Secret/프록시/Slack 검증, 개인정보 운영 및 경보 준비; 기존 JWT의 세션 단위 즉시 폐기 검증 한계.”
+
+<!-- codex-turn:01a10f7b-7694-7b90-b4ef-b55fa4829113 -->
+
+## 2026-10-06 REFUND 문의 분류 구현 결과 및 작업 식별 기록
+- 브랜치: develop. 목표: 환불 문의 분류 추가 및 현재 턴 기록 보완.
+- 변경 파일: SupportRequest.java, SupportWebTests.java, docs/contracts/support-inquiry-api.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현: Category REFUND 추가, HTTP201 및 서비스 전달 테스트, Swagger enum과 API 문서 반영. 환불 실행 기능은 추가하지 않음.
+- 테스트: 이번 구현의 `./gradlew clean test exportOpenApi` 성공, 1161 통과/로컬 Mongo opt-in6개 제외. 생성 enum AUTH/GENERAL/REFUND 확인. 기록 보완 후 git diff --check 실행.
+- 유지 계약: 기존 인증·userId 결정·멱등·quota·Slack 형식 유지. 기존 사용자 변경 보존, 예상 밖 제품 변경 없음.
+- 결정/위험: 새 코드 배포 전 REFUND는 구버전에서 거절될 수 있음. 실제 AWS/Slack 검증 및 변경 없음.
+- 다음 작업: 사용자 commit/push/배포 후 프론트 REFUND 옵션 활성화. Jira 댓글 초안은 REFUND 추가·테스트 통과·배포 필요 요약이며 자동 등록하지 않음.
+
+## 2026-10-06 환불 문의 인증된 userId 필수화
+- 브랜치: develop. 목표: REFUND 접수에 서버 확인 사용자 ID 필수 적용.
+- 변경 파일: SupportController.java, SupportError.java, SupportService.java, SupportServiceTests.java, SupportWebTests.java, docs/contracts/support-inquiry-api.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 기존 REFUND enum 추가 변경은 보존.
+- 구현: REFUND의 null/빈 userId를401 SUPPORT_REFUND_AUTH_REQUIRED로 저장·멱등 재응답 전에 차단. 컨트롤러/서비스 방어 검사. body userId는 받지 않고 검증된 현재 활성 계정 ID 사용. MEMBER/GUEST 모두 허용, AUTH/GENERAL 익명 접수 유지.
+- 테스트: `./gradlew clean test exportOpenApi` 성공, 실행1164 통과/opt-in Mongo6개 제외. HTTP 익명 거절·회원 접수·임의 body ID 거절, 저장 전 차단, MEMBER/GUEST ID 저장 검증. git diff --check 수행.
+- 유지 계약: 기존 JWT/토큰 발급·Slack 본문 형식·rate limit·멱등 유지. 외부 계약에 환불 인증401 추가. 자동 환불 및 회원 전용 제한은 없음.
+- 결정/위험: 기존 익명 환불 데이터는 소급 변경하지 않음. 새 코드 배포 전에는 새 제한 미적용. 선행 미커밋 변경 보존, 예상 밖 변경 없음.
+- 다음 작업: 사용자 commit/push/배포 및 프론트 REFUND의 Identity Bearer 전달. 실제 AWS/Slack/DB 변경 없음. Jira 댓글 초안(미등록): “REFUND 서버 확인 userId 필수화, 익명401, MEMBER/GUEST 허용 및 본문 ID 거절 유지. 실행1164 테스트 통과, 프론트 인증 전달 및 배포 필요.”
+
+<!-- codex-turn:01a10f7e-aad6-7531-a64a-c2f256e484aa -->
+
+## 2026-10-06 환불 문의 인증 필수화 작업 식별 기록 보완
+- 브랜치: develop. 목표: 현재 턴 식별자 및 완료 결과 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 이번 보완은 기록만 변경하며 위 구현 결과를 유지한다.
+- 구현 결과: REFUND는 서버가 확인한 활성 MEMBER/GUEST userId 필수, 익명401 SUPPORT_REFUND_AUTH_REQUIRED, 본문 userId 거절. AUTH/GENERAL 기존 접수 유지.
+- 테스트: 이번 구현의 전체 테스트1164개 통과, opt-in Mongo6개 제외 및 OpenAPI 생성 성공. 기록 보완 후 git diff --check 통과.
+- 유지 계약/결정: 기존 JWT·멱등·quota·Slack 형식 유지. Secret 비기록, 과거 기록 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 배포 전 새 제한 미적용. 사용자 commit/push/배포 및 프론트 REFUND Bearer 전달 필요. 실제 인프라 변경·Jira 등록 없음.
+
+## 2026-10-06 테스트 문의 ON 및 재배포 사전 확인
+- 브랜치: develop. 목표: 사용자 요청 테스트 Identity 설정 활성화·재배포 전 안전 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 추가 변경 없음, 선행 미커밋 변경 보존.
+- 확인 내용: 현재 HEAD는 문의 초기 구현 병합 상태, REFUND 추가와 userId 필수 검사 등은 로컬 미커밋. workflow는 develop push를 테스트 서비스로 배포한다. 코드 미포함 재배포를 피하기 위해 flag 변경 보류.
+- 테스트/진단: git status/diff/log 및 workflow 확인. AWS sts 읽기 조회는 NoCredentials로 실패, 원격 상태 미확인. 기록 diff 검사 수행. 코드 변경 없어 테스트 재실행 없음.
+- 유지 계약/결정: 사용자 commit/push 규칙 유지. 운영 서버·Secret·IAM·ECS 설정 변경 없음. 예상 밖 변경 없음.
+- 위험/다음 작업: 사용자 commit/push 후 CI와 이미지 일치 확인 필요. AWS 인증 확보 후 Secret refs/권한/ALB proxy 및 flag 검증하고 테스트 재배포 진행. 현재 ON/재배포 완료로 주장하지 않음. Jira 변경 없음.
+
+<!-- codex-turn:01a10f81-0dc3-7393-a4f8-f53bf1db6a85 -->
+
+## 2026-10-06 재배포 사전 확인 작업 식별 기록 보완
+- 브랜치: develop. 목표: 현재 턴 기록 및 테스트 재배포 대기 상태 명확화.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 이번 보완은 문서만 변경.
+- 결과: REFUND·인증 필수 수정이 로컬 미커밋이며 AWS CLI 인증도 없어 기능 ON과 재배포를 수행하지 않음. 사용자 commit/push 요청 상태 유지.
+- 테스트: 이전 git 상태/차이/workflow 확인 및 AWS NoCredentials 결과 유지. 문서 보완 후 git diff --check. 제품 변경 없어 실행 테스트 재수행 없음.
+- 유지 계약/결정: 기존 기록과 선행 코드 변경 보존, 비밀값 비기록, Codex commit/push 금지 준수. 원격 변경 및 예상 밖 변경 없음.
+- 위험/다음 작업: 사용자 push 및 AWS 인증 후 CI 이미지·Secret 참조·권한·프록시 확인을 거쳐 테스트 한정 ON/재배포. Jira 변경 없음.

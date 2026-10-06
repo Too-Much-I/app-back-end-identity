@@ -30,6 +30,22 @@ class SupportServiceTests {
         verify(store).quota(startsWith("hour:"), eq(5), any());
         verify(store).quota(startsWith("day:"), eq(10), any());
     }
+    @Test void refundWithoutUserIdIsRejectedBeforeAnyStorageOrReplay() {
+        var refund = new SupportRequest(SupportRequest.Category.REFUND, request.message(), null, null);
+        for (String id : new String[]{null, "", " "}) {
+            assertCode(() -> service.submit(new SupportService.Actor(id, "ANONYMOUS"), "127.0.0.1", key, refund),
+                    "SUPPORT_REFUND_AUTH_REQUIRED");
+        }
+        verifyNoInteractions(store);
+    }
+    @Test void refundPersistsServerResolvedUserIdForMemberAndGuest() {
+        var refund = new SupportRequest(SupportRequest.Category.REFUND, request.message(), null, null);
+        for (String type : List.of("MEMBER", "GUEST")) {
+            String id = UUID.randomUUID().toString();
+            service.submit(new SupportService.Actor(id, type), "127.0.0.1", UUID.randomUUID().toString(), refund);
+            verify(store).insert(anyString(), anyString(), anyString(), eq(id), eq(type), eq(refund), eq(now));
+        }
+    }
     @Test void replayDoesNotConsumeNewInquiryQuota() {
         doAnswer(i -> { when(store.receipt(i.getArgument(1))).thenReturn(new SupportStore.Receipt(i.getArgument(0), i.getArgument(2), now.plusSeconds(60))); return null; })
                 .when(store).insert(anyString(), anyString(), anyString(), any(), anyString(), any(), any());

@@ -1,5 +1,37 @@
 # Codex Current State
 
+<!-- codex-turn:01a10f81-0dc3-7393-a4f8-f53bf1db6a85 -->
+
+- 테스트 문의 ON·재배포 요청의 현재 턴 기록 보완 완료. 사용자 commit/push와 AWS 인증 대기이며 ON/재배포는 미수행. 이번 보완은 문서만 변경함.
+
+## 2026-10-06 문의 기능 ON·재배포 요청 — 사용자 push 필요
+
+- 테스트 Identity 재배포 및 문의/Slack flag ON 요청 수신. 읽기 확인 결과 develop HEAD에는 문의 초기 구현 병합만 있고 REFUND enum·인증된 userId 필수 변경은 로컬 미커밋 상태다.
+- 사용자 commit/push 전 새 요구사항이 빠진 이미지로 기능을 켜지 않도록 원격 변경 보류. 저장소 규칙상 Codex commit/push 금지 유지.
+- 로컬 AWS CLI는 NoCredentials로 원격 상태 조회 불가. Secret 값은 읽지 않았으며 실제 ECS revision·권한·프록시·flag 상태는 미확인.
+- 다음: 사용자 develop commit/push 및 CI 완료 후 로그인된 AWS 콘솔 또는 인증된 CLI에서 현재 task/image·Secret refs·권한·proxy 검증, 테스트 한정 flag ON 및 재배포. 이번 작업 원격 변경 없음.
+
+<!-- codex-turn:01a10f7e-aad6-7531-a64a-c2f256e484aa -->
+
+- 환불 문의 서버 확인 userId 필수화의 현재 턴 기록 보완 완료. 아래 구현·테스트 결과 유지, 재배포는 미수행. 이번 보완은 기록 파일만 변경함.
+
+## 2026-10-06 REFUND 문의 서버 사용자 ID 필수화
+
+- develop 유지. REFUND는 서버 인증으로 확인한 활성 MEMBER/GUEST userId 필수. 익명은401 SUPPORT_REFUND_AUTH_REQUIRED, 요청 본문 userId는 계속 거절. AUTH/GENERAL 익명 접수 유지.
+- 컨트롤러와 서비스에서 저장/멱등 응답 전 검사. HTTP 거절·회원 접수·임의 ID 금지·미저장·MEMBER/GUEST ID 저장 테스트 및 Swagger/문서 갱신.
+- `./gradlew clean test exportOpenApi` 성공: 실행1164 통과, opt-in Mongo6개 제외. 기존 데이터 소급 변경/배포/commit/push 없음. 선행 REFUND 변경과 기록 보존, 예상 밖 변경 없음.
+- 다음: 새 코드 배포 후 프론트 REFUND 요청에 Identity Access Token 포함. 회원 전용 제한이나 자동 환불 기능은 아님.
+
+<!-- codex-turn:01a10f7b-7694-7b90-b4ef-b55fa4829113 -->
+
+- REFUND 분류 추가 작업의 현재 턴 식별 기록 보완 완료. 구현·테스트 결과는 아래 항목과 동일하며 실제 재배포는 미수행. 이번 보완은 기록 파일만 변경함.
+
+## 2026-10-06 문의 환불 분류 추가
+
+- 현재 develop 브랜치에서 SupportRequest.Category에 REFUND 추가. AUTH/GENERAL 유지, 환불 문의 접수만 지원하며 결제 취소/자동 환불은 구현하지 않음.
+- HTTP REFUND 접수201 및 서비스 전달 검증 추가, API 계약 갱신. `./gradlew clean test exportOpenApi` 성공: 1161 통과, 로컬 Mongo opt-in6개 제외. Swagger enum 생성 확인.
+- 기존 인증·멱등·제한·Slack 접수번호+본문 형식 유지. 배포/commit/push 없음. 다음은 사용자 재배포 후 프론트 분류 선택지에 REFUND 연결. 선행 WORKLOG 변경 보존, 예상 밖 제품 변경 없음.
+
 <!-- codex-turn:01a10f04-4e9c-78a3-b53e-bc138986d9f0 -->
 
 ## 2026-10-06 TMI-197 문의 API 구현 완료 — 배포 전

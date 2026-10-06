@@ -36,7 +36,7 @@ public class SupportController {
         strict.enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION.mappedFeature());
         reader = strict.readerFor(SupportRequest.class);
     }
-    @Operation(summary="문의 접수", description="로그인 선택. 인증 헤더가 있으면 검증하며 잘못된 인증을 익명으로 전환하지 않습니다. 동일 키/본문 재전송은 기존 접수 결과를 반환합니다.",
+    @Operation(summary="문의 접수", description="AUTH/GENERAL은 로그인 선택, REFUND는 인증된 사용자 ID 필수. userId는 본문이 아닌 서버 인증으로 결정합니다. 인증 헤더가 있으면 검증하며 잘못된 인증을 익명으로 전환하지 않습니다. 동일 키/본문 재전송은 기존 접수 결과를 반환합니다.",
         requestBody=@io.swagger.v3.oas.annotations.parameters.RequestBody(required=true, content=@Content(schema=@Schema(implementation=SupportRequest.class))),
         responses={@ApiResponse(responseCode="201", description="DB 접수 완료, Slack 전송은 비동기"),
             @ApiResponse(responseCode="200", description="동일 문의 재전송"), @ApiResponse(responseCode="400", description="요청/식별자 오류"),
@@ -60,6 +60,7 @@ public class SupportController {
             request = reader.readValue(body);
         } catch (IOException | IllegalArgumentException e) { throw SupportError.INVALID_REQUEST.exception(); }
         if (request == null || !validator.validate(request).isEmpty()) throw SupportError.INVALID_REQUEST.exception();
+        actor.requireFor(request.category());
         var result = service.submit(actor, ip, key, request);
         return ResponseEntity.status(result.replay() ? 200 : 201).header("Cache-Control", "no-store")
                 .body(BaseResponse.success(new Receipt(result.inquiryId(), "RECEIVED")));
