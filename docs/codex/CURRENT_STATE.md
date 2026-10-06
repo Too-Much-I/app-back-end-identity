@@ -1,5 +1,132 @@
 # Codex Current State
 
+<!-- codex-turn:01a10f04-4e9c-78a3-b53e-bc138986d9f0 -->
+
+## 2026-10-06 TMI-197 문의 API 구현 완료 — 배포 전
+
+- 브랜치: 사용자 지정 `feat/TMI-197-support-inquiry`. 아래 이전 미구현/구현 대기 기록은 이 결과로 대체한다.
+- `POST /api/v1/support/inquiries`: 선택 인증, 서버 판별 userId, 엄격 JSON/본문 제한, Mongo 원자 접수·멱등·quota·outbox 구현. Slack 접수번호+본문 plain_text 비동기 전송, 최대5회/lease/CAS와 안전한 counter 구현.
+- 내부 SupportOperations는 승인 참조·FAILED CAS·수동 replay1회 제한·삭제 감사 primitive 제공. 운영 runner/UI는 별도, 실제 삭제/재전송 수행 없음.
+- 테스트: `./gradlew clean test exportOpenApi` 성공(1,166개 중1,160 통과, opt-in6개 제외). 별도 로컬 replica set 통합6개 모두 통과. 최종 diff 검사 수행. 외부 Atlas/OAuth/Slack 호출 없음.
+- 계약: 기존 JWT/인증/병합 변경 없음. Access JWT의 sessionId/epoch 부재로 개별 로그아웃 즉시 판별은 불가. 현재 ACTIVE 계정 검증 적용.
+- 배포 전: 별도 HMAC Secret, webhook Secret 주입·최소권한, forward headers NONE/신뢰 ALB CIDR 검증, Mongo 트랜잭션·인덱스 확인, 합성 Slack 전송/개인정보 보관·삭제·운영 경보 준비. flags 기본 OFF, 실제 배포 없음.
+- 문서: `docs/contracts/support-inquiry-api.md`, 기존 계획서 갱신. 사용자 선행 문서 변경 보존. 예상 밖 제품 변경 없음. commit/push/Jira 변경 없음. WORKLOG에 Jira 댓글 초안만 기록.
+
+<!-- codex-turn:01a10f00-f666-79e3-9142-33cd134048a6 -->
+
+- TMI-197 Secret 등록 완료 보고의 현재 작업 식별 기록 보완 완료. 사용자 보고 상태 유지, 실제 Secret 조회/서버 연결/구현/전송 없음.
+
+- 2026-10-06 TMI-197 문의 Slack 웹훅 Secret 등록 완료 사용자 보고 수신. 실제 저장값·권한 미조회이며 서버 주입/구현/알림 테스트는 아직 미수행. 다음은 별도 구현 요청 후 개발이다.
+
+<!-- codex-turn:01a10efe-c718-7d50-9428-e0478975d850 -->
+
+- TMI-197 Slack 설정 완료 후속 안내의 현재 작업 식별 기록 보완 완료. 사용자 보고 상태 및 Secret 보관 안내 유지, 실제 외부 설정/전송 변경 없음.
+
+- 2026-10-06 TMI-197 Slack 앱/웹훅 설정 완료 사용자 보고 수신(원격 미검증). 테스트 전용 Secrets Manager 신규 보관 단계 안내, 실제 Secret 저장·서버 주입·구현·전송은 미수행.
+
+<!-- codex-turn:01a10efc-f6ef-72c3-901c-f3ad63f856e6 -->
+
+- TMI-197 Slack 앱 생성 안내의 현재 작업 식별 기록 보완 완료. Blank app 선택 안내 상태 유지, 실제 외부 설정 변경 없음.
+
+- 2026-10-06 TMI-197 Slack 생성 메뉴 안내: 사용자가 제시한 선택지 중 Blank app 권고. Incoming Webhooks만 필요한 알림 용도이며 실제 앱/권한/외부 설정 변경 없음.
+
+<!-- codex-turn:01a10efa-eec3-73b1-ba40-3825c82fb58d -->
+
+- 2026-10-06 TMI-197 Slack 연동 준비 순서 안내: 개발은 mock 기반 진행 가능, 실제 알림 테스트 전 채널·앱 Incoming Webhooks·설치 승인·Secret 보관/서버 주입 필요. 실제 Slack 설정/전송 변경 없음.
+
+## 2026-10-06 — SMS 재인증 UX 구분
+
+- 가입 후 별도 계정 찾기를 새로 시작하면 재인증이 필요할 수 있지만 link와 PHONE sign-in 두 동작이 반드시 SMS 입력 두 번을 의미하지는 않는다. 유효한 동일 credential 활용 가능성은 SDK 검증 필요.
+- SMS 1회 통합은 아직 미구현·미검증이며 prepare 순서, PHONE authTime, 기존 SNS/Guest 상태 보존을 함께 설계해야 한다. 설명·기록만 수행.
+
+## 2026-10-06 — lookup용 전화 토큰 흐름 명확화
+
+- 새 SNS 계정에 기존 번호 link가 실패한 뒤 기존 SNS ID Token을 lookup에 보내는 흐름은 지원하지 않는다. prepare만 추가해도 해결되지 않는다.
+- lookup은 Firebase PHONE sign-in으로 얻은 ID Token을 요구한다. 번호가 기존 Firebase 사용자에 연결돼 있으면 해당 사용자로 전화 로그인하는 것이며 새 SNS 연결/Identity 로그인·병합은 아니다.
+- 가입 SNS/Guest 상태를 보존하면서 PHONE sign-in을 수행하는 프론트 흐름이 필요하다. 같은 SMS credential 재사용과 secondary Auth 지원은 실제 SDK 검증 전 확정하지 않는다. 설명·기록만 수행, 제품 변경 없음.
+
+<!-- codex-turn:01a10ef1-07cb-7d42-93d8-903c20e323d2 -->
+
+## 2026-10-06 TMI-197 생성 완료 — 구현 대기
+
+- 현재 작업 Jira: TMI-197 `[Identity] 문의 접수 API 및 Slack 알림 구현`, 상위 TMI-136. 사용자 승인 후 공식 MCP 생성 및 parent 재확인 완료. 초기 해야 할 일, 댓글/별도 상태 전환 없음.
+- 계획서에 이슈 연결. 제품 코드/배포 변경 없음. 다음은 별도 구현 요청 후 TMI-197 기준 개발이다. 앞선 생성 승인 대기 기록은 본 결과로 대체.
+
+<!-- codex-turn:01a10eee-8fe3-7cb0-bb7c-4198221c4961 -->
+
+- 2026-10-06 문의 접수 Jira 생성안 제시: Identity 문의 API·DB/중복 방지·Slack 본문 알림·횟수 제한·테스트/문서 범위. 상위 TMI-136 배치는 제안이며 사용자 내용 승인 후 조회/생성 예정. 아직 Jira 생성·댓글·상태 변경 없음.
+
+<!-- codex-turn:01a10eeb-3ff8-7ec3-9c98-19c000ac8d1c -->
+
+- 2026-10-06 승인된 문의 접수 계획을 사용자 작성부터 DB/Slack/수동 회신 순서로 재설명. 확정 정책 변경 없고 미구현 상태 유지. 작업 기록만 추가, 외부 변경 없음.
+
+## 2026-10-06 — recoveryId 사전 접수 설명
+
+<!-- codex-turn:01a10ee6-7ba7-7083-8fc0-470b2c34ef5a -->
+
+- 이번 설명 작업의 식별 기록 보완 완료. 추가 구현 없이 기존 계약 설명 및 대안 검토 상태 유지.
+
+- recoveryId의 UUID 생성 위치보다 서버의 사전 Attempt 저장·시각·만료·proof 사용 기록이 중요하다. 현재 임의 UUID는 등록된 시도가 없어 거절된다. 클라이언트 UUID 사전 등록은 대안이지만 prepare 역할 자체를 없애지는 않는다.
+- prepare 이후 PHONE 인증 요구는 현재 계약 선택이며 가입 자체의 필수 조건은 아니다. 가입 통합에서 사전 enrollment 활용/별도 proof 계약 가능성은 추가 설계 대상. 코드 변경 없이 설명·기록만 수행.
+
+## 2026-10-06 — 가입 중 전화번호 중복 계정 안내 UX 검토
+
+- 최근 전화 소유 인증을 서버에서 검증한 뒤 기존 가입 SNS와 마스킹 이메일을 같은 가입 화면에서 안내하는 방향을 권장한다. 번호 입력/중복 오류만으로 공개하지 않으며 자동 로그인·SNS 연결·병합은 하지 않는다.
+- 기존 recovery prepare를 SMS 전에 발급하고 중복 시 PHONE proof로 lookup하는 통합안을 검토할 수 있다. SNS link와 PHONE sign-in의 차이 및 동일 SMS credential 재사용은 SDK 검증 전 확정 불가. 기존 Guest/SNS 인증 상태 보존 필요.
+- 설계 설명·기록만 수행, 제품/외부 변경 없음. 다음은 사용자 방향 확정 후 정확한 인증 흐름 설계다.
+
+<!-- codex-turn:01a10edd-1cc6-7250-94ba-2becea23bf6b -->
+
+## 2026-10-06 문의 접수 기본안 승인 — 미구현
+
+- 사용자 승인으로 Identity 독립 모듈, 선택 이메일·수동 회신, 문의90일·멱등7일, 사용자/익명 IP별 시간5건·일10건, Slack 접수번호+본문 확정. DB 상세 조회/횟수 제한만/화면 주의 문구 유지.
+- 계획서의 해당 결정 대기 기록은 본 승인으로 대체. 실제 채널·담당자·Secret·개인정보 고지 및 Slack 보관/삭제 준비는 출시 전 필요. 구현·배포·외부 전송은 이번에 수행하지 않음.
+
+## 2026-10-06 — 계정 찾기 요청 순서 안내
+
+- prepare 본문은 {}이며 전화번호/Identity 토큰을 보내지 않는다. 가입 여부 사전 확인 없이 진입하고 PHONE 인증 후 lookup 결과로 계정 유무·안내 가능 여부를 판정한다.
+- 가입 중 중복 오류는 계정 찾기 진입 계기가 될 수 있지만 필수 조건은 아니다. 새 prepare 후 전화 인증 필요(authTime 검사), 단순 ID Token 갱신은 과거 인증시각을 갱신하지 않음. Firebase link와 전화 sign-in 구분, 기존 Identity 세션 보존.
+- 정적 코드·문서 확인 및 기록만 수행. 제품·배포·Jira 변경 없음.
+
+<!-- codex-turn:01a10ed4-6d36-7761-a710-70cac13f1f21 -->
+
+- 문의 계획 현황 설명의 현재 작업 식별 기록 보완 완료. 선택사항과 미확정 정책 구분 유지, 추가 제품·외부 변경 없음.
+
+- 2026-10-06 문의 계획 현황 요약: 선택 완료인 Slack/횟수 제한/DB 조회/입력 주의 문구와 미확정 정책을 구분해 안내. 본문 Slack 표시 방향 및 서버 userId 식별·원자 접수/비동기 알림 구조 유지. 이번에는 설명·기록만 수행, 구현 없음.
+
+<!-- codex-turn:01a10ed2-c1af-7a10-9220-b5cc9c5fdd92 -->
+
+- 문의 입력 안내 선택의 현재 작업 식별 기록 보완 완료. 화면 주의 문구 및 별도 개인정보 고지 검토 방침 유지, 추가 제품·외부 변경 없음.
+
+- 2026-10-06 문의 입력 화면에는 별도 Slack 전달 문구 없이 민감정보 입력 주의 문구를 두는 선택 반영. 개인정보 처리방침의 필요한 고지·동의 검토는 유지하며 실제 외부 전송 없음. 계획 문서만 수정.
+
+<!-- codex-turn:01a10ed0-dfeb-7c01-9438-490a2f848b2d -->
+
+- 2026-10-06 문의 계획 선택 반영: Slack 알림, 요청 횟수 제한만(CAPTCHA 제외), 제한된 DB 상세 조회. 요약 없이 Slack 본문 표시 변경안 추가, 이메일/userId/진단 필드 제외 및 접수번호 여부 확인 필요. 실제 수신 채널·개인정보 안내·Slack 별도 보관/삭제·기타 정책 미확정. 문서만 변경, 외부 전송 없음.
+
+<!-- codex-turn:01a10ec8-ada9-7182-9907-f70c1c170a42 -->
+
+- 2026-10-06 문의 계획의 미확정 6항목에 대한 선택지/장단점/초기 권고안을 안내. 사용자 선택 대기이며 제안을 확정 정책으로 변경하지 않음. 코드·외부 설정 변경 없음.
+
+## 2026-10-06 — 계정 찾기 API 경로 재확인
+
+- POST /api/v1/auth/account-recovery/prepare → SMS PHONE 인증 → /lookup(recoveryId, firebaseIdToken). 마지막 로그인 이력이 아니라 전화번호에 연결된 가입 SNS/마스킹 이메일을 안내한다.
+- 코드·계약 정적 확인만 수행. 제품·배포·Jira 변경 없음, 환경 활성화 여부 미조회.
+
+<!-- codex-turn:01a10b59-4d9a-7561-9cc5-0ce90d2da38d -->
+
+- 문의 접수 API 계획서 작성의 현재 작업 식별 기록 보완 완료. 계획서 완료·미구현 상태와 정책 결정 대기 유지, 추가 제품/외부 변경 없음.
+
+## 2026-10-05 문의 접수 API 계획서 작성 완료 — 미구현
+
+- [문의 접수 구현 계획](../contracts/support-inquiry-implementation-plan.md) 작성. 인증/익명 접수, 서버 userId 식별, 원자 저장/멱등성/알림 재시도/남용 보호/개인정보/검증·출시 절차 포함.
+- 서비스 소유권·Slack/Discord·회신/보관 정책은 사용자 결정 필요. 일반 지원 기능 배치는 아직 미승인이고 수치/오류/설정은 제안이다.
+- 제품 코드·외부 설정·Jira·배포 변경 없음. 문서 검사만 수행, 기존 기록 보존.
+
+<!-- codex-turn:01a10b58-4c5c-7651-8cc9-0ad1de41fe34 -->
+
+- 2026-10-05 문의 접수 설계에 서버 식별 userId 저장 요구 반영: 유효한 Identity 토큰 sub 기반으로 Guest/Member 계정을 기록, 비로그인은 null. 요청 본문 userId 추가 없이 기존 신뢰 경계 유지. 설계 안내만 수행하며 제품 구현/배포 없음.
+
 ## 2026-10-05 — TMI-195 구현 완료, 커밋·배포 대기
 
 <!-- codex-turn:01a10b1c-0cee-7291-b87e-5cb9ee74bbc2 -->

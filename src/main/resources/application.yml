@@ -34,6 +34,13 @@ sentry:
     enabled: false
 
 app:
+  support:
+    enabled: ${SUPPORT_INQUIRY_ENABLED:false}
+    worker-enabled: ${SUPPORT_SLACK_WORKER_ENABLED:false}
+    hmac-key: ${SUPPORT_INQUIRY_HMAC_KEY:}
+    slack-webhook-url: ${SUPPORT_SLACK_WEBHOOK_URL:}
+    trusted-proxies: ${SUPPORT_TRUSTED_PROXIES:}
+    worker-delay-ms: 5000
   version:
     android-latest-version: ${APP_ANDROID_LATEST_VERSION:}
     ios-latest-version: ${APP_IOS_LATEST_VERSION:}

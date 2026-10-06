@@ -33,6 +33,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						// 인증 진입점과 앱·정책 버전, 문서, 상태 확인, JWKS만 공개한다.
 						.requestMatchers(HttpMethod.POST,
+								"/api/v1/support/inquiries",
 								"/api/v1/auth/check-email",
 								"/api/v1/auth/signup",
 								"/api/v1/auth/guest",
