@@ -47,6 +47,12 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 
 	@Override
 	public void customise(OpenAPI api) {
+		String supportPath = "/api/v1/support/inquiries";
+		for (String status : new String[]{"200", "201"}) {
+			success(api, supportPath, "post", status, "RECEIVED", "문의 접수 (Slack 전송과 별개)",
+					new web.tosunsaeng.identity.domain.support.SupportController.Receipt(ID, "RECEIVED"));
+		}
+		for (var code : web.tosunsaeng.identity.domain.support.SupportError.values()) error(api, supportPath, code);
 		String appVersionPath = "/api/v1/app/version";
 		for (String platform : new String[]{"android", "ios"}) {
 			success(api, appVersionPath, "get", "200", platform, "최신 출시 버전 예시 (실제 출시값 아님)",

@@ -121,8 +121,8 @@ class OpenApiSharingTests {
 				documented.add(operation.getKey() + " " + path.getKey());
 			}
 		}));
-		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(33);
-		assertThat(spec.path("paths").size()).isEqualTo(32);
+		assertThat(documented).containsExactlyInAnyOrderElementsOf(actual).hasSize(34);
+		assertThat(spec.path("paths").size()).isEqualTo(33);
 		assertThat(spec.path("paths").has("/api/v1/auth/firebase/providers/relink/prepare")).isFalse();
 	}
 
