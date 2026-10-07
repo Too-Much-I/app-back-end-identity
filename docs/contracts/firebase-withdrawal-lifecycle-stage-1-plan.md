@@ -2,7 +2,9 @@
 
 ## 1. 목적
 
-Firebase/SNS MEMBER가 본인 소유의 fresh Firebase credential로 회원 탈퇴를 요청할 수 있게 하고, 내부 탈퇴를 원자적으로 확정한 뒤 후속 Firebase 삭제와 identity release 작업이 안전하게 이어받을 durable withdrawal lifecycle을 만든다.
+Firebase/SNS MEMBER가 본인 소유의 유효한 Firebase credential로 회원 탈퇴를 요청할 수 있게 하고, 내부 탈퇴를 원자적으로 확정한 뒤 후속 Firebase 삭제와 identity release 작업이 안전하게 이어받을 durable withdrawal lifecycle을 만든다.
+
+2026-10-07 정책 변경: SNS 탈퇴는 기존 로그인 세션 기반으로 허용하며 최근 SNS 재로그인은 요구하지 않는다. Firebase ID Token 갱신은 auth_time을 갱신하지 않지만 WITHDRAWAL에는 최근 인증 경과 제한을 적용하지 않는다. 토큰 유효성·폐기·disabled·계정 소유권 및 Identity Access/Refresh 검증은 유지한다. 다른 인증 목적의 최근 인증 제한은 변경하지 않는다. 유효 세션 탈취 시 추가 재인증 없이 탈퇴될 위험을 수용한 UX 결정이다. 새 환경변수는 없고 서버 배포가 필요하다.
 
 이 단계의 완료 상태는 Firebase 외부 User 삭제나 재가입 허용이 아니다. 내부 User는 즉시 `WITHDRAWN`이 되지만 lifecycle은 `EXTERNAL_CLEANUP_PENDING`에 머물며, 2단계와 3단계가 완료되어야 최종 `CLEANED`가 된다.
 
@@ -57,7 +59,7 @@ commit 이후 Firebase 장애가 발생해도 User를 다시 ACTIVE로 되돌리
 
 ### 4.2 Firebase 원격 호출은 재인증 검증까지만 수행한다
 
-탈퇴 요청 경로에서는 Firebase ID Token의 유효성·revoke·disabled·recent-auth와 Firebase UserRecord를 검증한다. disable·revoke·delete mutation은 2단계 worker 책임이며 Mongo Transaction 밖에서 수행한다.
+탈퇴 요청 경로에서는 Firebase ID Token의 유효성·revoke·disabled와 Firebase UserRecord를 검증한다. auth_time 존재·미래 시각·발급 시각과의 일관성은 검증하지만 최근 인증 경과 제한은 적용하지 않는다. disable·revoke·delete mutation은 2단계 worker 책임이며 Mongo Transaction 밖에서 수행한다.
 
 ### 4.3 계정 종류는 legacy provider 문자열이 아니라 실제 credential 소유로 판정한다
 
@@ -142,7 +144,7 @@ Provider 원문 오류나 Firebase UID를 오류 응답에 포함하지 않는�
 
 - signature·issuer·audience·tenant·expiry 검증
 - revoked·disabled remote 확인
-- high-risk recent-auth 최대 경과 시간 적용
+- WITHDRAWAL은 high-risk recent-auth 최대 경과 시간 적용 제외; 기존 세션의 갱신된 유효 credential 허용
 - phone-only sign-in을 탈퇴 proof로 허용하지 않음
 - FirebaseIdentity의 project·UID와 principal 일치
 - FirebaseIdentity의 userId와 Access Token `sub` 일치
@@ -401,4 +403,3 @@ userId와 Firebase UID를 metric tag로 사용하지 않는다.
 - FirebaseIdentity·SocialIdentity·PhoneIdentity/aliases release 조건
 - `IDENTITY_RELEASE_PENDING → CLEANED` 전이
 - CLEANED 이후에만 신규 enrollment를 허용하는 재가입 gate
-

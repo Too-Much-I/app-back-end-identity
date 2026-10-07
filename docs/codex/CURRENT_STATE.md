@@ -1,5 +1,78 @@
 # Codex Current State
 
+## 2026-10-07 — SNS 탈퇴 기존 세션 허용 구현 완료
+
+- 구현 턴 식별 기록을 WORKLOG 끝에 보완했다. 제품 코드 추가 변경 없이 문서 diff 검사를 재확인했다.
+- 사용자 승인대로 FirebaseAdminAuthenticationVerifier에서 WITHDRAWAL만 공통 최근 인증 경과 제한에서 제외. 기본 토큰 검증·revocation·disabled·Provider 정책·계정 소유권 및 Identity Refresh 검증 유지. LOCAL/GUEST 변경 없음.
+- WithdrawRequest/UserController OpenAPI와 탈퇴 lifecycle 계약 문서 갱신. 다른 인증 목적의 최근 인증 제한 회귀 및 오래된 인증 세션/잘못된 토큰 거절 테스트 추가.
+- ./gradlew clean test 성공:168 suites/1189 tests/실패0/오류0/skip6. git diff --check 통과. 새 환경변수 없음, 미배포. 앱에서 갱신된 Identity Access/Refresh 쌍과 Firebase 인증 정보로 실제 연동 QA 필요.
+- 유효 세션 탈취 시 추가 재인증 없이 탈퇴 가능하다는 정책 위험 유지. 기존 작업 기록과 타 작업의 Billing 분석 문서2개 보존. commit/push·Jira 변경 없음.
+
+## 2026-10-07 — SNS 탈퇴 재로그인 생략 정책 검토
+
+- 사용자·프론트 결정은 SNS 재로그인 없이 기존 세션에서 인증 정보를 갱신해 탈퇴 요청하는 UX. 현재 WITHDRAWAL은 공통 high-risk auth_time 기본5분 검사를 적용하므로 단순 갱신만으로 항상 통과하지 않는다.
+- 제안: WITHDRAWAL에 한정해 최근 재인증 요구를 분리하고 서명/만료/폐기/계정 소유권/Refresh 세션 검증은 유지. 공통 제한 완화는 다른 기능에 영향이 있어 피한다. 탈취 세션의 탈퇴 위험 증가를 안내. 제품 변경 없이 정적 분석 및 기록만 수행.
+
+## 2026-10-07 — 회원탈퇴 구현 흐름 설명
+
+- 코드 확인: 본인 Access 인증 및 Refresh 세션 소유권, 회원 유형별 추가 인증 후 Mongo 트랜잭션으로 WITHDRAWN tombstone·전체 Refresh 폐기·정리 lifecycle·탈퇴 outbox·활성 binding 철회 처리.
+- Firebase 비활성화/세션 철회/삭제와 내부 SNS·전화 연결 해제는 비동기 작업. CLEANED는 해당 lifecycle 정리 완료이며 Learning Core 전체 처리 완료와 동일시하지 않는다. 외부 서비스의 기존 Access 검증 및 배포 worker 활성화 상태는 별도 확인 필요.
+- 설명 작업으로 제품 변경·배포·실행 테스트 없음. 기록2파일 갱신 및 git diff --check 수행, 기존 동시 작업 보존.
+
+## 2026-10-07 — TMI-137 하위 기존 생성 확인, 중복 생성 불필요
+
+- 공식 Jira 조회로 공통 C0 TMI-199, Identity I1 TMI-200/I2 TMI-202/I3 TMI-203, Billing B1 TMI-201/B2 TMI-204/B3 TMI-205, 공동 C1 TMI-206 총8건 확인. 모두 해야 할 일. 이전4건 생성 승인 대기는 기존 생성 확인으로 대체하며 새로 생성하지 않는다.
+- 본문 완료 기준/의존성/기본 OFF·판매/purge 별도 gate 확인. 의존성은 설명에 있으나 issuelinks는 모두 빈 상태. 현재 작업은 조회만, Jira 수정/상태/댓글 변경 없음. 다음은 TMI-199 공통 준비 후 Identity 구현 요청에 따라 진행.
+
+## 2026-10-07 — TMI-137 하위 작업 생성 승인 대기
+
+- 공식 Atlassian MCP로 TMI-137 결제 기능 에픽 확인, parent 직접 하위 조회 결과 없음. 공통 fixture/실현 가능성 검증 1건과 Identity I1~I3 3건 생성안 제시. 저장소 규칙에 따라 생성 내용을 보여준 후 승인 대기이며 Jira 쓰기 미수행.
+- 각 작업에 합의 계약·완료 조건·의존성·운영 OFF/별도 승인 조건을 포함할 예정. Billing B1~B3 및 별도 공동 E2E 이슈는 이번 제안 범위에 포함하지 않음.
+
+## 2026-10-07 — I1~I3/B1~B3 작업 분할 의견
+
+- 사용자 제시 분할은 합리적이며 공통 fixture/실현 가능성 검증 선행, User/control 공통 변경 고정 후 I1/I2 병행 개발 방향을 권고했다. 구현 완료와 purchase 활성화는 별개로 I2 capture 및 migration gate 전 I1 ON 금지.
+- I2 source 수명/cleanup 결정은 I3 복구 의존성과 함께 먼저 고정. B1 두 PR은 가능하나 탈퇴 차단 미완료 상태에서 첫 PR의 실구매 활성화 금지. B3 provider 미연결/오류는 UNKNOWN으로 삭제 금지. PLAN 원문 미열람, Jira/구현/배포 변경 없음.
+
+## 2026-10-07 — 사용자 합의 공동 계약을 후속 작업 기준으로 채택
+
+- 사용자가 최신 첨부에 “이렇게 하기로 했어”라고 명시. docs/contracts/billing-joint-contract-review-2026-10-07.md §8에 첨부 식별 및 채택 범위 기록. contentDigest 통일/consumerRecoveryGeneration 및 old worker·ACK CAS/readiness 범위 보완을 문서 수준에서 확인, 이전 잔여 설계 지적 판정 갱신.
+- 기술 방향을 이후 구현 계획 기준으로 사용한다. 본문상 별도 보존·TTL·이관/운영 승인과 실제 Mongo 검증 gate는 유지한다. 구현·Jira 생성·외부 전송·배포 착수 아님. 다음 요청 시 Identity 단계별 구현 계획 수립.
+
+## 2026-10-07 — 공동 계약 개정본 R1~R5 재검토
+
+- docs/contracts/billing-joint-contract-review-2026-10-07.md §7에 개정본 판정 추가. 이전 R1~R5의 핵심 설계 대응은 반영됨. 남은 보완은 manifestDigest 산출/응답 규격과 Billing-only restore/RESYNC 전후 오래된 worker·ACK의 consumer 세대 차단이다.
+- 요약의 commit120일을 capturedAt 관측 기준으로 동기화하고 전체 readiness 실패와 purchase 한정 거절을 구분하도록 권고. 보존·TTL·barrier 승인/구현/실제 Mongo 검증은 미수행. 제품/원격 변경 없음.
+
+## 2026-10-07 — Identity–Billing 공동 기술 계약 초안 검토
+
+- 검토서: docs/contracts/billing-joint-contract-review-2026-10-07.md. commit fence/journal/exact204/고정 snapshot 방향 타당. 구현 확정 전 snapshot baseline H ACK, 고정 feed H2 요청, replay floor와 consumer coverage GAP 구분, control 초기 생성/legacy 이행, 일반 발급 unknown commit 경로 보완 필요.
+- 추가 명세: commit 기준 보존시각, delivery 재개/시도/notBefore 필드, canonical digest와 snapshot 멱등/만료, Mongo durability/restore stream identity. 신규 보존120일/7일·TTL상한·barrier 미승인 유지. 정적 검토·문서만 변경, 코드/배포 없음.
+
+## 2026-10-07 — Billing 측 재검토 회신 대조
+
+- 사용자 제공 회신은 기존 Identity 정적 검토와 의미상 일치한다. 구현 승인·외부 계약 확정으로 취급하지 않음. 다음은 추상 방향 재확인보다 원천/보존·발급 경계·snapshot/feed·실패/재개 수치가 명시된 공동 기술 계약 초안이다.
+- 보완 권고: tombstone 존재만으로 전체 과거 coverage 완료를 선언하지 않기, rollback 시 publisher 중단과 capture 유지/누락 처리 분리, 실제 최대 TTL과 발급 지연 상한을 증명하기. 기존 LC 유지 및 판매/purge 별도 gate 유지. 제품/원격 변경 없음.
+
+## 2026-10-07 — Billing 구매·탈퇴 인계서 검토
+
+- 검토 문서: docs/contracts/billing-purchase-withdrawal-handoff-review-2026-10-07.md. 방향은 타당하나 purchase 상태별 제한·탈퇴 발급 경합, destination 독립 delivery, snapshot/feed 계약은 추가 작업이다.
+- 현행 차이: issuer 명시/default scope의 purchase 제한 없음, lowercase sub 엄격 강제 없음, TTL 양수만 검사. LC publisher는2xx 성공/401·403 dead-letter/Retry-After 미지원, 성공 원천 기본30일 정리. 기존 backfill은 원 ID가 아닌 name UUID 생성 및 첫100건 제한으로 Billing 복구 계약에 그대로 사용 불가.
+- 기존 SigV4 transport는 재사용 후보(현재 Retry-After1~300초 정수). purchase 활성·purge 안전성·운영 TTL/과거 coverage/실제 AWS 상태는 승인/확인하지 않았다. 코드/외부 문서/배포 변경 없이 정적 검토와 기록만 수행.
+
+## 2026-10-07 — recoveryId 재발급과 기존 요청 유효성 확인
+
+- develop에서 정적 확인: prepare는 독립된 접수 기록을 추가하며 기존 ID를 무효화하거나 연장하지 않는다. 신규 prepare 진행 중에도 기존 유효 ID로 lookup 가능하다.
+- 최초 lookup 만료 판단은 클라이언트 전송 시간이 아니라 서비스 진입 시각 기준. 전화 인증은 해당 prepare 이후여야 하며 동일 인증 증명은 여러 ID에 재사용할 수 없으므로 진행 중 인증 흐름의 ID를 자동 교체하지 않도록 안내.
+- 소비된 ID의 동일 증명 재시도는 별도 retryUntil(기본5분) 및 인증 유효 조건 적용. 제품·배포 변경 없이 기록2파일만 변경, 실행 테스트 생략하고 git diff --check로 검증.
+
+## 2026-10-07 — 테스트 recovery ON·정책 재배포 완료
+
+- 사용자 push d07cf4d3의 Actions37561447798 성공 후 태스크23 기반 설정 전용24를 등록·배포했다. ECS 성공/실행1/보류0 및 ALB 정상1/비정상0 확인. 기존 미배포 기록은 이 결과로 대체한다.
+- ACCOUNT_RECOVERY_ENABLED=true, PREPARE_PER_MINUTE=15, CHALLENGE_TTL=PT10M, RECENT_AUTH=PT10M 적용. 사용자 별도 승인 후 테스트 전용 HMAC Secret을 생성하고 실행 역할에 해당 Secret 읽기만 추가하여 KEY_RING 참조 주입. 다른 태스크 설정·운영 환경 보존, 원문 비출력.
+- 원격 검증: health UP, prepare HTTP200 SUCCESS·만료까지600초, 가짜 인증 lookup HTTP401 INVALID_RECOVERY_PROOF. 실제 전화 인증/회원 안내 E2E와 원격 한도 소진 검증은 미수행. 코드 테스트는 CI 성공 및 기존 로컬1186건 실패0/skip6 결과 유지.
+- 주의: SERVER_FORWARD_HEADERS_STRATEGY=none 유지로 서버 인식 IP 한도 공유 가능. 프록시 신뢰/IP 처리와 앱 E2E는 후속 과제. 이번 로컬 변경은 기록2파일뿐이며 commit/push/Jira/Notion 변경 없음.
+
 ## 2026-10-07 — 모의고사 미완료 사용자 리마인더 방향
 
 - 사용자는 정해진 9시 또는 10시에 당일 모의고사를 풀지 않은 사용자에게만 알림을 보내는 기능을 설명했다. Learning Core가 학습 여부 판단과 예약 대상 선정을 소유하고 FCM 등으로 발송하는 구성을 권고. Identity에 시험 판단 로직 추가 안 함.

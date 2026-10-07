@@ -235,13 +235,61 @@ class FirebaseAdminAuthenticationVerifierTests {
 				validGoogleData(NOW.minus(Duration.ofMinutes(5)).minusSeconds(1))
 		);
 
-		assertAuthError(
-				() -> verifier(staleClient, properties(true, true, false)).verify(
-						ID_TOKEN,
-						FirebaseVerificationPurpose.GUEST_MERGE
-				),
-				AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED
-		);
+		for (var purpose : FirebaseVerificationPurpose.values()) {
+			if (purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
+					|| purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+					|| purpose == FirebaseVerificationPurpose.WITHDRAWAL) continue;
+			assertAuthError(
+					() -> verifier(staleClient, properties(true, true, false)).verify(
+							ID_TOKEN,
+							purpose
+					),
+					AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED
+			);
+		}
+	}
+
+	@Test
+	void withdrawalAcceptsRefreshedSessionWithOldAuthenticationAndChecksRevocation() {
+		for (long age : new long[]{301, Duration.ofDays(30).toSeconds()}) {
+			var client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(age)));
+			var principal = verifier(client, properties(true, true, false))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL);
+			assertThat(principal.authTime()).isEqualTo(NOW.minusSeconds(age));
+			assertThat(client.checkRevoked).isTrue();
+		}
+	}
+
+	@Test
+	void withdrawalStillRejectsInvalidTimesAndWrongAudience() {
+		for (var snapshot : List.of(
+				withdrawalData(NOW.minus(Duration.ofDays(30)), NOW.minusSeconds(3600), NOW.minusSeconds(31), PROJECT_ID),
+				withdrawalData(NOW.plusSeconds(31), NOW, NOW.plusSeconds(300), PROJECT_ID),
+				withdrawalData(NOW.minusSeconds(5), NOW.minusSeconds(10), NOW.plusSeconds(300), PROJECT_ID),
+				withdrawalData(NOW.minus(Duration.ofDays(30)), NOW, NOW.plusSeconds(300), "wrong-audience"))) {
+			assertAuthError(() -> verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		}
+	}
+
+	@Test
+	void withdrawalStillRejectsDisabledAndInvalidOrRevokedCredentials() {
+		var disabled = data(NOW.minus(Duration.ofDays(30)), "google.com", true, true, true,
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT)));
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(disabled), properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+		var client = new StubFirebaseAdminClient(validGoogleData(NOW.minus(Duration.ofDays(30))));
+		client.failure = new FirebaseAdminClientException(FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		assertAuthError(() -> verifier(client, properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		assertThat(client.checkRevoked).isTrue();
+	}
+
+	private FirebaseAdminPrincipalData withdrawalData(Instant authTime, Instant issuedAt, Instant expiresAt, String audience) {
+		return new FirebaseAdminPrincipalData(PROJECT_ID, FIREBASE_UID, null,
+				"https://securetoken.google.com/" + PROJECT_ID, audience, authTime, issuedAt, expiresAt,
+				"google.com", true, false, true, "+820000000000",
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT)));
 	}
 
 	@Test

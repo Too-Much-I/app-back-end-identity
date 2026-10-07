@@ -15005,3 +15005,165 @@
 - 검증: 기존 서비스 경계 및 최신 기록 확인, git diff --check. 설계 설명만으로 실행 테스트 미수행.
 - 유지 계약/위험: Identity에 시험/학습 소유 로직 추가 금지 유지. 오전/오후·시간대·완료 정의 미확정. 푸시 접수 후 지연 수신과 완료 경합 가능. 선행 작업 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
 - 다음 작업: 알림 시각/시간대 및 완료 기준 확정 후 Learning Core 측 구현 범위 수립. 실제 예약·푸시 전송·배포·Jira 변경 없음.
+
+## 2026-10-07 — 테스트 계정 찾기 활성화 및 정책 재배포 완료
+
+<!-- codex-turn:01a11428-f877-7133-a2f3-77ee0218a95a -->
+
+- 브랜치: develop. 목표: 사용자 push 후 prepare15회/접수10분/최근 인증10분 설정 적용 및 테스트 재배포.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음. 원격 변경은 테스트 전용 Secret1개·실행 역할 한정 읽기 정책1개·태스크 정의24 및 테스트 서비스 갱신.
+- 승인: 기존 태스크22에 계정 찾기 설정/전용 키 연결이 없음을 확인하고 사용자에게 기능 활성화·전용 키 생성·필요한 읽기 권한 추가를 질문했다. 사용자가 함께 활성화를 명시 승인했다. 운영 환경은 변경하지 않음.
+- 실행: 커밋 d07cf4d3의 Actions37561447798 성공과 태스크23 안정화를 확인. 테스트 전용32바이트 HMAC을 원문 출력 없이 생성해 Secret에 저장, 테스트 실행 역할에 해당 Secret의 GetSecretValue만 허용한 정책을 추가하고 저장 결과 대조. 기존 역할 정책 유지.
+- 설정: ACCOUNT_RECOVERY_ENABLED=true, ACCOUNT_RECOVERY_PREPARE_PER_MINUTE=15, ACCOUNT_RECOVERY_CHALLENGE_TTL=PT10M, ACCOUNT_RECOVERY_RECENT_AUTH=PT10M, ACCOUNT_RECOVERY_KEY_RING은 Secret 참조로 주입. 같은 새 이미지에서 다른 환경변수/Secret 참조/태스크 설정은 순서 정규화 비교로 보존 확인.
+- 검증: ECS 태스크24 배포 성공, 실행1/보류0, ALB 정상1/비정상0 확인. 공개 health UP, prepare1회 HTTP200 SUCCESS 및 남은 유효시간600초 확인, 가짜 인증의 lookup1회 HTTP401 INVALID_RECOVERY_PROOF 확인. 실제 SMS·회원 조회와 원격 한도 소진 테스트는 미수행. CI 테스트 성공 및 앞선 로컬1186 tests(실패0/skip6) 결과 사용, 제품 미변경으로 로컬 재실행 없음. git diff --check 수행.
+- 처리 메모: 초기 태스크 등록은 빈 tags 배열로 AWS가 거절해 태그가 있을 때만 전달하도록 수정했다. 등록24 후 배열 순서 차이로 단순 동등 검사가 실패했으나 정규화 비교로 의도한4설정/Secret 참조 외 변경 없음 확인 후 배포했다. CloudShell 세션 종료 후 콘솔 서비스 성공·ALB 상태로 최종 검증했다.
+- 유지 계약/위험: API 경로/본문/오류 및 다른 기능/운영 서버 유지. 응답 유실 retry5분 및 lookup한도 유지. SERVER_FORWARD_HEADERS_STRATEGY=none 유지로 서버 인식 IP별 한도 공유 가능성 남음; 실제 클라이언트 IP 분리와 Firebase 앱 E2E는 미확인. 요청 제한 해제 시간은 로컬 테스트 검증이며 실제 한도 소진은 하지 않음.
+- 범위/다음 작업: 선행·동시 작업 기록 보존, 예상 밖 제품 변경 없음. commit/push·Jira·Notion 변경 없음. 프론트 실전화 인증 연동과 프록시 IP 처리 후속 확인. 생성된 합성 prepare 기록은 기존 TTL 정책으로 정리된다. 배포 성공 화면은 임시 로컬 이미지로 저장했고 비밀값은 문서에 기록하지 않음.
+
+## 2026-10-07 — recoveryId 재발급 시 기존 ID 유효성 분석
+
+<!-- codex-turn:01a114bf-85e4-7381-bad3-cbfd11d14e54 -->
+
+- 브랜치: develop. 목표: 신규 prepare 응답 지연 중 기존 ID로 lookup 가능한지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 변경 없음.
+- 확인 근거: AccountRecoveryService.prepare/lookup 및 MongoRecoveryStore.prepare/lookup. 신규 UUID 접수는 독립 insert로 기존 ID 취소·연장 없음. 최초 만료는 서비스 진입 시각과 expiresAt 비교. 인증 시각은 prepare 이후여야 하고 동일 증명의 여러 ID 소비는 충돌한다.
+- 결정/계약: 기존 유효 ID 사용 가능하나 진행 중 전화 인증/lookup의 ID를 자동 교체하지 않도록 안내. 소비 후 동일 ID/증명 재시도는 별도 retryUntil 및 인증 유효 조건 적용. API/오류/배포 설정 유지.
+- 검증: 코드 정적 확인 및 git diff --check. 분석·기록만으로 실행 테스트 미수행.
+- 위험: 클라이언트 전송 후 서비스 진입 전 지연으로 만료 가능. 새 ID 발급은 기존 전화 인증의 유효기간 연장이 아니며 앱의 자동 교체 구현은 미확인.
+- 범위/다음 작업: 기존 기록 변경 보존, 예상 밖 제품 변경 없음. 프론트에서 인증 흐름별 ID 고정 및 만료 처리 확인. 배포·Jira·commit/push 없음, 비밀값 비기록.
+
+## 2026-10-07 — Billing 구매 권한·탈퇴 전달·복구 인계서 검토
+
+<!-- codex-turn:01a114d2-5c8f-7282-b2b1-682e81d6e7e6 -->
+
+- 브랜치: develop. 목표: 사용자 첨부 기술 합의 인계서와 현재 Identity 코드 차이 및 위험 검토.
+- 변경 파일: docs/contracts/billing-purchase-withdrawal-handoff-review-2026-10-07.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 확인: purchase scope 계정별 제한·TTL 상한 없음, JWT UUID 대소문자 허용. 발급/탈퇴 경합의 공통 보장 미확정. LC 단일 탈퇴 outbox의2xx 성공·인증오류 dead-letter·기본30일 삭제·기존 backfill 합성 ID/첫 page 한계, SigV4 공통 transport 및 Retry-After1~300초 범위 확인.
+- 내용/결정: 원 wire/LC 보존, Billing 독립 delivery 및 capture/발송 flag 분리, 원 event 소실 시 별도 snapshot 계약, commit watermark/coverage·보존 합의 권고. 계정 찾기는 사용자 token 발급 API가 아님을 구분. 판매/purge/구현 승인 아님.
+- 검증: 관련 소스/테스트 정의 정적 대조 및 git diff --check. 코드 수정 없는 검토로 테스트 재실행 없음. Billing 저장소·참조 ADR 원문·실제 AWS/토큰 수명·과거 DB 미확인.
+- 유지 계약/위험: JWT 기존 audience/read와4필드 wire 유지 제안. 원격 상태나 concurrency 실증 완료 주장 안 함. 비밀값 비기록, 선행 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 양 서버 route/ACK/retry/원천 보존/feed 계약 합의 후 Jira/구현 승인. 외부 전송·문서 수정·배포·commit/push 없음.
+
+## 2026-10-07 — Billing 인계 재검토 회신 대조
+
+<!-- codex-turn:01a114d9-8cca-78c0-bae1-96c6e77947ba -->
+
+- 브랜치: develop. 목표: 사용자가 붙여 넣은 Billing 재검토 회신을 기존 Identity 검토와 비교하고 다음 단계 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: 기존 분석과 일치하며 새 구현 승인 아님. 다음은 원천/보존·발급 경계·snapshot/feed·재시도/재개를 구체화한 공동 기술 계약 초안. tombstone 존재와 전체 coverage 증명 구분, rollback capture 보존, 실제 TTL/발급 지연 상한 필요를 보완 권고.
+- 검증: 첨부 회신과 기존 검토서 대조, git diff --check. 새 코드 조사/실행 테스트/외부 검증 미수행.
+- 유지 계약/위험: 기존 LC와 결제 책임 경계, 판매/purge 별도 gate 유지. 양 서버 운영 검증 완료 주장 안 함. 선행 기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
+- 다음 작업: 사용자 요청 시 공동 기술 계약 보완안 작성 후 양 서버 합의/구현 승인. 외부 전송·Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 공동 기술 계약 초안의 구현 전 누락 검토
+
+<!-- codex-turn:01a114df-2a4a-71b3-a33f-efe9c3559fa5 -->
+
+- 브랜치: develop. 목표: 사용자 첨부 공동 계약의 프로토콜 전이와 현행 Identity 연계 공백 검토.
+- 변경 파일: docs/contracts/billing-joint-contract-review-2026-10-07.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: 방향은 타당. snapshot H baseline ACK/고정 H2 바인딩/정상 원천 만료와 consumer GAP 구분/control 이행/일반 발급 commit 불명 처리 보완 권고. 보존시각·재개 필드·canonical digest·snapshot 멱등/expiry·Mongo durability/restore 추가 명세 정리.
+- 검증: 첨부 전 문서 및 이전 분석 대조, SessionSecurityService/RefreshSessionIssuer/ReissueRecoveryService 정적 확인, git diff --check. 실행 테스트/외부 호출 미수행.
+- 유지 계약/위험: 문서 제안과 현재 구현 사실 분리. 개인정보 보존·TTL상한·barrier 승인 및 구현 승인 아님. 선행 기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음. 운영 Mongo·Billing·실제 coverage 미확인.
+- 다음 작업: 양 서버에서 명시한 프로토콜 조건 보완 후 계약 동결·정책 승인·구현. Jira/외부 문서/메시지/배포/commit/push 없음.
+
+## 2026-10-07 — 공동 계약 개정본 재검토
+
+<!-- codex-turn:01a114e8-cb21-7031-8b31-359129c978e4 -->
+
+- 브랜치: develop. 목표: 사용자 후속 첨부 개정본에서 기존 R1~R5 및 추가 규격 반영 여부 확인.
+- 변경 파일: docs/contracts/billing-joint-contract-review-2026-10-07.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: BASELINE/RESYNC, 고정H2, 원천/적용 증거 분리, control 이행, 발급 경로별 commit 불명 처리 반영 인정. manifestDigest 정확 규격 및 consumer 복원 세대/old ACK 차단 추가 보완 권고. 보존 요약/readiness 표현 정리 필요.
+- 검증: 첨부 전체 문서 및 이전 검토 대조, git diff --check. 신규 구현/알고리즘 실행 테스트·외부 조회 미수행.
+- 유지 계약/위험: 기존 지적이 해결된 부분과 잔여 위험 구분. 새로운 보존·TTL·barrier 승인이나 구현 승인 아님. 선행 문서/기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
+- 다음 작업: 남은 프로토콜 명세 보완 및 정책 승인 후 단계별 구현/feasibility 검증. 외부 전송·Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 합의한 Identity–Billing 계약 기준 기록
+
+<!-- codex-turn:01a1150a-ae92-75c1-b2dd-0e85573593b0 -->
+
+- 브랜치: develop. 목표: 사용자 합의 최신 첨부를 이후 작업 기준으로 기록.
+- 변경 파일: docs/contracts/billing-joint-contract-review-2026-10-07.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 제품 변경 없음.
+- 내용/결정: 최종 첨부290줄 전체 확인. contentDigest 통일, recovery generation/local·remote CAS/old ACK 방어, readiness 영향 및 enum 보완 확인. 기존 잔여 지적을 문서 대응 완료로 갱신하고 기술 방향 채택 기록. 문서가 명시한 별도 보존·운영 승인까지 확대하지 않음.
+- 검증: 문서 전체 대조, 첨부 체크섬 확인, git diff --check. 제품 변경 없는 기준 기록이므로 실행 테스트 미수행.
+- 유지 계약/위험: wire4필드/LC/read·audience 유지, 실제 Mongo/운영 검증 및 판매/purge gate 유지. 선행 기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
+- 다음 작업: 사용자 요청 시 단계별 구현 계획/Jira 승인 절차. 이번에 구현·외부 문서·메시지·Jira·배포·commit/push 없음.
+
+## 2026-10-07 — Identity/Billing 구현 작업 분할 검토
+
+<!-- codex-turn:01a1150d-9276-7d42-b460-674d03c07954 -->
+
+- 브랜치: develop. 목표: 사용자 제시 I1~I3/B1~B3 및 공동 검증 순서의 타당성 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: 분할 방향 수용 가능. 공통 fixture·로컬 Mongo snapshot/세대 경합 검증과 User/control 공동 schema 선행 권고. I1/I2 병행은 개발만 의미하며 capture/migration 준비 전 purchase ON 금지. I2 cleanup은 I3 원천 보존과 사전 합의. B1 PR 분할 유지하되 차단 완성 전 실구매 OFF. B3 미확인 거래는 UNKNOWN/삭제 금지 유지.
+- 검증: 제시 계획과 합의 기준/기록 대조, git diff --check. PLAN-009~013 원문 및 Billing 코드 미열람. 제품 변경 없이 실행 테스트 미수행.
+- 유지 계약/위험: 기존 계약·보존 승인·판매/purge gate 유지. Jira 생성이나 병렬 agent/외부 작업 착수 요청으로 해석하지 않음. 선행 기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
+- 다음 작업: 공통 검증 완료 조건과 Identity I1/I2/I3 완료 기준/의존성 확정 후 승인받아 Jira 생성. 외부 전송·구현·배포·commit/push 없음.
+
+## 2026-10-07 — TMI-137 하위 이슈 생성 사전 확인
+
+<!-- codex-turn:01a1150e-e26a-7ee1-8064-7ed8916c4681 -->
+
+- Jira: TMI-137. 브랜치: develop. 목표: 요청한 결제 에픽 하위 공통 준비/Identity 작업 생성 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- Jira 작업: 공식 Atlassian MCP get issue 및 parent JQL 조회. TMI-137 제목 결제 기능/에픽 확인, 직접 하위 이슈 없음. 생성/수정/댓글/상태 전환 미수행.
+- 생성안: 공통 테스트 fixture·Mongo/generation feasibility; I1 구매 scope/control/발급 경합; I2 탈퇴 journal·Billing 독립 delivery; I3 snapshot/feed/checkpoint/generation·보존. 합의 계약·완료 조건·의존성과 별도 활성화 gate 포함 예정.
+- 승인: 사용자 생성 요청은 받았으며 저장소 규칙의 내용 사전 공개 후 최종 승인 대기. 댓글 목적/변경 상태 없음. Billing 작업과 공동 E2E 별도 이슈는 이번4건 제안에 포함하지 않음.
+- 검증: Jira 읽기 결과 확인, git diff --check. 코드 변경 없어서 실행 테스트 미수행.
+- 유지 계약/위험: 개인정보/Secret 비기록, 선행 기록 보존, 예상 밖 제품 변경 없음. 다음 승인 후4건 생성/부모 재조회 검증. 외부 쓰기·배포·commit/push 없음.
+
+## 2026-10-07 — Billing 측에서 생성한 공통/Identity/Billing 이슈 확인
+
+<!-- codex-turn:01a11512-f611-79a3-a8e0-04b5d446de6b -->
+
+- Jira: TMI-137. 관련 조회: TMI-199, TMI-200, TMI-201, TMI-202, TMI-203, TMI-204, TMI-205, TMI-206. 브랜치: develop.
+- 목표: 사용자가 알린 선행 Jira 생성 상태와 중복 여부 확인. 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- Jira 수행: 공식 MCP parent JQL 조회. 공통 준비1/Identity3/Billing3/공동 검증1 총8건, 모두 해야 할 일. 본문 범위·완료 기준·의존성·활성화 gate 확인. issuelinks는8건 모두 없음.
+- 결정: 기존 Identity3건과 공통 준비를 재사용, 이전 생성 승인 대기는 해소하고 중복 생성 안 함. 요청은 확인이므로 Jira 생성/수정/댓글/상태 전환/링크 추가 모두 미수행. 추가 댓글 목적 및 쓰기 승인 해당 없음.
+- 검증: Jira 조회 전체 결과/잘린 구간 정리 조회 확인, git diff --check. 실행 테스트 미수행(조회·기록만).
+- 유지 계약/위험: 이슈 내용은 구현/배포 완료 증거가 아님. 의존성은 본문에만 있고 Jira 링크는 미등록. 개인정보/비밀값 비기록, 선행 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: TMI-199 공통 검증을 선행으로 삼아 별도 구현 요청 시 해당 Identity 이슈 재조회 후 작업. 외부 쓰기·배포·commit/push 없음.
+
+## 2026-10-07 — 회원탈퇴 로직 정적 분석 및 설명
+
+<!-- codex-turn:01a1151e-3fa0-7441-b220-0bc7c404b299 -->
+
+- 브랜치: develop. 목표: 회원탈퇴 요청 검증·동기 확정·비동기 정리 흐름 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 근거: UserWithdrawalService/TransactionService, FirebaseWithdrawalCredentialVerifier, User.toWithdrawnTombstone, WithdrawRequest/Response, ExternalCleanupWorker, IdentityReleaseTransactionService, UserController.
+- 내용: Access의 본인 ID와 Refresh 소유권·유효성 및 유형별 재인증 검사. 트랜잭션 내 tombstone/세션 폐기/정리 상태/철회 및 탈퇴 outbox 저장. 비동기 Firebase 정리 후 내부 SNS·전화 연결 해제. 동의 이력 등 잔존 정보와 외부 Access 유효성 주의 안내.
+- 결정/계약: 성공 응답은 탈퇴 확정이며 외부 전체 삭제 완료가 아님. CLEANED와 downstream 완료를 구분. 중복 요청은 인증 경계 통과 시 기존 결과 반환. 구현·외부 API 계약 변경 없음.
+- 검증: 관련 코드 정적 확인 및 git diff --check. 설명·기록만으로 실행 테스트 미수행.
+- 위험/다음 작업: 실제 배포 worker 활성화·Learning Core 처리 완료 및 앱 재인증 E2E는 이번에 확인하지 않음. 필요 시 별도 환경 점검. 비밀값 비기록, 선행/동시 작업 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — SNS 탈퇴 재로그인 생략 정책 검토
+
+<!-- codex-turn:01a11521-a832-7ae3-b09b-ca0e7da38a51 -->
+
+- 브랜치: develop. 목표: 사용자·프론트가 정한 세션 갱신 기반 탈퇴와 현재 검증의 차이 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: FirebaseAdminAuthenticationVerifier.validateIdentityAndTime 및 application.yml 확인. WITHDRAWAL은 auth_time의 공통 high-risk 기본5분 제한 적용. 단순 갱신은 최근 사용자 인증을 대체하지 않으므로 기존 구현에서 최근 인증 요구 오류 가능.
+- 결정/제안: 재로그인 UX 생략과 서버 검증 생략을 구분. 구현한다면 WITHDRAWAL의 최근 인증 조건만 별도로 변경하고 유효성/폐기/소유권/Refresh 검증 유지. 다른 고위험 기능의 공통 설정은 완화하지 않음.
+- 테스트: 정적 코드 확인, git diff --check. 설명·기록만으로 실행 테스트 미수행.
+- 위험/다음 작업: 탈취된 유효 세션으로 탈퇴 가능성이 커지는 보안 tradeoff 안내. 후속 구현 시 탈퇴 전용 검사 및 기존 다른 목적 제한 회귀 테스트 필요. 실제 배포 override/앱 SDK는 미확인.
+- 범위: 선행 기록 보존, 예상 밖 제품 변경 없음. 비밀값 비기록, 외부 변경·Jira·배포·commit/push 없음.
+
+## 2026-10-07 — SNS 탈퇴 최근 재인증 요구 제거 구현
+
+- 브랜치: develop. 목표: 사용자 승인된 기존 세션 기반 SNS 탈퇴 정책 구현.
+- 변경 파일: FirebaseAdminAuthenticationVerifier.java, WithdrawRequest.java, UserController.java, FirebaseAdminAuthenticationVerifierTests.java, docs/contracts/firebase-withdrawal-lifecycle-stage-1-plan.md, 작업 기록2파일.
+- 구현: WITHDRAWAL에 한해 auth_time 경과 제한 제외. auth_time 존재/미래·발급 시각 일관성, 만료/서명/issuer/audience/tenant 및 폐기·disabled·Provider 정책 검증 유지. 사용자/세션 소유권과 LOCAL/GUEST 탈퇴 로직은 미변경. OpenAPI와 계약 갱신.
+- 테스트: ./gradlew clean test 성공(168 suites/1189 tests/실패0/오류0/skip6). 초기 Gradle cache sandbox 오류 후 승인 실행. 오래된 인증 시각의 갱신 세션 허용, 잘못된 시각·audience·disabled·invalid 증명 거절 및 다른 목적 high-risk 제한 회귀 확인. 기존 소유권/세션 테스트 포함. 외부 Firebase/Atlas 호출 없음. git diff --check 통과.
+- 유지/변경 계약: API 필드/응답/오류 종류 유지, SNS 탈퇴 최근 재로그인 요구만 제거. 새 환경변수 없음. 다른 기능 최근 인증 제한 유지.
+- 결정/위험: 사용자가 재로그인 생략 UX 승인. 탈취된 유효 세션의 탈퇴 위험 증가, 실제 앱 SDK/배포 연동은 미확인. Firebase 또는 Identity 세션이 무효인 경우 갱신이 실패할 수 있음.
+- 범위/다음 작업: 예상 밖 제품 변경 없음. 선행 작업 기록 및 타 작업의 미추적 Billing 분석 문서2개 보존. 사용자 commit/push 후 서버 배포 및 앱 갱신 세션 탈퇴 QA 필요. 배포·Jira·commit/push 없음. Jira 댓글 초안: SNS 탈퇴 최근 인증 제한만 제외, API 설명/계약/테스트 갱신, 전체1189건 실패0/skip6, 앱 E2E 미확인 및 세션 탈취 위험 유지(자동 등록 안 함).
+
+## 2026-10-07 — SNS 탈퇴 정책 구현 턴 기록 보완
+
+<!-- codex-turn:01a11522-f4f3-71d3-ae61-96eadff51b2c -->
+
+- 브랜치: develop. 목표: 완료한 SNS 탈퇴 정책 구현의 정확한 턴 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 보존, 제품 추가 변경 없음.
+- 구현/결정: 앞선 항목의 WITHDRAWAL 최근 인증 경과 제한 제외 및 나머지 인증 검증 유지 결과 동일.
+- 검증: 전체 테스트1189건 실패0/오류0/skip6 결과 유지. 문서 보완만으로 테스트 재실행 없음, git diff --check 재확인.
+- 계약/위험: API 필드 유지, 새 환경변수 없음. 세션 탈취 위험과 앱 E2E 미확인 사항 유지. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 사용자 commit/push 후 배포 및 앱 연동 QA. 외부 변경·배포 없음.

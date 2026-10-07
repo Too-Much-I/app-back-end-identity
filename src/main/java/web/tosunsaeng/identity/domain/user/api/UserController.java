@@ -154,7 +154,8 @@ public class UserController {
 			summary = "회원 탈퇴",
 			description = "검증된 Access Token의 subject와 현재 Refresh Token 소유권으로 "
 					+ "탈퇴 대상을 확인합니다. LOCAL은 현재 비밀번호가 필요하고 GUEST는 "
-					+ "비밀번호를 생략합니다. 탈퇴 성공 시 모든 RefreshSession이 폐기되며 "
+					+ "비밀번호를 생략합니다. SNS 회원은 유효한 Firebase ID Token이 필요하지만 "
+					+ "최근 SNS 재로그인은 요구하지 않습니다. 탈퇴 성공 시 모든 RefreshSession이 폐기되며 "
 					+ "클라이언트는 보유한 Access/Refresh Token을 즉시 삭제해야 합니다. "
 					+ "기존 stateless Access Token은 만료 전까지 외부 서비스에서 "
 					+ "암호학적으로 유효할 수 있습니다."

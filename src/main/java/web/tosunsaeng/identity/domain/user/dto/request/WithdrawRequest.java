@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "회원 탈퇴 재인증 요청")
+@Schema(description = "회원 탈퇴 인증 요청")
 public record WithdrawRequest(
 		@Schema(
 				description = "현재 사용자가 소유한 Opaque Refresh Token",
@@ -25,7 +25,7 @@ public record WithdrawRequest(
 		String password,
 
 		@Schema(
-				description = "Firebase/SNS 회원의 최근 인증 Firebase ID Token",
+				description = "Firebase/SNS 회원의 유효한 Firebase ID Token. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다.",
 				accessMode = Schema.AccessMode.WRITE_ONLY,
 				nullable = true
 		)

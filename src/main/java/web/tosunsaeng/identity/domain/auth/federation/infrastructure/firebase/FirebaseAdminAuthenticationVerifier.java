@@ -140,8 +140,10 @@ public final class FirebaseAdminAuthenticationVerifier
 				? properties.loginMaxAuthenticationAge()
 				: properties.highRiskMaxAuthenticationAge();
 		// Recovery enforces its own configurable recent-auth window in AccountRecoveryService.
+		// Withdrawal accepts an existing authenticated session without interactive reauthentication.
 		// Keep shared token validity/revocation checks above and other purposes' limits unchanged.
 		if (purpose != FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+				&& purpose != FirebaseVerificationPurpose.WITHDRAWAL
 				&& data.authTime().isBefore(now.minus(maxAuthenticationAge))) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED);
 		}
