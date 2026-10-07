@@ -1,5 +1,33 @@
 # Codex Current State
 
+## 2026-10-07 — reissue Swagger 구현 턴 기록 보완
+
+- WORKLOG 끝에 정확한 구현 턴 식별자를 추가했다. 401 선택형 오류 예시5종 및 전체 테스트/공유본 성공 결과 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — reissue Swagger401 선택형 오류 예시 구현
+
+- 401 Examples에 INVALID_REFRESH_TOKEN/REFRESH_TOKEN_EXPIRED/REFRESH_TOKEN_REUSE_DETECTED/ACCOUNT_WITHDRAWN/SESSION_LOGGED_OUT 각각의 실패 JSON·한국어 요약·프론트 처리 설명 추가. ApiErrorResponse로 실패 schema 지정, 실제 필드는 result이며 data가 아님.
+- AuthController/IdentityOpenApiExamples/OpenApiSharingTests 수정. ./gradlew clean test shareSwagger 최종 성공(전체1234건, 기존skip6 및 export 성공). HTTP/code/인증 동작 유지, 미배포. 기존 미추적 ApiErrorResponse는 선행 작업 파일이므로 배포 커밋에 함께 포함 필요.
+- 초기 검사2건은 단일 example:null 직렬화와 기존 ACCOUNT_WITHDRAWN 설명 회귀 기대값으로 실패해 보정. git diff --check 통과, 기존 Billing/동시 작업 보존. commit/push 없음.
+
+<!-- codex-turn:01a1153f-3a6b-7603-bc77-1ff497d03b25 -->
+
+## 2026-10-07 — 탈퇴 시 Firebase 사용자 부재 의미 설명
+
+- FirebaseSdkAdminClient는 ID Token 검증(폐기 확인 포함) 후 UID로 원격 사용자도 조회한다. 이전에 발급받은 인증 정보가 앱에 남아 있어도 원격 사용자가 삭제되면 사용자 부재가 발생할 수 있다. 프론트 선삭제/관리 삭제/이전 탈퇴 후 비동기 정리 및 이전 UID 잔존은 후보이며 이번 실제 원인은 미확정.
+- 현재 코드에서 Firebase USER_NOT_FOUND는 403 FIREBASE_ACCOUNT_NOT_ALLOWED로 변환하며 disabled도 같은 코드다. 404 USER_NOT_FOUND는 Identity users 조회 실패로 별개. 탈퇴 확정 뒤 정리 worker의 사용자 부재는 ABSENT로 정상 처리할 수 있다. 프로젝트 불일치는 토큰 검증에서 먼저 거절될 수 있어 부재와 동일시하지 않는다.
+- 실제 HTTP 상태·code 및 발생 단계 확인 필요. 제품/계정/배포 변경 없이 정적 코드 확인과 기록만 수행했다.
+
+## 2026-10-07 — reissue Swagger 오류별 예시 개선 제안
+
+- AuthController의401 설명은4개 코드를 나열하지만 IdentityOpenApiExamples의 reissue에는 해당 목록 중 INVALID_REFRESH_TOKEN만 등록됨을 확인. HTTP401의 named examples로 각 오류 JSON을 선택하도록 개선 권고.
+- 실제 HTTP/code/인증 동작은 변경할 필요 없음. 이번에는 정적 확인·기록만 수행, 제품 변경 없음. git diff --check 검증.
+
+## 2026-10-07 — 다른 기기 탈퇴 후 reissue 오류 확인
+
+- 현재 코드에서 탈퇴로 폐기된 Refresh 세션의 재발급은 HTTP401 ACCOUNT_WITHDRAWN으로 차단. legacy/recovery 경로 모두 확인. 이미 삭제된 세션 등은 INVALID_REFRESH_TOKEN 등 다른 오류 가능.
+- 제품 변경 없이 정적 확인 및 기록, git diff --check 수행. 프론트는 탈퇴 안내 후 해당 계정 로컬 세션 정리 및 재발급 반복 중단.
+
 <!-- codex-turn:01a11532-6b1f-73d3-a7e4-bf52e8d9ead3 -->
 
 ## 2026-10-07 — 회원 탈퇴 Swagger 예시 수정 완료 (미배포)

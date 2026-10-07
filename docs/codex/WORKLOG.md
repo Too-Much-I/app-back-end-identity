@@ -15289,3 +15289,59 @@
 - 예상 밖 diff: 없음. 기존 Billing C0 분석/교차 테스트 및 fixture, 동시 WORKLOG/CURRENT_STATE 변경을 보존했다. 이번 변경 목록과 기존 미커밋 파일을 구분했다.
 - 다음 작업/배포 전 확인: 사용자가 diff와 안내 message 변경을 검토해 commit/push 후 배포하면 원격 /v3/api-docs와 Swagger의 요청 선택 목록·오류 예시를 재확인한다. 갱신 ZIP은 build/distributions/identity-swagger.zip. 이번 commit/push 없음.
 - Jira 댓글 초안(미등록): 탈퇴 유형별 요청/실패 schema·예시와 회귀 검사 보완, 전체1233개/기존skip6 및 별도 export 성공, 인증 로직 유지, 원격 배포/화면/E2E 미확인.
+
+## 2026-10-07 — 다른 기기 탈퇴 후 재발급 오류 안내
+
+<!-- codex-turn:01a11538-f668-7eb3-a55e-d7825880a949 -->
+
+- 브랜치: develop. 목표: 다른 기기에서 탈퇴 완료 후 reissue 차단과 오류 코드 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: TokenReissueService, ReissueRecoveryService, SessionSecurityService 및 AuthErrorStatus 정적 확인. 탈퇴 폐기 사유 또는 WITHDRAWN 사용자 검사는401 ACCOUNT_WITHDRAWN. 세션 조회 자체 실패 시 다른 오류 가능.
+- 검증: 정적 확인 및 git diff --check. 설명·기록 작업으로 실행 테스트 미수행.
+- 계약/결정: 기존 API 유지. 프론트 탈퇴 안내·로컬 인증 정리·반복 재발급 중단 권고.
+- 위험/다음 작업: 실제 배포 설정·경합 E2E 미확인. 탈퇴와 동시에 진행된 요청은 순서에 따른 차이 가능. 기존 동시 기록 보존, 예상 밖 제품 변경 없음. 비밀값 비기록, 배포·Jira·commit/push 없음.
+
+## 2026-10-07 — reissue Swagger 선택형 오류 예시 제안
+
+<!-- codex-turn:01a1153b-4f62-70e1-abf6-984d9d25a98b -->
+
+- 브랜치: develop. 목표: Swagger 재발급401 오류 코드 나열의 가독성 개선 방식 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: AuthController401 설명과 IdentityOpenApiExamples reissue 등록 확인. 설명의4코드 중 INVALID_REFRESH_TOKEN만 예시 등록되어 있어401 content의 named examples로 각 실패 JSON 선택 지원 권고.
+- 결정/계약: HTTP 상태나 실제 인증 동작 변경 없이 문서 예시 보완 가능. 오류별 발생 조건과 프론트 처리 설명을 간단히 병기 제안.
+- 검증: 코드 정적 확인 및 git diff --check. 분석 작업으로 실행 테스트 미수행.
+- 위험/다음 작업: 구현 시 기존 성공 schema 예시 재사용 방지와 전체 실제 오류 목록 회귀 확인 필요. 기존 동시 기록 보존, 예상 밖 제품 변경 없음, 비밀값 비기록. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 탈퇴 Firebase 사용자 부재 원인 및 오류 계층 설명
+
+<!-- codex-turn:01a1153f-3a6b-7603-bc77-1ff497d03b25 -->
+
+- 날짜/브랜치: 2026-10-07, develop. Jira 지정 없음.
+- 작업 목표: Firebase 인증 정보를 보냈는데 사용자 부재가 발생하는 조건과 현재 탈퇴 처리 의미를 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (기록만).
+- 수행 내용: FirebaseSdkAdminClient의 verifyIdToken/getUser 및 USER_NOT_FOUND 분류, FirebaseAdminAuthenticationVerifier 오류 변환, UserWithdrawalService의 사용자/자격 검증 순서, FirebaseSdkWithdrawalCleanupAdapter의 ABSENT 처리를 확인했다. 인증 정보 보유와 현재 원격 계정 존재는 별개이며 사용자 삭제 후 이전 UID 정보가 남으면 오류가 가능하다.
+- 결정사항: 프론트 Firebase 선삭제, 콘솔/서버 정리, 이전 탈퇴 및 이전 UID 잔존은 가능한 원인으로만 제시한다. 현재 사례의 실제 원인은 HTTP/code/발생 단계 없이 확정하지 않는다. 프로젝트 불일치는 일반적으로 토큰 검증 오류와 구분한다.
+- 유지한 계약: Firebase 계정 부재를 탈퇴 성공으로 무조건 간주하거나 인증 우회하지 않는다. 최초 탈퇴 검증과 탈퇴 확정 후 정리의 멱등 부재 처리를 구분한다. Firebase 부재의 403 FIREBASE_ACCOUNT_NOT_ALLOWED와 Identity 사용자 부재의404 USER_NOT_FOUND를 구별한다.
+- 테스트와 결과: 정적 코드 대조 및 git diff --check. 설명 작업으로 Gradle 미실행. 실제 자격증명/원격 계정 조회나 탈퇴 요청 없음.
+- 위험 요소: disabled도 동일403으로 반환돼 코드만으로 Firebase 삭제를 확정할 수 없다. 실제 오류 출처·상태 미확인. 비밀정보 미기록, 기존 동시 작업 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 민감정보 없는 HTTP 상태/code와 오류 발생 위치를 확인한 뒤 필요한 읽기 전용 진단 범위를 정한다. 제품·Jira·배포·commit/push 변경 없음.
+
+## 2026-10-07 — reissue Swagger401 오류 선택 예시 구현
+
+- 브랜치: develop. 목표: 재발급 오류별 JSON을 Swagger Examples에서 선택하도록 보완.
+- 변경 파일: AuthController.java, IdentityOpenApiExamples.java, OpenApiSharingTests.java, 작업 기록2파일.
+- 구현: 기존4개 오류 및 실제 반환 가능한 SESSION_LOGGED_OUT의401 예시 등록, enum 기반 code/message와 false/result:null, 한국어 summary/처리 description 추가. 실패 전용 schema 적용. API 인증 로직·HTTP/code·필드·성공 응답은 유지.
+- 검증: 첫 전체 검사2건 실패(단일 example:null과 기존 설명 ACCOUNT_WITHDRAWN 회귀) 후 검사/설명 보정. 최종 ./gradlew clean test shareSwagger 성공, 전체1234건 실패0/기존skip6 및 export 성공. git diff --check 통과. 원격 호출/배포 없음.
+- 결정/위험: 이전 설명의 data 표현을 실제 result로 바로잡음. 새 환경변수 없음. 선행 미추적 ApiErrorResponse.java에 의존하므로 배포 커밋 포함 필요. 실제 원격 Swagger 화면은 미확인.
+- 범위/다음 작업: 예상 밖 제품 변경 없음, 선행 Billing fixture/분석/실패 DTO 및 동시 기록 보존. 사용자 commit/push·배포 후401 예시 선택 UI 확인. 공유본 build/distributions/identity-swagger.zip 갱신. Jira 댓글 초안: reissue401 선택 예시5종·실패 schema·회귀 검사 추가, 전체 테스트/공유본 성공, 원격 배포 미확인(자동 등록 없음). commit/push·Jira·배포 없음.
+
+## 2026-10-07 — reissue Swagger 구현 턴 기록 보완
+
+<!-- codex-turn:01a1153d-d97e-7133-ade0-7ff967ae6755 -->
+
+- 브랜치: develop. 목표: 완료한 reissue Swagger 오류 예시 구현의 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 보존.
+- 내용/결정: 401 선택 예시5종·실패 schema·프론트 안내 및 회귀 검사 구현 결과 유지. 이번 보완에서 제품 추가 변경 없음.
+- 검증: 전체1234건 실패0/기존skip6 및 Swagger 공유본 생성 성공 결과 유지. 기록만 수정하여 테스트 재실행 없음, git diff --check 재확인.
+- 계약/위험: 인증 동작·HTTP/code 유지, 원격 미배포. 선행 미추적 실패 DTO의 배포 커밋 포함 필요. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 사용자 commit/push 및 배포 후 Swagger 확인. Jira·배포·commit/push 없음.

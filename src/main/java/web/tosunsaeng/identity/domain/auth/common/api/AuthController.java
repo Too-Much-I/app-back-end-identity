@@ -277,10 +277,8 @@ public class AuthController {
 			),
 			@ApiResponse(
 					responseCode = "401",
-					description = "Refresh Token 거절: INVALID_REFRESH_TOKEN, "
-							+ "REFRESH_TOKEN_EXPIRED, REFRESH_TOKEN_REUSE_DETECTED, "
-							+ "ACCOUNT_WITHDRAWN",
-					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+					description = "재발급 거절 — Examples에서 유효하지 않은 토큰·만료·재사용·탈퇴(ACCOUNT_WITHDRAWN)·로그아웃 사례를 선택하세요.",
+					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))
 			),
 			@ApiResponse(
 					responseCode = "403",

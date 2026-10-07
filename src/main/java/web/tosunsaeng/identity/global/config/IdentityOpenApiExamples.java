@@ -165,7 +165,16 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		for (String path : new String[]{"exchange", "guest/merge", "auth-methods/sync"}) error(api, FIREBASE + path, AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 		error(api, AUTH + "signup", AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		error(api, AUTH + "guest", AuthErrorStatus.GUEST_ALREADY_EXISTS);
-		error(api, AUTH + "reissue", AuthErrorStatus.INVALID_REFRESH_TOKEN);
+		reissueRejection(api, AuthErrorStatus.INVALID_REFRESH_TOKEN, "유효하지 않은 토큰",
+				"세션을 찾을 수 없거나 유효하지 않은 토큰입니다. 로컬 인증 정보를 정리하고 로그인으로 안내합니다.");
+		reissueRejection(api, AuthErrorStatus.REFRESH_TOKEN_EXPIRED, "토큰 만료",
+				"Refresh Token 유효기간이 지났습니다. 재발급을 반복하지 않고 로그인으로 안내합니다.");
+		reissueRejection(api, AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED, "이미 사용한 토큰 재사용",
+				"이미 회전된 토큰의 허용되지 않은 재사용입니다. 재발급을 중단하고 로컬 인증 정보를 정리한 뒤 로그인으로 안내합니다.");
+		reissueRejection(api, AuthErrorStatus.ACCOUNT_WITHDRAWN, "탈퇴한 계정",
+				"다른 기기에서 탈퇴한 경우도 포함합니다. 탈퇴 안내 후 로컬 인증 정보를 삭제하고 비로그인 화면으로 이동합니다.");
+		reissueRejection(api, AuthErrorStatus.SESSION_LOGGED_OUT, "로그아웃된 세션",
+				"전체 로그아웃 등으로 세션이 무효화되었습니다. 재발급을 중단하고 로그인으로 안내합니다.");
 		error(api, AUTH + "reissue", AuthErrorStatus.REISSUE_RECOVERY_EXPIRED);
 		error(api, AUTH + "reissue", AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE);
 		error(api, FIREBASE + "guest/prepare", AuthErrorStatus.IDENTITY_STATE_CONFLICT);
@@ -227,6 +236,15 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 			media.setSchema(resolved.schema);
 		}
 		example(api, path, method, status, name, summary, BaseResponse.success(result));
+	}
+
+	private void reissueRejection(OpenAPI api, AuthErrorStatus code, String summary, String description) {
+		String path = AUTH + "reissue";
+		error(api, path, code);
+		MediaType media = media(api, path, "post", "401");
+		media.setSchema(new Schema<>().$ref("#/components/schemas/ApiErrorResponse"));
+		media.getExamples().get(code.getCode())
+				.summary(summary + " — " + code.getCode()).description(description);
 	}
 
 	private void error(OpenAPI api, String path, ErrorCode code) {

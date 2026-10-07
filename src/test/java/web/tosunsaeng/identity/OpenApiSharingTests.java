@@ -109,6 +109,35 @@ class OpenApiSharingTests {
 				StandardCharsets.UTF_8);
 	}
 
+	@Test
+	void reissueOffersNamedUnauthorizedExamplesWithoutChangingSuccess() throws Exception {
+		JsonNode spec = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+		JsonNode operation = spec.path("paths").path("/api/v1/auth/reissue").path("post");
+		JsonNode media = operation.at("/responses/401/content/application~1json");
+		assertThat(media.path("schema").path("$ref").asText()).isEqualTo("#/components/schemas/ApiErrorResponse");
+		assertThat(media.hasNonNull("example")).isFalse();
+		var codes = List.of(
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.INVALID_REFRESH_TOKEN,
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.REFRESH_TOKEN_EXPIRED,
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED,
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.ACCOUNT_WITHDRAWN,
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.SESSION_LOGGED_OUT);
+		assertThat(fieldNames(media.path("examples"))).containsExactlyInAnyOrderElementsOf(codes.stream().map(c -> c.getCode()).toList());
+		for (var code : codes) {
+			JsonNode example = media.path("examples").path(code.getCode());
+			assertThat(example.path("summary").asText()).contains(code.getCode());
+			assertThat(example.path("description").asText()).isNotBlank();
+			assertThat(code.getHttpStatus().value()).isEqualTo(401);
+			assertThat(example.at("/value/isSuccess").asBoolean()).isFalse();
+			assertThat(example.at("/value/code").asText()).isEqualTo(code.getCode());
+			assertThat(example.at("/value/message").asText()).isEqualTo(code.getMessage());
+			assertThat(example.at("/value/result").isNull()).isTrue();
+			assertThat(example.path("value").has("data")).isFalse();
+		}
+		assertThat(operation.at("/responses/200/content/application~1json/examples/ROTATED/value/isSuccess").asBoolean()).isTrue();
+	}
+
 	private void assertWithdrawalDocumentation(JsonNode spec) {
 		JsonNode operation = spec.path("paths").path("/api/v1/users/withdraw").path("post");
 		assertThat(operation.path("security").get(0).has("bearerAuth")).isTrue();
