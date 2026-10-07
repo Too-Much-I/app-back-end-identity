@@ -15345,3 +15345,177 @@
 - 검증: 전체1234건 실패0/기존skip6 및 Swagger 공유본 생성 성공 결과 유지. 기록만 수정하여 테스트 재실행 없음, git diff --check 재확인.
 - 계약/위험: 인증 동작·HTTP/code 유지, 원격 미배포. 선행 미추적 실패 DTO의 배포 커밋 포함 필요. 비밀값 비기록, 예상 밖 변경 없음.
 - 다음 작업: 사용자 commit/push 및 배포 후 Swagger 확인. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 한 기기 회원 탈퇴의 다른 기기 영향 설명
+
+<!-- codex-turn:01a11541-042b-7c50-8b3a-6d48a44cd899 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 이번 질문의 Jira 지정 없음.
+- 작업 목표: 동일 계정의 다른 기기에서 탈퇴 후 세션 및 화면 동작을 구분해 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: UserWithdrawalTransactionService는 userId 기준 모든 활성 RefreshSession을 조회·폐기·저장한다. TokenReissueService는 ACCOUNT_WITHDRAWN 사유를 재사용/만료보다 먼저 확인한다. JwtCurrentUserProvider만으로 WITHDRAWN 전역 차단을 보장하지 않으며 각 서비스의 상태 검사와 구별한다.
+- 유지한 계약: 계정 단위 탈퇴, 401 ACCOUNT_WITHDRAWN 및 삭제된 세션의 INVALID_REFRESH_TOKEN 가능성 유지. Access Token의 서명 유효성과 downstream 접근 차단을 구별한다.
+- 결정사항: 다른 기기의 즉시 화면 전환을 구현 사실로 단정하지 않는다. 프론트는 오류 수신 시 로컬 인증/계정 캐시 정리·재발급 반복 중단 필요. 별도 Guest userId는 같은 계정으로 간주하지 않는다.
+- 테스트와 결과: 정적 코드/withdrawal-session-mobile-ux-stage-4-plan 계약 대조, git diff --check. 설명·기록 작업이므로 Gradle 미실행, 실계정 요청 없음.
+- 위험 요소: Learning Core deny 처리 배포 및 실기기 UI 미확인. 기존 Access Token으로 잔여 접근 가능성을 무시하지 않는다. 예상 밖 제품 변경 없음, 기존 기록 보존.
+- 다음 작업: 필요 시 프론트의 ACCOUNT_WITHDRAWN 처리와 Learning Core deny 배포 여부 확인. Jira·배포·commit/push 없음. 비밀정보 미기록.
+
+## 2026-10-07 — 회원탈퇴 USER_NOT_FOUND 발생 조건 안내
+
+- 브랜치: develop. 목표: 탈퇴 API의404 USER_NOT_FOUND 의미와 정상 탈퇴와의 차이 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: UserWithdrawalService.withdraw/findUser 및 충돌 후 재조회 확인. 인증된 userId에 대응하는 Identity User 문서가 없으면 오류. 정상 탈퇴는 WITHDRAWN 기록 보존으로 동일 원인이 아님.
+- 결정/계약: DB 초기화·수동 삭제·환경 불일치는 가능성으로만 안내. Firebase 사용자 부재와 구분, 기존 API 유지.
+- 검증: 정적 코드 확인 및 git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 위험/다음 작업: 실제 발생 원인과 환경은 미확인. 필요 시 DB/서버 환경과 로컬 로그인 상태의 일치 여부 확인. 비밀값 비기록, 기존 작업 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 다른 기기 탈퇴 영향 설명의 턴 기록 보완
+
+<!-- codex-turn:01a11541-0dd0-78a2-97ad-5c1a105b696b -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 한 기기 탈퇴 시 동일 계정의 다른 기기 영향을 설명하고 현재 턴 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: userId 기준 모든 활성 Refresh 세션 폐기 및 재발급의401 ACCOUNT_WITHDRAWN을 코드로 확인. 다른 기기 UI 정리는 프론트 처리이며 기존 Access Token의 downstream 즉시 차단과 구별해 안내했다.
+- 유지한 계약/결정: 계정 전체 탈퇴 및 기존 오류 계약 유지. 삭제된 세션은 다른 인증 오류가 가능하며 즉시 전 기기 화면 전환은 보장하지 않는다.
+- 검증: 정적 코드 확인 및 git diff --check 성공. 기록만 보완하므로 Gradle 재실행 없음.
+- 위험 요소: 실기기 및 Learning Core 차단 배포 미확인. 예상 밖 제품 변경 없음, 동시 작업 기록 보존, 비밀정보 미기록.
+- 다음 작업: 필요 시 프론트 오류 처리와 downstream 차단 배포 확인. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — USER_NOT_FOUND 설명 턴 기록 보완
+
+<!-- codex-turn:01a11542-86d5-7e33-95e6-0e57135ff5b0 -->
+
+- 브랜치: develop. 목표: 회원탈퇴404 발생 조건 설명의 턴 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 보존.
+- 내용/결정: Identity 사용자 문서 부재와 정상 탈퇴 tombstone/Firebase 부재 구분 결과 유지. 제품 추가 변경 없음.
+- 검증: git diff --check. 기록 보완만으로 실행 테스트 미수행.
+- 계약/위험: 기존 API 유지, 실제 장애 원인 미확인. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 필요 시 환경/사용자 기록 일치 여부 확인. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — FIREBASE_ACCOUNT_NOT_ALLOWED 발생 조건 설명
+
+- 브랜치: develop. 목표: 탈퇴 문맥의 Firebase 계정 거절403 조건 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: FirebaseSdkAdminClient.classify 및 FirebaseAdminAuthenticationVerifier 확인. Firebase 사용자 삭제/비활성, 연결 수단 불일치·필수 주 인증 수단 부재·잘못된 Provider 식별 정보 등이 동일 오류로 반환됨.
+- 결정/계약: Identity USER_NOT_FOUND와 구분. 이 코드만으로 삭제/정지를 단정하지 않고 만료나 최근 재인증 요구와도 구분. 기존 API 유지.
+- 검증: 정적 코드 확인, git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 위험/다음 작업: 실제 Firebase/사용자 상태 미조회. 지속 오류는 연결 상태 점검 필요. 비밀값 비기록, 과거 기록 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 다른 기기의 중복 탈퇴 요청 응답 확인
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 탈퇴 완료 뒤 같은 계정의 다른 기기에서 다시 탈퇴 요청 시 응답 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 확인 내용: UserWithdrawalService 91행 이하에서 WITHDRAWN이면 Refresh/Firebase 자격 검증 전에 기존 탈퇴 결과 반환. UserController는 성공 응답으로 감싼다. 기존 alreadyWithdrawnUserReturnsOriginalTimeWithoutRevalidatingRevokedSession 테스트도 같은 순서를 명시한다.
+- 유지한 계약/결정: 유효한 Access Token과 유효한 요청 형식으로 재요청하면 정상 데이터 기준200 및 기존 WITHDRAWN/withdrawnAt/현재 cleanupStatus 반환. 재발급401 ACCOUNT_WITHDRAWN과 중복 탈퇴 성공을 구별한다.
+- 검증: 코드 및 기존 테스트 정적 확인, git diff --check. 설명 작업으로 Gradle 미실행.
+- 위험: 만료된 Access Token은 인증 단계401, 잘못된 요청 형식은400 가능. 사용자 또는 lifecycle 기록 부재는 별도 오류로 정상 탈퇴 재시도와 다르다. 원격 배포/E2E 미확인, 예상 밖 제품 변경 없음.
+- 다음 작업: 프론트는 중복 탈퇴 성공도 로컬 세션 정리로 처리. 기존 동시 기록 보존, 비밀정보 비기록, Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 중복 탈퇴 응답 설명 턴 기록 보완
+
+<!-- codex-turn:01a11544-221e-7321-aeb2-fe8fa9bdae24 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 중복 탈퇴 응답 설명의 현재 턴 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용/계약: 유효한 Access Token 및 정상 요청 형식의 중복 탈퇴는 기존 탈퇴 결과200 반환. 재발급401 ACCOUNT_WITHDRAWN 및 Access Token 만료의 인증 실패와 구별한다.
+- 결정사항: 기존 설명 유지, 중복 탈퇴 성공도 프론트의 로컬 인증 정리 대상으로 안내.
+- 검증: 정적 코드·기존 테스트 확인 결과 유지 및 git diff --check. 기록 보완으로 Gradle 미실행.
+- 위험/다음 작업: 원격 배포·실기기 미확인. 필요 시 프론트 처리 확인. 기존 기록 보존, 예상 밖 제품 변경 없음, 비밀정보 미기록. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — FIREBASE_ACCOUNT_NOT_ALLOWED 설명 턴 기록 보완
+
+<!-- codex-turn:01a11544-ad54-7392-a107-65cc7f34a496 -->
+
+- 브랜치: develop. 목표: Firebase 계정 거절403 설명의 턴 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거·동시 기록 보존.
+- 내용/결정: Firebase 삭제·비활성·연결 정보 이상에 대한 코드 확인 결과 유지. Identity 사용자 부재 및 단순 만료와 구분. 제품 추가 변경 없음.
+- 검증: git diff --check. 기록만 수정하여 실행 테스트 미수행.
+- 계약/위험: API 유지, 실제 원격 계정 상태는 미확인. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 필요 시 프론트 안내 및 계정 상태 점검. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 탈퇴 처리 도중 다른 기기 요청의 응답 분석
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 내부 탈퇴 확정 전 경합과 확정 후 외부 정리 진행을 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: UserWithdrawalService는 WITHDRAWN 조회 시 기존 결과 반환, 충돌 시 재조회하여 완료 확인 또는 최대2회 시도. 자격 검증은 try 밖에서 수행한다. UserWithdrawalTransactionService의 세션 검증은 계정 변경보다 먼저 수행된다.
+- 유지한 계약: 정상 인증/요청 및 기록 상태에서 내부 확정 후에는200 WITHDRAWN과 현재 cleanupStatus 반환. 확정 전 동시 요청은 성공/409뿐 아니라 폐기된 세션의401 INVALID_WITHDRAWAL_CREDENTIALS 및 Firebase 검증 오류도 타이밍에 따라 가능.
+- 결정사항: 모든 진행 중 요청을200이나 단일 진행 중 오류로 단정하지 않는다. 동시 요청 응답 정규화는 개선 후보이며 이번 요청은 설명이므로 구현하지 않는다.
+- 검증: 서비스/트랜잭션/오류 enum/cleanup enum 정적 대조, git diff --check. 분석 작업으로 Gradle 미실행.
+- 위험 요소: 실제 경합 및 원격 배포 미확인. 기존 기록 보존, 예상 밖 제품 변경 없음, 비밀정보 미기록.
+- 다음 작업: 필요 시 경합 재현 테스트 및 자격 검증 실패 시 안전한 상태 재확인 설계 검토. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 탈퇴 진행 중 응답 분석 턴 기록 보완
+
+<!-- codex-turn:01a11546-a39a-72a3-92be-68fea04a1a00 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 탈퇴 진행 중 중복 요청 설명의 현재 턴 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용/유지한 계약: 내부 탈퇴 확정 후 외부 정리 중에는 정상 인증/요청에200 및 현재 cleanupStatus 반환. 확정 전 동시 요청은 성공 또는 충돌/인증 오류 가능성을 구별해 설명했다.
+- 결정사항: 모든 동시 요청의 성공을 보장하지 않는다. 안전한 상태 재확인 개선은 제안만 하고 구현하지 않았다.
+- 검증: 앞선 정적 코드 확인 결과 유지 및 git diff --check. 기록 보완으로 Gradle 미실행.
+- 위험 요소: 실제 경합·원격 배포 미확인, 예상 밖 제품 변경 없음. 기존 기록 보존 및 비밀정보 미기록.
+- 다음 작업: 필요 시 경합 테스트와 응답 정규화 설계 검토. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 회원 탈퇴 중401 ACCOUNT_WITHDRAWN 반환 가능성 확인
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 탈퇴 API 자체의 ACCOUNT_WITHDRAWN 경로 조사.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용: UserWithdrawalService 및 UserWithdrawalTransactionService의 세션 검증이 선택 주입된 SessionSecurityService.checkAndTouch를 호출하고 requireActive가 WITHDRAWN이면 AuthException ACCOUNT_WITHDRAWN을 던진다. SessionRevocationConfiguration에서 app.session-revocation.fence-enabled=true일 때 해당 서비스 생성.
+- 유지한 계약/결정: 최초 WITHDRAWN 조회의200 응답과 최초 ACTIVE 조회 이후 동시 탈퇴 경합의401 가능성을 구분. 해당 오류는 재발급 전용이 아님을 명확화하며 이전 설명을 보완한다. UI 동작 및 서버 코드는 수정하지 않는다.
+- 검증: 호출 경로·조건부 Bean·예외 처리 정적 확인 및 git diff --check. 분석 작업으로 Gradle 미실행.
+- 위험 요소: 실제 배포 flag 및 관측 오류의 요청 URL 미확인. 다른 경합에서는 INVALID_WITHDRAWAL_CREDENTIALS 등도 가능. 기존 기록 보존, 예상 밖 제품 변경 없음, 비밀정보 미기록.
+- 다음 작업: 실제 발생 원인 확정에는 요청 URL 및 배포 설정 확인 필요. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 탈퇴 ACCOUNT_WITHDRAWN 분석 턴 기록 보완
+
+<!-- codex-turn:01a11548-ccec-70a1-99ef-572dcefd8b3c -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 탈퇴 API의 ACCOUNT_WITHDRAWN 가능성 설명에 현재 턴 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용/유지한 계약: fence-enabled 조건에서 최초 ACTIVE 조회 이후 동시 탈퇴가 확정되면 세션 보안 검사에서401 ACCOUNT_WITHDRAWN 가능. 최초 WITHDRAWN 조회 시 기존200 반환은 유지.
+- 결정사항: 재발급 전용 오류로 한정하지 않으며 프론트는 이미 탈퇴된 계정 안내 및 로컬 인증 정리 대상으로 처리하도록 설명.
+- 검증: 앞선 정적 확인 결과 유지 및 git diff --check. 기록 보완으로 Gradle 미실행.
+- 위험 요소: 원격 설정·실제 요청 URL 미확인. 기존 기록 보존, 예상 밖 제품 변경 없음, 비밀정보 미기록.
+- 다음 작업: 필요 시 배포 flag 및 오류 발생 요청 확인. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — TMI-199 최신 공동 계약의 완료 처리 가능 여부 검토
+
+<!-- codex-turn:01a1154b-5a35-7570-91ed-d208af2e3e19 -->
+
+- 날짜/브랜치: 2026-10-07, develop. Jira: TMI-199. 목표: 사용자 첨부 최신 공동 계약으로 C0 완료 가능한지 판단.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거/동시 작업 기록 보존.
+- 5줄 결론: 기술 방향은 이전 검증과 부합; 장애 실험의 후속 배정은 적절; exact nullable/물리 manifest/상대 수락은 문서상 미완료; 기존44건이 새 int64 상한까지 검증한 것은 아님; 현재 Done 대신 최소 규격 보완·합의 후 판단 권고.
+- 반드시 읽을 내용: C0 종료는 판매·자동삭제·운영 실험 완료와 다름. 운영 검증 전부를 C0 선행으로 돌릴 필요 없이 후속 활성화 gate로 유지 가능.
+- 사용자 결정: 기존 제품 정책 재선택 불필요. Jira 쓰기는 별도 승인 대상이며 이번 질문은 완료 가능 여부 검토로 처리.
+- 근거/내용: 첨부 §4는 exact 상대 수락·endpoint nullable·물리 index 검증 미완료를 명시. §5.3 B는 phase0 exact DTO 동결, §6.1은 물리 index 합의를 요구. 공식 TMI-199 상태는 해야 할 일이며 같은 fixture 합의/index/schema 및 미검증 gate 기록이 완료 기준. 새 숫자 범위0..Long.MAX_VALUE에 비해 기존 독립 oracle decimal helper는 BigInteger 기반 무상한이므로 상한/overflow 검증 추가 필요.
+- 테스트: 문서 및 공식 Jira 읽기, git diff --check. 제품/테스트 변경 없는 검토로 Gradle 재실행 없음. 기존1233건/신규44건 결과를 새 규격 전체 통과로 확대하지 않음.
+- 유지 계약/위험: public BaseResponse·LC4필드·보존 정책 유지. 실제 Mongo/운영 권한·PR 병합은 이번에 확인하지 않음. Secret 비기록.
+- 다음 작업: endpoint별 필수/nullable/생략·오류 mapping과 물리 manifest 수락, 새 숫자 경계 fixture 보완, 후속 gate 인계 기록·관련 PR 병합 확인 후 별도 승인으로 Jira 완료 판단. 실제 배포는 후속 gate 전 OFF.
+- Jira 댓글 초안(미등록): 최신 계약 검토 결과 시각·int64·internal envelope·IAM 방향 및 장애 검증 후속 배정 확인. 기록2파일 변경, 정적 검토만 수행. exact DTO/nullable/물리 manifest 상대 수락·새 상한 경계 테스트·병합 확인 미완료. Jira 수정·댓글·상태 전환·commit/push 없음. 예상 밖 제품 변경 없음.
+
+## 2026-10-07 — TMI-199 exact wire·index 수락 및 추가 fixture 독립 실행
+
+<!-- codex-turn:01a11551-d518-7083-b0a9-ea379dabde06 -->
+
+- 브랜치: develop. Jira: TMI-199. 목표: 첨부 exact 수락안 검토·새 numeric fixture 독립 검증.
+- 변경 파일: PaymentLifecycleExactSpecTests.java, test resources numeric-boundaries.json/identity-indexes.json/README.md, docs/contracts/billing-c0-exact-wire-index-proposal-2026-10-07.md, WORKLOG.md/CURRENT_STATE.md.
+- 구현: 독립 bounded Long parser39건, 증가 overflow1건, 신규 hash1건, 13개 manifest 정적1건 추가. 신규42건 통과. exact §5 DTO/null/상태/오류 및 §6 물리 옵션을 Identity 구현 기준으로 수락 기록.
+- 테스트: ./gradlew clean test 성공1275건/실패0/오류0/기존skip6. 새42건skip0, 이전44건 포함. git diff --check. 실제 Mongo index 생성·운영·Billing 테스트 재실행 없음.
+- 유지 계약/결정: public BaseResponse/LC4필드·JWT·보존 정책 유지, src/main/build 변경 없음. C0 기술 수락 보류 사유 해소; PR 병합 및 양측 결과 기록 확인 뒤 별도 승인으로 Jira 완료 가능.
+- 위험: 테스트 oracle/정적 manifest는 실제 controller/initializer·복구 내구성 보장이 아님. TMI-200/202/203/204/206 통합·실환경 gate 유지. 운영 simple collation/DB 분리/중복 진단 필요.
+- 다음 작업: 관련 변경 사용자 commit/push·병합 확인, 양측 회신 및 미검증 gate 인계 기록 후 C0 종료. 판매/purge·배포 별도. Jira 댓글 초안은 수락 문서§8.6에만 작성, 자동 등록/상태 변경 없음.
+- 범위: 과거 및 동시 문서 기록 보존, 예상 밖 제품 변경 없음. 외부 설정·Billing 파일·Secret 기록·commit/push 없음.
+
+- 위 항목 실행 건수 정정(원문 보존): 최종 test XML 전체 합산은 **1276건**, 실패0/오류0/skip6이다. 이전1233+신규42의 추정1275가 아닌 현재 checkout 실측 합산을 적용한다. 이번 신규42건 결과는 동일하며 CURRENT_STATE/수락 문서에 실측값 반영.
+
+## 2026-10-07 — 회원 탈퇴 Apple revoke 구현 여부 확인
+
+<!-- codex-turn:01a11555-612a-7ea2-b431-bd3ed621e135 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 현재 탈퇴에서 Apple 토큰 revoke 수행 여부 확인. 이번 질문의 Jira 지정 없음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: FirebaseSdkWithdrawalCleanupAdapter는 Firebase revokeRefreshTokens 호출만 구현. satisfyProviderDeletionObligations는 APPLE 포함 시 PROVIDER_OBLIGATION_REQUIRED를 던진다. UserWithdrawalExternalCleanupWorker는 disable/revoke 후 해당 의무 확인을 수행하고, 비재시도 오류를 reconcile 처리하므로 사용자 삭제에 도달하지 않는다. 기존 appleProviderRequiresExplicitObligationMaterial 테스트도 해당 오류를 기대한다.
+- 유지한 계약/결정: Firebase 세션 폐기와 Apple OAuth 토큰 revoke는 별개. 내부 탈퇴 성공을 Apple revoke 및 외부 정리 완료로 설명하지 않는다. 이번에는 조사만 수행.
+- 테스트와 결과: 코드/오류 enum/기존 테스트 정적 확인 및 git diff --check. 분석 작업으로 Gradle 미실행, 원격 서비스 호출 없음.
+- 위험 요소: 실제 배포 및 worker 활성화·실행 여부 미확인. 프론트의 별도 Apple revoke 여부는 이 저장소만으로 확정 불가. Apple 계정은 해당 경로에서 RECONCILIATION_REQUIRED로 남을 수 있다.
+- 다음 작업: Apple revoke에 필요한 인증 자료 전달·보관 및 외부 정리 계약 설계 검토가 필요. 기존 동시 기록 보존, 예상 밖 제품 변경 없음. 비밀정보 미기록, Jira·배포·commit/push 없음.
