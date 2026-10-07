@@ -16,7 +16,7 @@ public record WithdrawRequest(
 		String refreshToken,
 
 		@Schema(
-				description = "LOCAL 사용자의 현재 비밀번호. GUEST는 생략합니다.",
+				description = "LOCAL 사용자의 현재 비밀번호. GUEST와 SNS 회원은 생략합니다. firebaseIdToken과 함께 보내지 않습니다.",
 				format = "password",
 				accessMode = Schema.AccessMode.WRITE_ONLY,
 				nullable = true
@@ -25,7 +25,7 @@ public record WithdrawRequest(
 		String password,
 
 		@Schema(
-				description = "Firebase/SNS 회원의 유효한 Firebase ID Token. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다.",
+				description = "SNS 회원만 보내는 유효한 Firebase ID Token. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다. LOCAL/GUEST는 생략합니다.",
 				accessMode = Schema.AccessMode.WRITE_ONLY,
 				nullable = true
 		)

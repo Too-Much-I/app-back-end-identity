@@ -15167,3 +15167,125 @@
 - 검증: 전체 테스트1189건 실패0/오류0/skip6 결과 유지. 문서 보완만으로 테스트 재실행 없음, git diff --check 재확인.
 - 계약/위험: API 필드 유지, 새 환경변수 없음. 세션 탈취 위험과 앱 E2E 미확인 사항 유지. 비밀값 비기록, 예상 밖 변경 없음.
 - 다음 작업: 사용자 commit/push 후 배포 및 앱 연동 QA. 외부 변경·배포 없음.
+
+## 2026-10-07 — 알림 프론트 인계 문서 Notion 작성
+
+- 브랜치: develop. 목표: 사용자 지정 알림 페이지에 프론트 인계 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 변경: 사용자가 지정한 Notion 알림 페이지 본문 작성, 공유 권한 미변경.
+- 내용: 비어 있는 페이지 확인 후 기존 모의고사 미완료 리마인더 논의를 바탕으로 요약/역할/권한/기기 생명주기/탭 처리/결정사항/위험/API 계약 필요 목록/QA 작성. 구현 사실과 제안을 구분하고 아직 없는 API를 확정하지 않음.
+- 검증: 저장소 기록과 파일명/관련 내용 검색, Notion 작성 후 새로고침하여 본문 저장 확인, 화면 캡처, git diff --check. 문서 작업이므로 실행 테스트 미수행.
+- 유지 계약/결정: Identity에 학습 판단 소유 로직 추가 안 함. Learning Core가 학습 판단하는 방향이며 정확한 발송 정책·전송 방식·서버 API는 후속 합의 필요.
+- 위험/다음 작업: Learning Core 실제 구현/배포 미확인, 푸시 지연/누락/중복 및 계정 전환 데이터 노출 방지 QA 필요. 발송 시각·시간대·완료 기준·대상·기기 등록 계약 확정 후 연동.
+- 범위: 제품 코드 추가 변경 없음, 기존 작업 보존, 예상 밖 제품 변경 없음. 비밀값 비기록, Jira·배포·commit/push 없음.
+
+## 2026-10-07 — TMI-199 공통 fixture 결과 Identity 검토
+
+<!-- codex-turn:01a11523-6394-7922-b221-faec8e21b1f6 -->
+
+- 브랜치: develop. Jira: TMI-199. 목표: Billing 인계 결과와 실제 fixture, Identity 시각 경로 교차 검토.
+- 변경 파일: docs/contracts/billing-c0-fixture-review-2026-10-07.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: fixture 4개 SHA-256 기록, Node 고정4행/빈 목록 digest 재계산 일치. 같은 withdrawnAt을 User/outbox에 전달하는 코드 확인. 신규 journal 정밀도·DTO/null/count·내부 오류 및 영속 sequence 숫자 정렬 조건을 후속 검증으로 기록.
+- 테스트: JSON parse와 Node digest 명령 성공. git diff --check 확인. 제품 변경 없는 분석이므로 Gradle 및 Mongo 실험 재실행 없음. Billing 보고의285건은 독립 재실행 결과로 주장하지 않음.
+- 유지 계약/결정: 기존 LC/public 응답·승인 보존 정책 유지. C0 전체 완료 또는 판매/purge 활성화로 판단하지 않음. Identity serializer/DB 왕복 검증부터 후속 진행 권장.
+- 위험: 운영 Mongo/history/failover/성공 commit 응답 유실·인증 배포 경계 미검증. 신규 DTO 후보 미확정.
+- 범위/다음 작업: 예상 밖 제품 변경 없음, 기존 기록 보존. 외부 설정·Billing 파일·commit/push 변경 없음. Jira 조회만 수행, 댓글 초안은 검토 문서에만 보관하며 생성/수정/상태 전환 없음. 구현 요청 후 TMI-199 Identity 교차 테스트 및 양측 합의.
+
+## 2026-10-07 — 알림 프론트 인계 작성 턴 기록 보완
+
+<!-- codex-turn:01a11526-aecf-77a3-b298-083cee831020 -->
+
+- 브랜치: develop. 목표: 완료한 Notion 알림 인계 작성의 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 및 동시 작업 기록 보존.
+- 내용/결정: 사용자 지정 페이지의 리마인더 인계 초안 작성 및 새로고침 저장 확인 결과 유지. 프론트 역할·권한·기기 연결·화면 이동·미확정 계약·QA 구분, 이번 보완은 제품/페이지 추가 변경 없음.
+- 검증: git diff --check. 기록만 변경하여 실행 테스트 미수행.
+- 계약/위험: 확정 API로 제시하지 않으며 Learning Core 배포/구현 미확인. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 발송 시각·전송 방식·대상·API 합의 후 연동. 배포·Jira·commit/push 없음.
+
+## 2026-10-07 — TMI-199 Identity 독립 fixture·정밀도 검증
+
+- 브랜치: develop(기존 사용자 브랜치 유지). Jira: TMI-199. 목표: 사용자가 요청한 공통 계약 독립 교차 검증.
+- 변경 파일: src/test/java/web/tosunsaeng/identity/contract/PaymentLifecycleFixtureTests.java, WithdrawalTimestampCompatibilityTests.java; src/test/resources/contracts/payment-lifecycle/v1/JSON4개 및 README; docs/contracts/billing-c0-fixture-review-2026-10-07.md; 작업 기록2파일.
+- 구현: Billing과 byte 동일 fixture hash 고정. 독립 typed-record digest·strict decode·generation 우선 ACK·고정 feed·204-only 정책 oracle40건, 실제 Identity User/outbox·Mongo 변환기·기존 mapper와 Boot Jackson 기본값으로 시각0/3/6/9자리4건. 합계44건 추가. 외부 DB/Provider/Repository 호출 없음.
+- 테스트: ./gradlew clean test 성공(170 suites/1233 tests/실패0/오류0/기존skip6, 신규44건 모두 통과). 최초 sandbox cache lock 제한 후 승인 실행. golden wire 전체 비교 추가 후 전체 재검증. git diff --check 확인.
+- 유지 계약/결정: src/main·build·외부 API·JWT·LC 변경 없음. 저장 후 User/outbox 시각은 동일, 저장 전 고정밀 wire와 혼합하면 digest가 바뀜을 재현. 신규 source에 authoritative 시각 규칙 필요, 과거 event 반올림/재생성 금지. C0 전체 완료 및 기능 ON 아님.
+- 위험: 테스트 oracle은 새 production recovery 구현이 아님. converter 왕복은 실제 Mongo transaction/snapshot 검증이 아님. exact DTO/null/오류/auth, Identity index/sequence 자료형·상한, replica failover/history/성공 commit 유실·운영 gate 미완료.
+- 다음 작업/배포 전: 양 서버 시간·DTO·오류/auth 합의, 미검증 실험 담당/환경 배정 후 TMI-199 공동 완료 판단 및 I1/I2 진행. 테스트/문서만으로 배포 변경 불필요.
+- 범위: 기존 정적 검토 및 동시 알림 문서 기록 보존. 이번 작업 외 제품 변경 없음. Billing 파일·운영·Jira 상태/댓글 미변경, commit/push 없음. Jira 댓글 초안은 검토 문서 §7.6에만 보관.
+
+## 2026-10-07 — TMI-199 검증 턴 식별 기록 보완
+
+<!-- codex-turn:01a11529-5cb9-7080-b744-5a49d7920ab2 -->
+
+- 브랜치: develop. Jira: TMI-199. 목표: 완료한 Identity 교차 검증의 현재 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 append-only 유지.
+- 구현 내용: 앞선 신규44건 검증 및 전체1233건 결과에 턴 식별자를 연결. 제품·테스트 코드 추가 변경 없음.
+- 테스트: 직전 ./gradlew clean test 성공(170 suites/1233 tests/실패0/오류0/기존skip6, 신규skip0). 이번 문서 보완은 테스트 재실행 없이 git diff --check 확인.
+- 유지 계약/결정: JWT·LC·public API 및 배포 설정 유지. C0 전체 완료로 표시하지 않음.
+- 위험 요소: 실제 Mongo replica-set·운영 gate 및 exact DTO/오류/auth 합의 미완료 상태 유지. Secret 비기록.
+- 다음 작업: 시간 규칙·DTO·인증 경계 합의와 미검증 실험 배정 후 공동 완료 판단. 기존 동시 기록 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 열린 회원 탈퇴 Swagger 탭 진단
+
+<!-- codex-turn:01a1152f-1f1e-7ff2-82b3-ab1ea1f5efa4 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 이번 요청 Jira 지정 없음.
+- 작업 목표: 사용자가 연 테스트 Swagger 회원 탈퇴 문서의 이상 여부와 원인을 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md (기록만).
+- 조사 근거: Chrome의 identity-test Swagger /User/withdraw 탭을 읽기 전용 확인. UserController 164~185행의 오류 schema, BaseResponse 11~16행의 성공 example 및 failure 구현, IdentityOpenApiExamples의 탈퇴 200 예시만 등록된 부분, WithdrawRequest/UserWithdrawalService의 유형별 인증 조건과 GlobalExceptionHandler를 대조했다.
+- 확인 내용: 400/401/404/409 오류 Example Value가 true/SUCCESS/성공 메시지/result 객체로 표시되는 문서 결함을 확인했다. 실제 실패 코드는 BaseResponse.failure에서 false와 error code/message 및 상세 또는 null을 반환한다. 화면은 실제 실행 응답이 아니라 생성 예시이며 실제 서버 탈퇴 요청은 보내지 않았다.
+- 추가 확인: 기본 request example은 모든 인증 필드를 함께 보여주지만 SNS는 비밀번호 생략, LOCAL은 Firebase 증명 생략, Guest는 둘 다 생략해야 한다. 유형 혼합은 WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH로 거절될 수 있어 유형별 예시 필요. 탭의 SNS 최근 재로그인 불필요 설명은 최신 정책과 일치한다. 누락 증명 오류 enum의 최근 인증 문구는 아직 남아 있다. generated server URL이 HTTP로 표시되는 별도 문제도 관찰했으나 원격 프록시 설정 원인은 확정하지 않았다.
+- 구현 내용/결정사항: 확인 요청이므로 제품 코드는 수정하지 않았다. 후속 수정은 유형별 요청 예시와 실제 enum 기반 오류 예시 등록, 누락된 오류/설명 검토, Swagger 문서 회귀 테스트를 권고한다. 공통 BaseResponse의 성공 예시를 무조건 실패로 바꾸는 방식은 피한다.
+- 실행한 테스트와 결과: ./gradlew test --tests web.tosunsaeng.identity.domain.user.api.UserControllerTests --tests web.tosunsaeng.identity.domain.user.application.FirebaseUserWithdrawalServiceTests 성공. 최초 sandbox 캐시 접근 실패 후 승인 실행. 제품 변경 없는 진단으로 전체 clean test는 실행하지 않았다. 실제 탈퇴/외부 Firebase 호출 없음. git diff --check 수행.
+- 유지한 계약: API/회원/세션/최근 재인증 정책/배포 및 Jira 변경 없음. 실제 자격증명·개인정보 미수집/미기록. 기존 Billing C0 분석 및 테스트 fixture 변경 보존.
+- 위험 요소: 실서비스 오류 응답을 탈퇴 실행으로 확인하지 않았으며 Swagger Try it out은 사용하지 않았다. HTTP 서버 URL의 실제 호출/redirect 문제는 미검증. 예상 밖 제품 변경 없음.
+- 다음 작업: 사용자 수정 요청 시 Swagger 요청/오류 예시와 계약 테스트 보완 후 배포 반영 확인. 이번 commit/push/배포 없음.
+
+## 2026-10-07 — Notion 알림 프론트 인계 가독성 개선
+
+<!-- codex-turn:01a1152b-c523-7d60-8eed-7bf0eec36c4d -->
+
+- 브랜치: develop. 목표: 사용자 지정 알림 인계 문서의 읽기 어려운 단일 본문 개선.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 변경: 기존 Notion 알림 페이지 본문 서식/요약 개선.
+- 내용: 상단 목적/프론트/서버/탭 처리/미확정5개 요약으로 축약. 실제 제목1·제목2·제목3 및 개별 목록 블록과 문단 여백 적용. 원래 상세 역할·기기 생명주기·정책 결정·위험·계약·QA·근거 보존.
+- 검증: 새로고침 뒤72개 편집 블록과 제목 계층·마지막 상세 항목 유지 확인, 화면 검수 및 임시 캡처 저장. git diff --check. 문서 작업으로 실행 테스트 미수행.
+- 유지 계약/결정: 신규 API·정책 확정 없이 기존 설계 초안 의미 유지. Secret 비기록, 공유 권한 변경 없음.
+- 위험/다음 작업: 발송 시각·전송 방식·백엔드 계약 및 Learning Core 실제 구현 미확인 사항 유지. 후속 합의 후 연동. 기존 동시 기록·제품 변경 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 알림 인계 API 명세 형식 요청 검토
+
+- 브랜치: develop. 목표: 실제 API·응답·오류 중심 문서 재작성 가능 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. Notion·제품 변경 없음.
+- 내용/결정: 현재 src/main 및 docs/contracts 파일 검색에서 알림 API 구현 명세를 확인하지 못함. 설계 제안을 실제 API로 오인시키지 않기 위해 Learning Core 구현/Swagger 출처 확인 요청.
+- 검증: 파일 검색 및 git diff --check. 분석·기록만으로 실행 테스트 미수행.
+- 계약/위험: 임의 경로/응답/오류 코드 생성 없음. Learning Core 실제 구현은 미확인. 비밀값 비기록, 기존 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 실제 명세 출처 확인 후 해당 노션을 API·요청·응답·오류 및 핵심 주의사항 중심으로 재작성. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 알림 API 명세 검토 턴 기록 보완
+
+<!-- codex-turn:01a11532-430c-7113-a9be-ea4d8dfca99c -->
+
+- 브랜치: develop. 목표: 알림 API 명세 형식 요청 검토의 턴 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 보존.
+- 내용/결정: 실제 API 출처 확인 필요 상태 유지. 임의 경로·응답·오류 코드 생성 및 제품·Notion 추가 변경 없음.
+- 검증: git diff --check. 기록만 변경하여 실행 테스트 미수행.
+- 계약/위험: Learning Core 구현 미확인 상태 유지. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 구현 저장소 또는 Swagger 확인 후 노션 재작성. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 회원 탈퇴 Swagger 요청·실패 예시 수정
+
+<!-- codex-turn:01a11532-6b1f-73d3-a7e4-bf52e8d9ead3 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 이번 요청 Jira 지정 없음.
+- 작업 목표: 오류 응답을 성공처럼 보여주는 탈퇴 Swagger와 계정 유형별 인증 필드를 섞어 보여주는 요청 예시를 수정한다.
+- 변경 파일: IdentityOpenApiExamples.java, 신규 global/response/ApiErrorResponse.java, UserController.java, WithdrawRequest.java, AuthErrorStatus.java; OpenApiSharingTests.java, UserControllerTests.java, FirebaseUserWithdrawalServiceTests.java; docs/contracts/frontend-firebase-auth-integration-guide.md, docs/swagger/README.md, WORKLOG/CURRENT_STATE. 생성물은 기존 build 디렉터리의 Swagger ZIP/JSON.
+- 구현 내용: SNS는 refreshToken+firebaseIdToken, LOCAL은 refreshToken+password, Guest는 refreshToken만 제공하는 named request examples 추가. 실제 업무 enum을 직렬화한 오류 예시 16개와 입력 검증 상세 배열 예시 1개 등록. 기존 400/401/404/409와 실제 Firebase/세션 처리가 반환할 수 있는 403/429/503 문서 보완. 민감한 rejectedValue는 null 예시이며 업무 오류 result=null을 유지한다.
+- 구현 내용: 탈퇴 전용 적용의 OpenAPI 실패 응답 모델 ApiErrorResponse로 Schema의 성공 예시 재사용을 차단했다. 런타임은 기존 BaseResponse.failure 그대로다. 성공 공통 모델 및 200 응답은 변경하지 않았다. SNS 인증 정보 누락 enum의 message를 '최근 Firebase 인증'에서 '유효한 Firebase 인증 정보'로 보정했고 검증 정책/상태/code는 유지했다.
+- 문서: 프론트 탈퇴 예시의 오래된 재인증 자리표시자와 비밀번호 null 필드를 정리하고 현재 정책·오류 의미를 안내했다. 공유 ZIP에 들어가는 README의 오래된 Provider 연결 사용 권고/고정 API 개수도 현재 폐지 계약과 일치하도록 보정했다. Provider 제품 동작을 새로 변경한 것은 아니다.
+- 테스트와 결과: 최초 집중 14개에서 Swagger requestMedia.setExample(null)이 example:null을 생성함을 회귀 검사가 탐지해 불필요한 setter 호출을 제거했다. 최종 ./gradlew clean test shareSwagger 성공: 170 suites/1233 tests, failures0/errors0/기존skip6; export 별도1개 성공. 전체 실행의 sandbox cache 접근 실패 후 승인 재실행. 외부 Firebase/실계정 호출 없음.
+- 테스트와 결과: 요청 유형별 정확한 필드, refresh 필수/WRITE_ONLY/Bearer 유지, 문서 오류의 상태·code·message와 enum 일치, false/null/검증 배열, 성공 schema 유지 검사 보완. JSON의 3개 요청 예시·7개 오류 상태와 ZIP 8개 파일 무결성 및 git diff --check 확인.
+- 유지한 계약: 탈퇴 API URL/요청 필드/HTTP 오류 코드/성공 본문/인증 정책 유지. 외부 message 문구 1건만 명확화. 실제 탈퇴/서버 설정/배포/Jira 변경 없음. 실제 자격증명·개인정보 미기록.
+- 결정사항: 문서·예시를 고치고 공통 성공 schema를 실패로 뒤집지 않는다. Swagger generated server URL의 HTTP 표시는 별도 설정 문제로 이번 변경에서 제외한다.
+- 위험 요소: 테스트 서버 미배포로 열린 원격 Swagger는 기존 상태다. 원격 UI 렌더링 및 실제 회원 탈퇴 E2E는 실행하지 않았다. 버전 배포 후 문서 갱신 확인 필요.
+- 예상 밖 diff: 없음. 기존 Billing C0 분석/교차 테스트 및 fixture, 동시 WORKLOG/CURRENT_STATE 변경을 보존했다. 이번 변경 목록과 기존 미커밋 파일을 구분했다.
+- 다음 작업/배포 전 확인: 사용자가 diff와 안내 message 변경을 검토해 commit/push 후 배포하면 원격 /v3/api-docs와 Swagger의 요청 선택 목록·오류 예시를 재확인한다. 갱신 ZIP은 build/distributions/identity-swagger.zip. 이번 commit/push 없음.
+- Jira 댓글 초안(미등록): 탈퇴 유형별 요청/실패 schema·예시와 회귀 검사 보완, 전체1233개/기존skip6 및 별도 export 성공, 인증 로직 유지, 원격 배포/화면/E2E 미확인.

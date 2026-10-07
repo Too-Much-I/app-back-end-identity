@@ -79,7 +79,7 @@ public enum AuthErrorStatus implements ErrorCode {
 	WITHDRAWAL_FIREBASE_PROOF_REQUIRED(
 			HttpStatus.BAD_REQUEST,
 			"WITHDRAWAL_FIREBASE_PROOF_REQUIRED",
-			"Firebase 회원 탈퇴에는 최근 Firebase 인증이 필요합니다."
+			"Firebase 회원 탈퇴에는 유효한 Firebase 인증 정보가 필요합니다."
 	),
 	WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH(
 			HttpStatus.BAD_REQUEST,

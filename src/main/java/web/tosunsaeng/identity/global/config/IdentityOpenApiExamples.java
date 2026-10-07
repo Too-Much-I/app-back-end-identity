@@ -26,7 +26,10 @@ import web.tosunsaeng.identity.domain.auth.registration.dto.response.*;
 import web.tosunsaeng.identity.domain.auth.session.dto.response.ReissueResponse;
 import web.tosunsaeng.identity.domain.user.domain.enums.*;
 import web.tosunsaeng.identity.domain.user.dto.response.*;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
+import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
+import web.tosunsaeng.identity.global.exception.ValidationErrorDetail;
 import web.tosunsaeng.identity.global.response.BaseResponse;
 
 /** Live Swagger와 정적 공유본에 동일한 DTO 기반 가상 응답 예시를 제공한다. */
@@ -144,6 +147,7 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 				new UserConsentResponse(true, "privacy-v1", NOW, true, "term-v1", NOW, false, null, null));
 		success(api, USER + "withdraw", "post", "200", "WITHDRAWN", "탈퇴 확정, 외부 데이터 정리는 비동기",
 				new WithdrawResponse(UserStatus.WITHDRAWN, NOW));
+		withdrawalExamples(api);
 		example(api, "/.well-known/jwks.json", "get", "200", "PUBLIC_KEYS", "공개키 구조 예시: n은 유효한 키가 아닌 자리표시자",
 				Map.of("keys", java.util.List.of(Map.of("kty", "RSA", "use", "sig", "kid", "example-key-id",
 						"alg", "RS256", "n", "<base64url-public-modulus>", "e", "AQAB"))));
@@ -178,6 +182,34 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_LINK_RETIRED);
 			error(api, PROVIDERS + path, AuthErrorStatus.PROVIDER_RATE_LIMITED);
 		}
+	}
+
+	private void withdrawalExamples(OpenAPI api) {
+		String path = USER + "withdraw";
+		MediaType request = api.getPaths().get(path).getPost().getRequestBody().getContent().get("application/json");
+		// 요청 DTO의 WRITE_ONLY 필드는 응답 직렬화 시 빠지므로 전송할 필드만 명시한다.
+		request.addExamples("SNS", new Example().summary("SNS 회원 — 비밀번호 생략, 최근 재로그인 불필요")
+				.value(Map.of("refreshToken", REFRESH, "firebaseIdToken", "<example-firebase-id-token-not-valid>")));
+		request.addExamples("LOCAL", new Example().summary("이메일 회원 — 현재 비밀번호, Firebase 인증 정보 생략")
+				.value(Map.of("refreshToken", REFRESH, "password", "<example-password-not-valid>")));
+		request.addExamples("GUEST", new Example().summary("Guest — Refresh Token만 전송")
+				.value(Map.of("refreshToken", REFRESH)));
+		for (ErrorCode code : new ErrorCode[]{CommonErrorStatus.INVALID_REQUEST,
+				UserErrorStatus.WITHDRAWAL_PASSWORD_REQUIRED, AuthErrorStatus.WITHDRAWAL_FIREBASE_PROOF_REQUIRED,
+				AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH, CommonErrorStatus.UNAUTHORIZED,
+				AuthErrorStatus.INVALID_WITHDRAWAL_CREDENTIALS, AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN,
+				AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED, AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED,
+				UserErrorStatus.USER_NOT_FOUND, UserErrorStatus.WITHDRAWAL_CONFLICT,
+				UserErrorStatus.WITHDRAWAL_LIFECYCLE_CONFLICT, AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT,
+				AuthErrorStatus.FIREBASE_RATE_LIMITED, AuthErrorStatus.FIREBASE_UNAVAILABLE,
+				AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE}) {
+			error(api, path, code);
+			media(api, path, "post", Integer.toString(code.getHttpStatus().value()))
+					.setSchema(new Schema<>().$ref("#/components/schemas/ApiErrorResponse"));
+		}
+		example(api, path, "post", "400", "VALIDATION_ERROR", "필수 Refresh Token 누락 — 민감한 거부값은 노출하지 않음",
+				BaseResponse.failure(CommonErrorStatus.INVALID_REQUEST,
+						java.util.List.of(new ValidationErrorDetail("refreshToken", null, "Refresh Token은 필수입니다."))));
 	}
 
 	private Set<FirebaseEnrollmentRequirement> signupRequirements() {

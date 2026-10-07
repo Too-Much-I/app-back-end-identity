@@ -111,6 +111,7 @@ class FirebaseUserWithdrawalServiceTests {
 
 		assertThat(missing.getErrorCode())
 				.isEqualTo(AuthErrorStatus.WITHDRAWAL_FIREBASE_PROOF_REQUIRED);
+		assertThat(missing.getErrorCode().getMessage()).isEqualTo("Firebase 회원 탈퇴에는 유효한 Firebase 인증 정보가 필요합니다.");
 		assertThat(mixed.getErrorCode())
 				.isEqualTo(AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH);
 	}

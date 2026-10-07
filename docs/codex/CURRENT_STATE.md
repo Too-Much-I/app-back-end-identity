@@ -1,5 +1,61 @@
 # Codex Current State
 
+<!-- codex-turn:01a11532-6b1f-73d3-a7e4-bf52e8d9ead3 -->
+
+## 2026-10-07 — 회원 탈퇴 Swagger 예시 수정 완료 (미배포)
+
+- 탈퇴 Request body에 SNS/LOCAL/GUEST별 전송 필드 예시를 분리했다. 오류 400/401/403/404/409/429/503에 실제 enum 기반 실패 예시와 검증 상세 배열 예시를 추가하고 문서 전용 ApiErrorResponse로 Schema의 성공 예시 재사용을 방지했다. 200/공통 성공 schema는 유지한다.
+- 인증 로직·HTTP/code/요청 필드는 유지. WITHDRAWAL_FIREBASE_PROOF_REQUIRED의 message만 기존 최근 재인증 불필요 정책에 맞게 '유효한 Firebase 인증 정보'로 보정했다. 프론트 탈퇴 가이드와 Swagger 공유본 안내도 갱신했다.
+- ./gradlew clean test shareSwagger 성공: 170 suites/1233 tests/실패0/오류0/기존skip6, 별도 export 1개 성공. 요청 유형/필수·writeOnly·Bearer, 모든 탈퇴 오류 예시의 HTTP/code/message/null·배열, 성공 schema 유지 검사 통과. ZIP 무결성/diff 검사 통과.
+- 결과: build/distributions/identity-swagger.zip. 테스트 서버에 배포하지 않아 열린 Swagger에는 아직 미반영. 별도 HTTP generated server URL 문제는 이번 예시 수정에서 변경하지 않았다. 실회원 탈퇴 호출·Jira·commit/push 없음. 기존 Billing 검증 파일과 동시 기록 보존, 예상 밖 제품 변경 없음.
+
+## 2026-10-07 — 알림 API 명세 검토 턴 기록 보완
+
+- WORKLOG 끝에 이번 검토의 정확한 턴 식별자를 추가했다. 실제 API 출처 확인 대기 상태 유지. 제품·Notion 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — 알림 API 명세 중심 재작성 요청 확인
+
+- 사용자는 Notion 인계를 API·요청/응답·오류 코드와 최소 주의사항 위주로 재작성 요청. 현재 Identity src/main 및 계약 파일에서 notification/reminder/push/fcm 구현 파일을 확인하지 못했다.
+- 실제 명세를 임의로 생성하지 않고 Learning Core의 구현 코드 또는 Swagger 출처 확인이 필요함을 안내. 이번에는 Notion/제품 변경 없이 기록만 수행, git diff --check 검증.
+
+<!-- codex-turn:01a1152f-1f1e-7ff2-82b3-ab1ea1f5efa4 -->
+
+## 2026-10-07 — 회원 탈퇴 Swagger 표시 진단
+
+- 사용자가 연 테스트 Swagger의 /users/withdraw에서 400/401/404/409 예시가 isSuccess=true/code=SUCCESS로 표시됨을 직접 확인. UserController 오류 응답이 성공 예시를 가진 BaseResponse schema를 재사용하고 IdentityOpenApiExamples에는 탈퇴 200만 별도 등록되어 발생하는 문서 예시 결함이다. 실제 코드의 오류 응답은 BaseResponse.failure를 사용한다.
+- 요청 예시에 password와 firebaseIdToken이 함께 표시되지만 실제 SNS는 비밀번호 없이 Firebase 증명, LOCAL은 Firebase 증명 없이 비밀번호, Guest는 둘 다 생략해야 한다. 회원 유형별 예시 분리 필요. SNS 재로그인 불필요 설명은 탭에 반영되어 있다. 추가로 Swagger generated server URL이 HTTP로 표시되며 프록시/문서 URL 설정은 후속 확인 대상.
+- UserControllerTests/FirebaseUserWithdrawalServiceTests 집중 검증 통과. 실제 탈퇴 호출·계정 변경·제품 수정·배포 없음. 이번은 진단/기록만 수행했고 기존 Billing 교차 검증 변경을 보존했다.
+
+## 2026-10-07 — Notion 알림 인계 가독성 개선
+
+- 사용자 요청으로 동일 알림 페이지의 긴 단일 본문을 개별 제목/소제목/목록 블록으로 분리. 상단 5개 핵심 요약과 미확정 계약 안내를 간결하게 정리하고 상세 조건·QA는 보존했다.
+- 새로고침 후 제목 계층 및 마지막 상세 항목 저장 확인, 화면 검수 완료. 제품·정책 변경 없음, 기록2파일만 갱신. git diff --check 수행, 문서 작업으로 실행 테스트 미수행.
+
+## 2026-10-07 — TMI-199 Identity 독립 교차 검증
+
+- 현재 검증 턴 식별자를 WORKLOG 끝에 추가했다. 기존 실행 결과 유지, 제품 코드 추가 변경 없이 문서 diff 검사를 재확인했다.
+- 현재 Jira: TMI-199, 브랜치 develop 유지. 동일 Billing fixture4개 해시를 고정하고 독립 oracle40건·실제 Identity 엔티티/converter/mapper4건 추가, 신규44건 실패0/skip0.
+- ./gradlew clean test:170 suites/1233 tests/실패0/오류0/기존skip6. 실제 DB 없이 Spring Data 변환기 왕복에서 User/outbox 시각 일치 확인. 저장 전 고정밀 값과 저장 후 밀리초를 섞으면 wire/digest 불일치 재현.
+- 현행 publisher는 claimNext로 DB 조회한 outbox를 직렬화하므로 현재 LC 전송 오류를 입증한 것은 아님. 신규 journal의 authoritative 시각 규칙 확정 필요. docs/contracts/billing-c0-fixture-review-2026-10-07.md §7에 상세 결과 및 Jira 댓글 초안(미등록).
+- 제품·외부 계약·배포 변경 없음. index 생성/실제 replica-set 및 운영 gate는 미검증. exact DTO/오류/auth 동결 및 미검증 실험 배정 후 공동 C0 완료 판단 필요. 동시 알림 기록 보존, 예상 밖 제품 변경 없음, Jira 상태/댓글·commit/push 없음.
+
+## 2026-10-07 — 알림 인계 작성 기록 보완
+
+- 알림 Notion 인계 문서 작성 턴 식별자를 WORKLOG 끝에 추가했다. 저장 확인된 문서 내용은 유지하며 제품·외부 페이지 추가 변경 없음. git diff --check 재확인.
+
+## 2026-10-07 — 알림 프론트 인계 Notion 작성
+
+- 사용자 지정 Notion 알림 페이지에 학습 리마인더 설계 인계 초안 작성 및 새로고침 후 본문 유지 확인. 5줄 요약, 프론트/서버 역할, 권한·기기 연결·탭 이동, 결정사항, 위험, 계약 필요 목록, QA 포함.
+- 현재 저장소에서 학습 푸시 API 구현은 확인되지 않아 임의 URL/필드/오류를 확정하지 않음. 발송 시각·시간대·제출 완료 기준·전송 방식·Guest 대상 여부는 합의 전으로 명시. Learning Core 실제 구현/배포는 미조회.
+- 제품 변경·배포 없음. 기록2파일 갱신과 git diff --check, 문서 작업이므로 테스트 재실행 없음.
+
+## 2026-10-07 — TMI-199 Billing fixture 결과 검토
+
+- 현재 검토 Jira: TMI-199. develop에서 Billing 첨부 보고서와 실제 fixture 4개를 확인하고 해시 기록, Node 고정/빈 digest 재계산 일치 확인.
+- 상세: docs/contracts/billing-c0-fixture-review-2026-10-07.md. Identity의 같은 withdrawnAt 전달·저장 경로를 정적 확인했으며 현재 불일치 결함을 확정한 것은 아님.
+- 남은 작업: Identity 독립 serializer/decoder·Mongo 시간 왕복 검증, DTO/null/count/오류/auth 경계와 index·sequence 저장 타입 확정, 미검증 failover/history/응답 유실 gate 배정. TMI-199 전체 완료 아님.
+- 제품·외부 설정·Billing 저장소·Jira 변경 없음. 전체 Gradle 미실행(분석만), Node 확인 및 문서 diff 검사. 기존 기록 보존. 다음은 별도 구현 요청에 따른 C0 교차 테스트.
+
 ## 2026-10-07 — SNS 탈퇴 기존 세션 허용 구현 완료
 
 - 구현 턴 식별 기록을 WORKLOG 끝에 보완했다. 제품 코드 추가 변경 없이 문서 diff 검사를 재확인했다.

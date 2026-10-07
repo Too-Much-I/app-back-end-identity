@@ -778,8 +778,7 @@ Firebase/SNS MEMBER 요청:
 ```json
 {
   "refreshToken": "<identity-refresh-token>",
-  "password": null,
-  "firebaseIdToken": "<recently-reauthenticated-firebase-id-token>"
+  "firebaseIdToken": "<valid-firebase-id-token>"
 }
 ```
 
@@ -799,6 +798,10 @@ Firebase/SNS MEMBER 요청:
 ```
 
 Firebase/SNS MEMBER는 `password`를 보내지 않는다. LOCAL MEMBER는 `firebaseIdToken` 대신 현재 `password`를 보내고, Guest는 둘 다 보내지 않는다.
+
+SNS 탈퇴는 최근 SNS 재로그인을 요구하지 않는다. 기존 Firebase 세션에서 필요 시 유효한 인증 정보를 갱신하되, Identity Access/Refresh 소유권 및 Firebase 유효성·폐기·계정 소유권 검증은 유지한다. Swagger의 Request body Examples에서 `SNS`, `LOCAL`, `GUEST`를 선택할 수 있다. 세 유형 모두 Identity Bearer 인증과 `refreshToken`은 필수다.
+
+오류 Example Value는 `isSuccess: false`와 실제 오류 코드를 사용한다. 일반 업무 오류의 `result`는 null이며, 입력 검증 실패는 `field`, `rejectedValue`, `reason` 배열이다(민감한 거부값은 null). 예를 들어 잘못된 탈퇴 자격은 `401 INVALID_WITHDRAWAL_CREDENTIALS`이며 성공이나 탈퇴 완료로 처리하면 안 된다. 성공 응답의 `isSuccess: true`와 구분한다.
 
 `cleanupStatus`의 enum은 `EXTERNAL_CLEANUP_PENDING`, `EXTERNAL_CLEANUP_IN_PROGRESS`, `EXTERNAL_CLEANUP_RETRY_WAIT`, `EXTERNAL_CLEANUP_COMPLETED`, `IDENTITY_RELEASE_PENDING`, `CLEANED`, `RECONCILIATION_REQUIRED`다. 모든 값이 최초 탈퇴 응답에 나온다는 뜻은 아니며, 이 API는 외부 cleanup polling API가 아니다. 실패 시 `INVALID_WITHDRAWAL_CREDENTIALS`, `WITHDRAWAL_FIREBASE_PROOF_REQUIRED`, `WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH`, `WITHDRAWAL_CONFLICT`, `WITHDRAWAL_LIFECYCLE_CONFLICT` 등도 처리한다. 응답 유실로 성공 여부가 불명확하면 탈퇴를 임의 성공 처리하거나 새 계정을 만들지 말고 현재 인증 상태를 확인한다.
 

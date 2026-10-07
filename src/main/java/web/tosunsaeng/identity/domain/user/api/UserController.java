@@ -153,8 +153,9 @@ public class UserController {
 	@Operation(
 			summary = "회원 탈퇴",
 			description = "검증된 Access Token의 subject와 현재 Refresh Token 소유권으로 "
-					+ "탈퇴 대상을 확인합니다. LOCAL은 현재 비밀번호가 필요하고 GUEST는 "
-					+ "비밀번호를 생략합니다. SNS 회원은 유효한 Firebase ID Token이 필요하지만 "
+					+ "탈퇴 대상을 확인합니다. 모든 유형은 Refresh Token이 필수입니다. LOCAL은 password만 추가하고 "
+					+ "firebaseIdToken은 생략합니다. GUEST는 password와 firebaseIdToken을 모두 생략합니다. "
+					+ "SNS 회원은 password를 생략하고 유효한 Firebase ID Token을 추가하지만 "
 					+ "최근 SNS 재로그인은 요구하지 않습니다. 탈퇴 성공 시 모든 RefreshSession이 폐기되며 "
 					+ "클라이언트는 보유한 Access/Refresh Token을 즉시 삭제해야 합니다. "
 					+ "기존 stateless Access Token은 만료 전까지 외부 서비스에서 "
@@ -165,24 +166,30 @@ public class UserController {
 			@ApiResponse(responseCode = "200", description = "회원 탈퇴 또는 멱등 확인 성공"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "요청 검증 실패 또는 LOCAL 비밀번호 누락",
-					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+				description = "입력 검증 실패, 유형별 인증 정보 누락 또는 인증 방식 혼용",
+				content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))
 			),
 			@ApiResponse(
 					responseCode = "401",
-					description = "Access Token 인증 실패 또는 탈퇴 자격 검증 실패",
-					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+				description = "Access Token 인증 실패 또는 탈퇴 자격 검증 실패",
+				content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))
 			),
+			@ApiResponse(responseCode = "403", description = "Firebase 계정 또는 Provider 정책상 허용되지 않음",
+					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))),
 			@ApiResponse(
 					responseCode = "404",
-					description = "사용자를 찾을 수 없음",
-					content = @Content(schema = @Schema(implementation = BaseResponse.class))
+				description = "사용자를 찾을 수 없음",
+				content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))
 			),
 			@ApiResponse(
 					responseCode = "409",
-					description = "동시 사용자 변경 충돌",
-					content = @Content(schema = @Schema(implementation = BaseResponse.class))
-			)
+				description = "동시 사용자 변경, 탈퇴 정리 상태 또는 Firebase 소유권 충돌",
+				content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))
+			),
+			@ApiResponse(responseCode = "429", description = "Firebase 인증 요청 제한",
+					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))),
+			@ApiResponse(responseCode = "503", description = "Firebase 또는 세션 보안 처리 일시 불가",
+					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class)))
 	})
 	@PostMapping(
 			value = "/withdraw",

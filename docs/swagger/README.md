@@ -6,11 +6,13 @@
 4. 이 공유본은 읽기 전용이며 API 실행 버튼을 제공하지 않습니다.
 5. 서버 주소와 실제 배포·기능 활성화 여부는 백엔드 담당자에게 확인합니다.
 
-학습 기록만 삭제하는 기능은 Learning Core 담당 미확정 요구사항이며 Identity API로 포함하지 않았습니다. Guest 가입 재개의 성공 타입은 `ENROLLMENT_REQUIRED`와 `MERGE_REQUIRED`입니다. MEMBER의 SNS 추가 연결에서는 별도 `ALREADY_LINKED`가 유지됩니다.
+학습 기록만 삭제하는 기능은 Identity API에 포함하지 않습니다. Guest 가입 재개의 성공 타입은 `ENROLLMENT_REQUIRED`와 `MERGE_REQUIRED`입니다. MEMBER의 SNS 추가 연결/해제 API는 단일 SNS 정책으로 폐지됐으며 유효한 요청도 `410 PROVIDER_LINK_RETIRED`로 거절됩니다.
 
-현재 Identity Controller 전체 **23개 경로 / 24개 HTTP 작업**을 포함하며 자동 테스트가 실제 Controller 등록 목록과 대조합니다. Actuator health, Swagger 자체 리소스는 업무 API 목록에서 제외합니다. 이전 공유본에서 회색으로 보였던 `POST /api/v1/auth/firebase/providers/relink/prepare`는 폐기 API여서 서버 라우트와 Swagger에서 제거했습니다. `/providers/link/prepare → start → complete`를 사용하세요. `users/me`의 하위 호환 `provider` 필드는 별개로 유지되며 계정 구분은 `accountType`을 사용합니다.
+Identity Controller 전체를 포함하며 자동 테스트가 실제 Controller 등록 목록과 대조합니다. Actuator health, Swagger 자체 리소스는 업무 API 목록에서 제외합니다. `POST /api/v1/auth/firebase/providers/relink/prepare`는 서버 라우트와 Swagger에서 제거된 경로입니다. 별도로 남은 deprecated Provider link/unlink 경로도 앱에서 사용하지 않습니다. `users/me`의 하위 호환 `provider` 필드는 유지되며 계정 구분은 `accountType`을 사용합니다.
 
-각 API의 **Responses → Example Value**에서 응답 예시를 볼 수 있습니다. 예시 선택 목록에서 Guest 가입 재개/merge, MEMBER·Guest 프로필, Provider 연결 상태와 주요 오류를 선택하세요. 모든 날짜·ID·정책 버전·유효 기간은 예시이며 실제 응답값을 우선합니다. 인증 문자열과 JWKS modulus는 사용 불가능한 자리표시자입니다. Provider `unlink`는 **202 접수**이고 완료가 아니며, `linkAllowed=true`는 최초 start 성공 예시에만 나옵니다. 예시가 모든 오류·상태 조합을 열거하는 것은 아닙니다.
+각 API의 **Responses → Example Value**에서 응답 예시를 볼 수 있습니다. 예시 선택 목록에서 Guest 가입 재개/merge, MEMBER·Guest 프로필과 주요 오류를 선택하세요. 모든 날짜·ID·정책 버전·유효 기간은 예시이며 실제 응답값을 우선합니다. 인증 문자열과 JWKS modulus는 사용 불가능한 자리표시자입니다. 예시가 모든 오류·상태 조합을 열거하는 것은 아닙니다.
+
+회원 탈퇴의 Request body Examples는 `SNS`/`LOCAL`/`GUEST`로 구분됩니다. 모든 유형은 Refresh Token이 필요하며 SNS는 Firebase ID Token만 추가, LOCAL은 비밀번호만 추가, Guest는 추가 인증 필드를 생략합니다. SNS 최근 재로그인은 요구하지 않습니다. 탈퇴 오류 응답은 `isSuccess: false` 및 실제 오류 코드로 표시하고 일반 오류의 result=null과 입력 검증 오류의 상세 배열을 구분합니다.
 
 배포 서버에서 직접 보려면 전달받은 base URL 뒤에 `/swagger-ui.html`을 붙입니다. OpenAPI JSON 경로는 `/v3/api-docs`이며 서버에서 `SWAGGER_ENABLED=true`여야 합니다. 로컬의 localhost URL은 다른 사람에게 공유 가능한 서버 주소가 아닙니다.
 

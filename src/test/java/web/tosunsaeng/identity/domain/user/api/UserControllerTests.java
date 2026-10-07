@@ -257,6 +257,7 @@ class UserControllerTests {
 						.content("{\"refreshToken\":\"invalid-test-value\"}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("INVALID_WITHDRAWAL_CREDENTIALS"))
+				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.result").value(nullValue()))
 				.andReturn();
 		assertThat(credentialFailure.getResponse().getContentAsString())
@@ -270,6 +271,7 @@ class UserControllerTests {
 						.content("{\"refreshToken\":\"valid-shape-test-value\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_REQUIRED"))
+				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.result").value(nullValue()));
 	}
 

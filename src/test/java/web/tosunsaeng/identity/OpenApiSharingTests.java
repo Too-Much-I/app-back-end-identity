@@ -88,6 +88,7 @@ class OpenApiSharingTests {
 		assertInternalReferencesResolve(spec, spec);
 		assertCompleteControllerCoverage(spec);
 		assertResponseExamples(spec);
+		assertWithdrawalDocumentation(spec);
 
 		String outputDirectory = System.getProperty("identity.openapi.output-dir");
 		if (outputDirectory == null) {
@@ -106,6 +107,54 @@ class OpenApiSharingTests {
 		Files.writeString(output.resolve("GENERATED_AT.txt"),
 				Instant.now() + "\nSource: local working tree; not a deployment confirmation.\n",
 				StandardCharsets.UTF_8);
+	}
+
+	private void assertWithdrawalDocumentation(JsonNode spec) {
+		JsonNode operation = spec.path("paths").path("/api/v1/users/withdraw").path("post");
+		assertThat(operation.path("security").get(0).has("bearerAuth")).isTrue();
+		assertThat(operation.path("description").asText()).contains("최근 SNS 재로그인은 요구하지 않습니다");
+		JsonNode requestMedia = operation.at("/requestBody/content/application~1json");
+		assertThat(requestMedia.has("example")).isFalse();
+		assertThat(fieldNames(requestMedia.path("examples"))).containsExactlyInAnyOrder("SNS", "LOCAL", "GUEST");
+		assertThat(fieldNames(requestMedia.at("/examples/SNS/value"))).containsExactlyInAnyOrder("refreshToken", "firebaseIdToken");
+		assertThat(fieldNames(requestMedia.at("/examples/LOCAL/value"))).containsExactlyInAnyOrder("refreshToken", "password");
+		assertThat(fieldNames(requestMedia.at("/examples/GUEST/value"))).containsExactly("refreshToken");
+		JsonNode requestSchema = resolve(spec, requestMedia.path("schema"));
+		assertThat(requestSchema.path("required").toString()).isEqualTo("[\"refreshToken\"]");
+		for (String field : List.of("refreshToken", "password", "firebaseIdToken")) {
+			assertThat(requestSchema.path("properties").path(field).path("writeOnly").asBoolean()).isTrue();
+		}
+		java.util.Map<String, web.tosunsaeng.identity.global.exception.ErrorCode> codes = new java.util.HashMap<>();
+		for (var values : List.of(web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.values(),
+				web.tosunsaeng.identity.domain.user.exception.UserErrorStatus.values(),
+				web.tosunsaeng.identity.global.exception.CommonErrorStatus.values())) {
+			for (var code : values) codes.put(code.getCode(), code);
+		}
+		assertThat(fieldNames(operation.path("responses"))).containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "429", "503");
+		operation.path("responses").fields().forEachRemaining(response -> {
+			if (response.getKey().equals("200")) return;
+			JsonNode media = response.getValue().at("/content/application~1json");
+			assertThat(media.path("schema").path("$ref").asText()).isEqualTo("#/components/schemas/ApiErrorResponse");
+			assertThat(media.path("examples").size()).isPositive();
+			media.path("examples").fields().forEachRemaining(example -> {
+				JsonNode value = example.getValue().path("value");
+				assertThat(value.path("isSuccess").asBoolean()).isFalse();
+				var code = codes.get(value.path("code").asText());
+				assertThat(code).as(example.getKey()).isNotNull();
+				assertThat(code.getHttpStatus().value()).isEqualTo(Integer.parseInt(response.getKey()));
+				assertThat(value.path("message").asText()).isEqualTo(code.getMessage());
+				if (example.getKey().equals("VALIDATION_ERROR")) {
+					assertThat(value.path("result").isArray()).isTrue();
+					assertThat(value.at("/result/0/rejectedValue").isNull()).isTrue();
+					assertThat(value.at("/result/0/field").asText()).isEqualTo("refreshToken");
+				} else assertThat(value.path("result").isNull()).isTrue();
+			});
+		});
+		assertThat(spec.at("/components/schemas/ApiErrorResponse/properties/isSuccess/example").asBoolean()).isFalse();
+		assertThat(spec.at("/components/schemas/BaseResponse/properties/isSuccess/example").asBoolean()).isTrue();
+		assertThat(operation.at("/responses/200/content/application~1json/examples/WITHDRAWN/value/isSuccess").asBoolean()).isTrue();
+		assertThat(operation.at("/responses/400/content/application~1json/examples/WITHDRAWAL_FIREBASE_PROOF_REQUIRED/value/message").asText())
+				.contains("유효한").doesNotContain("최근");
 	}
 
 	private void assertCompleteControllerCoverage(JsonNode spec) {
