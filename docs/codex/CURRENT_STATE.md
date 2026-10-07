@@ -1,5 +1,71 @@
 # Codex Current State
 
+## 2026-10-07 — TMI-199 exact 규격 수락·추가 경계 검증
+
+- 현재 Jira: TMI-199, develop. Billing exact 수락안 §5 전체 wire/null/상태별 필드 및 §6 manifest를 Identity 구현 기준으로 수락. 상세 docs/contracts/billing-c0-exact-wire-index-proposal-2026-10-07.md §8.
+- 신규 fixture2개 hash 고정, numeric39건+overflow/hash/manifest3건=42건 독립 테스트 통과. 전체 clean test1276건(XML 합산) 실패0/오류0/기존skip6. 이전44건 포함. 외부 DB/운영 호출 없음.
+- 이전 C0 기술 수락 보류 사유 해소. 관련 변경 병합과 양측 결과 기록 후 별도 승인으로 종료 가능. Jira 상태/댓글은 변경하지 않았으며 실제 controller/initializer/장애·운영 검증 gate는 후속 이슈에 유지.
+- 제품·build·배포 미변경. 기존 기록 보존, 예상 밖 제품 변경 없음. commit/push는 사용자 수행.
+
+## 2026-10-07 — Apple 탈퇴 revoke 미구현 확인
+
+- 현재 Identity 서버의 탈퇴 cleanup adapter는 Firebase revokeRefreshTokens만 호출하며 Apple OAuth revoke는 구현하지 않는다. Apple provider 발견 시 PROVIDER_OBLIGATION_REQUIRED로 중단한다.
+- worker가 해당 단계까지 실행되면 Firebase 비활성화·세션 폐기 이후 Firebase 사용자 삭제 전 RECONCILIATION_REQUIRED로 전환하는 경로다. 내부 WITHDRAWN과 외부 정리 완료는 별개. 실제 배포/worker 실행 및 프론트 구현은 미확인.
+- 제품 변경 없이 코드·기존 테스트 정적 확인 및 기록, Gradle 미실행, git diff --check 검증.
+
+## 2026-10-07 — TMI-199 최신 계약 완료 조건 검토
+
+- 현재 Jira: TMI-199, develop. 첨부 최신 공동 계약과 공식 Jira 완료 기준 대조. 새 밀리초 통일·wire decimal/BSON int64·internal 오류 envelope·Lattice IAM/SigV4 방향은 이전 검증 결과와 부합하며, 실환경 미검증 항목을 TMI-202/203/204/206의 통과 기준으로 배정한 것은 적절하다.
+- 현재 바로 Done 판단은 보류: 문서 자체가 후속 exact 규격 상대 수락, endpoint별 nullable 목록, 물리 index manifest 검증을 미완료로 명시한다. 기존44건은 신규 Long.MAX_VALUE 상한/overflow 전체 검증이 아니므로 변경 규격에 해당하는 최소 경계 fixture 보완 필요.
+- 운영 검증 전체를 C0에서 끝낼 필요는 없으나 후속 gate와 이슈 연결 기록, exact 규격 양측 수락 및 관련 PR 병합 확인 후 완료 판단. 기존 테스트 결과 유지, 이번에는 문서/Jira 읽기 및 diff 검사만 수행. Jira 상태·댓글·제품·배포 변경 없음.
+
+## 2026-10-07 — 탈퇴 API 자체의 ACCOUNT_WITHDRAWN 가능 경로 확인
+
+- 현재 턴 `01a11548-ccec-70a1-99ef-572dcefd8b3c` 식별자를 WORKLOG 끝에 추가했다. 제품 추가 변경 없이 기록 보완.
+
+- app.session-revocation.fence-enabled=true로 SessionSecurityService가 주입되면 탈퇴 자격 검사에서 checkAndTouch → requireActive가 WITHDRAWN 계정에401 ACCOUNT_WITHDRAWN을 반환할 수 있다. 최초 ACTIVE 조회 뒤 다른 요청이 탈퇴를 확정하는 경합에서 가능하며, 재발급 전용 오류라고 한정하면 부정확하다.
+- 최초 조회부터 WITHDRAWN이면 기존200 분기가 우선한다. 원격 flag/실제 오류 요청 URL 미확인. 제품 변경 없이 정적 코드 확인·기록 및 git diff --check, Gradle 미실행.
+
+## 2026-10-07 — 탈퇴 진행 중 중복 요청의 단계별 응답 분석
+
+- 현재 턴 `01a11546-a39a-72a3-92be-68fea04a1a00` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 내부 WITHDRAWN 확정 후 외부 정리 진행 중이면 정상 인증/요청에서200 및 현재 cleanupStatus를 반환한다. 내부 확정 전 동시 요청은 충돌 재조회로 성공 처리 가능하지만 모든 경합을200으로 정규화하지 않는다.
+- UserWithdrawalService의 Refresh/Firebase 사전 검증은 충돌 처리 try 밖에 있어 최초 ACTIVE 조회 후 다른 요청이 탈퇴 확정하면401 INVALID_WITHDRAWAL_CREDENTIALS 또는 Firebase 검증 오류가 가능하다. 처리된 충돌이 해소되지 않으면409 WITHDRAWAL_CONFLICT 가능. 코드 변경 없이 정적 확인, Gradle 미실행, 원격 경합 미검증.
+
+## 2026-10-07 — Firebase 계정 거절 설명 기록 보완
+
+- WORKLOG 끝에 이번 설명의 정확한 턴 식별자를 추가했다. Firebase 삭제/비활성/연결 정보 이상과 Identity 사용자 부재를 구분한 결과 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — FIREBASE_ACCOUNT_NOT_ALLOWED 조건 안내
+
+- FirebaseSdkAdminClient의 USER_DISABLED/USER_NOT_FOUND 변환 및 verifier의 disabled·연결 로그인 수단 불일치·필수 주 인증 수단 부재·잘못된 Provider 식별 정보 검증에서 발생. Identity User 문서 부재와 구분하며403만으로 Firebase 삭제를 단정하지 않음.
+- 제품 변경 없이 정적 확인·기록 및 git diff --check 수행. 실제 장애 원인 미확인.
+
+## 2026-10-07 — 다른 기기에서 중복 탈퇴 요청 시 성공 반환 확인
+
+- 설명 턴 `01a11544-221e-7321-aeb2-fe8fa9bdae24`의 기록을 WORKLOG 끝에 추가했다. 제품 추가 변경 없이 기록 식별 보완.
+
+- 유효한 Access Token과 정상 요청 형식이면 WITHDRAWN 계정은 Refresh/Firebase 재검증 전 기존 탈퇴 결과를200으로 반환한다. 기존 탈퇴 시각 및 현재 cleanupStatus 유지. 재발급의401 ACCOUNT_WITHDRAWN과는 다른 계약이다.
+- Access Token 만료/요청 검증 실패/기록 불일치는 별도 오류 가능. 제품 변경 없이 코드·기존 테스트 정적 확인과 기록 수행, Gradle 미실행 및 git diff --check 검증. 원격 미확인.
+
+## 2026-10-07 — USER_NOT_FOUND 설명 기록 보완
+
+- WORKLOG 끝에 정확한 턴 식별자를 추가했다. Identity 사용자 문서 부재와 정상 탈퇴/Firebase 부재의 구분 설명 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — 한 기기 탈퇴의 다른 기기 영향 확인
+
+- 현재 설명 턴 식별자 `01a11541-0dd0-78a2-97ad-5c1a105b696b`로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 같은 userId의 탈퇴는 계정 전체에 적용하며 활성 RefreshSession을 모두 ACCOUNT_WITHDRAWN 사유로 폐기한다. 다른 기기의 재발급은 해당 세션이 남아 있으면 401 ACCOUNT_WITHDRAWN, 세션 삭제 후에는 INVALID_REFRESH_TOKEN 등이 가능하다.
+- 다른 기기의 화면·로컬 인증 정보가 즉시 사라지는 것은 아니다. 프론트는 오류 수신 후 인증/계정 캐시 정리와 재발급 중단이 필요하다. 기존 Access Token의 Learning Core 즉시 차단은 downstream deny 처리·배포에 의존하며 이번 확인으로 보장하지 않는다.
+- 제품 변경 없이 정적 코드 확인 및 기록만 수행. Gradle 미실행, git diff --check 검증. 원격 배포·실기기 동작 미확인.
+
+## 2026-10-07 — 탈퇴 USER_NOT_FOUND 발생 조건 설명
+
+- UserWithdrawalService의 현재 인증 사용자 ID 조회 및 충돌 후 재조회에서 Identity User 문서 부재 시404 USER_NOT_FOUND. 정상 탈퇴는 tombstone을 남기므로 단순 타 기기 탈퇴와 구분.
+- DB 초기화/수동 삭제 또는 서버 DB 환경 불일치는 가능한 원인이지 확인된 장애 원인은 아님. 제품 변경 없이 정적 확인·기록, git diff --check 수행.
+
 ## 2026-10-07 — reissue Swagger 구현 턴 기록 보완
 
 - WORKLOG 끝에 정확한 구현 턴 식별자를 추가했다. 401 선택형 오류 예시5종 및 전체 테스트/공유본 성공 결과 유지. 제품 추가 변경 없이 git diff --check 재확인.

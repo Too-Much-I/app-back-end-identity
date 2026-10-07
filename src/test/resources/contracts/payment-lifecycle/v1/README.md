@@ -1,5 +1,10 @@
 # TMI-199 shared synthetic inputs
 
+The exact-spec supplement adds `numeric-boundaries.json` and `identity-indexes.json`.
+Their hashes are pinned in `PaymentLifecycleExactSpecTests`: 39 numeric cases,
+increment overflow, hashes and a static manifest check (42 tests). This accepts
+the physical specification but does not create indexes or test a production initializer.
+
 The four JSON files are byte-identical copies of Billing's reviewed fixtureVersion 1
 from 2026-10-07. Their SHA-256 hashes are pinned by `PaymentLifecycleFixtureTests`.
 They contain synthetic identifiers, not real user records or credentials.
