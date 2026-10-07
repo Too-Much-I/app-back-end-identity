@@ -47,10 +47,10 @@ app:
   account-recovery:
     enabled: ${ACCOUNT_RECOVERY_ENABLED:false}
     key-ring: ${ACCOUNT_RECOVERY_KEY_RING:}
-    challenge-ttl: ${ACCOUNT_RECOVERY_CHALLENGE_TTL:PT5M}
-    recent-auth: ${ACCOUNT_RECOVERY_RECENT_AUTH:PT5M}
+    challenge-ttl: ${ACCOUNT_RECOVERY_CHALLENGE_TTL:PT10M}
+    recent-auth: ${ACCOUNT_RECOVERY_RECENT_AUTH:PT10M}
     retry-ttl: ${ACCOUNT_RECOVERY_RETRY_TTL:PT5M}
-    prepare-per-minute: ${ACCOUNT_RECOVERY_PREPARE_PER_MINUTE:10}
+    prepare-per-minute: ${ACCOUNT_RECOVERY_PREPARE_PER_MINUTE:15}
     lookup-per-minute: ${ACCOUNT_RECOVERY_LOOKUP_PER_MINUTE:20}
     proof-per-quarter-hour: ${ACCOUNT_RECOVERY_PROOF_PER_QUARTER_HOUR:5}
   provider-change:

@@ -32,7 +32,8 @@ class AccountRecoveryServiceTests {
 	@Test void prepareDoesNotRevealAccountOrCallFirebase() {
 		var result = service.prepare("127.0.0.1");
 		assertThat(UUID.fromString(result.recoveryId())).isNotNull();
-		assertThat(result.expiresAt()).isEqualTo(NOW.plusSeconds(300));
+		assertThat(result.expiresAt()).isEqualTo(NOW.plusSeconds(600));
+		verify(store).admit(anyList(), eq(60), eq(15), eq(NOW));
 		verifyNoInteractions(verifier, resolver);
 		verify(store).prepare(result.recoveryId(), NOW, result.expiresAt());
 	}
@@ -55,7 +56,7 @@ class AccountRecoveryServiceTests {
 	@Test void nonPhoneAndStaleProofAreRejectedBeforeResolving() {
 		when(verifier.verify(anyString(), any())).thenReturn(proof(FirebaseAuthenticationMethod.GOOGLE, NOW, NOW));
 		denied(AuthErrorStatus.INVALID_RECOVERY_PROOF);
-		when(verifier.verify(anyString(), any())).thenReturn(proof(FirebaseAuthenticationMethod.PHONE, NOW.minusSeconds(301), NOW));
+		when(verifier.verify(anyString(), any())).thenReturn(proof(FirebaseAuthenticationMethod.PHONE, NOW.minusSeconds(601), NOW));
 		denied(AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED);
 		verifyNoInteractions(resolver);
 	}
@@ -74,5 +75,20 @@ class AccountRecoveryServiceTests {
 	void denied(AuthErrorStatus expected) {
 		assertThatThrownBy(() -> service.lookup(ID, "test-proof", "127.0.0.1")).isInstanceOfSatisfying(AuthException.class,
 				e -> assertThat(e.getErrorCode()).isEqualTo(expected));
+	}
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(ints = {301, 599, 600})
+	void acceptsPhoneAuthenticationThroughTenMinutes(int ageSeconds) {
+		when(verifier.verify(anyString(), any())).thenReturn(proof(FirebaseAuthenticationMethod.PHONE, NOW.minusSeconds(ageSeconds), NOW));
+		assertThat(service.lookup(ID, "test-proof", "127.0.0.1").status()).isEqualTo(RecoveryResult.Status.NOT_FOUND);
+		verify(store).lookup(eq(ID), anyList(), any(), eq(NOW), eq(Duration.ofMinutes(5)), any());
+	}
+	@Test void customRecentAuthWindowStillApplies() {
+		var configured = new RecoveryProperties(true, RING, null, Duration.ofMinutes(2), null, 0, 0, 0);
+		var customService = new AccountRecoveryService(store, new RecoveryHasher(RING), verifier, resolver, configured, Clock.fixed(NOW, ZoneOffset.UTC));
+		when(verifier.verify(anyString(), any())).thenReturn(proof(FirebaseAuthenticationMethod.PHONE, NOW.minusSeconds(121), NOW));
+		assertThatThrownBy(() -> customService.lookup(ID, "test-proof", "127.0.0.1"))
+				.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED));
+		verifyNoInteractions(resolver);
 	}
 }

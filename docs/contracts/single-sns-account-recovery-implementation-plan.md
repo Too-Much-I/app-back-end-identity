@@ -154,10 +154,10 @@ Guest merge에서는 현재 인증 SNS가 대상의 유일한 승인 SNS이고 F
 
 - `AccountRecoveryPhoneVerifier`를 별도 검증 로직으로 만들되 기존 Firebase 프로젝트/tenant와 Admin 연결을 재사용하여 서명·issuer·audience·만료·revoke·disabled 상태를 검증한다. 같은 프로젝트의 Firebase 토큰 자체에 계정 찾기 전용 목적이 자동 삽입되는 것은 아니다. lookup의 challenge/전화 method/최근 인증을 서버에서 검증하며, 일반 exchange/merge의 승인 SNS 조건과 기존 signup/upgrade의 enrollment·소유권·전화 인증 조건을 완화하지 않는다. lookup은 회원 세션/enrollment를 생성하지 않는다.
 - `sign_in_provider=phone`이어야 한다. 단순히 계정에 전화번호가 연결되어 있다는 `phoneVerified=true`만으로 조회를 허용하지 않는다.
-- 토큰 phone claim과 현재 Admin 계정의 E.164 전화번호가 일치해야 한다. `auth_time`은 prepare 이후(초 단위 절삭 기준)이며 현재부터 최대 5분 이내여야 한다. 강제 토큰 refresh로 `iat`만 바뀐 오래된 인증은 거절한다. 미래 시간은 최대 30초 허용오차를 적용하고 exp 만료도 별도로 검사한다.
+- 토큰 phone claim과 현재 Admin 계정의 E.164 전화번호가 일치해야 한다. `auth_time`은 prepare 이후(초 단위 절삭 기준)이며 현재부터 최대 10분 이내여야 한다. 강제 토큰 refresh로 `iat`만 바뀐 오래된 인증은 거절한다. 미래 시간은 최대 30초 허용오차를 적용하고 exp 만료도 별도로 검사한다.
 - Firebase 전화 인증에 서버 challenge nonce가 자동 바인딩된다고 가정하지 않는다. challenge는 서버의 유효기간·인증시각·원자 소비·전화 proof 재사용 기록으로 연결한다.
 - 신규 `AccountRecoveryAttempt`: `recoveryId`, `createdAt`, `expiresAt`, `state=PENDING/CONSUMED`, `proofFingerprint`, `consumedAt`, `retryUntil`, `cleanupAt`. 원문 전화번호/증명/이메일 저장 없음.
-- 기본 유효기간은 prepare부터 5분. 유효한 전화 proof를 원자적으로 소비하고 lookup을 수행한다. 소비 실패/조회 실패가 중간 상태를 남기지 않도록 소비 및 로컬 결과 읽기의 트랜잭션 경계를 테스트한다.
+- 기본 유효기간은 prepare부터 10분. 유효한 전화 proof를 원자적으로 소비하고 lookup을 수행한다. 소비 실패/조회 실패가 중간 상태를 남기지 않도록 소비 및 로컬 결과 읽기의 트랜잭션 경계를 테스트한다.
 - proof fingerprint는 전용 HMAC으로 `(project, tenant, uid, auth_time, normalized phone)`를 식별하며 원문 증명은 저장하지 않는다. 같은 인증으로 여러 challenge를 소비하지 못하도록 별도 unique 소비 기록을 사용한다. refresh로 바뀌는 `iat`는 proof 식별 기준에 넣지 않는다.
 - HMAC 회전 시 유효한 proof/재시도 기간에 걸치는 이전 키를 유지하고 모든 retained 버전의 소비 기록을 검사한다. 신규 소비는 버전별 alias를 동일 트랜잭션에서 기록하여 키 변경 전후 동시 소비도 중복 허용하지 않는다.
 - 응답 유실 시 **같은 recoveryId와 같은 인증 proof**로 재시도한다. 소비 후 최대 5분의 retry 기간 동안 현재 계정/번호 상태를 다시 검증해 결과를 재생성한다. 이미 탈퇴했다면 이전 힌트를 재전송하지 않는다. 다른 proof로 재사용하면 409를 반환한다. proof가 만료되면 재인증한다.
@@ -172,11 +172,11 @@ Guest merge에서는 현재 인증 SNS가 대상의 유일한 승인 SNS이고 F
 | --- | --- |
 | 계정 찾기 기능 | 준비 완료 전 OFF, 통합 출시 시 ON; 단일 SNS 정책은 서버 불변조건으로 적용 |
 | Firebase | 기존 project ID/tenant/Admin 자격증명 재사용. 새 프로젝트·추가 service account는 요구하지 않음; 콘솔 Phone/SMS/앱 검증 설정 확인 |
-| challenge / 전화 최근 인증 / 응답 재시도 | 각 5분, 서버 Clock 사용 |
-| prepare 제한 | IP당 10회/분 |
+| challenge / 전화 최근 인증 / 응답 재시도 | 10분 / 10분 / 5분, 서버 Clock 사용 |
+| prepare 제한 | IP당 15회/분 |
 | lookup 사전 제한 | IP당 20회/분, proof 검증 전에 적용 |
 | lookup 증명 후 제한 | 인증 UID 및 인증 번호당 각각 5회/15분; FOUND/NOT_FOUND/재시도 모두 계산 |
-| 제한 응답 | 429, `Retry-After` 초 단위 |
+| 제한 응답 | 429, 로컬 제한은 거절된 고정 시간창의 남은 초를 올림한 `Retry-After`; Firebase 자체 제한처럼 해제 시각 미상이면 헤더 생략 |
 | Firebase/SMS 남용 방지 | SDK 앱 검증, SMS 발송 제한/할당량 설정. Identity 제한만으로 SDK 직접 SMS 호출이 제한된다고 보지 않음 |
 
 기존 `ProviderRequestBudget`는 프로세스 내부 제한이다. 신규 공개 계정 찾기는 Mongo 원자 counter/TTL 등 인스턴스 간 공유 제한을 적용한다. 장애 시 무제한 허용하지 않는다. IP는 신뢰하는 프록시에서 전달된 값만 사용한다. 번호·UID·IP 제한 키에는 분리된 HMAC을 쓰며 key rotation 시 이전/현재 버전의 카운터를 함께 검사해 제한을 우회하지 않게 한다. 최종 환경변수 이름·한도는 설정 클래스/문서/테스트를 함께 맞춘다.

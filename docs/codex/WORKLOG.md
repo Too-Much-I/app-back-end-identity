@@ -14787,3 +14787,221 @@
 - 테스트: 이전 git 상태/차이/workflow 확인 및 AWS NoCredentials 결과 유지. 문서 보완 후 git diff --check. 제품 변경 없어 실행 테스트 재수행 없음.
 - 유지 계약/결정: 기존 기록과 선행 코드 변경 보존, 비밀값 비기록, Codex commit/push 금지 준수. 원격 변경 및 예상 밖 변경 없음.
 - 위험/다음 작업: 사용자 push 및 AWS 인증 후 CI 이미지·Secret 참조·권한·프록시 확인을 거쳐 테스트 한정 ON/재배포. Jira 변경 없음.
+
+## 2026-10-06 TMI-197 테스트 문의 기능 및 Slack 알림 활성화 배포
+- Jira: TMI-197. 브랜치: develop. 목표: 사용자 push 완료 후 테스트 Identity에 문의 설정 ON 및 재배포.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음. 시작 시 로컬 작업 트리 clean, HEAD cc076442 확인.
+- 원격 확인: GitHub Actions 실행37414782746에서 동일 커밋 테스트/이미지 업로드/배포/health 성공. 로컬 CLI는 NoCredentials였으나 로그인된 Chrome AWS CloudShell로 작업. 현재 테스트 서비스와 실행 역할·ALB subnet·XFF append/port false 및 target8081의 ALB SG만 허용 확인.
+- 승인/원격 변경: 사용자 두 Secret 읽기 권한 추가 명시 승인 후 테스트 execution role에 ReadSupportInquirySecrets 별도 inline 정책 추가(GetSecretValue, 정확히 문의 Secret2개). 기존 역할 정책·운영 서버 변경 없음. Secret 원문 조회/출력 없음.
+- 설정/배포: 최신 코드 revision21을 기반으로 문의 ingress/Slack worker true, forward headers none, 신뢰 프록시를 확인한 ALB 두 subnet CIDR로 제한, HMAC 및 Slack JSON 키 참조2개만 추가. 초기 register는 empty tags 거절로 리비전 생성 안 됨, 빈 tags 필드 제외 후 revision22 등록 성공. GitHub 배포 완료 뒤 서비스22 적용. PRIMARY COMPLETED/running1/failed0 확인. 이미지·기타 환경변수·기존 Secret·리소스 설정 유지.
+- 테스트: 새 컨테이너 시작 로그55초, 초기 ALB unhealthy는 이후 healthy로 복구. 실제 health200 UP, 익명 REFUND401 SUPPORT_REFUND_AUTH_REQUIRED, 합성 GENERAL 접수201, 동일키/본문 재전송200·동일 접수번호, 동일키 다른본문409 SUPPORT_INQUIRY_REQUEST_CONFLICT. Slack 문의-테스트 채널에서 해당 합성 접수번호/본문 도착 확인. 테스트 문의1건 생성, 원격 DB 직접 조회/삭제 안 함. 문서 diff 검사 수행.
+- 유지 계약: REFUND 서버확인 userId 필수, 클라이언트 임의 userId 금지, JWT/기존 인증 무변경. Slack 접수번호+본문만, 테스트 합성 메시지에 개인정보 없음. 예상 밖 제품 변경 없음.
+- 위험/미확인: 실제 인증 계정 REFUND 접수는 이번 원격 검증에서 미실행. Slack 네트워크 응답 유실의 중복 가능성은 기존 설계대로 남음. 운영 경보/보관·삭제 정책은 별도 준비 필요. 실제 사용자 문의 원문/Secret 값은 기록하지 않음.
+- 다음 작업: 프론트에서 테스트 API 연동 및 REFUND Bearer 전달 검증. 생성한 합성 문의와 Slack 메시지는 보관. CloudShell 임시 변수 정리. Codex commit/push/Jira 변경 없음.
+- Jira 댓글 초안(미등록): “테스트 Identity cc076442 및 설정 revision22 배포 완료. 최소 Secret2개 읽기 정책은 사용자 승인 후 적용. 문의·Slack ON, health200/익명환불401/접수201/중복200/충돌409 및 Slack 수신 확인. 남은 확인: 실제 인증 REFUND·프론트 연동, 운영 경보/개인정보 보관 정책.”
+
+<!-- codex-turn:01a10f83-0128-7d02-a611-4b70257bdb79 -->
+
+## 2026-10-06 TMI-197 테스트 활성화 배포 작업 식별 기록 보완
+- Jira: TMI-197. 브랜치: develop. 목표: 현재 턴 배포 완료 결과 및 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 이번 보완은 기록만 변경.
+- 결과: cc076442 기반 테스트 revision22 배포 완료, 문의 접수·Slack worker ON, 사용자 승인한 정확한 Secret2개 읽기 권한 및 참조 적용. 운영 서버 미변경.
+- 테스트: 해당 턴에서 health200, 익명 REFUND401, 합성 문의201, 동일 요청200, 키 충돌409 및 Slack 수신 확인. 기록 보완 후 git diff --check 수행.
+- 유지 계약/결정: 인증된 userId 필수화 및 기존 JWT/알림 형식 유지. 비밀값 비기록, 과거 기록 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 실제 인증된 REFUND 원격 접수·프론트 연동과 운영 경보/보관 정책 확인 필요. 추가 원격 변경·Jira 등록·commit/push 없음.
+
+<!-- codex-turn:01a10f96-3606-7a93-ab8b-2f97db4aa912 -->
+
+## 2026-10-06 사용자 제공 일반 문의 전송 확인
+- 브랜치: develop. 목표: 사용자가 지정한 문의 본문을 테스트 API로 한 번 접수하고 Slack 전달 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 수행: GENERAL·익명·연락처 미지정으로 사용자 제공 본문 그대로 전송. 고정 멱등 키 사용. 최초 sandbox DNS 실패 후 승인된 네트워크 실행으로 접수 성공, 중복 신규 요청 없음.
+- 테스트: HTTP201 RECEIVED 확인, Slack 문의-테스트 채널에서 동일 접수번호와 전체 본문 도착 확인. DB 직접 조회는 하지 않음. 문서 diff 검사 수행.
+- 유지 계약/결정: 테스트 환경만 사용, 사용자 ID/이메일 임의 추가 없음, 문의 원문 및 비밀값은 작업 문서에 복사하지 않음. 과거 기록과 선행 변경 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 회신 연락처 없이 접수된 전송 테스트이며 실제 증상의 원인 분석/해결을 수행한 것은 아님. 테스트 문의·Slack 메시지는 보관. 추가 전송·배포·Jira 변경·commit/push 없음.
+
+<!-- codex-turn:01a10f98-4a50-74a2-93d2-383044a2ff9b -->
+<!-- codex-turn:01a10f9d-3d97-7601-831d-1eb47d90ef53 -->
+
+## 2026-10-06 Notion 문의 API 가이드 8.25 추가
+- 브랜치: develop. 목표: 사용자 지정 Notion 로그인 문서에 문의 API 연동 계약 업데이트. 진행 중 번호 요청은 최종 8.25로 확정됨.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 변경: 지정 Notion 페이지의 8.25 절 추가. 제품 코드 변경 없음.
+- 내용: SupportRequest/Controller/Service/Error와 계약 문서 기준 요청·응답 예시, AUTH/GENERAL/REFUND, 서버 확인 사용자 인증, 필드 제한, 오류 대응, 멱등 키와 재시도, 요청 제한, 주의문구 및 테스트 검증 범위 정리.
+- 검증: Notion 새로고침 후 8.25 및 하위 7절 단일 존재·전체 내용·9번 부록/기존 링크 보존 확인. 편집 중 중복 초안 제거 후 저장 확인. 문서 작업으로 실행 테스트 재수행 없음, git diff --check 수행.
+- 유지 계약/결정: REFUND는 활성 MEMBER/GUEST 인증 필수, 본문 userId 금지. RECEIVED는 접수일 뿐 Slack/환불 완료 아님. 기존 인증 계약·원격 배포 설정 변경 없음. 비밀값·실제 문의 원문 비기록. 선행 사용자 기록 보존, 예상 밖 제품 변경 없음.
+- 위험/다음 작업: 실제 로그인 계정 REFUND 원격 제출과 프론트 통합 QA는 남아 있음을 명시. 운영 활성화로 주장하지 않음. Jira 변경·commit/push 없음.
+
+<!-- codex-turn:01a10fa4-2961-7860-bcba-e6e247a3209d -->
+
+## 2026-10-06 Notion 문의 API 8.25 가독성 정리
+- 브랜치: develop. 목표: 사용자 요청에 따라 8.21과 유사한 읽기 쉬운 API 문서 서식 적용.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 외부 변경: 동일 Notion 페이지 8.25 서식. 제품 코드 변경 없음.
+- 내용: API 제목·하위 제목 분리, 요청/응답 JSON 구문 강조 코드 블록, 오류 코드/대응 표, 필드 목록과 설명 문단 구분. 패턴의 별표를 코드로 표시해 Markdown 해석 누락 방지. 중복 평문 초안 제거.
+- 검증: 브라우저 새로고침 후 하위 7절·기존 9번 부록 보존 확인, 요청/응답 코드 블록 스크린샷 및 오류 표 DOM 확인. git diff --check 수행. 문서 서식 변경이므로 앱 테스트 미실행.
+- 유지 계약/결정: 인증·필드 제한·성공/오류·재시도·검증 범위 유지. 기존 문서/선행 로컬 기록 보존, 예상 밖 제품 변경 없음. 비밀값 비기록.
+- 위험/다음 작업: 실제 인증 REFUND와 프론트 QA는 기존 남은 작업 그대로. 배포·Jira·commit/push 없음.
+
+## 2026-10-06 — account-recovery prepare 요청 제한 확인
+
+<!-- codex-turn:01a10fc9-f5e9-7623-9554-f039096765a8 -->
+
+- 브랜치: develop. 작업 목표: prepare의429 기준 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: 기본 ACCOUNT_RECOVERY_PREPARE_PER_MINUTE=10, 서버가 인식한 IP의 prepare-ip 해시 기준. epochSecond/60 고정 분 구간에서10회 허용 후11번째부터 RECOVERY_RATE_LIMITED. Mongo 카운터로 인스턴스 간 공유. 컨트롤러는429에 보수적 Retry-After:900을 공통 반환하므로 실제 prepare 분 구간과 구분 필요.
+- 테스트와 결과: 설정·서비스·저장소·컨트롤러 정적 확인, git diff --check. 제품 변경 없어 테스트 미실행.
+- 유지 계약: 기존 API/한도/인증 변경 없음. Secret·IP 원문 비기록.
+- 결정사항·위험: 실제 배포 환경변수와 프록시 IP 해석은 미조회. 같은 IP로 인식되는 클라이언트는 한도 공유.
+- 다음 작업: 필요 시 대상 환경 한도·프록시/429 헤더 확인. 배포/Jira/외부 변경 없음.
+
+## 2026-10-06 — Notion 계정 찾기 관련 요청 읽기 및 코드 대조
+
+<!-- codex-turn:01a11037-36f0-78b1-9649-90e3be3312a8 -->
+
+- 브랜치: develop. 작업 목표: 사용자 지정 Notion 계정 찾기 관련 요청 페이지 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만). 선행 기록 변경 보존, 예상 밖 제품 변경 없음.
+- 확인 내용: 페이지 질문 9개를 브라우저로 읽었다. AccountRecoveryService/MongoRecoveryStore의 PHONE·auth_time·TTL 조건, FirebaseAdminAuthenticationVerifier의 PHONE exchange 거절, FirebaseExchangeService의 enrollment 생성, RecoveryAccountResolver의 상태 분기, EmailHint 마스킹, 가입 중단 cleanup worker 및 기본 비활성 설정을 정적 대조했다.
+- 결정사항: 충돌 후 prepare → credential 전화 로그인은 토큰 auth_time 등 검증 조건 충족 시 가능하다. SMS 확인 시각 자체는 서버가 비교하지 않는다. Android 실험은 페이지 작성자 보고로 구분하며 iOS/실제 통합 동작은 보장하지 않는다.
+- 테스트와 결과: 정적 검토 및 git diff --check 수행. 제품 변경이 없어 실행 테스트 미수행. 원격 배포 환경변수 미조회.
+- 유지 계약: PHONE 인증은 계정 힌트 조회용이고 exchange 로그인으로 사용 불가. 회원 없음과 Firebase 계정 없음은 다르며 NOT_FOUND가 전화번호 연결 해제를 의미하지 않는다. 비밀값/개인정보 비기록.
+- 위험 요소: cleanup은 구현 존재와 배포 활성화를 구분해야 한다. 앱에서 Firebase currentUser를 무조건 삭제하면 전화 로그인 후 기존 회원을 삭제할 위험이 있어 정리 대상 식별 필요. 번호 재할당에 따른 마스킹 힌트 노출 위험 잔존.
+- 다음 작업: 필요 시 프론트 답변 및 실제 SDK E2E, cleanup 배포 설정/대상 포함 여부 확인. Notion 수정·Jira 변경·배포·commit/push 없음.
+
+## 2026-10-06 — 계정 찾기 질문 9개 간단 답변 작성
+
+<!-- codex-turn:01a1103e-03a4-71b0-8cda-771fac5b3c21 -->
+
+- 브랜치: develop. 작업 목표: 앞서 확인한 Notion 질문 순서대로 프론트 전달용 짧은 답변 작성.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드·외부 문서 변경 없음.
+- 내용: PHONE/auth_time 조건, exchange 거절, enrollment 잔존, cleanup 구현과 활성화 구분, 전화번호 중복 방어, prepare 한도·TTL·503 재시도, ACTION_REQUIRED 안내, 재할당 개인정보 위험을 요약했다.
+- 테스트와 결과: 선행 코드 검토 근거 재사용, git diff --check 수행. 답변·기록 작업으로 실행 테스트 미수행.
+- 유지 계약/결정: 현재 계약 설명만 수행. cleanup 보장·SDK E2E 성공·마스킹 안전성을 단정하지 않음. 과거 기록과 선행 변경 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 배포 설정 및 iOS/실제 서버 연동 미확인. 필요 시 확인하되 이번 작업은 배포·Jira·commit/push·Notion 수정 없음.
+
+## 2026-10-07 — recovery 제한 구간과 만료 UX 설명
+
+<!-- codex-turn:01a1140c-3e00-71a3-b8d9-6d1084429182 -->
+
+- 브랜치: develop. 목표: 고정 분 카운터/Retry-After 차이와 recoveryId 만료 후 재인증 조건 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인 내용: MongoRecoveryStore는 분 경계마다 별도 카운터를 사용한다. Controller는 모든 recovery rate limit에900초를 안내하므로 prepare 실제 해제 시점보다 길다. 최초 lookup 만료와 이미 처리한 lookup의 retryUntil을 구분한다. 새 prepare 이후 PHONE auth_time 필요하며 SMS 재발송 여부는 Firebase credential 유효성/SDK 동작에 달려 있다.
+- 결정사항: 5분은 변경 불가한 보안 경계가 아니다. challengeTtl과 recentAuth는 별도이며 각각 최대15분 설정 가능. 접수 TTL10분·최근 인증5분 유지와 실제 제한별 Retry-After 산출을 개선안으로 제시하되 구현/설정 변경은 하지 않는다.
+- 검증: 관련 코드 정적 재확인 및 git diff --check. 제품 변경 없는 설명 작업으로 실행 테스트 미수행.
+- 유지 계약/위험: 기존 API/설정 유지, 비밀값 비기록. 배포값과 실제 SDK 재인증/credential 재사용 미확인. 선행 변경 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 사용자 요청 시 제한 헤더와 TTL 정책 수정 검토. 외부 변경·배포·Jira·commit/push 없음.
+
+## 2026-10-07 — recoveryId 만료 응답 코드 안내
+
+- 브랜치: develop. 목표: 만료된 접수번호 lookup 오류 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 확인/결정: 만료 검사 오류는 HTTP410 RECOVERY_EXPIRED. 앞선 최근 인증 검사 실패는401 RECOVERY_RECENT_AUTH_REQUIRED, 접수 기록 정리 후 부재는400 INVALID_RECOVERY_REQUEST로 구분한다.
+- 검증: 오류 정의 및 선행 검증 순서 확인, git diff --check. 제품 변경 없어 실행 테스트 미수행.
+- 유지 계약/위험: API 변경 없음, 만료 ID가 항상410을 보장하는 것으로 안내하지 않음. 과거 기록 보존, 예상 밖 변경 없음, 비밀값 비기록.
+- 다음 작업: 프론트 오류 분기 참고. 배포·외부 변경 없음.
+
+## 2026-10-07 — 만료 응답 안내 턴 기록 보완
+
+<!-- codex-turn:01a1140e-02b6-7fc0-891b-125b6e213330 -->
+
+- 브랜치: develop. 목표: 현재 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용/결정: 만료 오류410 RECOVERY_EXPIRED 및 선행 인증/접수 기록 부재 예외 안내 결과 유지. 과거 기록 수정 없이 append.
+- 검증: git diff --check 통과. 기록만 변경하여 실행 테스트 미수행.
+- 유지 계약/위험: 제품/API 변경 및 비밀값 기록 없음. 추가 위험·예상 밖 변경 없음.
+- 다음 작업: 필요 시 프론트 오류 분기 적용. 외부 변경 없음.
+
+## 2026-10-07 — RECOVERY_EXPIRED 응답 재확인
+
+<!-- codex-turn:01a1140f-5f75-74d6-8590-979d9c3a0e49 -->
+
+- 브랜치: develop. 목표: 사용자에게 만료 오류 코드 재확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 내용/결정: 앞선 인증 검사를 통과하고 접수번호 만료가 확인되면 HTTP410 RECOVERY_EXPIRED임을 재안내.
+- 검증: 선행 코드 확인 근거 재사용, git diff --check. 제품 변경 없어 실행 테스트 미수행.
+- 유지 계약/위험: 기존 오류 우선순위 유지. 추가 위험·예상 밖 변경 없음, 비밀값 비기록.
+- 다음 작업: 프론트 만료 안내 및 재시작 분기 참고. 외부 변경 없음.
+
+## 2026-10-07 — 응답 재확인 턴 기록 보완
+
+<!-- codex-turn:01a1140f-1b03-79e3-bc3b-e87d62fa7c92 -->
+
+- 브랜치: develop. 목표: 현재 턴의 정확한 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용/결정: 인증 검사 통과 후 만료 시410 RECOVERY_EXPIRED 안내 결과 유지. 과거 기록은 변경하지 않음.
+- 검증: git diff --check. 기록만 변경하여 실행 테스트 미수행.
+- 유지 계약/위험: 제품/API 변경 없음, 비밀값 비기록, 추가 위험·예상 밖 변경 없음.
+- 다음 작업: 필요 시 프론트 오류 분기 참고. 외부 변경 없음.
+
+## 2026-10-07 — recovery 정책 조정안 검토
+
+<!-- codex-turn:01a1141e-5d2e-76a3-899a-d7e71bbf0f59 -->
+
+- 브랜치: develop. 목표: 실제 남은 Retry-After, prepare 분당15회, 접수 TTL10분 제안 검토.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 분석/결정: 요청의5분은 challenge TTL로 해석하고10분을 권고한다. recentAuth/retryTtl은5분 유지, lookup 한도 유지. 제한된 카운터의 다음 구간까지 남은 초를 반환하되 다른 한도가 남을 수 있어 성공 보장은 아님을 설명한다.
+- 검증: application.yml 설정 분리 확인, git diff --check. 제품 변경 없어 실행 테스트 미수행.
+- 유지 계약/위험: 코드/배포값 변경 없음. 한도 완화는50%이며 서버 인식 IP 공유/프록시 문제를 해결하지 않는다. 선행 기록 보존, 예상 밖 변경 없음, 비밀값 비기록.
+- 다음 작업: 구현 요청 시 기본값·환경변수·오류 헤더·경계 테스트를 함께 수정. 외부 변경 없음.
+
+## 2026-10-07 — 최근 전화 인증 허용시간 변경안 확정
+
+- 브랜치: develop. 목표: 사용자 선택에 따라 recovery 최근 전화 인증 허용시간도10분으로 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md(기록만).
+- 결정: recoveryId TTL10분·recentAuth10분, prepare 고정1분15회, 실제 남은 Retry-After로 변경안 정리. 응답 유실 retryTtl5분과 lookup 한도는 유지한다.
+- 검증: git diff --check. 제품 변경 없는 정책 정리로 실행 테스트 미수행.
+- 유지 계약/위험: Firebase SMS 코드 자체 만료시간을 바꾸는 것은 아님. 새 prepare 이후 인증 조건 유지. 코드/배포 미변경, 비밀값 비기록, 선행 기록 보존 및 예상 밖 변경 없음.
+- 다음 작업: 구현 시 설정·검증기·테스트·계약 동시 반영. 외부 변경 없음.
+
+## 2026-10-07 — 전화 인증 정책 결정 턴 기록 보완
+
+<!-- codex-turn:01a1141f-0ff3-7742-aa12-13a253c99bf0 -->
+
+- 브랜치: develop. 목표: 현재 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용/결정: 최근 전화 인증 허용시간10분 변경안 확정 결과 유지. 코드/배포 적용은 미수행.
+- 검증: git diff --check. 기록 변경만 있어 실행 테스트 미수행.
+- 유지 계약/위험: 과거 기록 보존, 비밀값 비기록, 제품/API 변경 및 추가 위험 없음.
+- 다음 작업: 구현 시 관련 설정·검증·테스트 반영. 외부 변경 없음.
+
+## 2026-10-07 — 알림 기능 배치 방향 안내
+
+<!-- codex-turn:01a11422-022f-79e1-857f-204ab33317da -->
+
+- 브랜치: develop. 목표: 알림 기능을 Identity에 추가할지 서비스 경계 관점에서 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: Identity를 지칭한다는 가정을 밝히고 계정 보안 알림, 학습 알림의 발생 판단, 공통 사용자 알림함/푸시 전달 책임을 구분. 문의 Slack은 운영자 알림임을 구분. 별도 알림 모듈/서비스는 제안이며 확정 구현 아님.
+- 검증: 저장소 서비스 소유 규칙 및 문의 계약 정적 확인, git diff --check. 설명 작업이므로 실행 테스트 미수행.
+- 유지 계약/위험: Identity에 시험/채점 도메인 추가 금지 유지. 알림 종류와 규모 미확인. 비밀값 비기록, 기존 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 사용자에게 앱 푸시/알림함인지 계정 보안 알림인지 확인 후 범위 결정. 외부 문서·Jira·배포·commit/push 변경 없음.
+
+## 2026-10-07 — 계정 찾기 제한·유효시간 정책 구현
+
+- 브랜치: develop. 목표: prepare IP당 고정1분15회, recoveryId/최근 전화 인증10분, 실제 남은 Retry-After 적용.
+- 변경 파일: .env.example, src/main/resources/application.yml; accountrecovery의 RecoveryProperties/MongoRecoveryStore/AccountRecoveryController 및 신규 RecoveryRateLimitException; FirebaseAdminAuthenticationVerifier, ProviderChangeRequestFilter; 관련 테스트7파일(신규 ProviderChangeRequestFilterTests 포함); docs/contracts/single-sns-account-recovery-{runbook,implementation-plan}.md; 작업 기록2파일.
+- 구현: 거절된 DB 고정 구간의 종료까지 남은 초를 올림해 전달. 계정 찾기 ingress120/분도 다음 분까지 남은 초 반환. Firebase 자체 throttling은 reset 미상으로 Retry-After 생략. 계정 찾기 최근 인증은 전용 서비스 설정으로 검사해 공통 Firebase high-risk5분 제한에 잘리는 문제 해소.
+- 테스트: 첫 전체 테스트 성공 후 ingress/설정 테스트 추가. 추가한 설정 테스트의 OFF 컨텍스트 bean 부재1건을 ON fixture로 수정. 최종 ./gradlew clean test 성공(168 suites,1186 tests,실패0/오류0/skip6), git diff --check 통과. 초기 sandbox Gradle cache 접근 실패 후 승인된 실행으로 검증. 실제 Atlas/Firebase 호출 없음.
+- 유지 계약: URL/본문/오류 코드 유지. 응답 유실 재시도5분, lookup20/분·UID/번호5/15분 유지. 다른 SNS API ingress60초 및 가입/승격 등 high-risk 최근 인증5분 유지. 새 prepare 이후 auth_time 및 토큰 유효성/revocation 검증 유지. 기존 recoveryId expiresAt 소급 연장 없음.
+- 결정/위험: 배포 설정에 기존 override가 있으면 PT10M/PT10M/15로 수정 필요. 현재 원격 배포값/IP 프록시 해석·실제 SDK E2E 미확인. Firebase upstream429는 헤더가 없을 수 있어 제한적 백오프 필요. 여러 제한은 순차 검사하므로 이후 요청이 다른 제한에 걸릴 수 있음.
+- 범위 확인: 예상 밖 제품 변경 없음. 선행 및 동시 작업의 WORKLOG/CURRENT_STATE 기록 보존. 비밀값 비기록. commit/push·Jira·Notion·배포 없음.
+- 다음 작업: 사용자 commit/push 후 배포 환경 override 확인 및 프론트 헤더/만료 분기 QA. Jira 댓글용 요약은 위 구현·변경 파일·테스트·남은 위험이며 자동 등록하지 않음.
+
+## 2026-10-07 — 계정 찾기 정책 구현 턴 기록 보완
+
+<!-- codex-turn:01a1141f-d011-7c90-8610-48c5f85860e3 -->
+
+- 브랜치: develop. 목표: 완료한 구현 작업의 정확한 턴 식별 기록 추가.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록은 보존.
+- 구현/결정: 앞선 항목의 prepare15회·접수/최근 인증10분·남은 Retry-After 구현 결과 유지. 이번 보완에서 제품 코드 추가 변경 없음.
+- 검증: 최종 전체 테스트1186건 실패0/오류0/skip6 결과 유지, git diff --check 재확인. 문서 보완만 하여 테스트 재실행 없음.
+- 유지 계약/위험: 기존 API 계약 및 남은 배포 환경 override/IP/SDK 확인 사항 유지. 비밀값 비기록, 예상 밖 변경 없음.
+- 다음 작업: 사용자 commit/push와 배포 설정 확인. 외부 변경·배포 없음.
+
+## 2026-10-07 — 모의고사 미완료 리마인더 설계 안내
+
+<!-- codex-turn:01a11427-599e-7961-b4cd-1a28a8cbff7c -->
+
+- 브랜치: develop. 목표: 매일 특정 시각 미완료 사용자만 받는 학습 알림의 적절한 소유 서비스 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 내용/결정: Learning Core의 당일 학습 상태로 대상 판단, 스케줄 실행 및 발송 직전 재확인, FCM 전달 방향 권고. 제출 완료를 권장 기준으로 제시하되 확정하지 않음. 알림 수신 설정·기기 토큰·날짜별 중복 방지 필요.
+- 검증: 기존 서비스 경계 및 최신 기록 확인, git diff --check. 설계 설명만으로 실행 테스트 미수행.
+- 유지 계약/위험: Identity에 시험/학습 소유 로직 추가 금지 유지. 오전/오후·시간대·완료 정의 미확정. 푸시 접수 후 지연 수신과 완료 경합 가능. 선행 작업 보존, 비밀값 비기록, 예상 밖 제품 변경 없음.
+- 다음 작업: 알림 시각/시간대 및 완료 기준 확정 후 Learning Core 측 구현 범위 수립. 실제 예약·푸시 전송·배포·Jira 변경 없음.

@@ -44,4 +44,23 @@ class AccountRecoveryConfigurationTests {
 	@Test void onWithoutIndependentKeyFailsClosed() {
 		runner().withPropertyValues("app.account-recovery.enabled=true").run(context -> assertThat(context).hasFailed());
 	}
+	@Test void policyDefaultsAndExplicitOverridesAreBound() {
+		runner().withPropertyValues("app.account-recovery.enabled=true", "app.account-recovery.key-ring=" + AccountRecoveryServiceTests.RING).run(context -> {
+			var properties = context.getBean(RecoveryProperties.class);
+			assertThat(properties.challengeTtl()).isEqualTo(java.time.Duration.ofMinutes(10));
+			assertThat(properties.recentAuth()).isEqualTo(java.time.Duration.ofMinutes(10));
+			assertThat(properties.retryTtl()).isEqualTo(java.time.Duration.ofMinutes(5));
+			assertThat(properties.preparePerMinute()).isEqualTo(15);
+			assertThat(properties.lookupPerMinute()).isEqualTo(20);
+			assertThat(properties.proofPerQuarterHour()).isEqualTo(5);
+		});
+		runner().withPropertyValues("app.account-recovery.enabled=true", "app.account-recovery.key-ring=" + AccountRecoveryServiceTests.RING,
+				"app.account-recovery.challenge-ttl=PT12M", "app.account-recovery.recent-auth=PT8M",
+				"app.account-recovery.prepare-per-minute=17").run(context -> {
+			var properties = context.getBean(RecoveryProperties.class);
+			assertThat(properties.challengeTtl()).isEqualTo(java.time.Duration.ofMinutes(12));
+			assertThat(properties.recentAuth()).isEqualTo(java.time.Duration.ofMinutes(8));
+			assertThat(properties.preparePerMinute()).isEqualTo(17);
+		});
+	}
 }

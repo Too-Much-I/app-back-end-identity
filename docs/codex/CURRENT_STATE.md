@@ -1,5 +1,86 @@
 # Codex Current State
 
+## 2026-10-07 — 모의고사 미완료 사용자 리마인더 방향
+
+- 사용자는 정해진 9시 또는 10시에 당일 모의고사를 풀지 않은 사용자에게만 알림을 보내는 기능을 설명했다. Learning Core가 학습 여부 판단과 예약 대상 선정을 소유하고 FCM 등으로 발송하는 구성을 권고. Identity에 시험 판단 로직 추가 안 함.
+- 제안 기준: 완료 여부는 제출 완료, 발송 직전 재확인, 사용자·날짜·알림 종류별 중복 방지, 수신 설정·유효 기기 토큰 확인. 오전/오후·시간대·실제 완료 기준은 미확정. 발송 이후 완료 및 푸시 지연의 경합은 완전히 제거할 수 없음. 구현·예약·배포 변경 없음.
+
+## 2026-10-07 — 계정 찾기 정책 구현 완료(미배포)
+
+- 구현 턴 식별 marker를 WORKLOG 끝에 보완하고 문서 diff 검사를 재확인했다. 구현·테스트 결과는 아래와 동일하다.
+
+- 코드 기본값: prepare IP당 고정1분15회, recoveryId10분, 최근 전화 인증10분. .env.example/application.yml/RecoveryProperties 및 계약 문서 동기화.
+- 로컬 DB 제한과 계정 찾기 ingress429는 거절된 구간의 실제 남은 초 Retry-After 반환(올림/최소1초). Firebase 자체429는 reset 미상으로 헤더 생략. 다른 SNS ingress 기존60초 유지.
+- 공통 Firebase 검증기의 high-risk5분 cap은 계정 찾기에 중복 적용하지 않고 AccountRecoveryService가 전용 recentAuth를 검사. 다른 인증 목적 제한·revoke/유효성 검사 유지. 응답 유실 retry5분·lookup 한도·기존 ID 만료일 유지.
+- 최종 ./gradlew clean test 성공:168 suites/1186 tests/실패0/오류0/skip6. 경계·HTTP·실제 verifier와 recovery service 조합·인메모리 Mongo·설정 override 검증. git diff --check 통과.
+- 배포 전: 기존 환경변수 override는 CHALLENGE_TTL=PT10M, RECENT_AUTH=PT10M, PREPARE_PER_MINUTE=15 확인 필요. 실제 프록시 IP 및 Firebase SDK QA 미확인. 코드만 수정, commit/push/배포/외부 문서 변경 없음. 선행·동시 작업 기록 보존.
+
+## 2026-10-07 — 알림 기능 서비스 경계 안내
+
+- Identity 서버를 지칭한다는 가정으로 설계 방향 안내. 계정 보안 알림의 발생 판단은 Identity, 채점·학습 알림의 발생 판단은 Learning Core 소유로 유지한다. 앱 공통 알림함·푸시 발송은 별도 알림 모듈/서비스를 권고하되 즉시 별도 서버 구축을 확정하지 않는다.
+- 문의 Slack 전달은 운영자용이며 사용자 푸시/알림함과 별도 계약이다. 사용자가 원하는 알림 종류 확인 전 구현·외부 문서·배포 변경 없음.
+
+## 2026-10-07 — recovery 정책 조정안
+
+- 사용자 제안 검토: 제한 구간의 실제 남은 초 Retry-After, prepare 서버 인식 IP당 고정1분15회, recoveryId TTL10분을 권고. 최근 전화 인증과 응답 유실 재시도 TTL은 각각5분, lookup 한도는 유지하는 범위로 구분했다.
+- 후속 사용자 결정: 최근 전화 인증 허용시간도10분으로 변경안에 반영. 응답 유실 재시도 TTL은5분 유지. Firebase SMS 코드 유효시간 변경과는 별개이며 아직 코드/배포에는 적용하지 않았다.
+- 해당 정책 결정 턴의 식별 marker를 WORKLOG 끝에 추가하고 문서 diff 검사를 완료했다.
+- 제품/배포 변경 없이 설정 확인·문서 기록만 수행. 프록시 IP 공유 문제와 실제 SDK QA는 별도 확인 필요.
+
+## 2026-10-07 — recoveryId 만료 오류 확인
+
+- 만료 검사 응답은410 RECOVERY_EXPIRED. 선행 인증 실패 또는 접수 기록 삭제 시 다른 오류가 먼저 발생할 수 있음을 안내. 제품 변경 없이 정적 확인·기록만 수행.
+- 현재 턴 WORKLOG 식별 기록 보완 및 문서 diff 검사 완료.
+- 후속 질문에 인증 검사 통과 후 만료 시410 RECOVERY_EXPIRED임을 재확인했다. 제품 변경 없음.
+- 재확인 턴의 정확한 식별 marker를 WORKLOG 끝에 추가하고 문서 검증을 수행했다.
+
+## 2026-10-07 — recovery 만료와 제한 안내 검토
+
+- prepare 고정 분 한도는 다음 분에 새10회지만 현재 공통 Retry-After900초는 더 보수적인 대기 안내다. 실제 제한별 헤더 산출을 개선안으로 설명했다.
+- 최초 lookup 전에 recoveryId가 만료되면 새 prepare 및 그 이후 PHONE 인증이 필요하다. 새 SMS 필요 여부와 credential 재사용은 SDK에 의존한다. 이미 처리한 조회 재시도는 별도 retryUntil 및 최근 인증 조건을 모두 만족해야 한다.
+- challengeTtl10분·recentAuth5분 유지안을 제안했으며 제품/배포 설정은 변경하지 않았다. 코드 정적 확인 및 문서 diff 검사만 수행했다.
+
+## 2026-10-06 — 계정 찾기 프론트 답변 정리
+
+- 검토한 Notion 질문 1~9 순서로 짧은 전달용 답변 작성. 제품·외부 문서 변경 없음. PHONE 인증 조건, cleanup 배포 미확인, 번호 재할당 위험 및 계정 삭제 대상 주의사항 유지. 문서 diff 검사 수행, 실행 테스트 미수행.
+
+## 2026-10-06 — Notion 계정 찾기 관련 요청 검토
+
+- 지정 Notion 페이지의 질문 9개를 읽고 recovery·exchange·enrollment·cleanup 코드를 대조했다. 외부 문서 및 제품 코드는 수정하지 않았다.
+- lookup은 SMS 입력 시각이 아니라 검증된 PHONE 토큰의 auth_time을 접수 createdAt(초 단위) 및 최근 인증 한도와 비교한다. 따라서 충돌 후 prepare → updated credential 전화 로그인 흐름은 해당 조건 충족 시 허용 가능하다. Android 확인은 문서 작성자의 보고이며 이번 서버 E2E/iOS 검증은 미실행이다.
+- exchange는 PHONE 로그인 토큰을 거절한다. ENROLLMENT_REQUIRED는 enrollment 기록을 생성/재사용한다. 가입 중단 Firebase cleanup 구현은 있지만 기본 worker OFF이며 실제 배포 설정·정리 대상 포함 여부는 미확인이다.
+- 번호 재할당 시 현재 마스킹도 계정 힌트를 노출한다. 자동 로그인/연결 권한을 주지 않더라도 잔여 개인정보 위험은 별도 판단 필요. 다음은 실제 SDK 통합 검증과 cleanup 배포 설정 확인이다.
+
+## 2026-10-06 — 계정 찾기 prepare 429 기준 안내
+
+- 코드 기본값은 서버 인식 IP당 고정1분10회, 같은 분11번째부터429 RECOVERY_RATE_LIMITED. ACCOUNT_RECOVERY_PREPARE_PER_MINUTE로 조정 가능.
+- 현재429 Retry-After는 lookup 한도까지 고려한 공통900초이며 prepare 카운터의 분 경계 리셋과 다름. 실제 환경 설정/프록시 IP 미조회. 정적 확인·기록만 수행, 제품 변경 없음.
+
+<!-- codex-turn:01a10fa4-2961-7860-bcba-e6e247a3209d -->
+
+- 2026-10-06 Notion 문의 API 8.25를 8.21 스타일로 재정리: API 제목, 하위 제목, 요청·응답 JSON 코드 블록, 오류 대응 표, 분리된 설명 문단 및 목록 적용. 기존 계약과 9번 부록 유지, 브라우저 저장·시각 확인 완료. 제품 변경 없음.
+
+<!-- codex-turn:01a10f9d-3d97-7601-831d-1eb47d90ef53 -->
+
+- 2026-10-06 Notion 로그인 가이드에 사용자 최종 요청 번호인 8.25 문의 접수 API를 추가했다. 요청·응답·REFUND 인증·오류·멱등 재시도·제한·테스트 확인 범위와 남은 QA를 문서화하고 새로고침 후 저장을 확인했다. 기존 8.24 및 9번 부록/링크 유지. 제품 코드·배포 변경 없음. 다음은 실제 로그인 REFUND 및 프론트 연동 검증이다.
+
+<!-- codex-turn:01a10f96-3606-7a93-ab8b-2f97db4aa912 -->
+
+- 2026-10-06 사용자 지정 문의 본문을 테스트 GENERAL 문의로 1건 접수: HTTP201 RECEIVED 및 Slack 문의-테스트 채널 전체 본문 수신 확인. 로그인/회신 이메일 없이 전송했고 제품 변경 없음. 이번 작업은 전달 테스트이며 문의 내용에 대한 원인 분석·회신 처리는 아님.
+
+<!-- codex-turn:01a10f83-0128-7d02-a611-4b70257bdb79 -->
+
+- 테스트 문의·Slack ON 배포 완료의 현재 턴 식별 기록 보완 완료. revision22 정상 가동 및 실제 API/Slack 검증 결과 유지. 이번 보완은 문서만 변경함.
+
+## 2026-10-06 TMI-197 테스트 문의·Slack ON 배포 완료
+
+- develop 커밋 cc076442의 GitHub Actions 실행37414782746 성공 확인. 기존 배포21 안정화 후 설정 전용 revision22로 테스트 Identity 서비스 갱신, PRIMARY COMPLETED/running1/failed0 확인.
+- SUPPORT_INQUIRY_ENABLED=true, SUPPORT_SLACK_WORKER_ENABLED=true, SERVER_FORWARD_HEADERS_STRATEGY=none, 실제 ALB 두 subnet CIDR만 SUPPORT_TRUSTED_PROXIES로 지정. HMAC·Slack JSON 키 Secret 참조 주입. 비밀 원문 조회/출력 없음.
+- 사용자 명시 승인 후 테스트 execution role에 문의용 Secret 두 개 GetSecretValue만 허용하는 별도 ReadSupportInquirySecrets 정책 추가. 기존 정책·운영 서버·ALB 보안 그룹 변경 없음.
+- 실제 테스트: health200/UP, 익명 REFUND401 SUPPORT_REFUND_AUTH_REQUIRED, 합성 GENERAL201, 동일 키/내용200·동일 접수번호, 같은 키 다른 내용409. Slack 문의-테스트 채널에서 합성 문의 도착 확인.
+- 초기 앱 시작55초 동안 ALB unhealthy가 관측됐으나 정상 시작/healthy 및 배포 완료 확인. 실제 인증된 REFUND의 서버 접수는 이번 배포 검증에서 미실행(단위/웹 테스트로 기존 검증).
+- 다음: 프론트 연동 및 실제 계정 테스트. 테스트 문의1건과 Slack 알림은 보관, 자동삭제하지 않음. 로컬 제품 변경/commit/push/Jira 변경 없음. 앞선 push·AWS 인증 대기 기록은 이 완료 결과로 대체.
+
 <!-- codex-turn:01a10f81-0dc3-7393-a4f8-f53bf1db6a85 -->
 
 - 테스트 문의 ON·재배포 요청의 현재 턴 기록 보완 완료. 사용자 commit/push와 AWS 인증 대기이며 ON/재배포는 미수행. 이번 보완은 문서만 변경함.

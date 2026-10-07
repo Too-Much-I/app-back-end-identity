@@ -41,7 +41,11 @@ public final class MongoRecoveryStore implements RecoveryStore {
 				mongo.findAndModify(q, new Update().inc("count", 1)
 						.setOnInsert("cleanupAt", Instant.ofEpochSecond((window + 1) * windowSeconds).plusSeconds(60)),
 						FindAndModifyOptions.options().upsert(true).returnNew(true), Budget.class);
-			} catch (DuplicateKeyException e) { throw new AuthException(AuthErrorStatus.RECOVERY_RATE_LIMITED); }
+			} catch (DuplicateKeyException e) {
+				// ceil(resetAt - now): epoch-second subtraction also rounds fractional seconds up.
+				long remainingSeconds = (window + 1) * windowSeconds - now.getEpochSecond();
+				throw new RecoveryRateLimitException(remainingSeconds);
+			}
 		}
 	}
 	public RecoveryResult lookup(String id, List<String> proofIds, Instant authTime, Instant now,

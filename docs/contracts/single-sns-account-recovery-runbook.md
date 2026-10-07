@@ -50,13 +50,13 @@
 
 ### 만료·재시도·제한
 
-- challenge 5분, auth_time 최근 5분, 소비 후 retry 최대 5분(기본값). 재시도에서도 토큰 exp와 최근 인증 제한을 만족해야 하므로 실제 재조회 가능 시간은 더 짧을 수 있다.
+- challenge 10분, auth_time 최근 10분, 소비 후 retry 최대 5분(기본값). 재시도에서도 토큰 exp와 최근 인증 제한을 만족해야 하므로 실제 재조회 가능 시간은 더 짧을 수 있다. 최근 인증 제한은 AccountRecoveryService의 전용 설정으로 적용하며 공통 Firebase 고위험 인증 5분 제한과 분리한다. Firebase SMS 코드 자체의 유효시간을 변경하는 설정은 아니다.
 - 전화 `auth_time >= prepare.createdAt`(초 단위 절삭), 미래 허용 최대 30초. Firebase의 기존 high-risk 인증시간/clock skew 검증도 적용하여 더 엄격한 설정이 우선한다.
 - token phone_number와 최신 Admin phone 번호 일치, 프로젝트/tenant/서명/issuer/audience/revoked/disabled 검증 필수.
 - 응답 유실: 같은 recoveryId + 같은 PHONE 인증으로 재조회. ID Token 강제 refresh로 iat가 바뀌어도 proof는 같다. 재조회 시 현재 로컬 계정 상태를 다시 읽으며 예전 힌트를 캐싱하지 않는다.
 - 다른 challenge에서 동일 proof를 쓰거나 같은 challenge에 다른 proof를 쓰면 409. 새 prepare와 **새 OTP 인증**이 필요하다.
-- prepare IP 10/분, lookup IP 20/분, 검증 후 UID 및 전화번호 각각 5/15분. 재시도/NOT_FOUND도 차감한다. Mongo 고정 시간창 counter를 공유하며 키 회전 시 모든 retained 버전을 검사한다.
-- DB 요청 제한은 429 + Retry-After 900초(안전한 상한). 별도 프로세스 ingress 120/분 제한은 Retry-After 60초. 본문 24,576bytes 초과는 413, DTO token 길이는 16,384자 이하.
+- prepare IP 15/분, lookup IP 20/분, 검증 후 UID 및 전화번호 각각 5/15분. 재시도/NOT_FOUND도 차감한다. Mongo 고정 시간창 counter를 공유하며 키 회전 시 모든 retained 버전을 검사한다. prepare는 같은 분16번째부터 거절하며 다음 분에는 새15회가 허용된다. 서버 인식 IP 기준이므로 프록시 뒤 실제 IP 전달 설정을 배포 전에 확인한다.
+- DB 요청 제한은 429 + 실제 거절된 시간창 종료까지 남은 초를 올림한 Retry-After(최소1초)를 반환한다. 예: 분 시작40초에 IP 한도 초과 시20초, 15분 창 시작40초에 UID/전화 한도 초과 시860초. 다른 제한이 남으면 재시도 시 다시429가 올 수 있다. Firebase 자체 rate limit은 해제 시각을 알 수 없어 Retry-After를 생략한다. 헤더가 없으면 프론트는 제한된 지수 백오프를 적용한다. 별도 프로세스 ingress 120/분 제한도 계정 찾기 경로에서는 다음 분까지 남은 초를 반환한다(다른 SNS provider 경로의 기존60초는 유지). 본문 24,576bytes 초과는 413, DTO token 길이는 16,384자 이하.
 
 | HTTP / code | 프론트 처리 |
 | --- | --- |
@@ -85,14 +85,16 @@
 | --- | --- |
 | ACCOUNT_RECOVERY_ENABLED | false |
 | ACCOUNT_RECOVERY_KEY_RING | 빈 값, ON 시 필수; `v2:<base64>,v1:<retained-base64>` |
-| ACCOUNT_RECOVERY_CHALLENGE_TTL | PT5M |
-| ACCOUNT_RECOVERY_RECENT_AUTH | PT5M |
+| ACCOUNT_RECOVERY_CHALLENGE_TTL | PT10M |
+| ACCOUNT_RECOVERY_RECENT_AUTH | PT10M |
 | ACCOUNT_RECOVERY_RETRY_TTL | PT5M |
-| ACCOUNT_RECOVERY_PREPARE_PER_MINUTE | 10 |
+| ACCOUNT_RECOVERY_PREPARE_PER_MINUTE | 15 |
 | ACCOUNT_RECOVERY_LOOKUP_PER_MINUTE | 20 |
 | ACCOUNT_RECOVERY_PROOF_PER_QUARTER_HOUR | 5 |
 
 각 시간은 0초 초과~15분 이하. 키는 서로 다른 32바이트 이상 난수, 1~4개, 기존 JWT/전화 fingerprint/재발급 키와 분리하여 Secret Manager로 공급한다. 키 값은 문서/로그/저장소에 넣지 않는다. 기존 Firebase enabled/Phone enabled/phone-fingerprint enabled 및 키 저장소가 있어야 ON 가능하다. 누락 시 기동 실패로 닫힌다.
+
+배포 환경에서 기존 값을 명시했다면 기본값 변경만으로 적용되지 않는다. CHALLENGE_TTL/RECENT_AUTH는 PT10M, PREPARE_PER_MINUTE는15로 맞춘다. 이미 발급한 recoveryId의 expiresAt은 연장하지 않는다. 최근 인증 판정은 현재 설정을 사용한다.
 
 회전은 old만 있는 인스턴스와 new만 있는 인스턴스를 겹쳐 배포하지 않는다. 모든 인스턴스에 old+new를 먼저 배포한 뒤 전환하고, 마지막 old-only 인스턴스 중단 후 최소 24시간 old를 유지한다. 버전명을 같은 키로 바꾸거나 조기 삭제하면 replay/한도 우회 위험이 있다.
 

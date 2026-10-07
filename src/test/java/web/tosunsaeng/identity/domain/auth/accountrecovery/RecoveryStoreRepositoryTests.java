@@ -32,10 +32,13 @@ class RecoveryStoreRepositoryTests {
 	}
 	@AfterEach void close() { if (client != null) client.close(); if (server != null) server.shutdownNow(); }
 	@Test void countersAreSharedAcrossServiceInstancesAndExpireByWindow() {
-		first.admit(List.of("hashed-ip"), 60, 2, now); second.admit(List.of("hashed-ip"), 60, 2, now);
-		assertThatThrownBy(() -> first.admit(List.of("hashed-ip"), 60, 2, now)).isInstanceOfSatisfying(AuthException.class,
-				e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.RECOVERY_RATE_LIMITED));
-		second.admit(List.of("hashed-ip"), 60, 2, now.plusSeconds(60));
+		for (int i = 0; i < 15; i++) (i % 2 == 0 ? first : second).admit(List.of("hashed-ip"), 60, 15, now);
+		assertThatThrownBy(() -> first.admit(List.of("hashed-ip"), 60, 15, now.plusSeconds(40)))
+				.isInstanceOfSatisfying(RecoveryRateLimitException.class, e -> {
+					assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.RECOVERY_RATE_LIMITED);
+					assertThat(e.retryAfterSeconds()).isEqualTo(20);
+				});
+		for (int i = 0; i < 15; i++) second.admit(List.of("hashed-ip"), 60, 15, now.plusSeconds(60));
 	}
 	@Test void proofUniquenessPreventsUsingAnotherAttemptAndSameAttemptRetries() {
 		first.prepare("a", now, now.plusSeconds(300)); second.prepare("b", now, now.plusSeconds(300));

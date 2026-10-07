@@ -114,6 +114,31 @@ class FirebaseAdminAuthenticationVerifierTests {
 	}
 
 	@Test
+	void recoveryServiceOwnsRecentAuthWindowWithoutSharedFiveMinuteCap() {
+		for (int age : new int[]{301, 600, 601}) {
+			var snapshot = data(NOW.minusSeconds(age), "phone", false, true, false,
+					List.of(new FirebaseLinkedProviderData("phone", null)));
+			var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false));
+			var store = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryStore.class);
+			var resolver = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryAccountResolver.class);
+			String ring = "v1:" + java.util.Base64.getEncoder().encodeToString(new byte[32]);
+			var recovery = new web.tosunsaeng.identity.domain.auth.accountrecovery.AccountRecoveryService(
+					store, new web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryHasher(ring), verifier, resolver,
+					new web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryProperties(true, ring, null, null, null, 0, 0, 0),
+					Clock.fixed(NOW, ZoneOffset.UTC));
+			if (age <= 600) {
+				recovery.lookup("11111111-1111-4111-8111-111111111111", ID_TOKEN, "127.0.0.1");
+				org.mockito.Mockito.verify(store).lookup(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyList(),
+						org.mockito.ArgumentMatchers.eq(NOW.minusSeconds(age)), org.mockito.ArgumentMatchers.eq(NOW),
+						org.mockito.ArgumentMatchers.eq(Duration.ofMinutes(5)), org.mockito.ArgumentMatchers.any());
+			} else {
+				assertAuthError(() -> recovery.lookup("11111111-1111-4111-8111-111111111111", ID_TOKEN, "127.0.0.1"),
+						AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED);
+			}
+		}
+	}
+
+	@Test
 	void multiSocialEnrollmentRejectsEvenDisabledSecondaryProviders() {
 		var snapshot = data(NOW.minusSeconds(30), "google.com", true, true, false, List.of(
 				new FirebaseLinkedProviderData("google.com", "google"), new FirebaseLinkedProviderData("oidc.kakao", "kakao"),

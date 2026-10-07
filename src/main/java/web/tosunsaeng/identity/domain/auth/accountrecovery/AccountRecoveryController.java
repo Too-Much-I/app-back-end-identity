@@ -33,9 +33,14 @@ public class AccountRecoveryController {
 	@ExceptionHandler(AuthException.class)
 	public ResponseEntity<BaseResponse<Void>> failure(AuthException e) {
 		var builder = ResponseEntity.status(e.getErrorCode().getHttpStatus()).header("Cache-Control", "no-store");
-		// Conservative upper bound across both one-minute and fifteen-minute budgets.
-		if (e.getErrorCode() == AuthErrorStatus.RECOVERY_RATE_LIMITED) builder.header("Retry-After", "900");
 		return builder.body(BaseResponse.failure(e.getErrorCode()));
+	}
+	@ExceptionHandler(RecoveryRateLimitException.class)
+	public ResponseEntity<BaseResponse<Void>> rateLimited(RecoveryRateLimitException e) {
+		return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+				.header("Cache-Control", "no-store")
+				.header("Retry-After", Long.toString(e.retryAfterSeconds()))
+				.body(BaseResponse.failure(e.getErrorCode()));
 	}
 	private AccountRecoveryService service() {
 		var service = services.getIfAvailable();

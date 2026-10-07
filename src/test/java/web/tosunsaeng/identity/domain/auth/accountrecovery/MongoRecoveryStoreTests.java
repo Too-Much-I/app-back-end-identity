@@ -75,7 +75,24 @@ class MongoRecoveryStoreTests {
 	@Test void budgetDuplicateKeyMeansLimitReached() {
 		when(mongo.findAndModify(any(Query.class), any(Update.class), any(FindAndModifyOptions.class), eq(MongoRecoveryStore.Budget.class)))
 				.thenThrow(new DuplicateKeyException("test budget"));
-		assertError(() -> store.admit(List.of("hmac"), 60, 10, NOW), AuthErrorStatus.RECOVERY_RATE_LIMITED);
+		assertThatThrownBy(() -> store.admit(List.of("hmac"), 60, 15, NOW))
+				.isInstanceOfSatisfying(RecoveryRateLimitException.class, e -> {
+					assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.RECOVERY_RATE_LIMITED);
+					assertThat(e.retryAfterSeconds()).isEqualTo(60);
+				});
+	}
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.CsvSource({"60,40,0,20", "60,59,999999999,1", "60,60,0,60", "900,40,0,860", "900,899,999999999,1", "900,900,0,900"})
+	void retryAfterRoundsUpUntilTheRejectedWindowEnds(int window, int seconds, int nanos, long expected) {
+		when(mongo.findAndModify(any(Query.class), any(Update.class), any(FindAndModifyOptions.class), eq(MongoRecoveryStore.Budget.class)))
+				.thenThrow(new DuplicateKeyException("test budget"));
+		assertThatThrownBy(() -> store.admit(List.of("hmac"), window, 15, NOW.plusSeconds(seconds).plusNanos(nanos)))
+				.isInstanceOfSatisfying(RecoveryRateLimitException.class, e -> assertThat(e.retryAfterSeconds()).isEqualTo(expected));
+	}
+	@Test void tenMinuteChallengeExpiresAtBoundary() {
+		pending(NOW, NOW.plusSeconds(600));
+		assertThat(store.lookup("attempt", List.of("hash"), NOW, NOW.plusSeconds(599), Duration.ofMinutes(5), resolver)).isNotNull();
+		assertError(() -> store.lookup("attempt", List.of("hash"), NOW, NOW.plusSeconds(600), Duration.ofMinutes(5), resolver), AuthErrorStatus.RECOVERY_EXPIRED);
 	}
 	void assertError(Runnable call, AuthErrorStatus status) {
 		assertThatThrownBy(call::run).isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(status));

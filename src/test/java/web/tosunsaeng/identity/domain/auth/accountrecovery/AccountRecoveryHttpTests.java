@@ -36,9 +36,21 @@ class AccountRecoveryHttpTests {
 				.andExpect(status().isOk()).andExpect(jsonPath("$.result.status").value("NOT_FOUND"))
 				.andExpect(header().string("Cache-Control", "no-store")).andReturn().getResponse().getContentAsString();
 		assertThat(response).doesNotContain("private-proof", "userId", "accessToken", "refreshToken", "phoneNumber");
-		when(service.lookup(anyString(), anyString(), anyString())).thenThrow(new AuthException(AuthErrorStatus.RECOVERY_RATE_LIMITED));
+		when(service.lookup(anyString(), anyString(), anyString())).thenThrow(new RecoveryRateLimitException(321));
 		mvc.perform(post("/api/v1/auth/account-recovery/lookup").contentType("application/json").content(body))
-				.andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "900"));
+				.andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "321"))
+				.andExpect(jsonPath("$.code").value("RECOVERY_RATE_LIMITED"));
+	}
+	@Test void prepareReturnsRemainingDelayAndUpstreamThrottleDoesNotInventReset() throws Exception {
+		when(service.prepare(anyString())).thenThrow(new RecoveryRateLimitException(20));
+		mvc.perform(post("/api/v1/auth/account-recovery/prepare"))
+				.andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "20"))
+				.andExpect(header().string("Cache-Control", "no-store"))
+				.andExpect(jsonPath("$.code").value("RECOVERY_RATE_LIMITED"));
+		when(service.lookup(anyString(), anyString(), anyString())).thenThrow(new AuthException(AuthErrorStatus.RECOVERY_RATE_LIMITED));
+		mvc.perform(post("/api/v1/auth/account-recovery/lookup").contentType("application/json")
+				.content("{\"recoveryId\":\"11111111-1111-4111-8111-111111111111\",\"firebaseIdToken\":\"test-proof\"}"))
+				.andExpect(status().isTooManyRequests()).andExpect(header().doesNotExist("Retry-After"));
 	}
 	@Test void invalidOrOversizedInputNeverInvokesService() throws Exception {
 		mvc.perform(post("/api/v1/auth/account-recovery/lookup").contentType("application/json").content("{}"))

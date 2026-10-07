@@ -139,7 +139,10 @@ public final class FirebaseAdminAuthenticationVerifier
 		Duration maxAuthenticationAge = purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
 				? properties.loginMaxAuthenticationAge()
 				: properties.highRiskMaxAuthenticationAge();
-		if (data.authTime().isBefore(now.minus(maxAuthenticationAge))) {
+		// Recovery enforces its own configurable recent-auth window in AccountRecoveryService.
+		// Keep shared token validity/revocation checks above and other purposes' limits unchanged.
+		if (purpose != FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+				&& data.authTime().isBefore(now.minus(maxAuthenticationAge))) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED);
 		}
 	}
