@@ -15701,3 +15701,27 @@
 - 유지한 계약: exchange phone 금지 유지, 앞선 탈퇴 phone 허용 수정은 미배포 상태 유지.
 - 검증: git diff --check. 기록 보완으로 Gradle 미실행.
 - 위험/다음 작업: phone 로그인 도입 시 번호 재할당·계정 복구 정책 검토 필요. 과거 기록 보존, 비밀정보 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — FirebaseAdminAuthenticationVerifier Autowired 검사 메시지 진단
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자가 보고한27행 자동 주입 오류 의미 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: 구현체 setter의 optional Autowired 및 FirebaseAuthenticationConfiguration175행 인터페이스 반환형 Bean factory 확인. app.firebase-auth.enabled=true 조건으로 실제 Bean 등록 경로 존재. IDE가 구현체 등록 관계를 인식하지 못한 검사 메시지로 판단하며 표시만으로 런타임 주입 실패를 단정하지 않는다.
+- 유지한 계약/결정: Component를 단순 추가하면 기존 조건부 Bean 등록과 중복/조건 우회 위험이 있으므로 권하지 않는다. factory에서 명시적으로 의존성 전달하는 방식 정리를 제안한다.
+- 검증: 코드 정적 대조 및 git diff --check. 진단 작업으로 Gradle 미실행, 앞선 전체 테스트 성공은 기존 근거이며 이번에 재실행한 것으로 주장하지 않음.
+- 위험 요소: IDE 자체 재현 및 실행 환경 주입 상태 미검증. 비밀정보 미기록, 과거 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 수정 요청 시 optional 의존성 정책을 보존해 factory 명시 주입 및 조건별 회귀 검증. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — Firebase verifier 자동 주입 진단 기록 및 명시 주입 구현
+
+<!-- codex-turn:01a115f7-5884-7fe1-a4bd-db1ec2770430 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 앞선 자동 주입 IDE 진단 기록 보완 및 사용자 후속 승인에 따른 수정.
+- 변경 파일: FirebaseAdminAuthenticationVerifier.java, FirebaseAuthenticationConfiguration.java, FirebaseAdminAuthenticationVerifierTests.java, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현 내용: 구현체 setter의 optional Autowired 제거, 조건부 Bean factory 인자의 Nullable ProviderChangeGuard를 명시 전달. factory 반환형은 FirebaseAdminAuthenticationVerifier로 구체화. guard 유/무에 따른 factory 생성 및 검증 호출 회귀 테스트 추가.
+- 유지한 계약/결정: 기존 app.firebase-auth.enabled 조건과 선택적 guard 의존성 유지. Component 중복 추가 없음. phone 탈퇴 정책 및 API 필드/상태 코드·인증 로직 변경 없음.
+- 검증: ./gradlew clean test 성공, 171 suites/1281 tests 실패0/errors0/기존skip6. 마지막 import 정리 후 ./gradlew test 재검증. git diff --check 확인. 실제 Firebase/Atlas 호출 없음.
+- 위험 요소: IDE 자체 화면의 경고 소멸은 미확인. 새 코드 미배포. 기존 Apple 외부 정리 제한 유지.
+- 예상 밖 변경: 없음. 제품2파일·테스트1파일 및 기록만 변경, 기존 기록 보존. 비밀정보 미기록.
+- 다음 작업/배포 전 확인: IDE Gradle 동기화 후 표시 확인, 사용자 diff 검토·commit/push 후 필요 시 배포. Jira 변경·commit/push·배포 없음.
+- Jira 댓글 초안(미등록): 조건부 Bean factory 명시 주입으로 Autowired 경고 원인 제거, optional guard 회귀 테스트 및 전체1281건 실패0, IDE 화면·배포 미확인.

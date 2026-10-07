@@ -1,5 +1,15 @@
 # Codex Current State
 
+## 2026-10-07 — Firebase verifier 명시적 Bean 주입으로 정리
+
+- 구현체 setter의 Autowired 제거, 기존 조건부 Bean factory에서 Nullable ProviderChangeGuard를 전달하도록 수정. factory 반환형을 구체 구현체로 명시. Component 추가 없이 조건부 등록 및 optional 동작 유지.
+- factory의 guard 유/무 회귀 검사 추가, 전체 ./gradlew clean test 성공(1281 tests, 실패0/기존skip6). import 정리 후 ./gradlew test 재검증. API/인증 정책 변경 없음, 배포·commit/push 없음. IDE 표시 자체는 별도 확인 필요.
+
+## 2026-10-07 — Firebase verifier 자동 주입 IDE 검사 진단
+
+- FirebaseAdminAuthenticationVerifier는 stereotype 없이 setter에 optional Autowired를 사용하나 FirebaseAuthenticationConfiguration의 조건부 Bean factory가 생성한다. factory 반환형이 인터페이스여서 IDE가 구현체의 Bean 등록을 연결하지 못할 가능성이 높다. 표시 자체는 Java 컴파일 오류와 다르다.
+- 제안은 Component 중복 추가가 아니라 기존 조건부 factory에서 ProviderChangeGuard를 명시 전달하는 주입 방식 정리. 이번에는 원인 확인과 기록만 수행, 제품 수정 없음.
+
 ## 2026-10-07 — exchange phone 금지의 정책상 이유 설명
 
 - 현재 턴 `01a115f5-307e-70b1-96b0-734d94afe336` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.

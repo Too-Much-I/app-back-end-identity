@@ -20,12 +20,15 @@ import web.tosunsaeng.identity.domain.auth.federation.application.VerifiedSocial
 import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
+import web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard;
 
 public final class FirebaseAdminAuthenticationVerifier
 		implements FirebaseAuthenticationVerifier {
-	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChanges;
-	@org.springframework.beans.factory.annotation.Autowired(required = false)
-	public void setProviderChanges(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard guard) { providerChanges = guard; }
+	private ProviderChangeGuard providerChanges;
+
+	public void setProviderChanges(ProviderChangeGuard guard) {
+		providerChanges = guard;
+	}
 
 	private static final int MAX_FIREBASE_ID_TOKEN_LENGTH = 16_384;
 	private static final int MAX_FIREBASE_UID_LENGTH = 128;

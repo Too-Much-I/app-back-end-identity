@@ -48,6 +48,20 @@ class FirebaseAdminAuthenticationVerifierTests {
 	}
 
 	@Test
+	void beanFactoryExplicitlyWiresOptionalPolicyGuard() {
+		var factory = new FirebaseAuthenticationConfiguration.EnabledFirebaseAuthenticationConfiguration();
+		var client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30)));
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		var verifier = factory.firebaseAuthenticationVerifier(client, properties(true, true, false),
+				Clock.fixed(NOW, ZoneOffset.UTC), guard);
+		var principal = verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+		org.mockito.Mockito.verify(guard).validatePrincipal(principal, true);
+		assertThat(factory.firebaseAuthenticationVerifier(client, properties(true, true, false),
+				Clock.fixed(NOW, ZoneOffset.UTC), null)
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE)).isNotNull();
+	}
+
+	@Test
 	void verifiesEnabledGooglePrincipalWithRevokeCheckAndRedactedResult() {
 		StubFirebaseAdminClient client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(60)));
 		FirebaseAdminAuthenticationVerifier verifier = verifier(client, properties(true, true, false));

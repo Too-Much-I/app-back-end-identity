@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.Nullable;
+import web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard;
 
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseExchangeUseCase;
 import web.tosunsaeng.identity.domain.auth.federation.application.DisabledFirebaseAuthMethodsSyncUseCase;
@@ -172,16 +173,19 @@ public class FirebaseAuthenticationConfiguration {
 		}
 
 		@Bean
-		FirebaseAuthenticationVerifier firebaseAuthenticationVerifier(
+		FirebaseAdminAuthenticationVerifier firebaseAuthenticationVerifier(
 				FirebaseAdminClient firebaseAdminClient,
 				FirebaseAuthProperties properties,
-				Clock clock
+				Clock clock,
+				@Nullable ProviderChangeGuard providerChanges
 		) {
-			return new FirebaseAdminAuthenticationVerifier(
+			FirebaseAdminAuthenticationVerifier verifier = new FirebaseAdminAuthenticationVerifier(
 					firebaseAdminClient,
 					properties,
 					clock
 			);
+			verifier.setProviderChanges(providerChanges);
+			return verifier;
 		}
 
 		@Bean
