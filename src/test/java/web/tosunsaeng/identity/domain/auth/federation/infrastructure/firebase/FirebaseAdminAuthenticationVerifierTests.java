@@ -261,6 +261,64 @@ class FirebaseAdminAuthenticationVerifierTests {
 	}
 
 	@Test
+	void withdrawalAcceptsPhoneSessionWithOneSocialButExchangeStillRejectsIt() {
+		for (String provider : List.of("apple.com", "google.com", "oidc.kakao")) {
+			var snapshot = data(NOW.minusSeconds(30), "phone", false, true, false,
+					List.of(new FirebaseLinkedProviderData(provider, PROVIDER_SUBJECT),
+							new FirebaseLinkedProviderData("phone", null)));
+			var client = new StubFirebaseAdminClient(snapshot);
+			var verifier = verifier(client, properties(true, true, true));
+			var result = verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL);
+			assertThat(result.signInMethod()).isEqualTo(FirebaseAuthenticationMethod.PHONE);
+			assertThat(result.linkedSocialPrincipals()).hasSize(1);
+			assertThat(client.checkRevoked).isTrue();
+			assertAuthError(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+					AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+		}
+	}
+
+	@Test
+	void withdrawalRejectsUnverifiedPhoneAndMissingOrMultipleSocialLinks() {
+		var links = List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT),
+				new FirebaseLinkedProviderData("phone", null));
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+				data(NOW.minusSeconds(30), "phone", false, false, false, links)), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL),
+				AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED);
+		for (var invalidLinks : List.of(
+				List.of(new FirebaseLinkedProviderData("phone", null)),
+				List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT)),
+				List.of(new FirebaseLinkedProviderData("phone", null),
+						new FirebaseLinkedProviderData("password", null)))) {
+			assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+					data(NOW.minusSeconds(30), "phone", true, true, false, invalidLinks)), properties(true, true, true))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL),
+					invalidLinks.size() == 2 ? AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED
+							: AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+		}
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(data(NOW.minusSeconds(30), "phone", true, true, false,
+				List.of(new FirebaseLinkedProviderData("phone", null), new FirebaseLinkedProviderData("apple.com", "apple"),
+						new FirebaseLinkedProviderData("google.com", "google")))), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+	}
+
+	@Test
+	void withdrawalPhoneSessionAllowsOldAuthButRejectsRevokedAndDisabledProof() {
+		var links = List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT),
+				new FirebaseLinkedProviderData("phone", null));
+		var client = new StubFirebaseAdminClient(data(NOW.minus(Duration.ofDays(30)), "phone", false, true, false, links));
+		assertThat(verifier(client, properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL)).isNotNull();
+		client.failure = new FirebaseAdminClientException(FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		assertAuthError(() -> verifier(client, properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		assertThat(client.checkRevoked).isTrue();
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+				data(NOW.minusSeconds(30), "phone", false, true, true, links)), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+	}
+
+	@Test
 	void withdrawalStillRejectsInvalidTimesAndWrongAudience() {
 		for (var snapshot : List.of(
 				withdrawalData(NOW.minus(Duration.ofDays(30)), NOW.minusSeconds(3600), NOW.minusSeconds(31), PROJECT_ID),

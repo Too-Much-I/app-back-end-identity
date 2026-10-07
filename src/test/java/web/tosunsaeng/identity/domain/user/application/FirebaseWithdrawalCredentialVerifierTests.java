@@ -105,4 +105,34 @@ class FirebaseWithdrawalCredentialVerifierTests {
 				List.of(new VerifiedSocialPrincipal(SocialProvider.GOOGLE, "google-subject"))
 		);
 	}
+
+	@Test
+	void phoneSessionRequiresPersistedSocialIdentityOwnedByCurrentUser() {
+		var phone = new VerifiedFirebasePrincipal(
+				"firebase-project", "firebase-uid", FirebaseAuthenticationMethod.PHONE,
+				NOW, NOW, NOW.plusSeconds(300), false, true, "+820000000000",
+				Set.of(FirebaseAuthenticationMethod.APPLE, FirebaseAuthenticationMethod.PHONE),
+				List.of(new VerifiedSocialPrincipal(SocialProvider.APPLE, "apple-subject")));
+		when(authenticationVerifier.verify("phone-proof", FirebaseVerificationPurpose.WITHDRAWAL)).thenReturn(phone);
+		when(firebaseIdentityRepository.findByFirebaseProjectIdAndFirebaseUid("firebase-project", "firebase-uid"))
+				.thenReturn(Optional.of(identity));
+		for (var owner : List.of(Optional.<SocialIdentity>empty(), Optional.of(SocialIdentity.create(
+				OTHER_USER_ID, SocialProvider.APPLE, "apple-subject", NOW)))) {
+			when(socialIdentityRepository.findByProviderAndProviderSubject(SocialProvider.APPLE, "apple-subject"))
+					.thenReturn(owner);
+			var error = catchThrowableOfType(BusinessException.class,
+					() -> verifier.verify(USER_ID, identity, "phone-proof"));
+			assertThat(error.getErrorCode()).isEqualTo(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
+		}
+		when(socialIdentityRepository.findByProviderAndProviderSubject(SocialProvider.APPLE, "apple-subject"))
+				.thenReturn(Optional.of(SocialIdentity.create(USER_ID, SocialProvider.APPLE, "apple-subject", NOW)));
+		assertThat(verifier.verify(USER_ID, identity, "phone-proof").firebaseUid()).isEqualTo("firebase-uid");
+		var otherUid = FirebaseIdentity.create("firebase-project", "other-uid", USER_ID, NOW);
+		assertThat(catchThrowableOfType(BusinessException.class,
+				() -> verifier.verify(USER_ID, otherUid, "phone-proof")).getErrorCode())
+				.isEqualTo(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
+		assertThat(catchThrowableOfType(BusinessException.class,
+				() -> verifier.verify(OTHER_USER_ID, identity, "phone-proof")).getErrorCode())
+				.isEqualTo(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
+	}
 }

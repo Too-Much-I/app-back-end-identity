@@ -25,7 +25,7 @@ public record WithdrawRequest(
 		String password,
 
 		@Schema(
-				description = "SNS 회원만 보내는 유효한 Firebase ID Token. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다. LOCAL/GUEST는 생략합니다.",
+				description = "SNS 회원만 보내는 유효한 Firebase ID Token. SNS 인증 또는 동일 계정의 전화 인증 세션을 허용합니다. 전화 인증 세션은 검증된 전화번호와 서버 소유권이 일치하는 단일 연결 SNS가 필요합니다. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다. LOCAL/GUEST는 생략합니다.",
 				accessMode = Schema.AccessMode.WRITE_ONLY,
 				nullable = true
 		)

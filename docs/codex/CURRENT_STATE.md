@@ -1,5 +1,75 @@
 # Codex Current State
 
+## 2026-10-07 — exchange phone 금지의 정책상 이유 설명
+
+- 현재 턴 `01a115f5-307e-70b1-96b0-734d94afe336` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- exchange는 Firebase 증빙으로 Identity Access/Refresh를 새로 발급하는 로그인 경로다. phone 허용은 연결 SNS 존재 확인만 추가해도 전화번호 인증을 독립 로그인 수단으로 인정하는 정책 변경이 될 수 있다.
+- 탈퇴는 기존 Identity 인증 및 동일 사용자 Refresh 세션까지 요구하므로 phone 단독 로그인과 다르다. phone 금지는 기술적 필수가 아니라 현행 SNS 로그인 정책 경계이며 전화번호 로그인 제품 요구가 있으면 별도 보안 설계 가능.
+- 코드·계약 정적 확인, 기록만 변경, 실행 테스트 미수행. 기존 구현·미배포 상태 유지.
+
+## 2026-10-07 — 탈퇴 한정 phone Firebase 인증 허용 구현 완료 (미배포)
+
+- 현재 턴 `01a115f1-2344-7b41-be81-79215062a250` 식별자로 WORKLOG 끝에 완료 기록 보완. 제품 추가 변경 없음.
+
+- WITHDRAWAL에서 phone 일괄 거절 제거. 최신 Admin snapshot의 phone 연결·검증 전화번호·단일 SNS를 요구하며, 탈퇴 credential verifier에서 해당 SNS provider/subject의 서버 등록과 현재 사용자 소유권을 필수 확인한다. SNS 기존 흐름과 exchange phone 금지 유지.
+- 기존 project/UID/현재 사용자 및 Refresh 세션 소유권, 유효성/폐기/disabled 검증 유지. 요청 필드 추가 없음. WithdrawRequest Swagger 설명 및 프론트 가이드 갱신.
+- 최종 ./gradlew clean test 성공:171 suites/1280 tests, failures0/errors0/기존skip6. git diff --check 통과. 제품3파일·테스트2파일·가이드1파일 및 기록2파일 변경, 기존 기록 보존.
+- 로컬 구현만 완료: 이번 변경 서버 미배포, commit/push 없음. 실제 가입 직후 phone 세션 탈퇴 E2E 및 Apple 외부 revoke는 미완료. 배포 전에 diff 검토 후 배포 이미지 갱신 필요; 기존 서버 flag 변경만으로 이번 코드가 반영되지는 않는다.
+
+## 2026-10-07 — 탈퇴의 SNS/phone Firebase 인증 방식 범위 확인
+
+- 현재 턴 `01a115ef-a420-78b2-be2e-d8a52d50678e` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 제안은 기존 firebaseIdToken 필드에서 SNS 인증 방식과 phone 인증 방식의 Firebase ID 인증 정보를 모두 수락하는 것이다. SNS 공급자 원본 OAuth 인증 정보나 SMS 인증번호를 직접 받는 의미는 아니다.
+- 동일 계정 소유권·유효성·폐기 및 최신 연결 SNS 검증 전제, 탈퇴 한정 변경이며 exchange 정책은 유지. 아직 제품 수정/배포 없음. 기록만 보완 및 git diff --check 검증.
+
+## 2026-10-07 — phone 세션 탈퇴 제안의 인증 기준 명확화
+
+- 제안은 전화번호 입력으로 계정을 검색·탈퇴하는 방식이 아니라 기존 전화 인증 Firebase 세션을 탈퇴 증빙으로 인정하는 방식이다. 추가 SNS 재로그인/전화 인증을 기본 요구하지 않고 Firebase 검증 결과와 현재 Identity 사용자·Refresh 세션·서버 SNS binding 소유권을 대조한다.
+- SNS가 하나라는 전제는 사용자 식별 근거의 대체가 아니며 같은 Firebase UID에 연결된 SNS와 서버 소유권 검증이 필요하다. 아직 제안 단계, 제품 코드·배포 변경 없음.
+
+## 2026-10-07 — 가입 직후 phone 세션의 탈퇴 거절 원인 확인
+
+- FirebaseAdminAuthenticationVerifier.validateProviderPolicy는 LOGIN_EXCHANGE 또는 WITHDRAWAL에서 signInMethod PHONE을 명시 거절한다. 보고된 apple→phone 전환 및 SNS 재로그인 후 탈퇴 성공은 해당 조건과 일치한다. Firebase SDK 호출 자체의 일반 동작은 이번에 독립 재현하지 않음.
+- 제안: WITHDRAWAL만 phone 일괄 거절에서 제외하되, 유효/미폐기 인증 정보·Admin 최신 phone 연결과 검증 정보·동일 프로젝트/UID/Identity 사용자·Refresh 세션 소유권 및 서버 SNS binding 대조를 유지/보강. client identities에 SNS 이름이 있다는 이유만으로 허용하지 않는다. exchange의 phone 금지는 유지.
+- 분석만 수행, 제품 코드/배포 변경 없음. 정적 코드 확인 및 git diff --check, Gradle 미실행. Apple 외부 정리 미구현은 별도 잔여 문제.
+
+## 2026-10-07 — 테스트 서버 탈퇴 설정3개 활성화 배포 완료
+
+- 현재 턴 `01a11598-0f81-7110-bd31-5bd812ec5e35` 식별자로 WORKLOG 끝에 완료 기록 보완. 추가 서버 변경 없음.
+
+- 사용자가 기존 대기 건의 Firebase 삭제·내부 연결 해제까지 명시 승인했다. 테스트 서비스 tosunsaeng-identity-test-service를 task definition27→28로 갱신, FIREBASE_WITHDRAWAL_ENABLED/FIREBASE_WITHDRAWAL_CLEANUP_ENABLED/FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED 모두true.
+- ECS COMPLETED, desired/running1, pending0, failedTasks0, 실행 태스크28 및 새 ALB target healthy 확인. 공개 /actuator/health UP. 구 target은 최종 조회에서 draining이지만 구 태스크는 실행 목록에 없고 배포 완료됨.
+- 이미지·다른 환경변수·컨테이너 설정·task 설정 보존 비교 완료. 운영 서비스/제품 코드/인증 정책 변경 없음. 로컬 기록2파일만 수정, Gradle 미실행, git diff --check 통과.
+- 실제 탈퇴 E2E 및 대기 건별 삭제 완료는 미검증. Apple revoke 미구현으로 해당 계정 정리는 RECONCILIATION_REQUIRED 가능. 롤백 설정 기준은27이나 이미 수행된 외부 삭제는 설정 롤백으로 복구되지 않는다.
+
+## 2026-10-07 — 탈퇴 설정 전체 활성화 요청, 삭제 영향 확인 대기
+
+- 사용자 요청으로 테스트 서버 탈퇴 요청 flag 활성화 배포를 시도했으나 RegisterTaskDefinition이 빈 tags 목록을 거절하여 등록/서비스 업데이트 전에 실패했다. 서비스는 사전 확인 시 test:27, desired/running1, rollout COMPLETED였다.
+- 사용자가 범위를 탈퇴 요청·외부 정리·identity release 3개 flag 전체로 확대했다. cleanup 활성화 시 기존 대기 계정의 Firebase 삭제 및 내부 연결 해제가 진행될 수 있어 해당 영향에 대한 실행 시점 확인을 요청했다. 승인 전 재시도하지 않음.
+- 후속 등록 시 빈 tags는 생략하고 기존 이미지·권한·다른 설정을 보존해야 한다. Apple revoke 미구현 위험 유지. 제품 코드 변경 없음.
+
+## 2026-10-07 — AWS 콘솔에서 테스트 실행 태스크 탈퇴 설정 확인
+
+- 현재 턴 `01a11595-6a6b-7800-ab39-25c20a36e886` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 열린 AWS 콘솔의 CloudShell로 읽기 전용 조회 성공. RUNNING 태스크는 tosunsaeng-identity-test:27, 컨테이너 tosunsaeng-identity. 탈퇴 요청/cleanup/identity-release flag 및 APP_FIREBASE_WITHDRAWAL_ENABLED가 environment와 관련 secret 이름에 없으며 environmentFiles 0개, 해당 flag의 task override도 없음.
+- 저장소 기본false와 대조하면 탈퇴 기능 활성화 설정이 누락된 상태다. 애플리케이션 프로세스의 최종 effective property나 이미지 내부 별도 설정까지 직접 조회한 것은 아니다. 설정 변경·배포 없음.
+
+## 2026-10-07 — 실제 테스트 서버 탈퇴 flag 조회 시도
+
+- 현재 턴 `01a11593-ed86-7250-9b00-774f08ad2af4` 식별자로 WORKLOG 끝에 결과 기록 보완. 제품 추가 변경 없음.
+
+- 저장소 application.yml 및 .env.example의 FIREBASE_WITHDRAWAL_ENABLED 기본값은false. 실제 서버 값은 확정하지 못했다.
+- 문서에 명시된 테스트 ECS service를 AWS CLI로 읽기 전용 조회했으나 NoCredentials로 실패. 설정 변경·배포 없음. 인증된 AWS 접근 후 현재 실행 task의 해당 flag 및 설정 override 확인 필요.
+
+## 2026-10-07 — 탈퇴503와 exchange recent-auth 오류 분리 진단
+
+- 탈퇴 FIREBASE_UNAVAILABLE은 Firebase 장애만 의미하지 않는다. FIREBASE_WITHDRAWAL_ENABLED 기본false, verifier/repository 부재, Admin 권한·설정·통신 실패 등이 같은503으로 매핑된다. exchange가 recent-auth까지 진행됐다면 탈퇴 전용 flag를 우선 확인할 근거가 있으나 실제 배포 원인은 미확정.
+- exchange는 auth_time 최대 나이 검사(기본15분, 설정 변경 가능), 현재 WITHDRAWAL은 해당 나이 제한에서 제외한다. 유효기간/폐기/계정 검사는 유지한다. 갱신된 ID 인증 정보도 auth_time은 오래될 수 있으므로 두 응답은 모순이 아니다.
+- 코드·기존 회귀 테스트 정적 확인만 수행, 실행 테스트·원격 설정/로그 조회 없음. 기록 외 제품 변경 없음, git diff --check 검증.
+
 ## 2026-10-07 — TMI-199 exact 규격 수락·추가 경계 검증
 
 - 현재 Jira: TMI-199, develop. Billing exact 수락안 §5 전체 wire/null/상태별 필드 및 §6 manifest를 Identity 구현 기준으로 수락. 상세 docs/contracts/billing-c0-exact-wire-index-proposal-2026-10-07.md §8.

@@ -12,6 +12,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
 import web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationVerifier;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationMethod;
 import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseVerificationPurpose;
 import web.tosunsaeng.identity.domain.auth.federation.application.VerifiedFirebasePrincipal;
 import web.tosunsaeng.identity.domain.auth.federation.application.VerifiedSocialPrincipal;
@@ -88,13 +89,19 @@ public class FirebaseWithdrawalCredentialVerifier {
 		if (!persistedIdentity.getUserId().equals(currentUserId)) {
 			throw conflict();
 		}
+		boolean phoneSession = principal.signInMethod() == FirebaseAuthenticationMethod.PHONE;
+		if (phoneSession && principal.linkedSocialPrincipals().size() != 1) {
+			throw conflict();
+		}
 		for (VerifiedSocialPrincipal socialPrincipal : principal.linkedSocialPrincipals()) {
 			SocialIdentity socialIdentity = socialIdentityRepository
 					.findByProviderAndProviderSubject(
 							socialPrincipal.provider(), socialPrincipal.providerSubject()
 					)
 					.orElse(null);
-			if (socialIdentity != null && !socialIdentity.getUserId().equals(currentUserId)) {
+			// Phone proof must match a persisted SNS subject; an unregistered link is not ownership proof.
+			if ((phoneSession && socialIdentity == null)
+					|| (socialIdentity != null && !socialIdentity.getUserId().equals(currentUserId))) {
 				throw conflict();
 			}
 		}

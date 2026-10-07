@@ -221,10 +221,20 @@ public final class FirebaseAdminAuthenticationVerifier
 		if (!hasPrimaryMethod) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
 		}
-		if ((purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
-				|| purpose == FirebaseVerificationPurpose.WITHDRAWAL)
+		if (purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
 				&& providers.signInMethod() == FirebaseAuthenticationMethod.PHONE) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+		}
+		if (purpose == FirebaseVerificationPurpose.WITHDRAWAL
+				&& providers.signInMethod() == FirebaseAuthenticationMethod.PHONE) {
+			// A phone-authenticated session is proof for an existing account, never a phone login.
+			if (!data.phoneVerified() || data.verifiedPhoneNumber() == null
+					|| data.verifiedPhoneNumber().isBlank()) {
+				throw new AuthException(AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED);
+			}
+			if (providers.socialPrincipals().size() != 1) {
+				throw new AuthException(AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+			}
 		}
 		if (!purpose.requiresEnrollmentEvidence()) {
 			return;
