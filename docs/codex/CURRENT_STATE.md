@@ -1,5 +1,10 @@
 # Codex Current State
 
+## 2026-10-08 — SecurityIntegrationTests JSONPath IDE 오류 수정
+
+- 291·294행의 `$ref` 접근을 점 표기에서 `['$ref']`로 변경. 기존 OpenAPI 검증 대상과 API 계약은 유지.
+- ./gradlew clean test 성공 및 git diff --check 통과. IDE 진단 해소는 사용자 편집기에서 재확인 필요. Swagger 공유본 생성·배포·commit/push 없음.
+
 ## 2026-10-08 — Swagger 공유본 생성은 명시적 요청 시에만
 
 <!-- codex-turn:01a11934-9a43-7452-b576-9bf6ee295bdb -->

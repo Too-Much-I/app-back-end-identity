@@ -288,10 +288,10 @@ class SecurityIntegrationTests {
 						"$.components.schemas.FirebaseExchangeRequest.properties.firebaseIdToken.writeOnly"
 				).value(true))
 				.andExpect(jsonPath(
-						"$.components.schemas.FirebaseExchangeResponseEnvelope.properties.result.$ref"
+						"$.components.schemas.FirebaseExchangeResponseEnvelope.properties.result['$ref']"
 				).value("#/components/schemas/FirebaseExchangeResponse"))
 				.andExpect(jsonPath(
-						"$.components.schemas.FirebaseExchangeResponse.oneOf[*].$ref",
+						"$.components.schemas.FirebaseExchangeResponse.oneOf[*]['$ref']",
 						hasItems(
 								"#/components/schemas/FirebaseAuthenticatedResponse",
 								"#/components/schemas/FirebaseEnrollmentRequiredResponse"

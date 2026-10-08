@@ -16021,3 +16021,12 @@
 - 유지한 계약: 제품 코드·API·환경설정·배포 변경 없음. 기존 공유본 삭제 없음. Secret 미기록.
 - 검증: 기록만 보완하여 Gradle 미실행. git diff --check 수행.
 - 위험/다음 작업: 추가 위험 없음. 다음 공유본 생성 전 명시적 요청 확인. 예상 밖 변경·Jira 변경·commit/push 없음.
+
+## 2026-10-08 — SecurityIntegrationTests의 $ref JSONPath 표기 수정
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 보고 291·294행의 IDE JSONPath 구문 오류 수정.
+- 변경 파일: src/test/java/web/tosunsaeng/identity/global/config/SecurityIntegrationTests.java, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현/결정: JSONPath `result.$ref` 및 `oneOf[*].$ref`를 각각 `result['$ref']`, `oneOf[*]['$ref']`로 변경하여 특수문자 필드명을 명시적으로 인용.
+- 유지한 계약: 같은 OpenAPI 필드와 union 참조를 검증하며 제품 API·인증·배포 설정 변경 없음.
+- 검증: ./gradlew clean test BUILD SUCCESSFUL, git diff --check 통과. IDE 자체의 진단 갱신은 직접 검증하지 않음.
+- 위험/다음 작업: 편집기에서 두 오류가 사라졌는지 확인. 테스트 파일은 두 줄만 수정, 기존 AGENTS.md 변경 보존, 예상 밖 변경 없음. Swagger 공유본 생성·Jira 변경·commit/push·배포 없음. clean은 재생성 가능한 기존 build 산출물을 정리함.
