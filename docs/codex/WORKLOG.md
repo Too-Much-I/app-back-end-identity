@@ -16030,3 +16030,269 @@
 - 유지한 계약: 같은 OpenAPI 필드와 union 참조를 검증하며 제품 API·인증·배포 설정 변경 없음.
 - 검증: ./gradlew clean test BUILD SUCCESSFUL, git diff --check 통과. IDE 자체의 진단 갱신은 직접 검증하지 않음.
 - 위험/다음 작업: 편집기에서 두 오류가 사라졌는지 확인. 테스트 파일은 두 줄만 수정, 기존 AGENTS.md 변경 보존, 예상 밖 변경 없음. Swagger 공유본 생성·Jira 변경·commit/push·배포 없음. clean은 재생성 가능한 기존 build 산출물을 정리함.
+
+## 2026-10-08 — JSONPath 오류 수정 작업 식별자 보완
+
+<!-- codex-turn:01a11936-4284-7d73-83fb-b5213923d3b7 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 SecurityIntegrationTests JSONPath 수정 작업의 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록은 보존.
+- 구현/결정: 앞서 수정한 두 `$ref` 접근의 대괄호 표기와 기존 검증 대상 유지. 추가 제품 코드 변경 없음.
+- 테스트: 앞선 ./gradlew clean test 성공 결과 유지. 이번 기록 보완은 git diff --check로 검증.
+- 유지한 계약: API·인증·서버 설정 변경 없음. Swagger 공유본 생성·배포·Jira 변경·commit/push 없음. Secret 미기록.
+- 위험/다음 작업: IDE 진단 해소는 사용자 편집기에서 확인 필요. 예상 밖 변경 없음.
+
+## 2026-10-08 — 배포 후 설정 및 테스트 계획 안내
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자가 진행 중인 배포 이후 필요한 설정과 검증 절차 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 수정 없음.
+- 확인 근거: app-version-api.md, AppVersionController.java, .env.example, 이전 NEW_SERVER_READINESS_2026-10-08.md. 현재 원격 runtime 및 배포 상태는 미조회.
+- 결정/안내: APP_ANDROID_MINIMUM_VERSION/APP_ANDROID_LATEST_VERSION/APP_IOS_MINIMUM_VERSION/APP_IOS_LATEST_VERSION 네 값 설정. 테스트1.1.0은 가능하나 운영은 최소 호환성/스토어 공개 확인 후 적용. 별도 enabled 없음, 설정 변경 시 재시작/재배포 필요. 누락503·역전 기동 실패 주의.
+- 테스트 계획: 배포 revision·health 확인, 무인증 두 플랫폼 GET200·값·no-store, 잘못된 platform400. 격리 테스트 앱에서 최소 미만 강제/동일 정상/최소 이상 최신 미만 권장/최신 초과 정상과503·네트워크 실패 UX 검증. 운영 설정을 오류 테스트용으로 변경하지 않음.
+- 범위 구분: 탈퇴/병합 플래그 및 구서버 업데이트 boolean은 이번 버전 API 활성화 필수조건 아님. 탈퇴 전파 검증은 테스트 대상/대기 이벤트/목적지/인증 확인 및 별도 승인 후 consumer·deny 준비→publisher 순으로 진행. backfill은 자동으로 켜지 않음.
+- 유지한 계약: 기존 API·환경설정·배포·외부 데이터 변경 없음. Swagger 공유본 생성 없음. 기존 수정 보존, 예상 밖 변경 없음.
+- 검증: 코드·계약 대조 및 git diff --check. 안내 작업으로 Gradle 미실행, 실서버/앱 테스트 미실행.
+- 위험/다음 작업: 실제 배포 대상·완료 revision 확인, 실제 환경값 확인 후 읽기 점검. 프론트 UI와 store 이동은 실기기 검증 필요. Secret 미기록, Jira 변경·commit/push 없음.
+
+## 2026-10-08 — 배포 후 검증 계획 작업 식별자 보완
+
+<!-- codex-turn:01a11938-f042-7e92-adea-d6b705804665 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 배포 후 설정·테스트 계획 안내의 작업 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 보존.
+- 내용/결정: 플랫폼별 최소·최신 네 환경변수와 배포 health/API/프론트 경계 검증 계획 유지. 탈퇴 전파는 대기 이벤트·대상·인증 확인 후 별도 승인 범위로 구분.
+- 유지한 계약: 제품 API·실제 설정·배포 변경 없음. 실서버 검증 및 Swagger 공유본 생성 없음.
+- 검증: 문서 보완만 수행하여 Gradle 미실행. git diff --check 수행.
+- 위험/다음 작업: 실제 배포 완료 및 설정은 미확인. 배포 대상과 revision 확인 후 읽기 점검 필요. Secret 미기록, 예상 밖 변경·Jira 변경·commit/push 없음.
+
+## 2026-10-08 — 테스트 서버 버전·탈퇴 전파 활성화 시도 및 선행 DB 누락 확인
+
+<!-- codex-turn:01a1193a-89db-7c10-ba64-301565ba2fd3 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 테스트 Android/iOS 최소9.0.0·최신9.1.4 적용 및 탈퇴 전파 테스트 준비.
+- 승인: 기존 테스트 대기 이벤트 처리 포함, 기존 테스트 Identity issuer/JWKS·탈퇴 전용 audience/principal 신뢰 설정, consumer/deny 활성화, 테스트 DB에 없는 컬렉션3개·TTL 인덱스2개 추가. 사용자는 준비 후 신규 테스트 가입·탈퇴 예정 및9.0.0 이상 앱 사용 가능 확인. 기존 동명 인덱스 덮어쓰기·데이터 삭제·backfill 승인은 아님.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음. 기존 사용자 변경 보존.
+- 원격 확인: 인증된 AWS CloudShell 사용, 클러스터 tosunsaeng-staging-cluster 내 test 서비스만 대상으로 조회/변경. Identity DB to-teacher-identity-test, LC DB to-teacher-learning-core-test 및 workload issuer 테스트 주소 확인. Identity test:30 이미지7a634f89 배포 완료 확인(초기 ALB 실패 후 Started 로그 및 COMPLETED). 로컬 CLI는 credentials 미설정.
+- 원격 변경1: LC test:17 복제하여 test:18 등록·서비스 배포. USER_WITHDRAWN_CONSUMER_ENABLED/USER_WITHDRAWN_DENY_GATE_ENABLED=true; max access lifetime PT30M, verifier skew PT60S, inbox retention P120D, future event skew PT60S; workload issuer https://identity-test.to-teacher.com, JWKS 동일 호스트 /.well-known/jwks.json, audience learning-core-user-withdrawn, principal claim sub/value identity-service, max lifetime PT2M, clock skew PT30S. 기존 이미지·나머지 설정·secret 참조 유지. 첫 등록은 빈 tags 오류로 실패 후 빈 tags 생략하여18 등록 성공.
+- 실패/복귀: LC18 startup에서 Required UserWithdrawn TTL index is missing or incompatible: ttl_withdrawn_user_access_deny_expire 확인. DB 준비보다 flag를 먼저 적용한 순서 오류를 발견하여 Identity publisher 적용 중단, LC 서비스 taskDefinition을 기존17로 복귀 요청 성공 확인. 최종 rollout/ALB는 후속 제어 중단으로 미확인. 컬렉션/index 삭제 및 marker 변경 없음.
+- 원격 변경2: Identity test:30 복제한 test:31 등록만 완료. APP_ANDROID_MINIMUM_VERSION/APP_IOS_MINIMUM_VERSION=9.0.0, APP_ANDROID_LATEST_VERSION/APP_IOS_LATEST_VERSION=9.1.4, USER_WITHDRAWN_PUBLISHER_ENABLED=true, USER_WITHDRAWN_PUBLISHER_ENDPOINT=https://api-test.to-teacher.com/internal/v1/events/withdrawn. **서비스 업데이트 미실행**, 현재 발행OFF 유지. backfill 기본false 확인, 변경 없음.
+- DB 준비 근거: LC docs/runbooks/TMI-109_USER_WITHDRAWN_MONGO_SETUP.md 및 UserWithdrawnIndexValidator. user_withdrawn_event_inbox(cleanupAt:1, ttl_user_withdrawn_inbox_cleanup, expireAfterSeconds0), withdrawn_user_access_denies(expireAt:1, ttl_withdrawn_user_access_deny_expire, expireAfterSeconds0), user_withdrawn_transaction_probe 필요. 기존 데이터/index 먼저 확인 후 없는 것만 추가. 실제 DB 작업은 아직 미실행.
+- 검증: AWS 서비스/태스크/ALB 및 제한된 기동 오류 로그 조회. Identity 공개 GET 실측503/no-store(11:13 KST Android 재확인), 새 오류 메시지로 새 코드 응답 확인. 제품 코드 미변경으로 Gradle 미실행. git diff --check 수행. 전파 성공·신규 사용자 E2E·프론트 경계 UI 검증은 미완료.
+- 중단 조건: Atlas 만료 로그인은 사용자가 복구했고 연결 완료 보고. 이후 기존 브라우저 제어 도구가 현재 목록에서 사라져 AWS/Atlas 조작을 계속할 수 없음. 플러그인 관리 skill에 따라 대체 연결 검색했으나 기존 Chrome 세션에 적합한 연결 미발견. 새로운 무관 플러그인 설치나 인증 우회 없음.
+- 유지 계약/위험: 운영 서비스·DB·앱 계약·AI·Billing·구서버 업데이트 플래그 변경 없음. 새31에는 발행true가 있으므로 LC DB/consumer 정상화 전 적용 금지.18 실패 rollout 복귀 상태 재확인 필요. 준비 완료로 보고하지 않음. Secret·원문 인증정보 미기록, Jira 변경·commit/push·Swagger 공유본 생성 없음. 예상 밖 로컬 코드 변경 없음.
+- 다음 작업: Chrome 제어 복구 후 LC17 안정 상태 확인, 승인된 테스트 DDL 검증/추가, LC18 정상 배포 후 Identity31 적용 및 양 플랫폼200 검증. 기존 outbox 전달 상태와 신규 가입→LC 접근→탈퇴→전파→기존 Access 차단 비교. 추가 승인 범위는 위 기록 참조, 이미 받은 승인 반복 요청 불필요.
+
+## 2026-10-08 — 테스트 설정 적용 재시도 연결 점검
+
+<!-- codex-turn:01a1194a-c2ea-72b3-9c8e-b85c815b4721 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 재시도 요청에 따라 중단된 테스트 버전·탈퇴 전파 작업 재개 가능 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드·외부 환경 변경 없음.
+- 확인 내용: 사용 가능한 도구 목록에 Chrome/컴퓨터 제어가 여전히 없음. 로컬 aws sts get-caller-identity는 NoCredentials로 실패. 기존 AWS/Atlas 로그인 탭을 이 실행에서 조작할 수 없음.
+- 유지한 계약/결정: 기존 사용자의 테스트 버전9.0.0/9.1.4·대기 이벤트·workload 신뢰·없는 테스트 DB 항목 추가 승인 유지. Identity31 서비스 적용 또는 LC18 재배포를 수행했다고 주장하지 않음. 권한·인증 우회 없음.
+- 검증: 도구 목록 및 CLI 인증 상태 확인, git diff --check. 기록/연결 확인 작업으로 Gradle 및 실서버 E2E 미실행.
+- 위험/다음 작업: 브라우저 제어 복구 또는 사용자의 로컬 CLI 로그인 후 LC17 정상 복귀부터 확인. 테스트 DB 선행 작업→LC 수신 정상화→Identity31 적용 순서 유지. 기존 변경 보존, 예상 밖 변경·Jira·commit/push·Swagger 공유본 생성 없음. Secret 미기록.
+
+## 2026-10-08 — Chrome 제어 재연결 공식 절차 안내
+
+<!-- codex-turn:01a1194b-f9d3-70a3-9d89-434366fe079f -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자의 브라우저 재연결 방법 질문에 검증된 절차 안내.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 조사/결정: OpenAI Docs skill을 사용해 https://learn.chatgpt.com/docs/chrome-extension 공식 페이지를 검색·열람. Settings > Computer Use에서 Chrome 활성화/Manage 확인, 확장 설치 프로필 및 @Chrome 선택, 재시작/새 대화 재시도 절차 안내. 사이트 로그인만으로 제어 연결이 보장되지는 않으며 도구 누락 원인은 미확정.
+- 유지한 계약: 사용자 앱 설정·브라우저 확장·서버·DB 직접 변경 없음. 기존 배포 작업 승인과 중단 상태 유지.
+- 검증: 공식 문서 직접 열람 및 git diff --check. 안내/문서 작업으로 Gradle 미실행.
+- 위험/다음 작업: 실제 UI가 안내와 다르면 설정 화면 확인 필요. 재연결 후 LC17 복귀 상태부터 확인. 예상 밖 변경·Jira·commit/push·Swagger 생성 없음. Secret 미기록.
+
+## 2026-10-08 — 테스트 탈퇴 DB 선행 준비 및 배포 재개
+
+<!-- codex-turn:01a1194d-7a16-7b02-9349-4aa7326692f1 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 승인된 테스트 버전9.0.0/9.1.4·탈퇴 전파 준비 재개.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 구현/원격 작업: Chrome 및 CloudShell 복구. LC17/Identity30 COMPLETED/running1 확인. Atlas의 운영 프로젝트에서 테스트 프로젝트로 이동하여 테스트 LC DB 기존 컬렉션 목록 확인. 없는 탈퇴 컬렉션3개 생성, inbox cleanupAt:1 및 deny expireAt:1 TTL 인덱스(name은 runbook 계약 준수, expireAfterSeconds=0) 생성. 두 인덱스 READY 및 키 방향, probe 빈 상태 확인. LC18 설정 재조회 후 테스트 서비스 재배포 요청.
+- 검증: Atlas UI 생성 결과 및 AWS ECS 상태 조회. 코드 미변경으로 Gradle 미실행. 배포 최종 상태 및 실제 가입/탈퇴 E2E 검증 진행 예정.
+- 유지 계약/결정: 운영 DB/서비스 변경 없음, 기존 데이터 및 인덱스 보존. 기존 승인 범위만 수행. backfill 비활성 유지, LC 정상화 전 Identity31 미적용.
+- 위험/다음 작업: LC18 정상 기동/health 후 Identity31 적용 및 버전 API·대기 이벤트 전파 확인. Secret 미기록. 예상 밖 코드 변경, Jira 변경, commit/push, Swagger 공유본 생성 없음.
+- 후속 확인: LC18 기동에서 UserWithdrawn transaction_capability outcome=verified 확인, ALB 신규 healthy 및 기존17 running0/draining 확인 후 Identity31 업데이트 요청. 기존 outbox PENDING1/attemptCount0 확인. 시험 인덱스 idx_exam_sessions_user_completed_mock_exam 경고는 이번 범위 밖으로 수정하지 않음. Identity 버전 API는31 적용 전503/no-store 재확인.
+- 전파 결과: LC18 COMPLETED. Identity31 기동 후 기존 outbox1건 PUBLISHED 및 LC inbox1건 PROCESSED 확인. Firebase withdrawal/cleanup/identity-release=true 모두 유지 확인. 신규 사용자 실제 탈퇴 및 잔여 Access 차단 E2E는 아직 미실행.
+- 최종 검증: LC18/Identity31 모두 COMPLETED/running1 및 신규 ALB healthy 확인. Android/iOS 공개 GET200에 minimumVersion9.0.0/latestVersion9.1.4, invalid platform400 INVALID_REQUEST, 세 응답 모두 Cache-Control:no-store 확인. git diff --check 통과. 제품 코드 미변경으로 Gradle 미실행. 브라우저 API URL 직접 열기는 client 차단으로 미완료이나 승인된 curl 검증 성공. Atlas projection으로 식별자를 제외한 PROCESSED 결과 화면 증빙 저장.
+- 최종 인계: 테스트 준비 완료, 사용자가 가입 후 LC 접근→탈퇴→기존 Access 차단 확인 필요. 운영 적용 전 실기기 버전 UX 및 새로운 탈퇴 E2E 별도 확인. 예상 밖 변경 없음(기존 사용자 작업 기록 변경 보존), 외부 API 계약 유지. Jira 댓글 자동 등록 없음.
+
+## 2026-10-08 — 가입 화면 안내 및 기존 로컬 테스트 서버 재실행
+
+<!-- codex-turn:01a1198d-fda6-73f3-9efd-c676d7f03ef7 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 가입 화면 요청 및 후속 로컬 테스트 서버 재실행 요청 수행.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 및 테스트 도구 소스 수정 없음.
+- 구현/조사: Swagger Firebase signup 항목 열람, 현재 generated server HTTP 표시로 토큰 입력 금지 안내. 후속 요청으로 이전 기록에서 localhost4173 도구 경로 확인. 포트 미사용 확인 후 node server.mjs 실행. sandbox bind EPERM 뒤 승인받아 재실행 성공(세션5681). 테스트 HTTPS upstream 및 localhost 한정 바인딩 유지.
+- 검증: localhost4173 HTTP200 확인. Chrome 자동 탐색 client 차단, Codex 패널 열기 queued로 실제 표시 완료는 미확인. 가입/인증/약관 동의·탈퇴 요청 미실행. git diff --check 실행. 코드 미변경으로 Gradle 미실행.
+- 유지 계약/결정: AWS/Atlas/사용자 계정/API 계약 변경 없음. 기존 파일 보존, 예상 밖 변경 없음. Swagger 공유본 생성·Jira 변경·commit/push 없음. 비밀값 비기록.
+- 위험/다음 작업: 기존 로컬 도구는 가상 전화 인증만 지원하고 폐지 SNS 추가 연결 UI가 남아 있으며 탈퇴 route 없음. 신규 가입 단계만 사용하고 탈퇴 E2E 도구 호환성 별도 확인 필요. 사용자가 localhost 화면에서 직접 로그인/가입 실행, 자격증명은 채팅에 공유하지 않음.
+
+## 2026-10-08 — Firebase 테스트 전화번호 등록 화면 열기
+
+<!-- codex-turn:01a11993-c8c1-77f1-8353-331b5d6cefcc -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 열린 Firebase 탭에서 사용자 직접 테스트 전화번호 추가 화면 제공.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 수정 없음.
+- 수행 내용: to-teacher-firebase Authentication 로그인 방법의 전화 설정을 열고 테스트용 전화번호 패널 펼침. 번호·코드 입력란 및 추가 버튼 존재 확인, 화면 handoff 유지.
+- 검증: 브라우저 DOM/AX로 폼 열린 상태 확인 및 git diff --check. 화면 탐색만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 번호·인증 코드 입력/등록/삭제 및 저장 미수행, 인증 설정/외부 계정/API 변경 없음. 사용자가 가상 번호와 고정 코드를 직접 등록하도록 인계. 기존 사용자 변경 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 등록된 테스트 자격증명은 채팅·로그에 기록하지 않음. 사용자가 등록 완료 후 로컬 테스트 도구에 동일한 값을 직접 입력해 가입 진행. Jira/commit/push/Swagger 생성 없음.
+
+## 2026-10-08 — 로컬 가입 폼의 현재 동의 버전 입력
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 요청에 따라 현재 정책 버전 입력.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 수행 내용: 테스트 Identity 공개 GET /api/v1/policies/consents 응답 성공 확인. privacyConsentVersion=privacy-v1, termConsentVersion=term-v1을 로컬 가입 폼 해당 필드에 입력. AX로 두 값 확인. 기존 사용자 동의 체크 유지, 가입 버튼 클릭/약관 동의 대행 없음.
+- 검증: 공개 API 응답 및 UI 입력값 대조, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지 계약/결정: 계정 생성·외부 설정·API 계약 변경 없음. 비밀값 미기록. 기존 사용자 변경 보존, 예상 밖 변경·Jira·commit/push·Swagger 공유본 생성 없음.
+- 위험/다음 작업: 사용자가 약관 확인 후 직접 가입 버튼 실행. 가입 성공 및 신규 탈퇴 E2E는 미확인.
+
+## 2026-10-08 — 동의 버전 입력 작업 식별자 보완
+
+<!-- codex-turn:01a11996-3aac-7771-a22b-3ad2f706b13d -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 동의 버전 입력 작업의 turn 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 보존.
+- 수행 내용: 테스트 정책 API에서 확인한 privacy-v1/term-v1을 로컬 가입 폼에 입력하고 검증한 결과를 현재 작업에 연결. 추가 UI 조작·가입 실행 없음.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 기존 동의 체크 유지, 약관 동의·가입 대행 없음. 계정·API·배포 변경 없음. Secret 미기록, 예상 밖 변경 없음.
+- 위험/다음 작업: 사용자 직접 가입 및 신규 탈퇴 E2E 확인 대기.
+
+## 2026-10-08 — 가입 완료 후 Identity·Learning Core 정상 접근 검증
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 가입 완료 보고에 따라 탈퇴 전 정상 접근 기준 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 및 로컬 도구 소스 변경 없음.
+- 수행 내용: 기존 로컬 UI의 회원가입 MEMBER 토큰 발급 성공 확인. 내 프로필 인증 확인 및 Learning Core 접근 확인 버튼 실행. 프로필 MEMBER 확인 및 today 보호 API 성공 확인. 원문 토큰·계정 식별자 미추출/미기록.
+- 검증: UI 서버 응답 성공 표시 및 호출 코드 대조, git diff --check. 코드 미변경으로 Gradle 미실행. 이전 전화 인증 실패 기록이 남아 있으나 이후 전화 연결·가입·두 서버 인증은 성공 확인.
+- 유지 계약/결정: 실제 탈퇴·토큰 재발급·로컬 초기화·학습 응시 생성 미실행. 외부 API 계약·설정 유지. 기존 변경 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 기존 로컬 도구에 탈퇴 UI/프록시 경로가 없어 도구 보완 또는 앱을 통한 직접 탈퇴 필요. 기존 Access로 탈퇴 후 차단 검증할 수 있도록 페이지 세션 유지. 코드 보완/실제 탈퇴는 별도 사용자 진행 방향 확인 후 수행.
+
+<!-- codex-turn:01a11998-e101-79c3-8192-f95d021c3b92 -->
+
+## 2026-10-08 — 자율 테스트 가능 범위 및 탈퇴 승인 안내
+
+<!-- codex-turn:01a1199a-01b1-74f2-aa06-37aebfdf5220 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 자율 테스트 가능 여부와 실제 탈퇴의 승인 범위 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 수행/결정: 읽기 검증은 완료됐으며 실제 탈퇴에는 현재 신규 테스트 계정 삭제 확인이 필요함을 안내. 로컬 도구 탈퇴 기능 보완 및 전파·기존 토큰 차단 검증 범위 제시. 이번 단계에서 실제 탈퇴/외부 쓰기 미실행.
+- 검증: 기록 확인 및 git diff --check. 안내 작업으로 Gradle/추가 실서버 테스트 미실행.
+- 유지 계약: 인증·API 계약·설정 및 기존 사용자 변경 보존. Secret 미기록, 예상 밖 변경 없음.
+- 위험/다음 작업: 실제 계정 삭제 승인 및 도구 지원 확보 후 테스트 진행. Firebase 재인증이 필요한 경우 사용자 직접 인증 필요. Jira/commit/push 없음.
+
+## 2026-10-08 — 탈퇴 테스트 범위 안내 작업 식별자 보완
+
+<!-- codex-turn:01a1199a-43b6-72a0-9f02-dfaab614b05e -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 현재 작업의 정확한 turn 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 수정 없음.
+- 수행 내용/결정: 자율 테스트 가능 범위 안내 및 신규 테스트 계정 실제 탈퇴 승인 대기 상태 기록. 잘못된 이전 식별자는 과거 기록 보존 규칙에 따라 유지하고 이 항목으로 보완.
+- 검증: git diff --check. 기록 보완으로 Gradle 및 외부 테스트 미실행.
+- 유지 계약: 실제 탈퇴·계정 삭제·도구 수정·배포 미실행. Secret 미기록, 예상 밖 변경 없음.
+- 위험/다음 작업: 사용자 승인 후 로컬 도구 지원 확보와 탈퇴 E2E 진행. 필요 시 사용자 직접 SNS 재인증.
+
+## 2026-10-08 — 실제 탈퇴 검증 도구 보완 및 로컬 재시작
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 승인된 신규 테스트 계정 탈퇴와 Firebase/LC 전파 검증 준비.
+- 변경 파일: 별도 로컬 도구의 app.js, index.html, server.mjs, server.test.mjs, withdrawal.test.mjs, README.md 및 Identity docs/codex/WORKLOG.md, CURRENT_STATE.md. 과거 기록 보존.
+- 구현: 테스트 Identity withdraw POST allowlist 추가. 실제 탈퇴 확인창, 직전 Identity MEMBER/LC today 정상 접근 확인, 유효 Firebase 증명+현재 Refresh 전달. 요청 후 일반 동작/재탈퇴 잠금, Firebase 로컬 로그아웃 및 Refresh 참조 폐기, 이전 Access만 메모리에 보관해 정확한 401 ACCOUNT_WITHDRAWN 조회. 응답 불명은 자동 재시도 금지. 검증 종료 시 비교 토큰 폐기.
+- 실행 검증: 임시 복사본에서 node --test *.test.mjs 36/36 통과. 최초 sandbox EPERM은 승인된 실행으로 해결. 신규 테스트의 mock exchange enum을 AUTHENTICATED로 고친 후 모두 통과. 설치 승인 후 지정 6개 파일만 복사. 기존 로컬 서버 세션5681 종료, 세션68992로 재기동, localhost4173 HTTP200 확인. git diff --check 수행. Identity 제품 코드 변경이 없어 Gradle clean test는 미실행, 변경 도구의 Node 테스트로 검증.
+- 유지 계약: 테스트 호스트 고정/동일 origin/전용 헤더/redirect 차단 유지. 임의 userId 요청 없음. 토큰/개인정보/설정 secret 비노출. SNS/phone 허용 판단은 서버에 위임. Identity·LC API/인증 계약과 배포 설정 변경 없음.
+- 결정: 기존 브라우저 세션을 추출하거나 숨은 모듈 상태를 조작하지 않음. 구 페이지의 로그인 메모리는 보존하고, 새 UI 사용 전 같은 계정 로그인 필요를 안내. 재가입이나 전화번호 연결 반복 없음.
+- 위험/미확인: 실제 탈퇴 미실행. 새 계정의 Firebase 삭제, outbox/inbox 처리, LC 전용 차단 결과 미확인. 새 UI 브라우저 상호작용은 사용자 로그인 이후 수행. 토큰 만료는 차단 성공으로 처리하지 않음.
+- 예상 밖 변경: 없음. 기존 사용자 docs 변경 보존, 외부 도구의 지정 파일 외 수정 없음. Jira/commit/push/Swagger 공유본 생성 없음.
+- 다음 작업/배포 전 확인: 제품 재배포 불필요. 새 화면에서 Firebase 구성 적용 후 동일 Google 회원으로 로그인 및 exchange, 승인된 실제 탈퇴 수행 후 Firebase 정리와 LC 이벤트/기존 Access 차단을 확인. 사용자 개입은 로그인 단계에 한정.
+
+## 2026-10-08 — 탈퇴 실검증 실패 원인 수정
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 승인된 테스트 회원 탈퇴 E2E 실행.
+- 변경 파일: 외부 로컬 도구 app.js, withdrawal.test.mjs; docs/codex/CURRENT_STATE.md, WORKLOG.md.
+- 수행: 사용자의 로그인 완료 후 실제 탈퇴 버튼 실행. 확인창은 후속 조회 시 이미 종료되어 있었으며 UI에 탈퇴 직전 Identity MEMBER/LC 접근 성공, 탈퇴 COMMON_UNAUTHORIZED 응답 표시. 재탈퇴 없이 기존 Access 조회로 Identity/LC 모두 계속 성공 확인.
+- 원인/수정: 로컬 도구에서 필수 Bearer Access 헤더 누락. 서버 SecurityConfig anyRequest authenticated 및 UserController bearer 계약, 서비스 CurrentUserProvider 사용 확인. api 호출의 access 인자 추가, mock에 정확한 Authorization 단언 추가. 원래 도구 오류는 이번 작업의 오류이며 서버 문제로 분류하지 않음.
+- 테스트: node --test *.test.mjs 전체 36/36 통과, git diff --check. 제품 Java 변경 없어 Gradle 미실행. 실패 화면 증거 /tmp/withdrawal-auth-header-result.png 보관. 헤더 수정 후 실제 요청은 아직 미실행.
+- 유지 계약/결정: 서버 인증 완화 없이 클라이언트 수정. 승인된 테스트 계정 이외 접근/삭제 없음. 토큰/PII 출력 없음. 모호한 실패 자동 재시도 금지 유지.
+- 위험/다음 작업: 실패 후 도구가 Refresh/Firebase 세션을 폐기하므로 새 화면 적용 및 동일 Google 계정 로그인/exchange 필요. 실제 탈퇴, Firebase cleanup, LC 신규 이벤트 및 ACCOUNT_WITHDRAWN 차단은 미검증.
+- 배포/범위: 제품 재배포 불필요, 로컬 정적 파일 새로고침으로 적용. 예상 밖 파일 변경 없음, 기존 docs 변경 보존. Jira/commit/push 없음.
+
+## 2026-10-08 — 탈퇴 검증 작업 기록 식별자 보완
+
+<!-- codex-turn:01a119a1-6b4c-7581-9c2f-33ab8663a707 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 탈퇴 검증 및 로컬 도구 수정 결과의 작업 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 이번 turn의 구현 파일은 별도 로컬 도구 app.js, withdrawal.test.mjs이며 상세 결과는 직전 항목에 기록.
+- 구현/확인: 탈퇴 요청이 COMMON_UNAUTHORIZED로 거절된 후 Identity/LC 기존 Access 접근 성공 확인. 로컬 도구의 필수 Bearer 헤더 누락 수정 및 회귀 검증 추가. 실제 탈퇴 완료로 보고하지 않음.
+- 테스트: mock Node 전체 36/36 통과, 기록 갱신 후 git diff --check. Java 제품 변경이 없어 Gradle 미실행.
+- 유지 계약/결정: 서버 인증 정책 및 외부 API 계약 변경 없음. 실패 요청 자동 재실행 금지. 과거 WORKLOG 수정 없음, Secret·Token·개인정보 미기록.
+- 위험/다음 작업: 도구가 실패 후 세션을 폐기하여 동일 계정 재로그인 필요. 이후 실제 탈퇴/Firebase 정리/LC 전파와 차단 검증 진행. 제품 배포 불필요, 예상 밖 변경 없음.
+
+## 2026-10-08 — 승인된 테스트 회원 탈퇴 E2E 결과
+
+<!-- codex-turn:01a119a4-12ab-7ad2-877c-b3f899f94bfe -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 실제 테스트 계정 탈퇴, Firebase 정리, LC 전파/기존 Access 차단 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품/로컬 도구 코드 변경 없음.
+- 실행: 사용자 재로그인 확인 후 수정된 로컬 UI로 승인된 테스트 회원 탈퇴 실행. 직전 Identity MEMBER 및 LC today 성공, 탈퇴 WITHDRAWN 성공, 이전 Access의 LC 요청 401 ACCOUNT_WITHDRAWN 확인. 신규 DB 이벤트 문서는 이번 작업에서 별도 조회하지 않음.
+- 서버 확인: 만료 CloudShell 재연결 후 테스트 Identity 로그 그룹만 읽기 조회, timestamp/event/outcome/failureCode/session-count만 출력. 12:52:42 KST 탈퇴 완료와 RefreshSession 3개 폐기 로그 확인. Firebase cleanup은 12:52:44~12:54:02에 RETRY_SCHEDULED/RESULT_UNKNOWN 반복, 삭제 완료 및 내부 연결 해제 완료 미확인.
+- 분석: Identity 검증 UI는 전용 코드 불일치로 미검증. UserProfileService의 비활성 계정 계약은 ACCOUNT_NOT_ACTIVE(403)로, 양 서비스 모두 401 ACCOUNT_WITHDRAWN을 기대한 도구 판정은 과도함. 이번 응답의 실제 code는 확인하지 못했으므로 코드 근거와 실제 관측을 구분함.
+- 테스트/결과: 실제 테스트 환경 API 시나리오 위 결과. Java 코드 변경 없어 Gradle 미실행. git diff --check. 증거 /tmp/withdrawal-e2e-partial-result.png 저장. 이후 비교 토큰/로컬 인증정보 폐기 성공 문구 및 검증 버튼 disabled 확인.
+- 유지 계약/결정: 토큰/Secret/PII 미기록, 인증 완화 없음. 승인된 테스트 계정만 탈퇴. 외부 cleanup 실패 원인을 권한 또는 네트워크로 추정 확정하지 않음. Firebase 수동 삭제/재탈퇴/추가 설정 변경 없음.
+- 위험/다음 작업: Firebase cleanup 원인 진단과 정리 완료 확인 필요. Identity 도구 기대 응답 판정 보완 필요. 전체 E2E 성공으로 보고하지 않음. 탈퇴된 테스트 계정은 정상 UI로 복구할 수 없으며 테스트 재가입은 정리 상태 확인 후 별도 진행.
+- 배포 전 확인/범위: 새 코드 배포 없음. 출시 전 Firebase cleanup 실패 해결 필요. 예상 밖 파일 변경 없음, 기존 사용자 변경 보존. Jira/commit/push 없음.
+
+## 2026-10-08 — Firebase RESULT_UNKNOWN 읽기 전용 진단
+
+<!-- codex-turn:01a119a8-214a-7520-bfdd-0d302079530f -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: Firebase 정리 재시도 원인 조사.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 확인: 테스트 Identity revision31/running1, 탈퇴·cleanup·identity-release 설정 모두 true. 로그 페이지네이션 조회에서 12:52:44~12:55:28 KST RESULT_UNKNOWN/RETRY_SCHEDULED 6회. 조회 시점 완료 기록 없음. 최근 ERROR 로그에도 추가 예외 진단 없음.
+- 코드 근거/분석: FirebaseSdkWithdrawalCleanupAdapter는 inspect/disable/revoke/delete/checkPresence의 RuntimeException 및 미분류 FirebaseAuthException을 RESULT_UNKNOWN으로 변환. FirebaseWithdrawalCleanupException은 원본 예외/작업명을 보존하지 않음. worker는 기본 최대 12회 후 reconciliation 처리. 기능 OFF는 배제하지만 권한/네트워크/SDK 중 근본 원인 확정 불가.
+- 결정/다음 작업: operation/exceptionType/Firebase enum code만 기록하는 안전한 진단 추가가 필요. 사용자 구현 요청 후 테스트 및 배포로 실패 단계 확인. 원본 예외 메시지/Token/Secret/개인정보는 기록하지 않음.
+- 검증: 테스트 ECS/CloudWatch 읽기 조회, 코드·설정 대조, git diff --check. 분석 작업으로 Gradle 미실행.
+- 유지 계약/위험: API·인증 설정·DB·계정 데이터 변경 없음. 강제 retry/재탈퇴/Firebase 수동 삭제 미실행. Firebase 삭제 및 내부 연결 해제 미확인으로 재가입 가능 보장 불가. 기존 변경/과거 WORKLOG 보존, 예상 밖 파일 변경 없음. Jira/commit/push 없음.
+
+## 2026-10-08 — Firebase 사용자 잔존 조회
+
+<!-- codex-turn:01a119ab-87b8-7a70-9458-6644fbdec236 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 테스트 탈퇴 이후 Firebase 사용자 잔존 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인: 기존 Firebase 콘솔 Authentication 사용자 탭에서 오늘 생성/최종 로그인한 Google+Phone 사용자 행 잔존 확인. 신규 테스트 가입 조건과 일치하나 서버 탈퇴 대상과 Firebase UID 직접 대조는 미수행. 삭제 완료로 보고하지 않음.
+- 검증: 콘솔 사용자 목록 읽기 및 git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지 계약/결정: 사용자 삭제/비활성화/설정 저장 미실행, 개인정보·UID·인증정보 문서 미기록. 과거 WORKLOG 및 기존 변경 보존, 예상 밖 파일 변경 없음.
+- 위험/다음 작업: 정확한 UID 대조 및 cleanup 실패 단계 진단 필요. Firebase 사용자 잔존 상태에서 재가입 성공을 보장하지 않음. 배포 변경 없음, Jira/commit/push 없음.
+
+## 2026-10-08 — Firebase 삭제 미완료 판단 설명
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자에게 내부 탈퇴와 외부 삭제 상태 구분 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 변경 없음.
+- 분석/결정: 이전 실검증의 내부 탈퇴 및 LC 차단 성공과 달리, cleanup 실패 반복 및 가입 조건 일치 Firebase 사용자 잔존으로 외부 삭제 미완료 판단이 타당함. UID 직접 대조 미수행 한계 유지.
+- 검증: 기존 증거 대조와 git diff --check. 추가 외부 조회 및 Gradle은 설명 작업이므로 미실행.
+- 유지 계약/위험: 인증/API/계정/설정 변경 없음, 개인정보 미기록. 실패 근본 원인은 아직 미확정.
+- 다음 작업/배포: 재탈퇴가 아닌 cleanup 실패 단계 진단 필요. 배포 없음, 예상 밖 변경 없음, 기존 변경 보존. Jira/commit/push 없음.
+
+## 2026-10-08 — 삭제 미완료 판단 작업 식별자 보완
+
+<!-- codex-turn:01a119ad-4e3d-7692-be98-a4ee9a7a15d3 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 설명 작업의 누락된 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 수정 없음.
+- 내용/결정: 내부 탈퇴·LC 차단 완료와 Firebase 삭제 미완료 판단을 구분. 기존 조회의 UID 직접 대조 미수행 한계 및 근본 원인 미확정 상태 유지.
+- 검증: git diff --check. 기록 보완으로 Gradle/외부 조회 미실행.
+- 유지 계약/위험/다음 작업: 제품 코드·API·계정·배포 변경 없음. cleanup 실패 단계 진단 필요. Secret 미기록, 예상 밖 변경 없음. Jira/commit/push 없음.
+
+## 2026-10-08 — Firebase 탈퇴 실패 단계별 안전 진단 구현
+
+<!-- codex-turn:01a119ad-4e3d-7692-be98-a4ee9a7a15d3 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자의 이유를 알 수 있게 해달라는 요청에 따라 Firebase cleanup 실패 진단 추가.
+- 변경 파일: FirebaseSdkWithdrawalCleanupAdapter.java, FirebaseSdkWithdrawalCleanupAdapterTests.java, docs/codex/CURRENT_STATE.md, WORKLOG.md.
+- 구현: SDK 호출 5단계의 예외 변환 직전 WARN event user.withdrawal.firebase_operation_failed 기록. operation, failureCode, exceptionType, 최대 5단계 causeTypes, Firebase ErrorCode/AuthErrorCode enum만 보존. Throwable/원본 message/HTTP response/UID/프로젝트/credentials 미기록. 정상 NOT_FOUND는 경고 제외.
+- 테스트: ./gradlew clean test 최초 sandbox Gradle cache 접근 제한 후 승인된 실행으로 성공. 전체 1,287개, 실패 0, skipped 6. Adapter 테스트 10개 모두 통과. 신규 테스트는 5단계 런타임 오류 구분·민감정보 및 Throwable 비노출·SDK enum 유지·NOT_FOUND 경고 제외 검증. git diff --check 통과.
+- 유지 계약/결정: 외부 API/오류 매핑/재시도 최대 횟수/삭제 및 provider obligation 정책 모두 유지. root cause를 억측해 동작 수정하지 않고 진단만 추가. 외부 Firebase/Atlas mock 테스트, 실제 인프라 변경 없음.
+- 위험/배포 전 확인: 미배포로 실제 원인 미확정. 로그 수집에서 신규 event/필드 확인 필요. 기존 lifecycle이 RECONCILIATION_REQUIRED에 도달했는지 확인 후 후속 검증 계획 수립; 상태 초기화 또는 수동 삭제 자동 실행 금지.
+- diff 범위: 이번 제품 변경은 adapter 및 해당 테스트만. 작업 시작부터 존재한 docs 변경 보존, 예상 밖 변경 없음. Jira 연결 이슈 없음, 댓글/commit/push/Swagger 공유본 생성 없음.
+- 다음 작업: 사용자 commit/push 및 테스트 배포 후 cleanup 재시도 로그의 operation/exceptionType/Firebase enum을 읽어 실제 원인 진단. Jira 댓글 초안: Firebase cleanup 안전 진단 로그 추가, 테스트 실패 0, 실제 배포 후 원인 확인 필요(자동 등록 안 함).

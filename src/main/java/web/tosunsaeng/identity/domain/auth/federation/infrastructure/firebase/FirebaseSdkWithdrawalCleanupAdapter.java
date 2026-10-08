@@ -4,6 +4,9 @@ import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.firebase.ErrorCode;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AbstractFirebaseAuth;
@@ -23,6 +26,9 @@ import web.tosunsaeng.identity.domain.user.domain.enums.WithdrawalCleanupFailure
 
 public final class FirebaseSdkWithdrawalCleanupAdapter
 		implements FirebaseWithdrawalCleanupPort {
+
+	private static final Logger log = LoggerFactory.getLogger(FirebaseSdkWithdrawalCleanupAdapter.class);
+	private enum Operation { INSPECT, DISABLE, REVOKE_REFRESH_TOKENS, DELETE, CHECK_PRESENCE }
 
 	private static final String GOOGLE_PROVIDER_ID = "google.com";
 	private static final String APPLE_PROVIDER_ID = "apple.com";
@@ -62,9 +68,9 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 					providers(user.getProviderData())
 			);
 		} catch (FirebaseAuthException exception) {
-			throw classify(exception);
+			throw diagnose(Operation.INSPECT, exception);
 		} catch (RuntimeException exception) {
-			throw failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			throw diagnose(Operation.INSPECT, exception);
 		}
 	}
 
@@ -74,9 +80,9 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 		try {
 			firebaseAuth.updateUser(new UserRecord.UpdateRequest(firebaseUid).setDisabled(true));
 		} catch (FirebaseAuthException exception) {
-			throw classify(exception);
+			throw diagnose(Operation.DISABLE, exception);
 		} catch (RuntimeException exception) {
-			throw failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			throw diagnose(Operation.DISABLE, exception);
 		}
 	}
 
@@ -86,9 +92,9 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 		try {
 			firebaseAuth.revokeRefreshTokens(firebaseUid);
 		} catch (FirebaseAuthException exception) {
-			throw classify(exception);
+			throw diagnose(Operation.REVOKE_REFRESH_TOKENS, exception);
 		} catch (RuntimeException exception) {
-			throw failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			throw diagnose(Operation.REVOKE_REFRESH_TOKENS, exception);
 		}
 	}
 
@@ -112,9 +118,9 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 		try {
 			firebaseAuth.deleteUser(firebaseUid);
 		} catch (FirebaseAuthException exception) {
-			throw classify(exception);
+			throw diagnose(Operation.DELETE, exception);
 		} catch (RuntimeException exception) {
-			throw failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			throw diagnose(Operation.DELETE, exception);
 		}
 	}
 
@@ -128,10 +134,38 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 			if (exception.getAuthErrorCode() == AuthErrorCode.USER_NOT_FOUND) {
 				return FirebaseAccountPresence.ABSENT;
 			}
-			throw classify(exception);
+			throw diagnose(Operation.CHECK_PRESENCE, exception);
 		} catch (RuntimeException exception) {
-			throw failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			throw diagnose(Operation.CHECK_PRESENCE, exception);
 		}
+	}
+
+	private static FirebaseWithdrawalCleanupException diagnose(Operation operation, Exception exception) {
+		FirebaseAuthException sdk = exception instanceof FirebaseAuthException firebase ? firebase : null;
+		FirebaseWithdrawalCleanupException mapped = sdk == null
+				? failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN) : classify(sdk);
+		// USER_NOT_FOUND is an expected idempotent cleanup outcome, not an operational failure.
+		if (mapped.failureCode() != WithdrawalCleanupFailureCode.NOT_FOUND) {
+			StringBuilder causes = new StringBuilder();
+			Throwable cause = exception.getCause();
+			for (int depth = 0; cause != null && depth < 5; depth++, cause = cause.getCause()) {
+				if (!causes.isEmpty()) causes.append(" <- ");
+				causes.append(cause.getClass().getName());
+			}
+			// Never attach Throwable, its message, HTTP response, UID, project or credentials.
+			log.atWarn()
+					.addKeyValue("event", "user.withdrawal.firebase_operation_failed")
+					.addKeyValue("operation", operation.name())
+					.addKeyValue("failureCode", mapped.failureCode().name())
+					.addKeyValue("exceptionType", exception.getClass().getName())
+					.addKeyValue("causeTypes", causes.isEmpty() ? "NONE" : causes.toString())
+					.addKeyValue("firebaseErrorCode", sdk == null || sdk.getErrorCode() == null
+							? "NONE" : sdk.getErrorCode().name())
+					.addKeyValue("firebaseAuthErrorCode", sdk == null || sdk.getAuthErrorCode() == null
+							? "NONE" : sdk.getAuthErrorCode().name())
+					.log("Firebase withdrawal operation failed");
+		}
+		return mapped;
 	}
 
 	private Set<FirebaseCleanupProvider> providers(UserInfo[] providerData) {

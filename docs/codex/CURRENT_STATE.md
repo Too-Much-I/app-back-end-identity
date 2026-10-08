@@ -1,6 +1,144 @@
 # Codex Current State
 
+## 2026-10-08 — Firebase 탈퇴 실패 진단 로그 구현 완료 (미배포)
+
+- FirebaseSdkWithdrawalCleanupAdapter에 WARN event `user.withdrawal.firebase_operation_failed` 추가. operation은 INSPECT/DISABLE/REVOKE_REFRESH_TOKENS/DELETE/CHECK_PRESENCE. failureCode, exceptionType, 최대 5단계 causeTypes, firebaseErrorCode, firebaseAuthErrorCode를 기록.
+- UID/프로젝트/토큰/원본 예외 메시지/HTTP 응답/Throwable은 기록하지 않음. 정상적인 USER_NOT_FOUND는 경고하지 않음. 기존 오류 매핑·API 응답·retry/삭제 정책 변경 없음.
+- `./gradlew clean test`: 전체 1,287개 중 실패 0, skipped 6. Adapter 테스트 10개 모두 통과(신규 진단 테스트 3개 포함). git diff --check 통과.
+- 아직 배포하지 않아 실제 Firebase 실패 원인은 미확정. 배포 후 위 event의 작업 단계와 enum/type을 확인해야 함. 기존 lifecycle이 retry 한도를 소진했다면 자동 재시도 재개를 보장하지 않으며 상태 확인 없이 초기화하지 않음.
+
+## 2026-10-08 — Firebase 삭제 미완료 판단 정리
+
+<!-- codex-turn:01a119ad-4e3d-7692-be98-a4ee9a7a15d3 -->
+
+- 기존 증거(내부 WITHDRAWN 성공, LC 차단 성공, Firebase cleanup RESULT_UNKNOWN 반복, 가입 조건에 일치하는 Firebase 사용자 잔존)를 종합하면 Firebase 삭제는 완료되지 않은 것으로 판단. UID 직접 대조 미수행이라는 확인 한계는 유지.
+- 다음 작업은 재탈퇴가 아니라 cleanup 실패 단계 진단. 이번 응답에서는 추가 외부 조회/삭제/코드 변경 없이 판단만 정리.
+
+## 2026-10-08 — Firebase 사용자 목록 잔존 확인
+
+<!-- codex-turn:01a119ab-87b8-7a70-9458-6644fbdec236 -->
+
+- Firebase Authentication 사용자 목록에서 오늘 생성·최종 로그인된 Google+Phone 사용자 행이 여전히 존재함을 확인. 앞서 신규 가입 테스트 조건과 일치하지만 서버 탈퇴 대상과 Firebase UID의 직접 대조는 이번 조회에서 수행하지 않음.
+- Firebase 삭제 완료로 판단할 수 없음. 사용자 목록 조회만 수행, 계정 삭제/비활성화/설정 저장 없음. 개인정보와 UID는 기록하지 않음.
+
+## 2026-10-08 — Firebase 정리 진단: 설정 ON, 원인 정보 부족
+
+<!-- codex-turn:01a119a8-214a-7520-bfdd-0d302079530f -->
+
+- 테스트 Identity revision31/running1 및 탈퇴·cleanup·identity-release 설정 모두 true 확인. 12:52:44~12:55:28 KST RESULT_UNKNOWN/RETRY_SCHEDULED 6회 관측, 조회 시점 완료 기록 없음. ERROR 로그에도 추가 진단 정보 없음.
+- FirebaseSdkWithdrawalCleanupAdapter가 RuntimeException과 미분류 Firebase 오류를 RESULT_UNKNOWN으로 변환하고 원본 예외/실패 단계를 보존하지 않아 근본 원인은 현 로그로 확정 불가. 기본 최대 12회 후 reconciliation 전환.
+- 다음 단계: 민감정보 없이 operation/exceptionType/Firebase enum code를 남기는 진단 추가 및 테스트·배포 후 확인. 이번 요청은 조사로 제품 코드·배포·DB 변경 및 강제 재시도/수동 삭제 미실행.
+
+## 2026-10-08 — 실제 탈퇴 및 LC 차단 성공, Firebase 정리 재시도 확인
+
+<!-- codex-turn:01a119a4-12ab-7ad2-877c-b3f899f94bfe -->
+
+- 승인된 테스트 회원으로 탈퇴 직전 Identity MEMBER/LC today 정상 접근 후 실제 탈퇴 실행. UI WITHDRAWN 성공. 테스트 Identity 로그에서도 12:52:42 KST user.withdrawal.completed/outcome=withdrawn 및 revokedSessionCount=3 확인.
+- 같은 기존 Access로 LC today가 401 ACCOUNT_WITHDRAWN을 반환하여 전파에 따른 접근 차단 확인. 이번 작업에서 outbox/inbox 문서 상태를 직접 재조회한 것은 아님.
+- Firebase 정리는 12:52:44~12:54:02 KST 관측 로그에서 RETRY_SCHEDULED / RESULT_UNKNOWN 반복. 삭제 완료 또는 CLEANED 미확인. 원인 상세가 해당 로그에 없어 권한/네트워크/SDK 원인으로 단정하지 않음. 수동 삭제·재탈퇴·설정 변경 미실행.
+- Identity 프로필 차단 UI는 미검증 표시: 도구가 양 서버에 401 ACCOUNT_WITHDRAWN을 기대하지만 로컬 UserProfileService는 비활성 계정에 403 ACCOUNT_NOT_ACTIVE 계약을 사용함. 실제 이번 응답 코드는 별도 확인 필요하며 도구 판정 보완 필요.
+- 증거 /tmp/withdrawal-e2e-partial-result.png 저장 후 비교용 Access 및 로컬 인증정보 폐기, 검증 버튼 비활성 확인. 실제 탈퇴는 취소/복구되지 않음. 제품 코드·배포·설정 변경 없음. 다음 작업은 Firebase cleanup 실패 원인 진단 및 Identity 검증 기대값 보완.
+
+## 2026-10-08 — 탈퇴 요청 인증 헤더 누락 수정, 재로그인 필요
+
+<!-- codex-turn:01a119a1-6b4c-7581-9c2f-33ab8663a707 -->
+
+- 실제 테스트 요청에서 탈퇴 직전 Identity MEMBER/LC today 성공 후 withdraw가 COMMON_UNAUTHORIZED로 거절됨. 후속 기존 Access 조회도 양쪽 성공하여 탈퇴 미처리 확인. 자동 재탈퇴하지 않음.
+- 원인: 로컬 도구가 Firebase/Refresh body만 전달하고 필수 Bearer Access 헤더를 생략. SecurityConfig 및 UserController 계약 확인 후 외부 도구 app.js의 api 호출에 기존 Access 전달, withdrawal.test.mjs에 헤더 단언 추가. 승인받아 두 파일 반영.
+- mock 전체 36/36 통과. 제품 코드/배포/DB 변경 없음. 정적 파일은 요청마다 읽으므로 서버 재시작 불필요. 현재 탭은 실패 후 Firebase 로그아웃/Refresh 폐기 상태라 새로고침 및 같은 회원 로그인/exchange 필요.
+- 실제 탈퇴/Firebase 삭제/신규 전파 완료는 아직 미검증. 다음 로그인 후 동일 승인 범위로 재검증. 토큰 및 사용자 식별정보 미기록.
+
+## 2026-10-08 — 탈퇴 E2E 로컬 도구 준비 완료, 로그인 대기
+
+- 사용자 승인: 방금 가입한 폐기 가능한 테스트 회원의 실제 탈퇴, Firebase 정리 및 LC 전파/기존 Access 차단 검증.
+- 별도 로컬 도구 `/Users/msde76/tosunsaeng-integration-test`에 탈퇴 POST allowlist와 UI, 탈퇴 전 Identity/LC baseline, 응답 유실 시 재실행 잠금, 기존 Access 메모리 한정 차단 조회/폐기를 구현. 변경 파일은 app.js, index.html, server.mjs, server.test.mjs, withdrawal.test.mjs, README.md.
+- mock 기반 Node 테스트 36/36 통과. 기존 localhost:4173 프로세스를 재시작했고 HTTP200 확인(실행 세션68992). Identity 제품 코드/API/배포/DB 변경 없음.
+- 현재 열린 구 UI는 새로고침하지 않아 기존 메모리 세션을 유지함. 새 UI 적용에는 새로고침 후 Firebase 웹 설정 재적용 및 같은 Google 계정 로그인/Identity exchange가 필요. 재가입/전화 연결을 반복하지 않음.
+- 실제 탈퇴 요청은 아직 미실행. 새 계정 Firebase 삭제, 신규 outbox/inbox 처리 및 ACCOUNT_WITHDRAWN 차단은 미검증. 일반 401/만료/네트워크 실패를 성공으로 간주하지 않음. 승인 범위 확대 없이 동일 테스트 계정으로 후속 진행.
+
+## 2026-10-08 — 실제 탈퇴 테스트 범위 확인 대기
+
+<!-- codex-turn:01a1199a-43b6-72a0-9f02-dfaab614b05e -->
+
+- 조회·접근 테스트는 이전 단계에서 성공. 사용자의 자율 테스트 가능 여부 질문에 실제 테스트 계정 탈퇴 및 로컬 도구 보완 범위를 설명하고 대상 계정 삭제 승인을 요청. 이번 단계에서는 탈퇴 요청·코드 변경 미실행.
+
+## 2026-10-08 — 신규 가입 및 탈퇴 전 정상 접근 확인
+
+- 사용자가 로컬 화면에서 가입 완료. UI의 MEMBER 토큰 발급 성공 확인 후 내 프로필 인증 확인과 Learning Core 접근 확인 버튼을 실행. 서버 MEMBER 프로필 확인 및 today 보호 API 성공 확인.
+- 탈퇴 요청 미실행. 기존 로컬 도구에 탈퇴 UI/프록시 경로가 없어 후속 E2E용 도구 보완 또는 앱에서 직접 탈퇴가 필요. 페이지 새로고침/로컬 인증정보 초기화 금지: 비교할 기존 Access가 메모리에 있음.
+
+## 2026-10-08 — 로컬 가입 폼 동의 버전 입력
+
+<!-- codex-turn:01a11996-3aac-7771-a22b-3ad2f706b13d -->
+
+- 테스트 공개 정책 API 성공 응답에서 privacy-v1/term-v1 확인 후 로컬4173 가입 폼의 두 버전 필드에 입력·검증. 기존 사용자 동의 체크 상태는 변경하지 않았으며 가입 버튼 미클릭. 사용자가 직접 가입 완료할 단계.
+- 코드·외부 설정·계정 데이터 변경 없음. 작업 기록만 갱신, git diff --check 검증.
+
+## 2026-10-08 — Firebase 테스트 전화번호 등록 화면 인계
+
+<!-- codex-turn:01a11993-c8c1-77f1-8353-331b5d6cefcc -->
+
+- 열린 Firebase to-teacher-firebase Authentication 탭에서 로그인 방법 → 전화 → 테스트용 전화번호(선택사항)를 펼침. 전화번호·인증 코드 입력 필드 및 테스트 전화번호 추가 버튼 확인.
+- 번호/코드 입력·추가·저장·삭제 및 인증 설정 변경 없음. 사용자가 직접 가상 번호와 코드를 등록하도록 화면 인계. 기존 로컬 서버 및 테스트 배포 상태 유지.
+
+## 2026-10-08 — 기존 로컬 가입 테스트 서버 재실행
+
+<!-- codex-turn:01a1198d-fda6-73f3-9efd-c676d7f03ef7 -->
+
+- 사용자 요청을 Swagger 안내에서 기존 로컬 테스트 서버 재실행으로 전환. /Users/msde76/tosunsaeng-integration-test/server.mjs를 localhost:4173에 실행, HTTP200 확인. 실행 세션5681.
+- Codex 브라우저 패널 열기는 queued 응답. Chrome 자동 탐색은 ERR_BLOCKED_BY_CLIENT로 열기 미확인, 사용자에게 localhost 링크 제공. 가입/약관 동의/전화 인증은 실행하지 않음.
+- 기존 도구는 테스트 Identity/LC HTTPS 프록시를 사용하며 가상 전화번호 인증만 지원. 폐지 SNS 추가 연결 UI 및 탈퇴 route 미지원 상태이므로 신규 가입용 단계만 안내, 최신 탈퇴 E2E 도구 호환성은 별도 확인 필요.
+- 제품 코드·서버/DB 설정 변경 없음. 이전 배포 완료 및 전파 성공 상태 유지.
+
+## 2026-10-08 — 테스트 버전·탈퇴 전파 배포 완료, 신규 계정 E2E 대기
+
+<!-- codex-turn:01a1194d-7a16-7b02-9349-4aa7326692f1 -->
+
+- Chrome/AWS CloudShell/Atlas 연결 복구. LC17 및 Identity30 모두 COMPLETED/running1 확인.
+- Atlas tosunsaeng-test 프로젝트의 to-teacher-learning-core-test에서 기존 목록 확인 후 누락된 user_withdrawn_event_inbox, withdrawn_user_access_denies, user_withdrawn_transaction_probe 생성. probe 빈 상태 확인.
+- cleanupAt:1 / ttl_user_withdrawn_inbox_cleanup 및 expireAt:1 / ttl_withdrawn_user_access_deny_expire를 expireAfterSeconds=0으로 생성, 둘 다 READY 확인. 기존 데이터·인덱스 변경 없음.
+- LC18 재배포 후 UserWithdrawn transaction_capability outcome=verified, 신규 ALB target healthy 및 기존17 running0/draining 확인. 이후 Identity31 서비스 업데이트 요청. 실제 가입/탈퇴 E2E는 아직 미실행.
+- 배포 전 Identity outbox는 PENDING1/attemptCount0. 별도 시험 조회 인덱스 idx_exam_sessions_user_completed_mock_exam 경고1건은 범위 밖으로 미변경.
+- LC18 COMPLETED 확인. Identity31 기동 완료 후 기존 outbox1건 PUBLISHED 및 LC inbox1건 PROCESSED 확인. Firebase withdrawal/cleanup/identity-release 모두true 유지 확인. Identity ALB 안정화 및 버전 API 최종 검증 대기.
+- 최종: LC18/Identity31 모두 COMPLETED/running1, 신규 target healthy 확인. 공개 API Android/iOS200, minimumVersion9.0.0/latestVersion9.1.4, invalid platform400, 모두no-store 확인. 기존 대기 전파1건 성공. 이제 사용자가 신규 테스트 가입 후 LC 접근→탈퇴→기존 Access 차단을 검증할 수 있음. 실제 E2E 완료를 의미하지 않음.
+- 변경 파일은 작업 기록2개뿐이며 제품 코드·외부 API 계약 변경 없음. Swagger 공유본·운영 설정·backfill 미변경. 신규 계정 테스트 전에 토큰을 채팅에 보내지 말고 사용자 앱/Swagger에서 직접 실행.
+
+## 2026-10-08 — Chrome 제어 재연결 방법 안내
+
+<!-- codex-turn:01a1194b-f9d3-70a3-9d89-434366fe079f -->
+
+- OpenAI Docs 공식 브라우저 확장 문서를 확인해 Settings > Computer Use의 Chrome 활성화/Manage, 확장 설치 프로필, @Chrome 선택 및 재시작·새 대화 대안을 안내. 원인이 확장 연결인지 대화 도구 노출인지 확정하지 않음.
+- 실제 앱 설정·확장·AWS·Atlas 변경 없음. 서버 작업은 아래 중단 상태 유지, 재연결 뒤 LC17 안정 상태부터 확인해야 함.
+
+## 2026-10-08 — 테스트 설정 적용 재시도, 제어 연결 미복구
+
+<!-- codex-turn:01a1194a-c2ea-72b3-9c8e-b85c815b4721 -->
+
+- 사용자 재시도 요청으로 사용 가능한 도구와 AWS CLI를 재확인. Chrome/컴퓨터 제어 도구는 여전히 제공되지 않으며 로컬 AWS CLI는 NoCredentials. 외부 변경 및 배포 상태 재확인 불가.
+- 기존 승인과 아래 진행 상태 유지: Identity31 등록만 완료/서비스 미적용, LC18 실패 후17 복귀 요청 접수/최종 안정화 미확인, 테스트 DDL 미실행. 브라우저 제어를 다시 연결하거나 로컬 AWS CLI 로그인 완료 후 재개 필요. 승인 반복 요청 없음.
+
+## 2026-10-08 — 테스트 버전·탈퇴 전파 적용 진행 중, DB 준비 필요
+
+<!-- codex-turn:01a1193a-89db-7c10-ba64-301565ba2fd3 -->
+
+- 사용자 승인: Android/iOS 최소9.0.0·최신9.1.4, 테스트 기존 대기 탈퇴 이벤트 포함, 테스트 Identity workload 신뢰 및 LC consumer/deny 활성화, 테스트 DB의 없는 컬렉션3개·TTL 인덱스2개만 추가. 사용자는 준비 완료 후 신규 테스트 계정 가입·탈퇴 예정이며9.0.0 이상 앱 사용 가능.
+- AWS CloudShell에서 Identity test:30(이미지7a634f89) 배포 COMPLETED 확인. test:31 등록 완료(버전4개+publisher=true+test LC /internal/v1/events/withdrawn). **31은 서비스에 적용하지 않음**. 11:13 KST Android 버전 API503 APP_VERSION_UNAVAILABLE 재확인.
+- LC test:18 등록·배포 시도 후 startup validator가 ttl_withdrawn_user_access_deny_expire 누락/불일치로 실패. 기존17로 서비스 복귀 요청 성공(RESTORING_BASELINE 출력). 최종 steady state는 브라우저 도구 단절로 미확인. 기존17 정상 태스크가 새 배포 중 남아 있었음. Identity publisher는 계속OFF, backfill 미활성화.
+- 다음: 브라우저 제어 복구 → LC17 rollout/health 확인 → to-teacher-learning-core-test의 user_withdrawn_event_inbox/withdrawn_user_access_denies/user_withdrawn_transaction_probe 조회 → 없는 컬렉션 및 cleanupAt/expireAt TTL0 인덱스만 추가. 기존 동명 불일치는 수정하지 말고 중단. LC18 재배포 및 startup index/transaction probe/health 성공 후 Identity31 배포. 두 플랫폼200·버전값 확인, 기존 outbox/inbox 전달 결과 확인 후 신규 계정 E2E.
+- Atlas 사용자 재로그인·연결 완료 보고 받음. DB DDL/조회 결과 확인은 미완료. 로컬 AWS CLI 인증 없음, 사용하던 브라우저 제어가 도구 목록에서 사라져 CloudShell 후속 조작 불가. 플러그인 관리 검색으로 기존 Chrome 세션을 대체할 적합 연결을 찾지 못함. 제품 코드·운영 환경·Secret·Swagger 공유본 변경 없음.
+
+## 2026-10-08 — 배포 후 버전 설정·검증 순서 안내
+
+<!-- codex-turn:01a11938-f042-7e92-adea-d6b705804665 -->
+
+- 이번 버전 변경은 별도 enabled 플래그 없이 Android/iOS MINIMUM_VERSION·LATEST_VERSION 네 환경변수로 적용. 테스트에서는 각1.1.0 사용 가능, 운영은 최소 호환성과 실제 스토어 설치 가능 여부 확인 필요. 환경변수 변경은 재시작/재배포 필요.
+- 검증 계획: 배포 revision/health 확인 → 두 플랫폼 공개 GET200·필드·no-store 및 잘못된 platform400 → 테스트 앱 강제/권장/정상·오류 UX 확인. 권장 분기는 격리 테스트에서만 latest1.1.1/minimum1.1.0 또는 mock으로 검증.
+- 탈퇴 전파는 버전 변경의 필수 설정이 아님. 이전 점검 당시 OFF였으며 현재 runtime은 재조회하지 않음. 별도 검증 시 테스트 DB/대기 이벤트/목적지/인증 확인 후 LC consumer·deny 준비, Identity publisher 순으로 활성화 승인 필요. backfill 자동 활성화 없음.
+- 이번 작업은 코드·계약 읽기와 안내/기록만 수행. 배포 완료 확인·설정 변경·실서버 테스트·Swagger 공유본 생성 없음.
+
 ## 2026-10-08 — SecurityIntegrationTests JSONPath IDE 오류 수정
+
+<!-- codex-turn:01a11936-4284-7d73-83fb-b5213923d3b7 -->
 
 - 291·294행의 `$ref` 접근을 점 표기에서 `['$ref']`로 변경. 기존 OpenAPI 검증 대상과 API 계약은 유지.
 - ./gradlew clean test 성공 및 git diff --check 통과. IDE 진단 해소는 사용자 편집기에서 재확인 필요. Swagger 공유본 생성·배포·commit/push 없음.

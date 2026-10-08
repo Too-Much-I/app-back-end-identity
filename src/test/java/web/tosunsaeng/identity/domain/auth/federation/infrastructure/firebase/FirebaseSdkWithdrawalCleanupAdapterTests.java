@@ -19,6 +19,7 @@ import com.google.firebase.auth.UserInfo;
 import com.google.firebase.auth.UserRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import web.tosunsaeng.identity.support.LogCapture;
 
 import web.tosunsaeng.identity.domain.user.application.FirebaseAccountPresence;
 import web.tosunsaeng.identity.domain.user.application.FirebaseCleanupAccountSnapshot;
@@ -148,6 +149,61 @@ class FirebaseSdkWithdrawalCleanupAdapterTests {
 				() -> adapter.inspect(PROJECT_ID, FIREBASE_UID),
 				WithdrawalCleanupFailureCode.RESULT_UNKNOWN
 		);
+	}
+
+	@Test
+	void runtimeDiagnosticsIdentifyEveryStageWithoutLeakingCredentials() throws Exception {
+		String sensitive = "fake-token fake-password " + PROJECT_ID + " " + FIREBASE_UID;
+		IllegalStateException failure = new IllegalStateException(sensitive,
+				new IllegalArgumentException(sensitive));
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenThrow(failure);
+		when(firebaseAuth.updateUser(any(UserRecord.UpdateRequest.class))).thenThrow(failure);
+		doThrow(failure).when(firebaseAuth).revokeRefreshTokens(FIREBASE_UID);
+		doThrow(failure).when(firebaseAuth).deleteUser(FIREBASE_UID);
+
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertFailure(() -> adapter.inspect(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.disable(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.revokeRefreshTokens(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.delete(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.checkPresence(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).extracting(event -> LogCapture.value(event, "operation"))
+					.containsExactly("INSPECT", "DISABLE", "REVOKE_REFRESH_TOKENS", "DELETE", "CHECK_PRESENCE");
+			assertThat(capture.events()).allSatisfy(event -> {
+				assertThat(LogCapture.value(event, "event")).isEqualTo("user.withdrawal.firebase_operation_failed");
+				assertThat(LogCapture.value(event, "exceptionType")).isEqualTo(IllegalStateException.class.getName());
+				assertThat(LogCapture.value(event, "causeTypes")).isEqualTo(IllegalArgumentException.class.getName());
+				assertThat(LogCapture.value(event, "firebaseErrorCode")).isEqualTo("NONE");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("fake-token", "fake-password", PROJECT_ID, FIREBASE_UID);
+			});
+		}
+	}
+
+	@Test
+	void sdkDiagnosticsRetainEnumsWithoutAttachingOriginalException() throws Exception {
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertSdkFailure(ErrorCode.INVALID_ARGUMENT, AuthErrorCode.INVALID_ID_TOKEN,
+					WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "firebaseErrorCode")).isEqualTo("INVALID_ARGUMENT");
+				assertThat(LogCapture.value(event, "firebaseAuthErrorCode")).isEqualTo("INVALID_ID_TOKEN");
+				assertThat(LogCapture.value(event, "failureCode")).isEqualTo("RESULT_UNKNOWN");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("sensitive", FIREBASE_UID, PROJECT_ID);
+			});
+		}
+	}
+
+	@Test
+	void expectedNotFoundDoesNotEmitFailureDiagnostic() throws Exception {
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenThrow(sdkFailure(ErrorCode.NOT_FOUND,
+				AuthErrorCode.USER_NOT_FOUND, "sensitive"));
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertThat(adapter.checkPresence(PROJECT_ID, FIREBASE_UID)).isEqualTo(FirebaseAccountPresence.ABSENT);
+			assertFailure(() -> adapter.inspect(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.NOT_FOUND);
+			assertThat(capture.events()).isEmpty();
+		}
 	}
 
 	private void assertSdkFailure(
