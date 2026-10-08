@@ -59,7 +59,7 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		String appVersionPath = "/api/v1/app/version";
 		for (String platform : new String[]{"android", "ios"}) {
 			success(api, appVersionPath, "get", "200", platform, "최신 출시 버전 예시 (실제 출시값 아님)",
-					new web.tosunsaeng.identity.domain.appversion.AppVersionResponse(platform, "1.2.0"));
+					new web.tosunsaeng.identity.domain.appversion.AppVersionResponse(platform, "1.2.0", "1.1.0"));
 		}
 		for (ErrorCode code : new ErrorCode[]{
 				web.tosunsaeng.identity.global.exception.CommonErrorStatus.INVALID_REQUEST,

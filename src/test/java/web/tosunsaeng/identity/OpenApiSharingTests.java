@@ -61,6 +61,11 @@ class OpenApiSharingTests {
 				.contains("android", "ios");
 		assertThat(appVersion.path("responses").has("400")).isTrue();
 		assertThat(appVersion.path("responses").has("503")).isTrue();
+		JsonNode versionEnvelope = resolve(spec, appVersion.path("responses").path("200")
+				.path("content").path("application/json").path("schema"));
+		JsonNode versionResult = resolve(spec, versionEnvelope.path("properties").path("result"));
+		assertThat(fieldNames(versionResult.path("properties")))
+				.containsExactlyInAnyOrder("platform", "latestVersion", "minimumVersion");
 		JsonNode prepare = spec.path("paths").path("/api/v1/auth/firebase/guest/prepare").path("post");
 		assertThat(prepare.path("security").get(0).has("bearerAuth")).isTrue();
 		JsonNode envelope = resolve(spec, prepare.path("responses").path("200")

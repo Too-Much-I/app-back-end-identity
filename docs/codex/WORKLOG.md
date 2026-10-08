@@ -15725,3 +15725,299 @@
 - 예상 밖 변경: 없음. 제품2파일·테스트1파일 및 기록만 변경, 기존 기록 보존. 비밀정보 미기록.
 - 다음 작업/배포 전 확인: IDE Gradle 동기화 후 표시 확인, 사용자 diff 검토·commit/push 후 필요 시 배포. Jira 변경·commit/push·배포 없음.
 - Jira 댓글 초안(미등록): 조건부 Bean factory 명시 주입으로 Autowired 경고 원인 제거, optional guard 회귀 테스트 및 전체1281건 실패0, IDE 화면·배포 미확인.
+
+## 2026-10-07 — 지정 Sentry 알림 메일 읽기 및 상세 조회 시도
+
+<!-- codex-turn:01a11659-9797-7912-a2e8-9c272f101127 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 지정 메일의 Sentry 오류 진단.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용: 메일에 to-teacher 프로젝트 UncategorizedMongoDbException FATAL4건, newsletter 패키지 축약 경로 표시. 발생 시각21:17:08/21:17:12 KST. 이슈7778701664/7778701756/7778701766/7778701652 확인. 첫 상세 이슈 진입은 Sentry 조직 로그인 화면으로 이동하여 중단.
+- 유지한 계약/결정: 예외 이름만으로 Mongo 장애·권한·쿼리 문제를 확정하지 않는다. Identity 저장소 main 소스의 newsletter/해당 예외 검색은 일치 없음. 앞선 탈퇴 수정과 직접 연관을 단정하지 않는다. 사용자가 로그인 후 상세 원인 확인 필요.
+- 검증: 브라우저 메일 본문 및 상세 로그인 화면, 저장소 rg 조회, git diff --check. 분석 작업으로 Gradle 미실행.
+- 위험 요소: 상세 메시지/stack/배포 환경·release/사용자 영향 미확인. 메일의 FATAL이 서비스 전체 중단의 증거는 아니다. 비밀정보·메일 수신자 개인정보·인증 링크 기록하지 않음.
+- 다음 작업: 로그인 후 해당4개 이슈의 root cause·발생 환경 확인. 로그인용 탭 유지. 과거 기록 보존, 예상 밖 제품 변경 없음, Jira·배포·commit/push·메일 발송·Sentry 상태 변경 없음.
+
+## 2026-10-07 — 사용자 로그인 후 Sentry 상세 오류 확인
+
+<!-- codex-turn:01a11659-9797-7912-a2e8-9c272f101127 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: Sentry 메일 알림4개 상세 진단 이어서 수행.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 내용:7은 NewsletterDeliveryQueryRepositoryImpl324 findAndModify/320 claim/73 claimNextPending 및 service84.8은 NewsletterCampaignQueryRepositoryImpl166 findAndModify/50 reclaimNextExpiredGeneration 및 service112.9는 Delivery repository324/196 recoverNextStaleBeforeProvider 및 service111.6은 Campaign repository166/35 claimNextScheduled 및 service98. 모두 MongoCommandException이 원인 체인에 나타남.
+- 관측: 모든 이슈 environment local, UncaughtExceptionHandler 및 Fatal. 순차 조회 시 이벤트 수7=224/8=18/9=18/6=107, 지속 발생 상태. 날짜 시각은 최초21:17 KST 이후. 동일 순간 합계로 해석하지 않는다.
+- 유지한 계약/결정: 뉴스레터 백그라운드 DB 명령 실패가 확인된 범위이며 Identity 탈퇴 코드 원인으로 연결하지 않음. Mongo 권한/인덱스/쿼리/환경 문제 중 어느 것인지는 메시지·오류 코드가 없어 미확정. local 태그만으로 실제 개발자 PC라고 단정하지 않음.
+- 검증: Sentry4개 상세 UI와 첫 이슈 cause 펼침 확인, git diff --check. 진단 작업으로 Gradle 미실행.
+- 위험 요소: Sentry 예외 메시지 공란으로 정확한 root cause 및 실제 사용자 영향 미확인. Fatal 표시는 프로세스 전체 종료를 입증하지 않음. 민감정보 및 메일 개인정보 미기록.
+- 다음 작업: 해당 newsletter 백엔드 코드 및 정제된 Mongo 오류 code/codeName·실패 명령 로그를 확인해야 함. 사용자에게 결과 및 미확정 범위 전달. 과거 기록 보존, 예상 밖 제품 변경 없음. Jira·서버 설정·배포·commit/push·Sentry 상태 변경 없음.
+
+## 2026-10-07 — 뉴스레터 복구 여부 질문 답변
+
+<!-- codex-turn:01a1165f-8c87-7251-8408-6a87f8dcb157 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 진단과 복구 완료를 명확히 구분.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용/결정: 지금까지 읽기 전용 조사만 수행했고 복구 조치 없음. 앞선 발송 복구는 실패 작업명이며 성공 의미가 아님. 마지막 관측은 오류 반복, 현재 자연 복구 여부는 미확인이라고 설명.
+- 유지한 계약: 상태 질문을 서버 수정 승인으로 간주하지 않음. Jira·Sentry 상태·배포·commit/push 변경 없음.
+- 검증: 기존 조사 결과 대조 및 git diff --check. 설명 작업으로 Gradle 미실행, 원격 재조회 없음.
+- 위험 요소: 정확한 Mongo 원인과 정상 처리 여부 미확인. 비밀정보 미기록, 과거 기록 보존, 예상 밖 제품 변경 없음.
+- 다음 작업: 뉴스레터 백엔드 코드·원인 로그 확인 후 승인 범위에서 조치 및 실제 처리 성공 검증 필요.
+
+## 2026-10-07 — MongoDB Atlas 뉴스레터 오류 관련 읽기 전용 점검
+
+<!-- codex-turn:01a1165f-8c87-7251-8408-6a87f8dcb157 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 요청에 따라 MongoDB 상태와 뉴스레터 오류 원인 후보 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인 사실: Atlas Cluster0 Free, MongoDB8.0.34, AWS Seoul. Overview Logical Size510.4 MB/512.0 MB(약99.7%), Connections29/500, PRIMARY1·SECONDARY2 표시. 프로젝트 활성 경고3건은 각 노드의 Logical Size440 MB 초과 ERROR이며10월3일 시작. 글로벌 Alert System Status All Good와 프로젝트 경고는 별개.
+- 컬렉션 확인: tosunsaeng-db newsletter_campaigns19건·newsletter_deliveries35건 표시. 각 인덱스5개 모두 READY. campaign: _id_, uk_newsletter_campaigns_post_id, idx_newsletter_campaigns_status_scheduled_at, idx_newsletter_campaigns_status_claim_expires_at, idx_newsletter_campaigns_status_updated_at. delivery: _id_, uk_newsletter_deliveries_post_subscriber, idx_newsletter_deliveries_campaign_status, idx_newsletter_deliveries_status_next_retry_at, idx_newsletter_deliveries_status_claim_expires_at.
+- 분석/결정: 저장 공간 한도 근접이 쓰기 명령 실패의 중요한 후보. 다만 실제 오류 code/codeName/message 및 앱 연결 대상 대조 없이는 인과관계 확정 불가. READY는 쿼리 hint/정의 일치의 증거가 아니며 Atlas 조회 성공도 앱 쓰기 성공 증거가 아님. 복구 완료라고 보고하지 않는다.
+- 검증: 브라우저 Atlas 컬렉션/인덱스/Overview/Open Alerts 조회, git diff --check. 분석·기록 작업이므로 Gradle 미실행. 쓰기 재현 명령 실행하지 않음.
+- 유지한 계약: Identity 도메인 및 인증/API 계약 불변. 데이터·인덱스·권한·설정·요금제 변경 없음. Secret/개인정보/전체 Mongo URI 미기록. 기존 작업 기록 보존.
+- 위험 요소: 용량 여유 약1.6 MB로 매우 작음. 뉴스레터 외 다른 DB도 동일 클러스터 한도를 공유할 수 있음. 정확한 오류 원인·현재 정상 처리 여부 미확인.
+- 다음 작업: 해당 백엔드의 정제된 Mongo 원인 로그와 연결 대상 확인, 필요 시 DB별 용량 분석. 증설 또는 불필요 데이터 정리는 대상·영향 확인 및 별도 사용자 승인 후 수행. 배포·Jira·commit/push 없음. 예상 밖 제품 변경 없음, 기존 기록 변경과 이번 추가 기록만 존재.
+
+## 2026-10-07 — azure_results 백업 및 삭제 사전 확인, 접속 경로 대기
+
+<!-- codex-turn:01a11689-38dc-7e62-8ade-4d87f56d7a58 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 요청에 따라 앱 DB azure_results를 로컬 백업한 후 DB에서 제거.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 수행/확인: Atlas 열린 탭에서 Cluster0/to-teacher-app/azure_results와 Documents4721건, Indexes1개 확인. 컬렉션 메뉴에 전체 백업 항목 없음. EXPORT CODE는 데이터가 아닌 쿼리 코드 내보내기. mongosh/docker 실행 경로 존재, mongodump/mongorestore는 PATH 미검출. 관련 환경변수 이름 및 저장소 파일명 검색으로 사용 가능한 DB 연결 설정을 확보하지 못함. 비밀값 조회·출력 없음.
+- 결정사항: 로컬 백업 미생성, DB 삭제 미실행. 완전한 백업 검증 없이 삭제하지 않는다. 기존 접속 설정 파일 위치 또는 연결된 백업 도구를 사용자에게 요청. 비밀번호/전체 URI를 채팅에 붙여넣도록 요청하지 않음.
+- 유지한 계약: 다른 DB/컬렉션 및 인증/API·인프라 설정 변경 없음. 추후 문서 삭제 시 컬렉션/인덱스 보존 우선, 백업 이후 생성·변경 데이터는 보호 필요. UI 영구 삭제는 직전 최종 확인 필요.
+- 검증: Atlas 대상/건수/메뉴 확인, 로컬 도구 가용성 확인, git diff --check. 제품 코드 변경이 없어 Gradle 미실행.
+- 위험 요소: 원본 Azure 결과 제거가 재채점·과거 상세 조회에 주는 영향 미검증. 실행 중 앱의 동시 쓰기 가능성 및 백업 시점 일관성 확인 필요. 단순 전체 삭제는 백업 이후 데이터 손실 위험.
+- 다음 작업: 안전한 접속 경로 확보 후 저장소 밖 로컬 백업 위치 확정, 건수·해시 및 복원 가능성 검증, 백업된 원본만 제거하는 범위 확인 후 수행. 사용자 기존 기록 변경 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — azure_results 수동 백업 가능 여부 및 절차 안내
+
+<!-- codex-turn:01a1168b-e05b-71d2-9b34-cc180e6da0de -->
+
+- 날짜/브랜치: 2026-10-07, develop. 작업 목표: 수동 백업 가능 여부 질문에 답변.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용: MongoDB Compass에서 to-teacher-app.azure_results를 빈 필터로 전체 JSON 내보내기하고 가능하면 Extended JSON을 사용하도록 안내. Atlas EXPORT CODE는 쿼리 코드 출력이지 데이터 백업이 아님을 설명.
+- 결정사항/유지한 계약: 백업 검증 후 문서 삭제, 컬렉션/인덱스 보존 우선. 백업 이후 생성·변경 문서 보호를 위해 동시 쓰기 통제 또는 백업된 문서만 삭제 필요. 실제 백업·삭제·연결 설정 변경은 수행하지 않음.
+- 검증: 기존 조사 결과와 안내 내용 대조, git diff --check. 절차 안내 및 기록만 변경하여 Gradle 미실행. Compass UI/백업 파일/복원은 미검증.
+- 위험 요소: JSON 파일이 열리는 것만으로 완전한 복원 가능성을 보장하지 않음. BSON 타입 보존·전체 건수·무결성 및 복원 검증 필요. 원본 삭제에 따른 앱 기능 영향 미확인.
+- 다음 작업: 사용 가능한 Compass/DB 연결 경로 확보 후 백업 생성·검증, 삭제 직전 정확한 범위와 사용자 최종 확인. 비밀정보 미기록, 과거 기록 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — Atlas 백업 가능 여부 재확인 및 Compass 시도 상태 보완
+
+<!-- codex-turn:01a1168e-6d96-7823-bbd2-065c2fc03241 -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 지적에 따라 Atlas에서 수동 백업 가능한 UI 경로 재조사.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 수행 내용: Atlas to-teacher-app.azure_results E-JSON 보기에서 Output Options의 Expand/Collapse all documents, BULK의 update/delete 확인. 개별 Copy Document는 존재. 현재 조사한 메뉴에서 전체 데이터 파일 다운로드는 발견하지 못했으며 EXPORT CODE는 쿼리 코드 기능. Atlas 전체 백업 불가능이라는 이전 단정을 정정.
+- 이전 중단 작업 보완: 사용자의 실행 요청에 Compass 설치 확인 후 실행했으나 Welcome 미연결 상태. 저장된 연결 주소가 조사한 Atlas와 달라 연결하지 않음. 이 사실만으로 서로 다른 클러스터임을 확정하지 않음.
+- 결정/유지한 계약: 백업 및 삭제는 아직 실행하지 않음. 사용자에게 과거 사용한 내보내기 메뉴 위치를 확인하고 진행. 완전성/타입/복원 가능성 검증 없이 원본 제거 금지, 동시 쓰기 보호·인덱스 보존 방침 유지.
+- 검증: Atlas UI 읽기 전용 메뉴 조사, git diff --check. 제품 변경 없어 Gradle 미실행. 파일 백업·복원 미검증.
+- 위험 요소: 개별/페이지 복사는 전체4721건 누락 및 중복·동시 변경 위험이 있어 완전한 백업과 동일시하지 않음. 앱 삭제 영향 미확인.
+- 다음 작업: 사용자가 이전에 이용한 Atlas 메뉴 또는 연결된 백업 경로 확인. 과거 기록/사용자 변경 보존, 예상 밖 제품 변경 없음. Secret 미기록, Jira·배포·commit/push·DB 변경 없음.
+
+## 2026-10-07 — Atlas 직접 다운로드 가능 여부 안내
+
+<!-- codex-turn:01a11690-be5b-75f3-a1b3-7a9d426d815c -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 질문에 직접 다운로드와 복사 저장의 차이 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 수행/내용: 사용자가 과거 복사 저장 방식임을 설명한 뒤 E-JSON UI의 페이지 범위1–100/4721을 확인. 현재 조사한 Atlas 메뉴에는 전체 JSON 직접 다운로드 버튼을 찾지 못했음을 안내. 모든 Atlas 기능에서 불가능하다고 일반화하지 않음.
+- 결정/유지한 계약: 복사 내용을 로컬 파일로 저장할 수 있으나 전체 백업 완료와는 별개. 아직 복사 백업 파일 생성·검증·DB 삭제 미수행. 전체 건수·중복·BSON 타입 및 복원 가능성 검증 전 삭제 금지 유지.
+- 검증: 직전 Atlas 읽기 전용 UI 관측 대조, git diff --check. 제품 변경 없어 Gradle 미실행.
+- 위험 요소: 페이지 일부만 저장하거나 동시 변경 데이터를 누락할 가능성. 원본 삭제 영향·복원 미검증.
+- 다음 작업: 사용 가능한 전체 데이터 확보 경로로 백업 생성 및 검증 후 삭제 범위 최종 확인. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push·DB 변경 없음.
+
+## 2026-10-07 — 전체 백업 방법의 예상 효율 비교
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 다운로드 경로 확보와 복사 저장 중 빠른 방법 비교.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 분석: 기존 관측4721건·페이지당100건 기준 최소48페이지이며 복사 저장에는 누락/중복 및 타입 검증이 추가로 필요. 대상 DB 연결을 확보한 Compass 전체 JSON 내보내기가 효율적일 것으로 판단. 실제 속도 측정 결과는 아니며 연결 확보 시간은 미확정.
+- 결정/유지한 계약: 미확인 Atlas 다운로드 메뉴를 계속 찾기보다는 Compass 연결/내보내기 경로를 권장. 완전한 백업 검증 전 삭제 금지와 동시 변경 보호 유지. 백업 및 DB 삭제 미실행.
+- 검증: 기존 UI 관측과 페이지 수 산술 대조, git diff --check. 설명/기록 작업으로 Gradle 미실행.
+- 위험 요소: 대상 접속 설정 확보가 지연되면 예상 시간 비교가 달라질 수 있음. 데이터 크기·복원 가능성·삭제 영향 미검증.
+- 다음 작업: 사용 가능한 대상 DB 연결 설정 경로 확보 후 전체 백업 및 검증. Secret 미기록, 과거 기록 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push·DB 변경 없음.
+
+## 2026-10-07 — 백업 방법 비교 작업 식별자 기록 보완
+
+<!-- codex-turn:01a11691-93b6-7250-8303-8f778922266a -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 이번 백업 방법 비교 답변의 작업 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 변경 없이 기록만 추가.
+- 내용/결정: 최소48페이지 복사 및 검증보다 대상 연결 확보 후 Compass 전체 JSON 내보내기를 권장. 실제 시간은 측정하지 않았으며 연결 확보 시간은 미확정.
+- 유지한 계약/위험: 전체 백업 검증 전 삭제 금지. 백업·복원·DB 삭제 모두 미실행, 동시 변경과 삭제 영향 미검증.
+- 검증: git diff --check. 기록만 변경하여 Gradle 미실행.
+- 다음 작업: 대상 DB 연결 경로 확보 후 백업 생성·검증. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 사용자 요청에 따른 Compass 연결 화면 준비
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: azure_results 백업을 위한 정확한 대상 클러스터 연결 준비.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 수행 내용: Atlas Cluster0 공식 Connect → Compass 안내의 주소를 Compass 새 연결에 입력. Authentication 탭에서 기존 사용자 이름 반영 및 비밀번호 자리표시자 제거 확인. URI 편집 비활성화. 기존 저장된 다른 연결은 보존.
+- 결정/유지한 계약: 실제 비밀번호는 사용자 직접 입력 요청. 비밀번호 변경/조회/저장 없음. Connect 및 Save 미실행, 인증 성공 미확인. 권한/IP 허용 변경 없음. 전체 백업 검증 전 원본 삭제 금지 유지.
+- 검증: Atlas 연결 안내와 Compass Authentication UI 확인, git diff --check. 제품 변경 없어 Gradle 미실행.
+- 위험 요소: 기존 비밀번호 및 네트워크 연결 가능 여부 미확인. 백업·복원 검증·DB 삭제 미실행.
+- 다음 작업: 사용자가 기존 DB 비밀번호 입력 후 Connect, 성공 여부 및 대상 DB 확인 후 백업 진행. Secret/전체 URI 미기록, 과거 기록 보존, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — Compass 연결 확인 및 azure_results 전체 백업 완료
+
+<!-- codex-turn:01a11696-8d66-74a3-9543-083dfc631e1e -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 사용자 연결 완료 후 앱 DB azure_results 전체를 로컬 백업·검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 생성 백업: /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json (저장소 밖). 제품 구현 변경 없음.
+- 수행 내용: Compass 대상 연결 성공과 컬렉션4721건 확인. Export the full collection 선택, Canonical Extended JSON으로 숫자 등 BSON 타입 보존. 완료 알림4721 documents written 확인.
+- 검증: 최초 Node 전체 문자열 JSON 파싱은 문자열 크기 제한 ERR_STRING_TOO_LONG으로 실패. Python 증분 JSON 디코딩으로 전체 파일 재검증 성공: 문서4721, 고유 _id4721, _id 누락0, raw_data 보유4721, 파일847426583바이트. SHA-256 974b6275b63482f93d681264ad1e205ebf83ee22de197458d73bc01272fedd2e. 실제 DB 복원 테스트는 미수행. git diff --check 수행, 제품 변경 없어 Gradle 미실행.
+- 유지한 계약/결정: 원본 DB 삭제 미실행. 기존 연결/보안/인덱스 변경 없음. 백업 후 생성·변경 문서를 보호하고 백업된 원본만 삭제하는 범위를 삭제 직전에 확인해야 함. 사용자 최종 삭제 확인 대기.
+- 위험 요소: export는 실행 중인 DB의 시점 고정 스냅샷으로 검증된 것이 아님. 백업 데이터의 동시 변경 및 삭제가 앱 재채점/상세 조회에 미치는 영향 미확인. 로컬 백업에 사용자 데이터가 포함될 수 있어 외부 공유 금지·보관 관리 필요.
+- 다음 작업: 삭제 최종 확인 후 원본 대조 및 백업된 변경 없는 문서만 삭제, 컬렉션/인덱스 보존, 삭제 결과/공간 확인. 과거 기록 보존, Secret/원문 데이터/전체 URI 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 문의 inquiryId 보관 의미 안내
+
+<!-- codex-turn:01a1169e-243a-7f90-a983-161d47a0a5bb -->
+
+- 브랜치: develop. 목표: 문의 접수번호의 프론트 보관 필요성과 디스크 저장 여부 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 변경 없음.
+- 근거/내용: SupportController/SupportService 및 support-inquiry-api 계약 확인. 서버 생성 접수번호는 완료 표시와 후속 문의 식별에 유용하나 클라이언트 영속 저장은 필수가 아님. 동일 요청 재시도 키와 접수번호를 구분.
+- 결정/계약: 201/200 모두 접수 완료로 처리. 재시도에 같은 인증 범위·멱등 키·본문 유지. 재시작 후 표시 요구 없으면 화면 상태 보관으로 충분. 기존 HTTP/필드/no-store 유지.
+- 검증: 정적 확인 및 git diff --check. 설명 작업으로 실행 테스트 미수행.
+- 위험/다음 작업: 앱 문의 내역/복원 UX 미확정. 필요 시 문구를 선택적 접수번호 표시로 명확히 수정. 과거·동시 기록 보존, 비밀값 비기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-07 — 백업과 일치하는 azure_results 원본 삭제 완료
+
+<!-- codex-turn:01a116b7-57d3-79b0-8ce5-69912de8642a -->
+
+- 날짜/브랜치: 2026-10-07, develop. 목표: 백업 완료 후 사용자가 승인한 앱 DB azure_results 원본 삭제.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 임시 점검 코드 /private/tmp/azure-results-cleanup.hkUzDF/cleanup.js 및 실행 결과 result.json. 제품 코드 변경 없음. 기존 로컬 백업 파일 보존.
+- 수행 내용: Compass 인증된 셸에서 대상 DB·replica set/host 검증, 백업 SHA-256 및 EJSON 파싱4721건/ID 중복 없음 검증. _id와 $expr의 $$ROOT 전체 문서 대 $literal 백업 문서 동일성 조건을 함께 사용한 deleteOne bulkWrite로 처리. 백업 이후 변경/추가된 문서는 이 조건으로 보호하며 컬렉션 삭제는 수행하지 않음. writeConcern majority 사용.
+- 결과: 실행 결과 before4721, backupCount4721, processed4721, deleted4721, after0, completed=true, indexesUnchanged=true. 다른 컬렉션/DB 데이터 및 권한·네트워크·서버 설정 변경 없음.
+- 백업: /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json. 847426583바이트, SHA-256 974b6275b63482f93d681264ad1e205ebf83ee22de197458d73bc01272fedd2e. 원본 복구는 이 파일 재가져오기 필요, 실제 복원 테스트 미수행.
+- 검증/시행착오: 임시 코드 node --check 및 로컬 mock 전체4721건 파서/삭제 조건 검사 성공(실제 삭제와 구분). Compass load는 미지원, eval은 차단되어 직접 셸 입력으로 전환. 최초 직접 실행은 Buffer 전역 미정의 ReferenceError로 삭제0건 상태에서 중단. require buffer 명시 바인딩 후 재실행하여 위 실제 삭제 결과 확인. 모든 파싱 및 체크섬 검증을 다시 수행함. git diff --check 통과, 제품 변경 없어 Gradle 미실행.
+- 유지한 계약/결정: 사용자 최종 승인 범위 내 원본 삭제만 수행. 원본과 다른 문서를 무조건 지우는 deleteMany 빈 필터 또는 drop은 사용하지 않음. 인증정보/전체 URI/백업 원문은 기록하지 않음.
+- 위험 요소: 삭제된 Azure 원본을 사용하는 상세 조회/재채점 영향 미검증. 로컬 백업에 사용자 데이터가 포함될 수 있어 안전한 보관 필요. 삭제 이후 앱 쓰기로 컬렉션이 다시 채워질 수 있음. Atlas 용량 지표 및 뉴스레터 오류 해소 여부는 별도 확인 필요.
+- 다음 작업: 필요 시 Atlas 사용량과 뉴스레터 정상 처리 확인. 기존·동시 작업의 기록 보존, 이번 변경에 예상 밖 제품 파일 변경 없음. 배포·Jira·commit/push 없음.
+
+## 2026-10-08 — 구버전·신버전 서버 분리 계획 기억 확인
+
+<!-- codex-turn:01a11920-0fa8-7a10-b143-3ec94df658ef -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 질문에 앞선 서버2개 운영 계획 요약.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용: 테스트 서버 기준 구버전 서버 유지·신버전 서버 별도 주소, 구버전 피드백 응답의 업데이트 필요 boolean과 피드백 전 안내, 신버전 최신 앱 버전 조회 API 요구를 대화에서 확인. 약1주 유예를 사용자 수에 따라 조정. SNS 로그인·10초 챌린지를 먼저 제공하고 전화번호당1회 무료 모의고사 정책은 결제 관련 후속 업데이트로 분리하는 방향 및 무료 제공 의사 확인.
+- 유지한 계약/결정: 대화상 요구/계획과 실제 구현·배포 상태를 구분. 이번 질문을 인프라 변경 승인으로 해석하지 않음.
+- 검증: 대화 내용 대조 및 git diff --check. 설명·기록 작업으로 Gradle 미실행, 원격 서버 상태 조회 없음.
+- 위험 요소: 실제 서버 분리/버전 API 구현·배포 여부 미확인. 구체적인 무료 범위와 전환 종료 조건은 후속 설계 시 확인 필요.
+- 다음 작업: 사용자 후속 요청 범위에 따라 현재 구성과 계획을 대조. 과거·동시 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-08 — 테스트 이미지 기반 신규 Identity·Learning Core 출시 준비 점검
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 확인한 두 서비스의 신규 운영 배포 준비 상태 읽기 전용 조사.
+- 변경 파일: docs/codex/NEW_SERVER_READINESS_2026-10-08.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 제품 구현 변경 없음.
+- 확인: AWS test Identity:29 이미지34af0234, LC:17 digest22a878a5…는 각각 실행1·보류0/성공/ALB정상1. 현재 서울 클러스터6개 기존/test 서비스. 신규 운영 대상 주소는 미지정. task 설정의 DB/S3/issuer/JWKS/AI/merge 목적지는 테스트용.
+- 주요 결과: 공개 Identity 앱 버전 GET2건 모두503 APP_VERSION_UNAVAILABLE. LC AI_SERVER_URL=localhost:9는 실제 모의고사 GradingDispatchService 입력으로 확인. test Challenge ON/Billing saga OFF, Identity/LC UserWithdrawn 전파 OFF. 기존 LC main:23 업데이트 flag=false이며 실제 summary 필드명appUpdateRequired. 상세 근거와 이미지/설정 목록은 조사 문서에 기록.
+- 결정/유지한 계약: 이미지 승격 후보는 존재하나 테스트 설정 그대로 출시 준비 완료로 판정하지 않음. 기존 계정/세션/기록 승계, 신규 도메인·JWT·AI callback, 운영 인덱스/guard·E2E를 확인해야 함. 사용자의 상태 점검 요청을 배포 승인으로 해석하지 않음.
+- 검증: AWS UI·로컬 소스/계약·LC 작업 기록 대조, 인증 없는 공개 GET2건, git diff --check. 브라우저 API 탭 차단 및 sandbox DNS 실패 후 승인받은 외부 curl로 실제503 확인. 제품 변경 없어 Gradle 미실행. 실제 유저 가입/시험/탈퇴/merge E2E 미실행.
+- 위험: 신규 환경·운영 데이터 변경 영향, 테스트 AI 사용/콜백 방향, 구 writer 혼재, 최신 버전 미설정 및 탈퇴 lifecycle 미검증. 소스 테스트 통과와 실제 배포 E2E를 혼동하지 않음. 타 저장소는 읽기만 수행.
+- 다음 작업: 신규 Identity/LC 주소와 운영 데이터 전환안을 사용자에게 확정받고 필요한 설정/인프라 목록 작성. 과거 기록 및 기존 변경 보존, 예상 밖 제품 변경 없음. Secret/전체 URI 미기록, Jira·배포·commit/push 없음.
+
+## 2026-10-08 — 신규 서버 준비 점검 작업 식별자 보완
+
+<!-- codex-turn:01a11922-54b7-76f1-9acf-a8a8200d9306 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 신규 Identity·Learning Core 배포 준비 점검의 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현·외부 동작 변경 없이 기록만 보완.
+- 내용/결정: 테스트 서비스 정상 실행은 확인했으나 최신 앱 버전503, 테스트 연동 설정, 모의고사 AI 주소 및 탈퇴 전파 검증 미완료로 테스트 설정 그대로의 운영 출시는 준비 미완료 판정. 상세 근거는 NEW_SERVER_READINESS_2026-10-08.md에 보존.
+- 유지한 계약: 배포·설정·데이터 변경 없음. 상태 점검을 실행 승인으로 해석하지 않음.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행, 원격 재조회 없음.
+- 위험/다음 작업: 신규 두 주소와 운영 데이터 승계 방안 확정 후 설정·인프라·사용자 E2E 점검 필요. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-08 — staging DB·AI 재사용 방향 및 신규 서버 인증·병합 연동 설명
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 DB/AI 재사용 방향, 테스트 탈퇴 전파 선검증, 인증·병합 의미와 앱 버전1.1.0 설정 질문 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 확인/설명: Identity owner-event learning-core-endpoint와 user-withdrawn-publisher endpoint, LC 사용자 JWT issuer/JWKS 및 UserMerged/UserWithdrawn workload 설정 이름을 정적 대조. 인증은 LC의 JWT 신뢰 연결, 병합은 Identity 이벤트 목적지와 LC의 동일 계정 학습 ownership 이전·source deny 연결이며 새로운 로그인 기능 추가를 뜻하지 않음.
+- 사용자 방향/결정: 신규 운영 DB·AI는 staging 재사용을 고려하되 구·신 writer 혼재와 기존 세션/키·인덱스/guard 호환성을 검증한다. 테스트 탈퇴 전파는 운영 DB 재지정 전에 격리된 테스트 데이터로 수신 준비→발행→차단/멱등성 검증 순서를 따른다. 기존 대기 이벤트 영향과 실제 정리 동작을 확인하기 전 runtime 활성화는 수행하지 않음.
+- 버전: Android/iOS1.1.0은 계약상 유효한 형식. 실제 각 스토어 최신 공개 버전인지 사용자 확인 필요, 단말 설치 버전/서버 버전/출시 예정 버전과 구분. 이번 환경변수 변경 없음.
+- 유지한 계약: 기존 JWT RS256/issuer/audience/JWKS, 사용자 소유권·서버 이벤트 신뢰와 API 계약 불변. 신규 서버 주소 및 old/new 신뢰 전환은 미확정.
+- 검증: 설정 소스·기존 앱 버전 계약 대조 및 git diff --check. 설명/기록 작업으로 Gradle 미실행, 원격 변경·실사용자 E2E 없음.
+- 위험/다음 작업: 공유 Firebase와 대기 이벤트까지 포함한 테스트 영향 범위 점검, 신규 도메인 및 버전 공개 여부 확인 후 설정/검증 진행. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-08 — 인증·병합 및 버전 설정 설명 작업 식별자 보완
+
+<!-- codex-turn:01a11928-e8fb-7221-bdb2-5438fbe488ea -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 설명의 작업 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현·외부 설정 변경 없음.
+- 내용/결정: staging DB·AI 재사용 시 구·신 writer 및 callback 검증, 테스트 DB에서 탈퇴 전파 선검증, 신규 Identity–LC의 JWT 신뢰와 병합 이벤트 연결 필요성을 설명했다. 앱 버전1.1.0은 양 플랫폼 실제 최신 공개 버전인지 사용자 확인 대기.
+- 유지한 계약: 기존 인증/이벤트/소유권 계약 유지. runtime 활성화·배포·DB 변경 없음.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 위험/다음 작업: 대기 이벤트·공유 Firebase 영향과 버전 공개 여부 확인 필요. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·commit/push 없음.
+
+## 2026-10-08 — 구·신 AI 분리 제안 및 앱1.1.0 출시 시점 확인
+
+<!-- codex-turn:01a1192b-0b78-7073-8eec-0fd02295a03e -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: AI 추가 서비스 분리 제안에 대한 권고와 앱 버전 의미 확정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용: 구 LC→구 AI→구 LC callback, 신 LC→신 AI→신 LC callback으로 요청/응답 경로를 분리하도록 권고. 실제 AI callback이 고정 환경설정인지 아직 미확인이므로 조건부 근거로 설명. ECS service/task를 분리하는 것이며 별도 물리 서버나 별도 코드 저장소가 필수는 아님. 이미지 재사용은 API 지원과 검증 전제.
+- 결정/유지한 계약: 사용자1.1.0은 이번 출시 예정 버전으로 확인. 테스트/출시 준비에서 설정 가능하나 기존 공개 latestVersion은 플랫폼별 실제 출시 시점에 맞춤. 제안 질문을 인프라 생성·비용 발생·배포 승인으로 해석하지 않음.
+- 검증: 기존 조사·사용자 답변 대조, git diff --check. 설명/기록 작업으로 Gradle 및 원격 조회 미실행.
+- 위험 요소: AI queue/worker/storage/credential 공유 시 작업 혼선 가능, 공유 DB에서 구·신 LC 작업 회수 및 schema/guard 호환성은 별도 검증 필요. AI 분리만으로 데이터 격리가 보장되지 않음. 추가 실행 비용 발생 가능.
+- 다음 작업: 신규 서비스 주소·AI callback 및 두 방향 인증·공유 작업 저장소 검토 후 배포 구성 확정, 구버전 트래픽 및 진행 작업 소진 확인 후 구 AI 종료 검토. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-08 — 최소 지원 버전과 최신 버전 분리 방안 설명
+
+<!-- codex-turn:01a1192c-d036-7efd-a2f0-d70431bb30b1 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: minimumVersion 강제 업데이트와 latestVersion 권장 업데이트를 분리하는 사용자 요구의 적용 방법 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현·기존 API 계약 원문 변경 없음.
+- 확인 사실: 현재 app-version-api.md는 platform/latestVersion만 제공하며 최소 지원 버전이나 강제 정책을 제공하지 않음. 503은 업데이트 필요 신호가 아님.
+- 제안/결정: 동일 공개 GET에 minimumVersion 추가, Android/iOS 최소·최신 설정 각각 관리. 프론트는 현재<최소 강제/최소<=현재<최신 권장/최신<=현재 정상으로 숫자 버전을 비교. 서버 설정 minimum<=latest 및 형식 검증 필요. 향후1.1.1 출시 시 최소1.1.0을 유지할 수 있으며 최신과 최소를 함께 자동 상승시키지 않음.
+- 전환/유지한 계약: 이번1.1.0을 신규 서버 최소값으로 삼는 것은 실제 호환성 확인 전제의 제안. 구버전 서버 유예와 독립적으로 운영하고 실제 플랫폼별 스토어 설치 가능 시점에 반영. 기존 API 미호출 앱에는 새 필드만으로 적용 불가, 업데이트 UI는 서버측 보안 차단을 보장하지 않음. 기존 BaseResponse·공개 경로·인증 경계 유지 제안.
+- 검증: 현재 버전 API 계약 및 대화 대조, git diff --check. 설명/기록 작업으로 Gradle 미실행. 배포 설정 및 API 구현 미변경.
+- 위험/다음 작업: 구앱 지원 여부·단계적 배포·신규 최소 호환 버전 확인, 버전 조회 실패 UX와 서버측 지원 중단 범위 설계 후 구현 요청 시 진행. 과거 기록 보존, Secret 미기록, 예상 밖 제품 변경 없음. Jira·배포·commit/push 없음.
+
+## 2026-10-08 — 최소 지원 버전 설명의 작업 식별자 정정 보완
+
+<!-- codex-turn:01a1192c-1762-71a3-bb44-bfd13bc3661f -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 최소 지원 버전 정책 설명의 정확한 작업 식별자 추가. 직전 항목의 다른 식별자는 잘못 기록된 것으로, 이번 표식이 해당 설명의 정확한 식별자다. 과거 항목은 보존한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 구현 변경 없음.
+- 내용/결정: minimumVersion 미만 강제 업데이트, 최소 이상·최신 미만 선택적 권장 업데이트 제안을 유지. 현재 API는 latestVersion만 제공하며 확장 미구현 상태다.
+- 유지한 계약: 기존 API·서버 설정·배포 변경 없음. 실제 스토어 설치 가능 시점과 최소 호환 버전 확인 전 강제 기준 변경 없음.
+- 검증: git diff --check. 기록 보완 작업으로 Gradle 미실행.
+- 위험/다음 작업: 구앱 API 호출 지원·플랫폼별 공개 시점·버전 조회 실패 처리 확인 후 구현 범위 확정. Secret 미기록, 예상 밖 제품 변경 없음. Jira·commit/push 없음.
+
+## 2026-10-08 — 최소 지원·최신 앱 버전 분리 구현
+
+<!-- codex-turn:01a1192f-4cd3-7ff1-8934-3f99e2d5f3e1 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 승인에 따라 minimumVersion 강제 기준과 latestVersion 권장 기준을 분리.
+- 변경 파일: domain/appversion의 AppVersionController.java, AppVersionResponse.java, AppVersionService.java, AppVersionErrorStatus.java; global/config/IdentityOpenApiExamples.java; application.yml; .env.example; AppVersionTests.java, SecurityIntegrationTests.java, OpenApiSharingTests.java; docs/contracts/app-version-api.md, frontend-firebase-auth-integration-guide.md; WORKLOG.md, CURRENT_STATE.md.
+- 구현: 응답 minimumVersion 추가 및 플랫폼별 최소 환경변수 추가. 숫자 major.minor.patch/최대32자/선행0 금지 유지, BigInteger component 비교로 minimum<=latest 검증. 잘못된 형식·역전 범위는 기동 실패. 최소·최신 중 하나라도 빈 플랫폼은503, 다른 플랫폼은 독립 동작. 최신값을 최소값으로 자동 사용하지 않음.
+- 유지/변경 계약: 공개 GET 경로·platform 쿼리·BaseResponse·인증 경계·no-store 유지. minimumVersion additive 필드 추가. APP_VERSION_UNAVAILABLE의 코드/HTTP 유지, 메시지를 앱 버전 미설정으로 일반화. 기존 latest-only 배포도 최소 설정 없으면503으로 변경됨을 문서화.
+- 프론트 인계: 설치<minimum은 강제, minimum<=설치<latest는 선택적 권장, 설치>=latest는 정상. 숫자 비교, 503/네트워크 실패는 강제 업데이트 아님. Swagger schema/Android·iOS 예시와 전체 계약 업데이트. 최신 출시 시 최소 자동 상승 없음.
+- 테스트: 첫 실행은 Gradle cache sandbox 권한으로 차단. 승인 실행의 첫 컴파일은 기존 OpenAPI 예시 생성자 인자 누락으로 실패하여 수정. 최종 ./gradlew clean test shareSwagger 성공; test XML 합계1284, 실패0, 오류0, 스킵6. OpenAPI export 및 build/distributions/identity-swagger.zip 생성 성공; 생성 JSON에 minimumVersion schema/예시 확인. git diff --check 통과. 실제 외부 DB/Provider 및 실기기 검증 미수행.
+- 결정사항: 실제1.1.0 runtime 설정과 배포는 하지 않음. 새 환경변수 기본값은 비움. UI 차단과 서버 API 접근 차단은 구분하고 후자는 구현하지 않음. 구서버 업데이트 boolean 및1주 유예 정책 변경 없음.
+- 위험/배포 전: 최소 환경변수 두 개를 배포와 함께 준비해야 함. 각 플랫폼 스토어 설치 가능 여부·최소 호환선 확인 후 활성화. 구앱이 API를 호출하지 않으면 자동 적용되지 않음. 프론트 UI·스토어 URL·조회 실패 UX/E2E 검증은 별도.
+- diff 범위: 예상 밖 변경 없음. 작업 시작 전에 있던 CURRENT_STATE/WORKLOG 변경과 미추적 NEW_SERVER_READINESS_2026-10-08.md 보존. Secret 미기록. Jira 변경·commit/push·배포 없음.
+- 다음 작업: 프론트에 Swagger/계약 전달, 플랫폼별 최소·최신 실제값 확정 및 테스트 서버 설정 후 경계 버전과 오류 UX 검증.
+- Jira 댓글 초안(미등록): 최소·최신 버전 분리 API/설정/Swagger/인계 문서 및 회귀 테스트 반영. 전체 테스트 실패0, 스킵6. 최소 설정 누락 시503이므로 배포 환경변수 준비와 앱 UI 검증 필요.
+
+## 2026-10-08 — Swagger 공유본 생성 요청 정책 기록
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자가 요청하기 전에는 Swagger 공유본을 만들지 않도록 작업 규칙에 반영.
+- 변경 파일: AGENTS.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 내용/결정: 명시적 생성 요청이 있을 때만 shareSwagger 및 ZIP/오프라인 공유본 생성. 일반 API 변경의 Swagger 명세·예시·테스트 갱신은 유지.
+- 유지한 계약: 제품 API·설정·배포 변경 없음. 기존 생성 파일도 삭제하지 않음. 기존 사용자 변경 보존, 예상 밖 변경 없음.
+- 검증: 문서 변경만으로 Gradle 미실행. git diff --check 수행.
+- 위험/다음 작업: 추가 위험 없음. 이후 공유본 생성 전 사용자 요청 여부 확인. Jira 변경·commit/push 없음.
+
+## 2026-10-08 — Swagger 공유본 생성 정책 작업 식별자 보완
+
+<!-- codex-turn:01a11934-9a43-7452-b576-9bf6ee295bdb -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 이번 Swagger 공유본 생성 정책 작업의 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 앞선 AGENTS.md 정책 추가 및 과거 기록 유지.
+- 내용/결정: Swagger 명세·예시·테스트 갱신은 유지하되 공유본 ZIP/오프라인 번들은 사용자가 명시적으로 요청할 때만 생성.
+- 유지한 계약: 제품 코드·API·환경설정·배포 변경 없음. 기존 공유본 삭제 없음. Secret 미기록.
+- 검증: 기록만 보완하여 Gradle 미실행. git diff --check 수행.
+- 위험/다음 작업: 추가 위험 없음. 다음 공유본 생성 전 명시적 요청 확인. 예상 밖 변경·Jira 변경·commit/push 없음.

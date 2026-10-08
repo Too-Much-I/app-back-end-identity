@@ -1,5 +1,126 @@
 # Codex Current State
 
+## 2026-10-08 — Swagger 공유본 생성은 명시적 요청 시에만
+
+<!-- codex-turn:01a11934-9a43-7452-b576-9bf6ee295bdb -->
+
+- 사용자 요청에 따라 AGENTS.md에 공유본 생성 제한 기록. API 변경 시 Swagger 명세·예시·테스트는 유지하되 ZIP/오프라인 번들은 요청 전 자동 생성하지 않음.
+- 기존 공유본 삭제 및 제품 코드·배포 변경 없음. 문서 변경만 수행하여 Gradle 미실행, git diff --check로 검증.
+
+## 2026-10-08 — 최소 지원·최신 앱 버전 분리 구현 완료(미배포)
+
+<!-- codex-turn:01a1192f-4cd3-7ff1-8934-3f99e2d5f3e1 -->
+
+- develop에서 공개 GET /api/v1/app/version 응답에 minimumVersion 추가. Android/iOS 최소·최신 환경변수 독립 관리, 숫자 형식과 minimum<=latest 기동 검증. 한 플랫폼의 값 중 하나라도 없으면 해당 플랫폼503이며 자동 보완하지 않음.
+- 프론트 계약: 설치<최소 강제, 최소<=설치<최신 선택적 권장, 최신<=설치 정상. 최신 출시 시 최소 자동 상승 없음. API 자체의 서버 요청 차단이나 앱 UI 구현은 아님.
+- appversion 코드·OpenAPI 예시·설정·테스트·앱 버전 계약·프론트 가이드 업데이트. 전체 ./gradlew clean test shareSwagger 성공: test 1284건 중 실패0/오류0/스킵6. 공유본 build/distributions/identity-swagger.zip 생성. git diff --check 통과.
+- 배포 전 APP_ANDROID_MINIMUM_VERSION/APP_IOS_MINIMUM_VERSION 추가 필수. 기존 latest-only 설정은 새 코드에서503. 1.1.0 실제 공개/최소 호환 여부·스토어 설치 가능 범위·프론트 강제 화면 및 실패 UX 확인 필요. runtime 설정·배포·Jira·commit/push 없음. 이전 사용자 변경 보존.
+
+## 2026-10-08 — minimumVersion·latestVersion 분리 정책 제안
+
+- 정확한 작업 식별자01a1192c-1762-71a3-bb44-bfd13bc3661f를 WORKLOG 끝에 보완. 직전 잘못된 식별자는 정정 설명을 추가하고 과거 기록 자체는 보존.
+- 사용자 요구: minimumVersion 미만만 강제 업데이트, latestVersion 미만은 선택적 권장 업데이트. 현재 API는 latestVersion만 제공하므로 기존 공개 GET/result 계약에 minimumVersion을 additive로 확장하는 방안을 제안. 제품/계약 원문은 아직 미변경.
+- 제안: 플랫폼별 최소/최신 설정 분리, 숫자 major.minor.patch 비교 및 minimumVersion<=latestVersion 검증. 앱은 최소 미만 강제, 최소 이상·최신 미만 권장, 최신 이상 정상. 최신 공개 때 최소값을 자동으로 올리지 않음.
+- 1.1.0은 신규 서버 최소 호환 버전인지 확인 후 지정. 구서버 1주 유예 정책과 별개로 관리하며 스토어 설치 가능 전 강제 기준을 올리지 않음. 버전 API 미구현 구앱은 새 필드만으로 차단되지 않고 UI 강제는 서버 보안 차단을 대체하지 않음. API 오류를 강제 업데이트로 오인하지 않음.
+
+## 2026-10-08 — 구·신 AI 서비스 분리 권장 및 출시 예정1.1.0 확인
+
+- 사용자 확인: Android/iOS1.1.0은 이번 출시 예정 버전. 테스트/출시 준비 설정에는 사용 가능하나 사용자에게 제공하는 최신 출시 버전 값은 각 플랫폼 실제 공개 시점에 맞춰 반영해야 함.
+- 권장: 구 LC→구 AI→구 LC callback, 신 LC→신 AI→신 LC callback으로 AI 서비스도 분리. 동일 검증 이미지 재사용 가능 여부는 구·신 API 지원 확인 필요. 별도 물리 서버가 필수는 아니며 ECS service/task 분리로 구현 가능.
+- AI 실제 callback/큐/worker/credential 설정은 미조회. 공유 DB·S3·Redis 및 작업 회수 혼선은 서비스 분리만으로 해결되지 않으므로 검증 필요. 이번은 제안·기록만 수행, 인프라 생성/배포/버전 설정 없음.
+
+## 2026-10-08 — 신규 서버 staging 자원 재사용 및 인증·병합 설명
+
+- 작업 식별자01a11928-e8fb-7221-bdb2-5438fbe488ea를 WORKLOG 끝에 보완. 설정 변경 없이 버전 공개 여부 확인 대기 상태 유지.
+- 사용자 방향: 신규 서버 DB/AI는 staging과 동일하게 사용하고, 탈퇴 전파는 테스트에서 먼저 활성화·검증. 이번에는 설정 의미와 사전 조건을 설명했으며 runtime 변경/전파 실행 없음.
+- 인증은 신규 LC가 신규 Identity 발급 JWT의 issuer/audience/JWKS를 검증하도록 맞추는 것, 병합은 Identity의 UserMerged 목적지를 신규 LC로 지정하고 workload 신뢰·consumer/guard/index를 맞추는 것. Guest 승격과 기존 회원으로의 병합을 구분하며 구·신 writer의 공유 DB 호환성 검증 필요.
+- 최신 앱 버전1.1.0은 두 플랫폼에서 허용되는 형식이나 실제 공개된 최신 버전과 일치할 때만 설정. 출시 예정 값을 현재 최신 출시 버전으로 선반영하지 않음. 테스트 전파는 테스트 DB 격리와 기존 대기 이벤트 영향부터 확인해야 함.
+
+## 2026-10-08 — 신규 Identity·Learning Core 출시 준비 점검
+
+- 작업 식별자01a11922-54b7-76f1-9acf-a8a8200d9306 기록 보완 완료. 준비 미완료 판정과 외부 변경 없음 상태 유지.
+- 테스트 Identity:29 및 LC:17은 실행1/보류0·배포 성공·ALB 정상. 이미지 승격 후보는 확인했으나 테스트 task 그대로 신규 운영 출시 NO-GO. 상세: [준비 점검](NEW_SERVER_READINESS_2026-10-08.md).
+- 실측 차단/준비사항: 앱 버전 API Android/iOS503, LC 모의고사 AI localhost:9, 테스트 DB/S3/Identity·AI·merge endpoint, 탈퇴 전파 OFF. 신규 두 주소·운영 데이터/세션 승계·JWT/AI callback·migration/E2E 확인 필요.
+- 기존 LC main:23의 APP_UPDATE_REQUIRED=false. 실제 summary 필드는 appUpdateRequired이며 과거 계획 updateRequired와 차이. 전환 시 플래그·프론트 처리를 맞춰야 한다. 이번은 읽기 점검·기록만 수행, 외부 변경/배포 없음.
+
+## 2026-10-08 — 구버전·신버전 서버 분리 대화 계획 재확인
+
+- 대화상 계획: 테스트 서버 기준 구버전 유지·신버전 별도 주소 운영. 구버전 피드백 응답에 업데이트 필요 여부 boolean 제공, 앱은 피드백 페이지 전에 안내. 신버전은 최신 앱 버전 조회 API 필요.
+- 전환 유예는 약1주(사용자 수에 따라 조정). 1차 SNS 로그인·10초 챌린지 및 무료 제공, 전화번호당1회 무료 모의고사 정책은 결제 관련 후속 업데이트로 분리하는 방향을 논의함.
+- 이번에는 과거 대화 요약만 수행. 실제 서버 분리·API 구현·배포 완료 여부는 조회하지 않았으며 완료로 단정하지 않음. 인프라/제품 변경 없음.
+
+## 2026-10-07 — azure_results 백업 원본 4721건 삭제 완료
+
+- 사용자 최종 삭제 승인 후 to-teacher-app.azure_results에서 백업과 문서 전체가 일치하는 원본만 조건부 삭제. 완료 결과: 삭제 전4721, 처리4721, 삭제4721, 삭제 후0. 컬렉션 및 인덱스 유지 확인(indexesUnchanged=true).
+- 로컬 Canonical Extended JSON 백업 유지: /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json, 847426583바이트. 삭제 전 SHA-256 재검증 및 EJSON4721건·중복 없는 ID 검증 성공. 실제 복원 테스트 미수행.
+- DB 데이터 복구에는 이 백업의 재가져오기가 필요. Atlas 용량 지표 반영 및 Sentry 뉴스레터 오류 복구 여부는 이번 작업에서 확인하지 않음. 다른 컬렉션·서버 설정·배포 변경 없음.
+
+## 2026-10-07 — 문의 접수번호 보관 의미 설명
+
+- inquiryId는 서버가 저장한 문의의 접수번호이며 완료 화면 표시/후속 문의 식별용. 현재 클라이언트 필수 영속 저장이나 후속 조회 API 호출 요구는 없음. Idempotency-Key와 별개이며 재시도는 동일 인증 범위·키·본문으로 수행.
+- 앱 재시작 후 번호 표시 기능이 없으면 화면 상태 보관으로 충분하다고 안내. 제품/문서 계약 변경 없이 기록만 갱신, 정적 확인 및 git diff --check 수행.
+
+## 2026-10-07 — azure_results 전체 로컬 백업 완료, 삭제 확인 대기
+
+- Compass 대상 Cluster0 연결 및 to-teacher-app.azure_results 확인. Export the full collection → Canonical Extended JSON으로 /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json 저장. Compass 완료 표시4721건.
+- 스트리밍 JSON 파싱 검증 성공:4721문서, 고유 _id4721개, _id 누락0, raw_data 보유4721건. 파일847426583바이트, SHA-256 974b6275b63482f93d681264ad1e205ebf83ee22de197458d73bc01272fedd2e. 실제 DB 재복원 테스트는 미수행.
+- 원본 삭제 미실행. 삭제 직전 사용자 최종 확인 및 백업 이후 신규/변경 문서 보호 필요. 컬렉션/인덱스 유지, 다른 컬렉션 변경 금지. 파일은 저장소 밖 로컬 문서 폴더에 있으며 사용자 데이터 포함 가능하므로 외부 공유 주의.
+
+## 2026-10-07 — Compass 대상 연결 준비, 비밀번호 입력 대기
+
+- Atlas Cluster0의 공식 Connect → Compass 안내에서 대상 연결 주소를 확인해 Compass 새 연결에 입력. 기존 다른 주소의 저장된 연결은 수정하지 않음.
+- Authentication 화면에 기존 DB 사용자 이름을 설정하고 비밀번호 자리표시자를 제거. URI 편집은 꺼둠. 사용자가 기존 DB 비밀번호를 직접 입력하고 Connect로 접속해야 함. 연결 저장·실제 인증 시도·권한/네트워크 변경·백업·삭제 미실행.
+
+## 2026-10-07 — azure_results 백업 경로 속도 비교
+
+- 이번 답변의 작업 식별자01a11691-93b6-7250-8303-8f778922266a를 WORKLOG 끝에 추가 기록. 제품 및 DB 변경 없음.
+- 전체4721건·100건 페이지 기준 복사 저장은 최소48페이지 확보와 누락/중복 검증이 필요. 정확한 소요 시간은 미측정이나 대상 연결을 확보한 Compass 전체 JSON 내보내기가 더 효율적인 경로로 판단.
+- Atlas의 미확인 다운로드 버튼 탐색을 계속하기보다 기존 대상 DB 접속 설정으로 Compass 연결 후 내보내기를 권장. 접속 정보 확보 시간은 미확정. 백업·삭제는 여전히 미실행.
+
+## 2026-10-07 — Atlas 직접 다운로드와 복사 저장 구분
+
+- 사용자는 이전에 Atlas 문서를 복사해 로컬 저장했다고 설명. 현재 확인한 UI에는 전체 JSON 파일 직접 다운로드 버튼을 찾지 못했으며 복사 저장과 다운로드를 구분해 안내.
+- E-JSON 화면도 1–100 / 4721 페이지 범위를 표시. 전체 백업 파일 생성·건수 검증·원본 삭제 모두 미실행. 부분 복사본을 전체 백업으로 간주하지 않음.
+
+## 2026-10-07 — Atlas 수동 백업 기능 재확인
+
+- Atlas azure_results의 E-JSON Output Options는 Expand/Collapse all documents, BULK는 update/delete, EXPORT CODE는 쿼리 코드 내보내기로 확인. 문서 개별 Copy 기능은 있으나 전체 파일 다운로드 기능은 현재 확인한 UI에서 발견하지 못함. Atlas에서 모든 백업이 불가능하다는 단정은 철회.
+- 이전 후속 요청으로 Compass를 열었으나 미연결이고 저장된 연결 주소가 조사한 Atlas 주소와 달라 접속하지 않음. 백업/삭제 모두 미실행. 사용자가 이전에 사용한 Atlas 내보내기 메뉴 경로 확인 필요. 전체 백업 검증 전 삭제 금지 유지.
+
+## 2026-10-07 — azure_results 수동 백업 방법 안내
+
+- Compass에서 to-teacher-app.azure_results 전체 문서를 JSON(가능하면 BSON 타입을 보존하는 Extended JSON)으로 로컬 내보내고 검증 후 원본 문서만 삭제하는 방법을 안내. 실제 Compass 연결/내보내기/삭제는 수행하지 않음.
+- Atlas EXPORT CODE와 데이터 백업을 구분. 삭제 전 전체 건수·파일 무결성·복원 가능성 확인 및 동시 쓰기 통제가 필요하며, 백업 이후 생성·변경 데이터는 보호해야 함. 컬렉션/인덱스 유지 방침과 기존 접속 경로 대기 상태 유지.
+
+## 2026-10-07 — azure_results 로컬 백업 후 삭제 요청, 접속 경로 확인 대기
+
+- 사용자 요청 대상은 Cluster0의 to-teacher-app.azure_results로 확인. Atlas Documents 화면4721건·Indexes1개 표시(삭제 시점 재확인 필요).
+- 백업/삭제 미실행. Atlas 현재 UI에는 전체 데이터 export가 없고 EXPORT CODE는 쿼리 코드 내보내기다. 로컬 mongosh는 있으나 mongodump/mongorestore는 PATH에서 확인되지 않음. 실행 환경의 Mongo/Atlas/database 관련 환경변수 이름도 미검출.
+- 다음 단계: 사용자가 기존 DB 접속 설정 파일 위치 또는 연결된 Compass 등 백업 경로를 지정해야 함. 비밀값을 채팅에 요청하지 않는다. 백업을 로컬 저장·건수/무결성/복원 가능성 검증한 뒤 삭제. 백업 이후 생성·변경 문서는 삭제 대상에서 보호하고 컬렉션/인덱스 유지 우선. UI 영구 삭제 직전 최종 확인 필요.
+
+## 2026-10-07 — MongoDB Atlas 읽기 전용 점검
+
+- Cluster0(AWS Seoul, MongoDB 8.0.34, Free)의 Overview 표시 Logical Size는 510.4 MB / 512.0 MB(약99.7%), Connections29/500. PRIMARY1개·SECONDARY2개 표시. Project Open Alerts는 3개 노드의 Logical Size 440 MB 초과 ERROR이며10월3일부터 지속.
+- tosunsaeng-db의 newsletter_campaigns19건·newsletter_deliveries35건 표시, 인덱스 각각5개 모두 READY. Atlas 읽기 조회 성공은 애플리케이션 쓰기 정상/복구를 입증하지 않는다.
+- 용량 제한이 뉴스레터 findAndModify 실패 원인 후보로 중요하나 MongoCommandException의 code/message가 없어 확정 불가. 실제 앱 연결 대상 대조도 필요. 데이터 삭제·인덱스/설정/요금제 변경·복구 조치 없음.
+- 다음 작업: 해당 백엔드의 정제된 원인 로그 확인 및 DB별 용량 분석. 용량 증설/데이터 정리는 별도 사용자 결정과 승인 필요. 제품 코드 변경 없으며 기록만 갱신.
+
+## 2026-10-07 — 뉴스레터 오류 복구 여부 안내
+
+- 현재까지 조사만 수행했으며 복구 조치 없음. 앞서 표시한 발송 복구/캠페인 회수는 실패한 작업 이름이지 복구 성공 보고가 아니다. 마지막 조회 시 오류 반복 관측, 현재 자연 복구 여부는 재조회하지 않아 미확인.
+- 복구 완료 판단에는 원인 확인·조치 및 작업 정상 처리 검증 필요. 제품/서버 변경 없음.
+
+## 2026-10-07 — 로그인 후 Sentry 뉴스레터 오류4건 상세 확인
+
+- TO-TEACHER-6/7/8/9 모두 newsletter repository의 findAndModify에서 UncategorizedMongoDbException → MongoCommandException. 예약 캠페인 확보·발송 대기 확보·지연 캠페인 회수·지연 발송 복구4경로다. environment 태그 모두local이며 실제 실행 위치를 보장하는 근거는 아님.
+- 조회 시 이벤트 수는 순차 관측 기준7=224,8=18,9=18,6=107로 단발이 아닌 반복 발생. 원인 메시지는 No error message로 Mongo 오류 코드/실패 명령 상세 확인 불가. 현재 Identity 소스에 해당 도메인 없음. 탈퇴 변경이나 운영 전체 중단으로 단정하지 않는다.
+- 추가 진단에는 해당 백엔드의 안전하게 정제된 Mongo 오류 코드·원인 로그 및 newsletter repository 코드 확인 필요. 읽기 전용 조사와 기록만 수행.
+
+## 2026-10-07 — Sentry 메일 알림 확인, 상세 로그인 필요
+
+- 지정 Gmail 메일에서 to-teacher 프로젝트의 UncategorizedMongoDbException FATAL 알림4건 확인. 발생 시각은2026-10-07 21:17:08 및21:17:12 KST, 표시 경로 web.tosunsaeng.domain.newsletter... . 현재 Identity src/main/java에는 newsletter 경로가 없어 탈퇴 수정 원인으로 단정하지 않는다.
+- Sentry issue7778701664 상세 진입 시 로그인 화면으로 이동. 원인 메시지·stack·환경/배포 버전 미확인. 로그인 후 이어갈 탭 유지, 코드/서버/Sentry 상태 변경 없음.
+
 ## 2026-10-07 — Firebase verifier 명시적 Bean 주입으로 정리
 
 - 구현체 setter의 Autowired 제거, 기존 조건부 Bean factory에서 Nullable ProviderChangeGuard를 전달하도록 수정. factory 반환형을 구체 구현체로 명시. Component 추가 없이 조건부 등록 및 optional 동작 유지.

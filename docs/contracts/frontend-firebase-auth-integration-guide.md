@@ -29,6 +29,10 @@ Swagger 공유: 배포 서버의 `/swagger-ui.html` 또는 `/v3/api-docs`를 사
 
 구현 여부와 배포 활성화는 다르다. [출시 전 확인사항과 기능별 활성화 조건](frontend-firebase-auth-integration-appendix.md#deployment)을 확인한 기능만 노출한다.
 
+### 2.0.1 최소 지원·최신 출시 앱 버전
+
+앱 업데이트 정책(2026-10-08 추가): 무인증 `GET /api/v1/app/version?platform=android|ios`의 `result`는 `platform`, `latestVersion`, `minimumVersion`을 제공한다. 설치 버전 < minimumVersion이면 닫을 수 없는 강제 업데이트, 최소 이상·최신 미만이면 나중에 가능한 권장 업데이트(또는 안내 생략), 최신 이상이면 정상 이용한다. 비교는 숫자 major/minor/patch 순으로 한다. 503·네트워크 오류는 강제 업데이트로 해석하지 않는다. 실제 출시 설정·스토어 URL·앱 UI 구현은 별도 확인하며 [전체 계약과 배포 주의사항](app-version-api.md)을 따른다.
+
 ### 2.1 Kakao도 동일한 Firebase 교환 흐름을 사용한다
 
 Google·Apple뿐 아니라 Kakao도 승인된 Firebase Generic OIDC provider를 통해 같은 흐름을 사용한다.

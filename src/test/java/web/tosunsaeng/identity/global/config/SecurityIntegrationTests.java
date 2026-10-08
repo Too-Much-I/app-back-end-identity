@@ -74,6 +74,8 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 @web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest(properties = {
 		"app.version.android-latest-version=1.10.0",
+		"app.version.android-minimum-version=1.1.0",
+		"app.version.ios-minimum-version=2.0.0",
 		"app.version.ios-latest-version=2.0.1"
 })
 @AutoConfigureMockMvc

@@ -42,6 +42,8 @@ app:
     trusted-proxies: ${SUPPORT_TRUSTED_PROXIES:}
     worker-delay-ms: 5000
   version:
+    android-minimum-version: ${APP_ANDROID_MINIMUM_VERSION:}
+    ios-minimum-version: ${APP_IOS_MINIMUM_VERSION:}
     android-latest-version: ${APP_ANDROID_LATEST_VERSION:}
     ios-latest-version: ${APP_IOS_LATEST_VERSION:}
   account-recovery:
