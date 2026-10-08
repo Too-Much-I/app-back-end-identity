@@ -1,5 +1,57 @@
 # Codex Current State
 
+## 2026-10-08 — Firebase 원격 오류 코드 안전 진단 보완 완료 (미배포)
+
+- 사용자 승인에 따라 FirebaseCleanupHttpDiagnostic 추가, 기존 firebase_operation_failed에 firebaseHttpStatus 및 firebaseRemoteErrorCode 추가. 27개 사전 정의 코드만 반환하며 콜론 뒤 상세는 폐기. 원문 응답/메시지/headers/request/UID/토큰 미기록.
+- 응답 없으면 status=0/code=NONE, 미등록·잘못된 shape는 UNRECOGNIZED, 잘못된 JSON·중복 key·후행 JSON은 UNPARSEABLE, 16,384자 초과는 RESPONSE_TOO_LARGE. 파싱 오류는 기존 cleanup 실패 분류를 변경하지 않음.
+- ./gradlew clean test 성공: 1,309개, 실패/오류 0, skipped 6. 신규 22개 케이스 포함, 외부 Firebase/Atlas 호출 없음. 기존 API/삭제 순서/retry 정책 및 NOT_FOUND 멱등 처리 유지.
+- 실제 장애를 수정한 것이 아니라 원인 관측 보완. commit/push/배포는 미실행. 배포 전 신규 파일 포함 여부와 대상 lifecycle 재시도 가능 상태 확인 후 신규 로그 조회 필요. UNRECOGNIZED이면 원인 확정 불가, 원문 전체 로깅으로 확대하지 않음.
+
+## 2026-10-08 — DISABLE 실패 원인 추가 조사: HTTP 400 상세 코드 미보존
+
+<!-- codex-turn:01a119bf-701d-7241-9838-7e9a75650d22 -->
+
+- 조사 종료: 상세 원격 reason 진단 보완을 제안했으며 사용자 승인 전 구현하지 않음. 현재 근본 원인은 미확정.
+
+- SDK 9.4.3 source 확인: UpdateRequest(uid).setDisabled(true)는 localId와 disableUser=true만 전송. 전화번호/SNS 토큰은 해당 요청에 없음. cleanup은 getUser 이후 disable, revoke, delete 순서이며 DISABLE 실패 시 후속 revoke/delete에 도달하지 않음.
+- SDK AbstractHttpErrorHandler는 HTTP 400을 INVALID_ARGUMENT으로 변환하고 AuthErrorHandler가 아는 원격 코드만 AuthErrorCode로 세분화한다. 이번 AuthErrorCode NONE은 상세 원격 코드가 현재 enum 로그에 없다는 의미이며 특정 인자 오류나 권한 원인을 확정하지 못함.
+- Firebase 관리 계정으로 Google Cloud Logs Explorer에서 identitytoolkit.googleapis.com 및 2026-10-08T04:18:00Z~04:30:00Z 검색 결과 0개. 감사 로그 미활성/미수집 여부는 미확인. 현재 증거만으로 원격 상세 원인은 확정 불가.
+- 다음 단계 제안: Firebase 오류 응답의 원격 reason을 사전 정의된 허용 목록에 매핑하고 HTTP status와 함께 기록(원문 메시지/응답/개인정보 금지), 배포 후 worker 재시도에서 확인. 이번 요청은 조사이므로 진단 구현/배포/설정/계정 변경 없음.
+
+## 2026-10-08 — 진단 배포 후 재탈퇴: Firebase DISABLE 실패 확인
+
+<!-- codex-turn:01a119ba-e36d-7671-a7a9-907400daf1e0 -->
+
+- 테스트 Identity revision32/running1/PRIMARY COMPLETED, 이미지 dd833a53492d7e31b17302727266fed1445049cd 확인. 아래 미배포 기록은 당시 상태이며 신규 진단 코드 반영 완료.
+- 재가입 완료된 새 테스트 회원으로 탈퇴 직전 Identity MEMBER/LC today 정상 접근, 실제 WITHDRAWN 및 13:18:45 KST completed/revokedSessionCount1 확인. 기존 Access로 LC 401 ACCOUNT_WITHDRAWN 확인.
+- 13:19:08 및 13:19:28 KST 신규 진단: operation=DISABLE, firebaseErrorCode=INVALID_ARGUMENT, firebaseAuthErrorCode=NONE, exceptionType=FirebaseAuthException, causeTypes=HttpResponseException. 외부 정리 RETRY_SCHEDULED/RESULT_UNKNOWN 지속. 비활성화 updateUser 요청 실패는 확인됐지만 어떤 인자/원격 상세 사유인지는 미확정. Firebase 삭제 완료로 보고하지 않음.
+- Identity 프로필 차단은 도구가 401 ACCOUNT_WITHDRAWN만 기대하여 미검증 표시. 코드 계약은 403 ACCOUNT_NOT_ACTIVE이며 이번 실제 응답 상세는 별도 확인하지 못함.
+- 증거 /tmp/withdrawal-retest-result.png 저장 후 비교 토큰·로컬 인증정보 폐기 완료. 제품 코드/설정/DB 수동 변경 없음. 다음 작업은 DISABLE의 안전한 상세 원인 진단 및 도구 기대값 보완; 재시도 상태 임의 초기화나 수동 Firebase 삭제는 수행하지 않음.
+
+## 2026-10-08 — 테스트 계정 인증 연결 정리 완료
+
+<!-- codex-turn:01a119b3-8096-7d42-a56f-11d25fa11a0a -->
+
+- 사용자 승인 범위: 재가입에 필요한 인증 연결만 정리, 학습/무료 이용/탈퇴 감사 이력 보존. 탈퇴 시각으로 lifecycle 1건을 특정하고 해당 Firebase UID 검색 결과 계정 없음 확인.
+- 개별 연결을 직접 삭제하지 않고 정확한 lifecycle _id/userId/EXTERNAL_CLEANUP_RETRY_WAIT 조건으로 nextAttemptAt·updatedAt을 DB 현재 시각으로 변경, version 1 증가. 변경 1건 확인. 상태·시도 횟수·오류 이력 임의 초기화 없음.
+- 정상 worker가 9번째 시도로 처리 후 CLEANED 확인. externalDeletedAt/identitiesReleasedAt/cleanedAt 필드 존재. 서버의 소유권 검사·트랜잭션에 따라 SNS/Firebase 연결 및 전화 연결 정리가 완료됨. 학습/무료 이력·감사 기록 수동 삭제 없음.
+- 이제 같은 SNS/전화번호로 재가입 테스트 가능 상태. 실제 재가입은 아직 미검증. 수동 Firebase 삭제 후 정리 성공이므로 원래 Firebase 삭제 실패 원인이 해결됐다는 증거는 아님. 새 진단 코드 배포 확인 후 후속 탈퇴 테스트 필요.
+
+## 2026-10-08 — 동일 테스트 계정 재가입용 DB 정리 범위 확인
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 사용자가 Firebase 계정을 직접 삭제했으며 동일 계정 재테스트를 위해 DB 관련 내역 삭제 요청. DB 삭제는 아직 미실행.
+- 코드상 정상 identity release는 Firebase/SNS 연결 삭제, 전화 identity/alias release, binding 변경 및 관련 lineage 처리를 함께 수행. 계정 관련 전체 내역에는 인증 외 기록도 포함될 수 있어 재가입용 최소 정리와 테스트 이력 전체 초기화 범위 구분 필요.
+- 최신 읽기 로그에서는 13:03:30 KST cleanup 재시도까지 확인, 자동 연결 해제 완료는 확인되지 않음. 삭제 전 대상 식별자 직접 대조 및 정확한 컬렉션 범위 확인 필요. 전체 DB/컬렉션 삭제 금지.
+
+## 2026-10-08 — 진단 로그 커밋 푸시 확인, CI 테스트 진행 중
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 사용자 푸시 커밋 dd833a53의 GitHub Actions run 37725891723 확인. 조회 시점 Run tests 진행 중, 이미지 빌드/배포/health 단계는 대기.
+- 테스트 Identity는 아직 revision31, 이전 이미지 7a634f89, running1/COMPLETED. 신규 진단 코드 배포 완료로 판단하지 않음. 다음 작업은 배포 및 이미지 일치 확인 후 Firebase 실패 진단 event 조회. 이번 단계는 읽기만 수행.
+
 ## 2026-10-08 — Firebase 탈퇴 실패 진단 로그 구현 완료 (미배포)
 
 - FirebaseSdkWithdrawalCleanupAdapter에 WARN event `user.withdrawal.firebase_operation_failed` 추가. operation은 INSPECT/DISABLE/REVOKE_REFRESH_TOKENS/DELETE/CHECK_PRESENCE. failureCode, exceptionType, 최대 5단계 causeTypes, firebaseErrorCode, firebaseAuthErrorCode를 기록.

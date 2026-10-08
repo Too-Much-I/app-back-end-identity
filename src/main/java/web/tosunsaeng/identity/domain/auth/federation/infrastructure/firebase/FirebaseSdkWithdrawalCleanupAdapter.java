@@ -146,6 +146,8 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 				? failed(WithdrawalCleanupFailureCode.RESULT_UNKNOWN) : classify(sdk);
 		// USER_NOT_FOUND is an expected idempotent cleanup outcome, not an operational failure.
 		if (mapped.failureCode() != WithdrawalCleanupFailureCode.NOT_FOUND) {
+			FirebaseCleanupHttpDiagnostic http = FirebaseCleanupHttpDiagnostic.from(
+					sdk == null ? null : sdk.getHttpResponse());
 			StringBuilder causes = new StringBuilder();
 			Throwable cause = exception.getCause();
 			for (int depth = 0; cause != null && depth < 5; depth++, cause = cause.getCause()) {
@@ -157,6 +159,8 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 					.addKeyValue("event", "user.withdrawal.firebase_operation_failed")
 					.addKeyValue("operation", operation.name())
 					.addKeyValue("failureCode", mapped.failureCode().name())
+					.addKeyValue("firebaseHttpStatus", http.status())
+					.addKeyValue("firebaseRemoteErrorCode", http.remoteCode())
 					.addKeyValue("exceptionType", exception.getClass().getName())
 					.addKeyValue("causeTypes", causes.isEmpty() ? "NONE" : causes.toString())
 					.addKeyValue("firebaseErrorCode", sdk == null || sdk.getErrorCode() == null

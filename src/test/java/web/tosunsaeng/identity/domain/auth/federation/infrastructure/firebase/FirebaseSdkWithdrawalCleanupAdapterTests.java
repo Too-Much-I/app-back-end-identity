@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import java.util.Set;
 
 import com.google.firebase.ErrorCode;
+import com.google.firebase.IncomingHttpResponse;
 import com.google.firebase.auth.AbstractFirebaseAuth;
 import com.google.firebase.auth.AuthErrorCode;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -192,6 +193,30 @@ class FirebaseSdkWithdrawalCleanupAdapterTests {
 				assertThat(event.getThrowableProxy()).isNull();
 				assertThat(LogCapture.rendered(event)).doesNotContain("sensitive", FIREBASE_UID, PROJECT_ID);
 			});
+		}
+	}
+
+	@Test
+	void httpDiagnosticsLogSafeCodeAndStatusWithoutChangingClassification() throws Exception {
+		IncomingHttpResponse response = mock(IncomingHttpResponse.class);
+		when(response.getStatusCode()).thenReturn(400);
+		when(response.getContent()).thenReturn("{\"error\":{\"message\":"
+				+ "\"INSUFFICIENT_PERMISSION: fake-token private@example.invalid\"}}");
+		FirebaseAuthException failure = new FirebaseAuthException(ErrorCode.INVALID_ARGUMENT,
+				"fake-password", null, response, null);
+		when(firebaseAuth.updateUser(any(UserRecord.UpdateRequest.class))).thenThrow(failure);
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertFailure(() -> adapter.disable(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "firebaseHttpStatus")).isEqualTo(400);
+				assertThat(LogCapture.value(event, "firebaseRemoteErrorCode")).isEqualTo("INSUFFICIENT_PERMISSION");
+				assertThat(LogCapture.value(event, "operation")).isEqualTo("DISABLE");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("fake-token", "fake-password",
+						"private@example.invalid", PROJECT_ID, FIREBASE_UID);
+			});
+			verify(response, never()).getHeaders();
+			verify(response, never()).getRequest();
 		}
 	}
 

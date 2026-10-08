@@ -16296,3 +16296,88 @@
 - 위험/배포 전 확인: 미배포로 실제 원인 미확정. 로그 수집에서 신규 event/필드 확인 필요. 기존 lifecycle이 RECONCILIATION_REQUIRED에 도달했는지 확인 후 후속 검증 계획 수립; 상태 초기화 또는 수동 삭제 자동 실행 금지.
 - diff 범위: 이번 제품 변경은 adapter 및 해당 테스트만. 작업 시작부터 존재한 docs 변경 보존, 예상 밖 변경 없음. Jira 연결 이슈 없음, 댓글/commit/push/Swagger 공유본 생성 없음.
 - 다음 작업: 사용자 commit/push 및 테스트 배포 후 cleanup 재시도 로그의 operation/exceptionType/Firebase enum을 읽어 실제 원인 진단. Jira 댓글 초안: Firebase cleanup 안전 진단 로그 추가, 테스트 실패 0, 실제 배포 후 원인 확인 필요(자동 등록 안 함).
+
+## 2026-10-08 — 사용자 푸시 후 배포 진행 상태 확인
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 진단 로그 커밋의 테스트 배포 반영 여부 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 확인: 로컬 HEAD dd833a53, 작업 시작 시 clean. GitHub run 37725891723이 동일 SHA로 in_progress, Run tests 진행 중. 테스트 ECS revision31/running1/COMPLETED, 이전 이미지 7a634f89 유지.
+- 검증: gh run list/view 및 ECS 읽기 조회, git diff --check. 로컬 Gradle 재실행 불필요(이번 코드 변경 없음); CI 결과는 아직 미확정.
+- 유지 계약/결정: git commit/push와 배포 트리거·설정 변경 미실행. 푸시와 배포 완료를 구분, 신규 진단 로그가 반영됐다고 보고하지 않음. Secret 미기록.
+- 위험/다음 작업: 배포 완료 및 새 이미지 일치 확인 후 cleanup 진단 로그 조회 필요. 재시도 한도 소진 여부도 별도 확인. 예상 밖 변경 없음, Jira 조작 없음.
+
+## 2026-10-08 — 테스트 계정 재가입용 DB 삭제 범위 조사
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자가 Firebase에서 삭제한 테스트 계정의 재가입용 DB 정리 범위 파악.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. DB/제품 코드 변경 없음.
+- 조사: identity release 코드의 Firebase/SNS 연결 삭제와 전화 identity/alias release, binding/lineage 처리를 확인. 최신 CloudWatch 읽기 조회에서 13:03:30 KST cleanup RESULT_UNKNOWN 재시도 관측. 완료 증거 없음.
+- 결정: 관련 내역 전체 삭제는 인증 연결 정리와 학습/무료 이용 이력 초기화 범위가 달라 사용자 선택 확인 후 정확한 대상만 처리. 이번 단계 삭제 미실행.
+- 검증: 코드/로그 읽기, git diff --check. 코드 변경 없어 Gradle 미실행.
+- 유지 계약/위험: 토큰/PII 미기록. 전체 DB/컬렉션 삭제 없음. worker 동시 처리 및 타 계정 소유권 오염 방지를 위해 정확한 대상 직접 대조가 선행되어야 함.
+- 다음 작업: 최소 재가입용 정리인지 전체 테스트 이력 초기화인지 확인 후 대상 컬렉션/건수를 읽기 조회하고 범위에 맞게 처리. 배포/commit/push/Jira 없음, 예상 밖 변경 없음.
+
+## 2026-10-08 — 승인된 재가입용 인증 연결 정리 완료
+
+<!-- codex-turn:01a119b3-8096-7d42-a56f-11d25fa11a0a -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 선택 1번에 따라 해당 테스트 계정 인증 연결만 정리.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음. 외부 쓰기는 테스트 Identity lifecycle 1건의 재시도 일정 변경이며 후속 정상 worker 처리 확인.
+- 대상 확인: 탈퇴 시각 범위로 lifecycle 단일 문서 특정, UID를 노출 없이 Firebase 검색에 사용해 계정 없음 직접 확인. 당시 상태 EXTERNAL_CLEANUP_RETRY_WAIT, attemptCount8.
+- 실행: _id/userId/대기 상태를 함께 필터로 사용해 $currentDate nextAttemptAt/updatedAt 및 $inc version1 적용, Atlas 1 document updated 확인. 정상 worker가 Firebase 부재 확인 후 인증 연결 release를 수행하도록 함. lifecycle 상태/횟수/오류를 성공값으로 직접 덮어쓰지 않음.
+- 검증: 후속 조회에서 CLEANED, attemptCount9 및 externalDeletedAt/identitiesReleasedAt/cleanedAt 존재 확인. 식별자를 제외한 projection 증거 /tmp/identity-test-auth-cleaned.png 저장. git diff --check. Java 변경 없어 Gradle 미실행.
+- 유지 계약/결정: 정상 소유권 검사·트랜잭션·이력 보존 경로 사용. 학습/무료 이용/감사 이력 삭제 없음. 전체 컬렉션 삭제 및 타 계정 수정 없음. Secret/UID/사용자 개인정보 문서 미기록.
+- 위험/다음 작업: 실제 재가입 미검증. Firebase를 사용자가 수동 삭제한 후 연결 해제가 완료된 것이므로 원래 Firebase 삭제 장애 해결로 간주하지 않음. 새 진단 배포 확인 후 같은 SNS/전화번호 재가입 및 탈퇴 재테스트.
+- 배포/범위: 제품 배포/commit/push/Jira 조작 없음. 예상 밖 파일 변경 없음, 기존 기록 보존. 기존 Firebase/SNS 연결은 worker로 제거되고 전화 연결은 release 처리; 이전 계정의 복구가 아니라 신규 가입 가능 상태로 전환.
+
+## 2026-10-08 — 진단 배포 확인 및 신규 테스트 회원 탈퇴 재검증
+
+<!-- codex-turn:01a119ba-e36d-7671-a7a9-907400daf1e0 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자가 배포하고 재로그인한 테스트 회원으로 실제 탈퇴 및 신규 Firebase 진단 검증.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음. 기존 문서 변경 보존.
+- 배포 확인: GitHub Actions run 37725891723 성공, 테스트 ECS revision32/running1/PRIMARY COMPLETED 및 이미지 dd833a53492d7e31b17302727266fed1445049cd 일치.
+- 테스트: 신규 MEMBER 가입 완료 UI, 탈퇴 직전 Identity MEMBER/LC today 성공, 실제 WITHDRAWN 확인. 서버 13:18:45 KST completed/withdrawn/revokedSessionCount1. 같은 이전 Access로 LC 401 ACCOUNT_WITHDRAWN 성공. UI 확인창 제어 지연 후 이미 완료된 결과를 확인했으며 탈퇴 중복 요청 없음.
+- 진단: 13:19:08 및 13:19:28 KST user.withdrawal.firebase_operation_failed의 operation DISABLE, firebaseErrorCode INVALID_ARGUMENT, firebaseAuthErrorCode NONE, FirebaseAuthException 및 HttpResponseException 확인. 이후 external_cleanup RETRY_SCHEDULED/RESULT_UNKNOWN 관측. Firebase 삭제 전 updateUser(setDisabled(true))에서 실패함을 특정; 거절된 인자 및 원격 상세 사유는 미확정.
+- 미확인: Identity 프로필 검증 도구는 양 서버에 401 ACCOUNT_WITHDRAWN을 기대하지만 UserProfileService 계약은 403 ACCOUNT_NOT_ACTIVE. 이번 Identity 실제 응답 상세 및 새 lifecycle CLEANED/Firebase 부재는 미확인, 전체 성공으로 보고하지 않음.
+- 유지 계약/결정: 승인된 폐기용 테스트 계정 탈퇴만 실행, 운영 변경·수동 DB 초기화·재시도 강제·Firebase 수동 삭제 없음. 외부 API/보안/재시도 정책 유지. Secret/UID/전화번호/토큰 미기록. 비교 토큰 및 로컬 인증정보 폐기와 검증 버튼 비활성 확인.
+- 검증/증거: /tmp/withdrawal-retest-result.png에 민감정보 없는 검증표 저장. Java 변경 없어 Gradle 재실행하지 않음(해당 배포 코드 기존 1287개/실패0/skipped6), git diff --check 수행.
+- 위험/다음 작업: DISABLE INVALID_ARGUMENT 상세 원인을 안전하게 좁히고 수정 후 재검증 필요. 로그만으로 권한·전화번호·SDK 문제를 단정하지 않음. 테스트 도구 Identity 기대값 보완 필요. 다음 배포 전 해당 원인 회귀 테스트와 실제 Firebase 정리 완료 확인 필요.
+- 범위/보고: 예상 밖 파일 변경 없음. commit/push/배포 트리거/Jira 변경/Swagger 공유본 생성 없음. Jira 댓글 초안(미등록): 진단 배포 확인, 내부 탈퇴·LC 차단 성공, Firebase DISABLE INVALID_ARGUMENT으로 정리 미완료, 추가 원인 진단 필요.
+
+## 2026-10-08 — Firebase DISABLE HTTP 400 상세 원인 조사
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 요청에 따라 INVALID_ARGUMENT의 실제 원인 조사.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 제품 코드 변경 없음.
+- 확인 사실: Firebase admin 9.4.3 로컬 source jar의 UpdateRequest는 localId/disableUser=true 전송, FirebaseUserManager는 accounts:update 호출. cleanup worker는 inspect→disable→revoke→delete 순서. 따라서 이번 DISABLE 오류는 삭제 전 단계이며 프론트 SNS/전화번호 토큰을 전달하는 요청이 아님.
+- SDK 근거: AbstractHttpErrorHandler HTTP400→INVALID_ARGUMENT. AuthErrorHandler의 알려진 코드 매핑 실패 시 FirebaseAuthException(base)를 사용하여 AuthErrorCode가 없음. 현재 enum/type 로그만으로 원격 상세 원인 복원 불가; 잘못된 전화번호·권한·SDK 결함으로 단정하지 않음.
+- 외부 조사: Firebase 관리 Google 계정으로 Logs Explorer에서 해당 프로젝트 identitytoolkit.googleapis.com 및 실패 시간대 04:18~04:30 UTC 조회, 결과 0개. 감사 로그 수집 여부는 확인되지 않아 요청 자체가 없었다는 뜻으로 해석하지 않음.
+- 테스트/결과: SDK source/애플리케이션 코드 읽기, Google 로그 읽기, git diff --check. 제품 변경 없어 Gradle 미실행.
+- 유지 계약/결정: 원문 HTTP 응답/메시지/UID/토큰 노출 금지 유지. Firebase 변이 호출·계정 삭제·강제 재시도·IAM/감사 설정 변경·배포 없음. 기존 문서 수정 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 근본 원인은 아직 미확정. 사용자가 동의하면 원격 error reason의 사전 허용 목록 매핑 및 HTTP status만 추가 진단, 보안 회귀 테스트 후 배포하여 정상 worker 재시도로 확인. 상세 불명 이유를 사용자에게 명시하고 해결됐다고 보고하지 않음.
+- Jira 댓글 초안(미등록): DISABLE 실패는 SDK가 HTTP400을 공통 INVALID_ARGUMENT으로 매핑한 결과, Google 감사 조회 0개, 안전한 원격 reason 진단 필요. Jira/commit/push/Swagger 조작 없음.
+
+## 2026-10-08 — Firebase 실패 조사 종료 및 턴 기록 보완
+
+<!-- codex-turn:01a119bf-701d-7241-9838-7e9a75650d22 -->
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: Firebase 비활성화 실패 원인 조사 결과와 현재 턴 식별자 기록.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 변경 없음; 위 상세 조사 결과 유지.
+- 조사 결과: SDK source상 DISABLE 요청은 localId/disableUser만 포함하며 HTTP400이 INVALID_ARGUMENT으로 매핑됨. 상세 원격 오류는 기존 로그에 보존되지 않았고 해당 시간대 Google 로그 조회 결과 0개여서 근본 원인 미확정.
+- 검증: 코드·SDK source 및 Google 로그 읽기, git diff --check 통과. Java 변경 없어 Gradle 미실행.
+- 유지 계약/결정: Secret·토큰·개인정보 미기록. 제품 코드·배포·DB·Firebase 계정·권한 변경 없음. 기존 기록 보존, 예상 밖 변경 없음.
+- 위험/다음 작업: 원격 상세 reason을 허용 목록으로 정제하는 진단 보완 제안, 사용자 승인 대기. 현재 실패 해결 또는 Firebase 삭제 완료로 판단하지 않음. Jira/commit/push 없음.
+
+## 2026-10-08 — 승인된 Firebase 원격 오류 코드 안전 진단 구현
+
+- 날짜/브랜치: 2026-10-08, develop. 목표: 사용자 승인에 따라 DISABLE HTTP400 원인을 좁힐 안전한 원격 코드 진단 추가.
+- 변경 파일: FirebaseCleanupHttpDiagnostic.java(신규), FirebaseSdkWithdrawalCleanupAdapter.java, FirebaseCleanupHttpDiagnosticTests.java(신규), FirebaseSdkWithdrawalCleanupAdapterTests.java, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 구현 내용: firebase_operation_failed에 firebaseHttpStatus와 firebaseRemoteErrorCode 추가. HTTP status는 100~599 또는 0, 원격 error.message의 콜론 이전 코드가 고정 허용 목록 27개와 정확히 일치할 때만 기록. 임의 원격 텍스트·상세·request·headers·Throwable은 미기록. 응답 부재 NONE, 미등록/shape 이상 UNRECOGNIZED, JSON 오류/중복 key/후행 값 UNPARSEABLE, 16,384자 초과 RESPONSE_TOO_LARGE. Jackson nesting 제한 및 파싱 실패 안전 처리.
+- 테스트: ./gradlew clean test 최초 sandbox Gradle cache 권한 제한 후 승인 실행 성공. 전체 1,309개, failures/errors 0, skipped 6. 신규 22개 케이스: 알려진 코드/상세 폐기, 미등록·개행 삽입·잘못된 shape, malformed/duplicate/trailing JSON, 대형·깊은 응답, 부재/status sentinel, 실제 adapter 로그 민감정보/Throwable 비노출 및 기존 분류 유지. 외부 Provider는 mock, 실제 Firebase/Atlas 미호출. git diff --check 통과.
+- 유지 계약/결정: 외부 API·오류 분류·재시도 정책·삭제 순서·소유권 검사·NOT_FOUND 멱등 처리 유지. 진단만 변경, 실제 원인이나 해결을 단정하지 않음. Secret/PII 미기록.
+- 위험/배포 전 확인: 원격 code가 허용 목록 밖이면 UNRECOGNIZED로 남아 후속 검토 필요. 사용자 commit/push 시 신규 parser 및 테스트 파일 포함 확인. 배포 후 실제 실패 로그와 lifecycle 재시도 가능 상태 확인, 한도 소진 시 임의 초기화 금지.
+- 실제 diff 범위: 기존 두 기록 문서 수정 보존. 이번 제품 변경은 adapter/parser와 해당 테스트에 한정, 예상 밖 변경 없음. commit/push/배포/DB/Firebase 설정 변경/Swagger 공유본 생성 없음.
+- 다음 작업: 사용자 배포 후 HTTP status/remote code를 조회해 실제 원인 판정. Jira 댓글 초안(미등록): Firebase 원격 오류 코드 허용 목록 진단 추가, 1,309개 테스트 실패0, 실제 배포 후 원인 확인 필요. 현재 작업 관련 Jira 키 없음, Jira 변경 없음.
