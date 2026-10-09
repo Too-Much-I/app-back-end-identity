@@ -2,6 +2,7 @@ package web.tosunsaeng.identity.domain.user.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -136,6 +137,36 @@ class UserWithdrawalExternalCleanupWorkerTests {
 
 		assertThat(worker.processNext()).isEqualTo(WithdrawalCleanupOutcome.EXTERNAL_DELETED);
 		verify(cleanupPort, never()).disable(any(), any());
+	}
+
+	@Test
+	void clientManagedAppleRevocationContinuesThroughDeletionAndPresenceVerification() {
+		firebaseTarget();
+		FirebaseCleanupAccountSnapshot snapshot = new FirebaseCleanupAccountSnapshot(
+				false, Set.of(FirebaseCleanupProvider.APPLE, FirebaseCleanupProvider.GOOGLE)
+		);
+		when(cleanupPort.inspect("test-project", "opaque-uid")).thenReturn(snapshot);
+		when(cleanupPort.satisfyProviderDeletionObligations(snapshot))
+				.thenReturn(ProviderObligationResult.CLIENT_MANAGED);
+		when(cleanupPort.checkPresence("test-project", "opaque-uid"))
+				.thenReturn(FirebaseAccountPresence.ABSENT);
+		when(repository.renewLease(eq("withdrawal-id"), eq("lease-token"), anyLong(),
+				any(), eq(NOW))).thenReturn(true);
+		when(repository.markExternalCleanupCompleted(
+				"withdrawal-id", "lease-token", 10L, NOW
+		)).thenReturn(true);
+
+		assertThat(worker.processNext()).isEqualTo(WithdrawalCleanupOutcome.EXTERNAL_DELETED);
+		InOrder order = inOrder(cleanupPort, repository);
+		order.verify(cleanupPort).inspect("test-project", "opaque-uid");
+		order.verify(cleanupPort).disable("test-project", "opaque-uid");
+		order.verify(cleanupPort).revokeRefreshTokens("test-project", "opaque-uid");
+		order.verify(cleanupPort).satisfyProviderDeletionObligations(snapshot);
+		order.verify(cleanupPort).delete("test-project", "opaque-uid");
+		order.verify(cleanupPort).checkPresence("test-project", "opaque-uid");
+		order.verify(repository).markExternalCleanupCompleted(
+				"withdrawal-id", "lease-token", 10L, NOW);
+		verify(repository, never()).markReconciliationRequired(any(), any(), anyLong(), any(), anyBoolean(), any());
 	}
 
 	@Test

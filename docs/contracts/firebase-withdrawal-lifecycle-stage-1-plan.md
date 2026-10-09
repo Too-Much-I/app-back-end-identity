@@ -1,5 +1,7 @@
 # 1단계 구현 계획: Firebase/SNS 탈퇴 재인증과 withdrawal lifecycle
 
+> 2026-10-09 확정: Apple 연결 회원은 프론트 Firebase SDK 철회를 완료한 뒤 기존 탈퇴 요청을 보낸다. 서버 code 필수·최근5분 Apple 재인증·중복 철회 변경은 되돌렸으며 아래 10월7일 세션 기반 정책을 유지한다. 서버는 SDK 철회 성공을 독립 검증하지 않는다. 상세: [Apple 탈퇴 연동](apple-withdrawal-token-revocation.md).
+
 ## 1. 목적
 
 Firebase/SNS MEMBER가 본인 소유의 유효한 Firebase credential로 회원 탈퇴를 요청할 수 있게 하고, 내부 탈퇴를 원자적으로 확정한 뒤 후속 Firebase 삭제와 identity release 작업이 안전하게 이어받을 durable withdrawal lifecycle을 만든다.

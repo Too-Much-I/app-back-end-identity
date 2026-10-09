@@ -26,6 +26,7 @@ import web.tosunsaeng.identity.domain.user.application.FirebaseAccountPresence;
 import web.tosunsaeng.identity.domain.user.application.FirebaseCleanupAccountSnapshot;
 import web.tosunsaeng.identity.domain.user.application.FirebaseCleanupProvider;
 import web.tosunsaeng.identity.domain.user.application.FirebaseWithdrawalCleanupException;
+import web.tosunsaeng.identity.domain.user.application.ProviderObligationResult;
 import web.tosunsaeng.identity.domain.user.domain.enums.WithdrawalCleanupFailureCode;
 
 class FirebaseSdkWithdrawalCleanupAdapterTests {
@@ -129,16 +130,15 @@ class FirebaseSdkWithdrawalCleanupAdapterTests {
 	}
 
 	@Test
-	void appleProviderRequiresExplicitObligationMaterial() {
+	void appleProviderUsesClientManagedRevocationWithoutAnotherFirebaseCall() {
 		FirebaseCleanupAccountSnapshot snapshot = new FirebaseCleanupAccountSnapshot(
 				false,
 				Set.of(FirebaseCleanupProvider.APPLE)
 		);
 
-		assertFailure(
-				() -> adapter.satisfyProviderDeletionObligations(snapshot),
-				WithdrawalCleanupFailureCode.PROVIDER_OBLIGATION_REQUIRED
-		);
+		assertThat(adapter.satisfyProviderDeletionObligations(snapshot))
+				.isEqualTo(ProviderObligationResult.CLIENT_MANAGED);
+		org.mockito.Mockito.verifyNoInteractions(firebaseAuth);
 	}
 
 	@Test

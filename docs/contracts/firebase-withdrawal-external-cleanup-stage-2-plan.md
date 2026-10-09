@@ -1,5 +1,7 @@
 # 2단계 구현 계획: Firebase 탈퇴 외부 cleanup worker
 
+> 2026-10-09 확정: Apple 철회는 프론트 Firebase SDK에서 완료한 뒤 탈퇴를 요청하는 계약이다. 서버는 별도 증거 필드/중복 철회 없이 Apple obligation을 CLIENT_MANAGED로 처리해 기존 삭제를 계속한다. 기존 보류 건을 자동 해제하지 않는다. 상세: [Apple 탈퇴 연동](apple-withdrawal-token-revocation.md).
+
 ## 1. 목적
 
 Jira `TMI-104`의 목표는 Stage 1에서 생성한 `UserWithdrawalLifecycle`을 비동기로 처리해 Firebase 외부 User를 안전하게 disable·refresh revoke·delete하고, 내부 identity release를 담당하는 Stage 3으로 인계하는 것이다.
@@ -291,15 +293,9 @@ Firebase User 삭제는 Google·Kakao·Apple 원본 Provider 계정을 삭제하
 
 ### Apple
 
-Apple authorization revoke는 일회성 authorization code 등 별도 material이 필요할 수 있다. 현재 Stage 1 lifecycle에는 이를 저장하지 않으며 credential을 lifecycle·로그·일반 Mongo document에 추가하지 않는다.
+2026-10-09 사용자 결정으로 프론트 Firebase SDK 철회를 계약 전제로 확정했다. Apple 연결 앱은 철회 성공 후 기존 탈퇴 API를 호출한다. 서버는 receipt/code/boolean을 받거나 철회 완료를 독립 검증하지 않고 `CLIENT_MANAGED`로 처리하여 Firebase delete와 absence 확인을 계속한다. credential은 lifecycle·로그·Mongo document에 저장하지 않는다.
 
-따라서 구현 전에 다음 중 하나를 PoC와 정책 리뷰로 확정한다.
-
-1. 모바일이 Firebase의 공식 Apple token revoke 흐름을 완료하고 서버가 확인 가능한 receipt만 전달
-2. 탈퇴 요청 시 받은 일회성 material을 전용 보안 경계에서 즉시 교환하고 lifecycle에는 결과만 저장
-3. 승인된 별도 short-lived secret store를 사용하고 일반 Mongo lifecycle에는 reference와 안전한 상태만 저장
-
-지원 경로가 확정되지 않은 상태에서 Apple 계정을 Firebase delete까지 자동 진행하지 않는다. 해당 lifecycle은 `PROVIDER_OBLIGATION_REQUIRED`로 reconciliation에 보내고 Apple production withdrawal flag를 열지 않는다.
+기존 미지원 설계에서 생성된 `PROVIDER_OBLIGATION_REQUIRED` reconciliation은 자동 재개하지 않는다. Android unsupported 및 최종 CLEANED 실기기 검증은 [최신 계약](apple-withdrawal-token-revocation.md)의 남은 gate를 따른다.
 
 ## 13. 오류와 retry 정책
 

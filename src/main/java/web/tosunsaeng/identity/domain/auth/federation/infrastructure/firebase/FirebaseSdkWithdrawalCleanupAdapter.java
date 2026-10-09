@@ -107,7 +107,9 @@ public final class FirebaseSdkWithdrawalCleanupAdapter
 				"snapshot must not be null"
 		);
 		if (required.providers().contains(FirebaseCleanupProvider.APPLE)) {
-			throw failed(WithdrawalCleanupFailureCode.PROVIDER_OBLIGATION_REQUIRED);
+			// The app must complete Firebase Apple token revocation before requesting withdrawal.
+			// This is a client contract premise, not proof derived from the Firebase ID token.
+			return ProviderObligationResult.CLIENT_MANAGED;
 		}
 		return ProviderObligationResult.NOT_REQUIRED;
 	}
