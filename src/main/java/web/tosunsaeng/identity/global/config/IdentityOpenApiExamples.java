@@ -166,15 +166,14 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 		error(api, AUTH + "signup", AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		error(api, AUTH + "guest", AuthErrorStatus.GUEST_ALREADY_EXISTS);
 		reissueRejection(api, AuthErrorStatus.INVALID_REFRESH_TOKEN, "유효하지 않은 토큰",
-				"세션을 찾을 수 없거나 유효하지 않은 토큰입니다. 로컬 인증 정보를 정리하고 로그인으로 안내합니다.");
+				"세션을 찾을 수 없거나 유효하지 않은 토큰입니다. 임시 호환으로 GUEST·MEMBER의 SESSION_LOGGED_OUT도 포함합니다. "
+						+ "기존 Guest는 installationId를 유지하여 Guest 복구를 진행하고, MEMBER는 재로그인합니다. 같은 Refresh로 재발급을 반복하지 않습니다.");
 		reissueRejection(api, AuthErrorStatus.REFRESH_TOKEN_EXPIRED, "토큰 만료",
 				"Refresh Token 유효기간이 지났습니다. 재발급을 반복하지 않고 로그인으로 안내합니다.");
 		reissueRejection(api, AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED, "이미 사용한 토큰 재사용",
 				"이미 회전된 토큰의 허용되지 않은 재사용입니다. 재발급을 중단하고 로컬 인증 정보를 정리한 뒤 로그인으로 안내합니다.");
 		reissueRejection(api, AuthErrorStatus.ACCOUNT_WITHDRAWN, "탈퇴한 계정",
 				"다른 기기에서 탈퇴한 경우도 포함합니다. 탈퇴 안내 후 로컬 인증 정보를 삭제하고 비로그인 화면으로 이동합니다.");
-		reissueRejection(api, AuthErrorStatus.SESSION_LOGGED_OUT, "로그아웃된 세션",
-				"전체 로그아웃 등으로 세션이 무효화되었습니다. 재발급을 중단하고 로그인으로 안내합니다.");
 		error(api, AUTH + "reissue", AuthErrorStatus.REISSUE_RECOVERY_EXPIRED);
 		error(api, AUTH + "reissue", AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE);
 		error(api, FIREBASE + "guest/prepare", AuthErrorStatus.IDENTITY_STATE_CONFLICT);

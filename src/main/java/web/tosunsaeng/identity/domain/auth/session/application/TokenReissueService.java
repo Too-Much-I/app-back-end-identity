@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -46,12 +47,34 @@ public class TokenReissueService {
 	public void setRecovery(ReissueRecoveryService recovery) { this.recovery = recovery; }
 
 	public ReissueResult reissue(ReissueRequest request, List<String> requestIds) {
-		if (recovery != null) return recovery.reissue(request, requestIds);
-		return new ReissueResult(reissue(request), null, null, null);
+		return withSessionErrorCompatibility(() -> {
+			if (recovery != null) return recovery.reissue(request, requestIds);
+			return new ReissueResult(reissueLegacy(request), null, null, null);
+		});
 	}
 
 	public ReissueResponse reissue(ReissueRequest request) {
-		if (recovery != null) return recovery.reissue(request, List.of()).response();
+		return withSessionErrorCompatibility(() -> recovery != null
+				? recovery.reissue(request, List.of()).response() : reissueLegacy(request));
+	}
+
+	// Temporary response-only compatibility until the client hotfix is released.
+	// Applies to both Guest and Member; never relaxes revocation checks.
+	private <T> T withSessionErrorCompatibility(Supplier<T> action) {
+		try {
+			return action.get();
+		} catch (AuthException exception) {
+			if (exception.getErrorCode() != AuthErrorStatus.SESSION_LOGGED_OUT) throw exception;
+			log.atInfo().addKeyValue("event", "auth.refresh.session_error_compatibility")
+					.addKeyValue("originalErrorCode", "SESSION_LOGGED_OUT")
+					.addKeyValue("errorCode", "INVALID_REFRESH_TOKEN")
+					.addKeyValue("reason", exception.sessionRejectionReason().name())
+					.log("재발급 거절에 임시 호환 오류 코드를 적용했습니다");
+			throw invalidRefreshToken();
+		}
+	}
+
+	private ReissueResponse reissueLegacy(ReissueRequest request) {
 		if (refreshSessionIssuer.isFenceEnabled()) {
 			// Reuse revocations must commit even though the public result is an error.
 			Object result = refreshSessionIssuer.security().transaction(() -> {

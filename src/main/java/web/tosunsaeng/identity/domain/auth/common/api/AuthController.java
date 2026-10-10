@@ -266,7 +266,10 @@ public class AuthController {
 			summary = "인증 토큰 재발급",
 			description = "Refresh Token을 Rotation합니다. 응답 복구 활성화 시 단일 Idempotency-Key(UUID v4 소문자)가 필수이며 "
 					+ "같은 요청은 최대 2분간 최초 결과를 반환합니다. 재시도마다 ID를 변경하지 마세요. "
-					+ "만료는 Reissue-Access-Expires-At·Reissue-Refresh-Expires-At UTC 응답 헤더를 사용합니다."
+					+ "만료는 Reissue-Access-Expires-At·Reissue-Refresh-Expires-At UTC 응답 헤더를 사용합니다. "
+					+ "클라이언트 핫픽스 전 임시 호환: GUEST·MEMBER 구분 없이 SESSION_LOGGED_OUT은 "
+					+ "401 INVALID_REFRESH_TOKEN으로 응답합니다. 세션 차단은 유지하며 다른 오류 코드는 변경하지 않습니다. "
+					+ "기존 Guest는 installationId를 유지해 Guest 복구를 진행하고 MEMBER는 재로그인하세요."
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "인증 토큰 재발급 성공"),
