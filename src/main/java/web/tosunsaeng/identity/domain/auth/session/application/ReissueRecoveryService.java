@@ -29,6 +29,7 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 /** HTTP response loss and Mongo commit uncertainty are distinct: uncertain commits never mint again. */
 public final class ReissueRecoveryService {
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReissueRecoveryService.class);
 	private final RefreshSessionRepository sessions;
 	private final RefreshReissueResponseRepository responses;
 	private final UserRepository users;
@@ -77,6 +78,28 @@ public final class ReissueRecoveryService {
 	}
 	private Outcome rotateOrReplay(String sourceHash, String requestHash, boolean replayOnly) {
 		RefreshSession source = sessions.findByTokenHash(sourceHash).orElseThrow(() -> error(AuthErrorStatus.INVALID_REFRESH_TOKEN));
+		try {
+			return rotateOrReplaySession(source, requestHash, replayOnly);
+		} catch (AuthException exception) {
+			if (exception.getErrorCode() == AuthErrorStatus.SESSION_LOGGED_OUT) {
+				// Diagnostics must not replace the original rejection if the lookup fails.
+				String accountType = "UNKNOWN";
+				try {
+					accountType = users.findById(source.getUserId())
+							.map(u -> u.getAccountType() == null ? "UNKNOWN" : u.getAccountType().name()).orElse("UNKNOWN");
+				} catch (RuntimeException ignored) { /* Preserve the authentication result. */ }
+				log.atInfo().addKeyValue("event", "auth.refresh.session_rejected")
+						.addKeyValue("errorCode", "SESSION_LOGGED_OUT")
+						.addKeyValue("reason", exception.sessionRejectionReason().name())
+						.addKeyValue("accountType", accountType)
+						.addKeyValue("revocationReason", source.getRevocationReason() == null ? "NONE" : source.getRevocationReason().name())
+						.addKeyValue("authenticationSource", source.getAuthentication() == null ? "LEGACY" : source.getAuthentication().source().name())
+						.log("Refresh 세션 재발급을 거절했습니다");
+			}
+			throw exception;
+		}
+	}
+	private Outcome rotateOrReplaySession(RefreshSession source, String requestHash, boolean replayOnly) {
 		if (source.getRevocationReason() == RevocationReason.ACCOUNT_WITHDRAWN) throw error(AuthErrorStatus.ACCOUNT_WITHDRAWN);
 		security.checkAndTouch(source, false);
 		Instant now = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
@@ -85,7 +108,7 @@ public final class ReissueRecoveryService {
 		var type = user.getAccountType();
 		if (type == null) throw SessionSecurityService.unavailable();
 		if (source.getRevocationReason() == RevocationReason.ROTATED) {
-			if (source.getRecoveryDisabledAt() != null) throw error(AuthErrorStatus.SESSION_LOGGED_OUT);
+			if (source.getRecoveryDisabledAt() != null) throw AuthException.loggedOut(SessionRejectionReason.RECOVERY_CANCELLED);
 			if (requestHash.equals(source.getRotationRequestKeyHash())) {
 				if (source.getRecoveryUntil() == null) throw SessionSecurityService.unavailable();
 				if (!now.isBefore(source.getRecoveryUntil())) return rejected(AuthErrorStatus.REISSUE_RECOVERY_EXPIRED, "recovery_expired");
@@ -98,7 +121,7 @@ public final class ReissueRecoveryService {
 			if (!active.isEmpty()) sessions.saveAll(active);
 			return rejected(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED, "suspected_reuse");
 		}
-		if (source.isRevoked()) throw error(AuthErrorStatus.SESSION_LOGGED_OUT);
+		if (source.isRevoked()) throw AuthException.loggedOut(SessionRejectionReason.SOURCE_REVOKED);
 		if (replayOnly) throw SessionSecurityService.unavailable();
 		if (sessions.existsByUserIdAndRotationRequestKeyHash(source.getUserId(), requestHash)) {
 			return rejected(AuthErrorStatus.REISSUE_REQUEST_CONFLICT, "id_conflict");
@@ -126,7 +149,8 @@ public final class ReissueRecoveryService {
 		RefreshSession child = sessions.findById(source.getReplacedBySessionId()).orElseThrow(SessionSecurityService::unavailable);
 		validateChild(source, child);
 		if (child.getRevocationReason() == RevocationReason.ROTATED) return rejected(AuthErrorStatus.REISSUE_RESULT_SUPERSEDED, "superseded");
-		if (child.isRevoked() || child.isExpiredAt(now)) throw error(AuthErrorStatus.SESSION_LOGGED_OUT);
+		if (child.isRevoked()) throw AuthException.loggedOut(SessionRejectionReason.CHILD_REVOKED);
+		if (child.isExpiredAt(now)) throw AuthException.loggedOut(SessionRejectionReason.CHILD_EXPIRED);
 		security.checkAndTouch(child, false);
 		child.touchForRecovery(now);
 		sessions.save(child); // CAS write, not just a snapshot read; conflicts with logout/rotation

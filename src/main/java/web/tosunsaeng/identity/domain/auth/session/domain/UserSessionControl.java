@@ -3,6 +3,7 @@ package web.tosunsaeng.identity.domain.auth.session.domain;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import static web.tosunsaeng.identity.domain.auth.common.exception.SessionRejectionReason.*;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
@@ -64,10 +65,10 @@ public class UserSessionControl {
 	public void validate(long epoch, SessionAuthentication authentication, boolean newAuthentication) {
 		if (epoch != sessionEpoch) throw loggedOut();
 		if (authentication == null) {
-			if (minimumFirebaseAuthTimeExclusive != null) throw loggedOut();
+			if (minimumFirebaseAuthTimeExclusive != null) throw AuthException.loggedOut(LEGACY_AUTH_BOUNDARY);
 			return;
 		}
-		if (authentication.epoch() != epoch) throw loggedOut();
+		if (authentication.epoch() != epoch) throw AuthException.loggedOut(AUTH_EPOCH_MISMATCH);
 		if (authentication.source() != SessionAuthentication.Source.FIREBASE) return;
 		if (firebaseBindingId != null && !firebaseBindingId.equals(authentication.firebaseBindingId())) {
 			throw new AuthException(AuthErrorStatus.FIREBASE_IDENTITY_CONFLICT);
@@ -75,8 +76,8 @@ public class UserSessionControl {
 		Instant boundary = newAuthentication ? minimumFirebaseAuthTimeExclusive
 				: confirmedFirebaseRevocationBoundary;
 		if (boundary != null && !authentication.firebaseAuthTime().isAfter(boundary)) {
-			throw new AuthException(newAuthentication ? AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED
-					: AuthErrorStatus.SESSION_LOGGED_OUT);
+			if (newAuthentication) throw new AuthException(AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED);
+			throw AuthException.loggedOut(FIREBASE_REVOCATION_BOUNDARY);
 		}
 	}
 
@@ -88,7 +89,7 @@ public class UserSessionControl {
 		firebaseBindingId = bindingId;
 	}
 	private static Instant max(Instant a, Instant b) { return a == null || b.isAfter(a) ? b : a; }
-	private static AuthException loggedOut() { return new AuthException(AuthErrorStatus.SESSION_LOGGED_OUT); }
+	private static AuthException loggedOut() { return AuthException.loggedOut(EPOCH_MISMATCH); }
 	public String getUserId() { return userId; }
 	public long getSessionEpoch() { return sessionEpoch; }
 	public Long getVersion() { return version; }

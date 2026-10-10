@@ -326,5 +326,43 @@ class ReissueRecoveryServiceTests {
 		error(AuthErrorStatus.INVALID_REISSUE_REQUEST_ID, () -> entry.reissue(new ReissueRequest(RAW)));
 		assertThat(entry.reissue(new ReissueRequest(RAW), List.of(ID)).response()).isNotNull();
 	}
+	@ParameterizedTest
+	@CsvSource({"logout,SOURCE_REVOKED", "reuse,SOURCE_REVOKED", "epoch,EPOCH_MISMATCH",
+			"cancel,RECOVERY_CANCELLED", "child,CHILD_REVOKED"})
+	void rejectionLogClassifiesWithoutCredentials(String scenario, String reason) {
+		var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(ReissueRecoveryService.class);
+		var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+		appender.start(); logger.addAppender(appender);
+		org.slf4j.MDC.put("requestId", "test-request-correlation");
+		try {
+			switch (scenario) {
+				case "logout" -> service.logout(RAW);
+				case "reuse" -> { var s = db.get(sourceId); s.revokeForReuse(NOW); }
+				case "epoch" -> control.logout(null, NOW);
+				case "cancel" -> { issue(); service.logout(RAW); }
+				case "child" -> { var first = issue(); service.logout(first.response().refreshToken()); }
+				default -> throw new AssertionError();
+			}
+			error(AuthErrorStatus.SESSION_LOGGED_OUT, this::issue);
+			assertThat(appender.list).hasSize(1);
+			var event = appender.list.getFirst();
+			Map<String, Object> fields = new HashMap<>();
+			event.getKeyValuePairs().forEach(kv -> fields.put(kv.key, kv.value));
+			assertThat(fields).containsEntry("reason", reason).containsEntry("accountType", "GUEST")
+					.containsEntry("event", "auth.refresh.session_rejected");
+			assertThat(event.getMDCPropertyMap()).containsEntry("requestId", "test-request-correlation");
+			assertThat(fields.toString() + event.getFormattedMessage()).doesNotContain(RAW, USER, sourceId, hasher.hash(RAW));
+			assertThat(fields).doesNotContainKeys("userId", "sessionId", "tokenHash", "refreshToken");
+		} finally {
+			logger.detachAppender(appender); appender.stop(); org.slf4j.MDC.remove("requestId");
+		}
+	}
+
+	@Test void diagnosticLookupFailurePreservesOriginalRejection() {
+		control.logout(null, NOW);
+		when(users.findById(USER)).thenThrow(new DataAccessResourceFailureException("test-only failure"));
+		error(AuthErrorStatus.SESSION_LOGGED_OUT, this::issue);
+		verifyNoInteractions(accessIssuer);
+	}
 	static MongoException unknown() { var e = new MongoException("test unknown commit"); e.addLabel("UnknownTransactionCommitResult"); return e; }
 }
