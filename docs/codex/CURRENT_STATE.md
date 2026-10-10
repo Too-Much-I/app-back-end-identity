@@ -1,5 +1,11 @@
 # Codex Current State
 
+## 2026-10-10 — Guest 복구 develop 이식 / prod 배포 준비
+
+- 기존 main 한시적 복구를 SNS 계정 유형·병합·현재 session epoch에 맞게 이식. 전체 clean test 통과, 기본 OFF. 사용자 이번 commit/push/배포 및 prod 복구 ON 승인.
+- prod 버전 네 값2.0.0 적용·GET200 확인. 게스트 병합과 LC owner-event 전달/진행 상태도 활성화 예정; Billing 제외. 신규 코드 배포 완료 여부는 후속 기록 확인.
+- 기존 기록/infra/다른 작업 변경은 커밋에서 제외. /reissue 폐기 검증 유지, 앱 fallback 및 실기기 E2E 미확인.
+
 ## 2026-10-08 — Firebase 원격 오류 코드 안전 진단 보완 완료 (미배포)
 
 - 사용자 승인에 따라 FirebaseCleanupHttpDiagnostic 추가, 기존 firebase_operation_failed에 firebaseHttpStatus 및 firebaseRemoteErrorCode 추가. 27개 사전 정의 코드만 반환하며 콜론 뒤 상세는 폐기. 원문 응답/메시지/headers/request/UID/토큰 미기록.

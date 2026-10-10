@@ -85,6 +85,9 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
 	@Test
 	void appVersionGetIsPublicButOtherMethodsAndRoutesRemainProtected() throws Exception {
 		for (String platform : List.of("android", "ios")) {

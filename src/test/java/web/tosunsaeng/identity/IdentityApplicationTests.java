@@ -50,6 +50,9 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutbox
 })
 class IdentityApplicationTests {
 	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
 	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	@Autowired
@@ -173,9 +176,9 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.summary")
 						.value("Guest 사용자 생성 및 인증"))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
-						.value(org.hamcrest.Matchers.containsString("인증 수단이 아니므로")))
+						.value(org.hamcrest.Matchers.containsString("한시적 Guest 복구 설정")))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
-						.value(org.hamcrest.Matchers.containsString("복구할 수 없습니다")))
+						.value(org.hamcrest.Matchers.containsString("멤버·정지·탈퇴·병합 계정은 복구하지 않습니다")))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']").exists())

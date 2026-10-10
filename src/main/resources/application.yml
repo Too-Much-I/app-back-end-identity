@@ -46,6 +46,8 @@ app:
     ios-minimum-version: ${APP_IOS_MINIMUM_VERSION:}
     android-latest-version: ${APP_ANDROID_LATEST_VERSION:}
     ios-latest-version: ${APP_IOS_LATEST_VERSION:}
+  guest-recovery:
+    enabled: ${GUEST_RECOVERY_ENABLED:false}
   account-recovery:
     enabled: ${ACCOUNT_RECOVERY_ENABLED:false}
     key-ring: ${ACCOUNT_RECOVERY_KEY_RING:}

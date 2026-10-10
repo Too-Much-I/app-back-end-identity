@@ -134,6 +134,9 @@ class UserWithdrawalLifecycleTests {
 				accessTokenIssuer,
 				refreshSessionIssuer,
 				guestTransactionService,
+				new web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService(
+						mock(org.springframework.data.mongodb.core.MongoTemplate.class), accessTokenIssuer,
+						refreshSessionIssuer, responseConverter, false),
 				clock
 		);
 

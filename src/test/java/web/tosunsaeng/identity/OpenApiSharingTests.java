@@ -39,6 +39,9 @@ import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 @ActiveProfiles("test")
 @Import(TestRsaKeyConfiguration.class)
 class OpenApiSharingTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
 
 	@Autowired private MockMvc mockMvc;
 	@Autowired private ObjectMapper objectMapper;

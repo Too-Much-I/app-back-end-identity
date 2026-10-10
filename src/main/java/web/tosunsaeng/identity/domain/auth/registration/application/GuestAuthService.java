@@ -14,8 +14,6 @@ import org.springframework.stereotype.Service;
 
 import web.tosunsaeng.identity.domain.auth.registration.dto.request.GuestAuthRequest;
 import web.tosunsaeng.identity.domain.auth.registration.dto.response.GuestAuthResponse;
-import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
-import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.auth.session.application.PreparedRefreshSession;
 import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
@@ -39,6 +37,7 @@ public class GuestAuthService {
 	private final AccessTokenIssuer accessTokenIssuer;
 	private final RefreshSessionIssuer refreshSessionIssuer;
 	private final GuestRegistrationTransactionService registrationTransactionService;
+	private final GuestRecoveryTransactionService recoveryTransactionService;
 	private final Clock clock;
 
 	public GuestAuthResponse authenticate(GuestAuthRequest request) {
@@ -59,7 +58,7 @@ public class GuestAuthService {
 				requiredRequest.installationId()
 		);
 		if (userRepository.existsByGuestInstallationIdHash(installationIdHash)) {
-			throw new AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS);
+			return recover(installationIdHash);
 		}
 
 		User guestUser = userFactory.createGuest(
@@ -97,9 +96,17 @@ public class GuestAuthService {
 		} catch (DuplicateKeyException exception) {
 			// Transaction rollback 뒤 현재 hash가 존재할 때만 설치 중복으로 분류한다.
 			if (userRepository.existsByGuestInstallationIdHash(installationIdHash)) {
-				throw new AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS);
+				return recover(installationIdHash);
 			}
 			throw exception;
 		}
+	}
+
+	private GuestAuthResponse recover(String installationIdHash) {
+		GuestAuthResponse response = recoveryTransactionService.recover(installationIdHash);
+		log.atInfo().addKeyValue("event", "identity.guest.recovered")
+				.addKeyValue("outcome", "recovered")
+				.log("게스트 세션 복구가 완료되었습니다");
+		return response;
 	}
 }

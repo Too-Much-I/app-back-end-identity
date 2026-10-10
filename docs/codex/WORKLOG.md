@@ -16381,3 +16381,14 @@
 - 위험/배포 전 확인: 원격 code가 허용 목록 밖이면 UNRECOGNIZED로 남아 후속 검토 필요. 사용자 commit/push 시 신규 parser 및 테스트 파일 포함 확인. 배포 후 실제 실패 로그와 lifecycle 재시도 가능 상태 확인, 한도 소진 시 임의 초기화 금지.
 - 실제 diff 범위: 기존 두 기록 문서 수정 보존. 이번 제품 변경은 adapter/parser와 해당 테스트에 한정, 예상 밖 변경 없음. commit/push/배포/DB/Firebase 설정 변경/Swagger 공유본 생성 없음.
 - 다음 작업: 사용자 배포 후 HTTP status/remote code를 조회해 실제 원인 판정. Jira 댓글 초안(미등록): Firebase 원격 오류 코드 허용 목록 진단 추가, 1,309개 테스트 실패0, 실제 배포 후 원인 확인 필요. 현재 작업 관련 Jira 키 없음, Jira 변경 없음.
+
+## 2026-10-10 — 기존 Guest 복구 develop 이식 및 prod 활성화 준비
+
+<!-- codex-turn:01a125e4-8ac0-76d2-92c0-46370f44f547 -->
+
+- 날짜/브랜치: 2026-10-10 KST, develop. 목표: main 전용 Guest 복구 누락 수정과 prod 버전2.0.0·병합 활성화. 사용자가 이번 변경에 한해 commit/push/배포 및 설치 ID 인증 위험을 확인하고 복구 ON을 승인했다. 신규 Jira 없음.
+- 변경: GuestAuthService/GuestRecoveryTransactionService, application.yml, AuthController 명세, 관련 서비스·웹 컨텍스트 테스트, guest-session-recovery-transition 계약, 작업 기록. 기존 사용자 변경은 커밋에서 제외한다.
+- 구현: ACTIVE/provider GUEST/미병합 및 accountType GUEST 또는 legacy null만 조건부 쓰기. 현재 epoch의 GUEST 인증으로 새 Refresh 발급, 동일 userId/동의 유지. 원자적 Mongo 트랜잭션과 기본 OFF, /reissue 폐기 정책 유지.
+- 검증: 전체 clean test 성공(1328 tests, skipped6, 실패0; 기존 로컬 테스트 포함), topology Node4개 통과. 최초 mock 미등록 컨텍스트74실패 및 신규 테스트 UUID fixture2실패를 수정 후 재검증. Gradle 캐시 승인 실행. 실제 DB/Firebase 호출 테스트 없음.
+- 운영: prod6에서 Android/iOS minimum/latest2.0.0 GET200 확인, 버전 네 값만 변경. LC consumer/writer/source-deny ON 및 workload issuer/JWKS/전달 endpoint 확인. 새 코드 prod 배포 때 Guest 복구·병합/LC owner-event capture/publisher/progress를 ON, LEARNING_CORE_ONLY 유지 예정. Billing/legacy publisher OFF 유지.
+- 위험/다음: CI 및 prod 최종 안정화/flag/API 확인 후 완료 기록. 설치 ID 신뢰 한시적 위험, 앱 fallback 호출과 실기기 E2E 미확인. 12건 SESSION_LOGGED_OUT의 사용자 유형·정확 폐기 사유는 미확정. Secret/토큰/사용자 원문 미기록. 예상 밖 제품 변경 없음.

@@ -88,6 +88,9 @@ import web.tosunsaeng.identity.support.LogCapture;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SentryCaptureIntegrationTests {
 	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
 	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	private static final String SENSITIVE_SENTINEL =

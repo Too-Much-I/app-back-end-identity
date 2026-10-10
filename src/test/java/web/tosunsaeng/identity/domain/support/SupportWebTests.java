@@ -26,6 +26,9 @@ import web.tosunsaeng.identity.domain.user.domain.enums.*;
 @ActiveProfiles("test")
 @Import(TestRsaKeyConfiguration.class)
 class SupportWebTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
     static final String PATH = "/api/v1/support/inquiries";
     static final String KEY = "00000000-0000-4000-8000-000000000001";
     static final String USER = "00000000-0000-4000-8000-000000000002";
