@@ -22,6 +22,7 @@ import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
@@ -47,24 +48,34 @@ public class TokenReissueService {
 	public void setRecovery(ReissueRecoveryService recovery) { this.recovery = recovery; }
 
 	public ReissueResult reissue(ReissueRequest request, List<String> requestIds) {
-		return withSessionErrorCompatibility(() -> {
+		return withSessionErrorCompatibility(request, () -> {
 			if (recovery != null) return recovery.reissue(request, requestIds);
 			return new ReissueResult(reissueLegacy(request), null, null, null);
 		});
 	}
 
 	public ReissueResponse reissue(ReissueRequest request) {
-		return withSessionErrorCompatibility(() -> recovery != null
+		return withSessionErrorCompatibility(request, () -> recovery != null
 				? recovery.reissue(request, List.of()).response() : reissueLegacy(request));
 	}
 
-	// Temporary response-only compatibility until the client hotfix is released.
-	// Applies to both Guest and Member; never relaxes revocation checks.
-	private <T> T withSessionErrorCompatibility(Supplier<T> action) {
+	// Client 2.0.1 handles Member logout errors; retain response compatibility for active Guests only.
+	// Resolve current account type on the server, never from stale token claims. Revocation checks remain intact.
+	private <T> T withSessionErrorCompatibility(ReissueRequest request, Supplier<T> action) {
 		try {
 			return action.get();
 		} catch (AuthException exception) {
 			if (exception.getErrorCode() != AuthErrorStatus.SESSION_LOGGED_OUT) throw exception;
+			boolean activeGuest;
+			try {
+				activeGuest = refreshSessionRepository.findByTokenHash(refreshTokenHasher.hash(request.refreshToken()))
+						.flatMap(session -> userRepository.findById(session.getUserId()))
+						.map(user -> user.getStatus() == UserStatus.ACTIVE
+								&& user.getAccountType() == UserAccountType.GUEST).orElse(false);
+			} catch (RuntimeException lookupFailure) {
+				throw exception; // Preserve original rejection when account type cannot be verified.
+			}
+			if (!activeGuest) throw exception;
 			log.atInfo().addKeyValue("event", "auth.refresh.session_error_compatibility")
 					.addKeyValue("originalErrorCode", "SESSION_LOGGED_OUT")
 					.addKeyValue("errorCode", "INVALID_REFRESH_TOKEN")

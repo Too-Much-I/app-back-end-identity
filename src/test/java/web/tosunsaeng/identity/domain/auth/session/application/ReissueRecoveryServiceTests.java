@@ -321,13 +321,15 @@ class ReissueRecoveryServiceTests {
 		error(AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE, () -> legacy.reissue(new ReissueRequest(RAW))); assertThat(child().isRevoked()).isFalse();
 	}
 	@ParameterizedTest @EnumSource(UserAccountType.class)
-	void publicEntryMapsLoggedOutForEveryAccountTypeWithoutRevivingSession(UserAccountType type) {
+	void publicEntryMapsOnlyGuestLoggedOutWithoutRevivingSession(UserAccountType type) {
 		when(user.getAccountType()).thenReturn(type);
+		when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
 		var first = issue();
 		service.logout(first.response().refreshToken());
 		var entry = new TokenReissueService(hasher, sessions, users, accessIssuer, refreshIssuer, new AuthResponseConverter(), clock);
 		entry.setRecovery(service);
-		error(AuthErrorStatus.INVALID_REFRESH_TOKEN, () -> entry.reissue(new ReissueRequest(RAW), List.of(ID)));
+		error(type == UserAccountType.GUEST ? AuthErrorStatus.INVALID_REFRESH_TOKEN : AuthErrorStatus.SESSION_LOGGED_OUT,
+				() -> entry.reissue(new ReissueRequest(RAW), List.of(ID)));
 		assertThat(child().isRevoked()).isTrue();
 		verify(generator, times(1)).generate();
 		verify(cipher, never()).decrypt(any(), any());

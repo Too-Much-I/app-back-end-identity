@@ -122,7 +122,7 @@ class OpenApiSharingTests {
 		JsonNode spec = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
 		JsonNode operation = spec.path("paths").path("/api/v1/auth/reissue").path("post");
-		assertThat(operation.path("description").asText()).contains("임시 호환", "GUEST·MEMBER 구분 없이", "401 INVALID_REFRESH_TOKEN");
+		assertThat(operation.path("description").asText()).contains("ACTIVE GUEST", "401 INVALID_REFRESH_TOKEN", "MEMBER는 401 SESSION_LOGGED_OUT");
 		JsonNode media = operation.at("/responses/401/content/application~1json");
 		assertThat(media.path("schema").path("$ref").asText()).isEqualTo("#/components/schemas/ApiErrorResponse");
 		assertThat(media.hasNonNull("example")).isFalse();
@@ -130,7 +130,8 @@ class OpenApiSharingTests {
 				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.INVALID_REFRESH_TOKEN,
 				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.REFRESH_TOKEN_EXPIRED,
 				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED,
-				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.ACCOUNT_WITHDRAWN);
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.ACCOUNT_WITHDRAWN,
+				web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.SESSION_LOGGED_OUT);
 		assertThat(fieldNames(media.path("examples"))).containsExactlyInAnyOrderElementsOf(codes.stream().map(c -> c.getCode()).toList());
 		for (var code : codes) {
 			JsonNode example = media.path("examples").path(code.getCode());

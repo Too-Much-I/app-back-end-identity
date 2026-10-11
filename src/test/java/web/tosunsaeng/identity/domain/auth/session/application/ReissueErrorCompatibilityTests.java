@@ -80,12 +80,51 @@ class ReissueErrorCompatibilityTests {
 				e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN));
 	}
 
-	@Test void mappingDoesNotRequireAdditionalDatabaseLookups() {
+	@Test void mappingResolvesCurrentServerAccountType() {
 		when(recovery.reissue(request, ids)).thenThrow(AuthException.loggedOut(SessionRejectionReason.SOURCE_REVOKED));
 		clearInvocations(sessions, users);
 		assertThatThrownBy(() -> service.reissue(request, ids)).isInstanceOfSatisfying(AuthException.class,
 				e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN));
-		verifyNoInteractions(sessions, users);
+		verify(sessions).findByTokenHash(hasher.hash(request.refreshToken()));
+		verify(users).findById(session.getUserId());
+	}
+	@ParameterizedTest @ValueSource(booleans = {true, false})
+	void memberKeepsOriginalErrorForBothEntryPoints(boolean headers) {
+		when(user.getAccountType()).thenReturn(UserAccountType.MEMBER);
+		var original = AuthException.loggedOut(SessionRejectionReason.SOURCE_REVOKED);
+		when(recovery.reissue(request, headers ? ids : List.of())).thenThrow(original);
+		assertThatThrownBy(() -> { if (headers) service.reissue(request, ids); else service.reissue(request); })
+				.isSameAs(original);
+	}
+	@ParameterizedTest @EnumSource(value = UserStatus.class, names = "ACTIVE", mode = EnumSource.Mode.EXCLUDE)
+	void inactiveGuestKeepsOriginalError(UserStatus status) {
+		when(user.getStatus()).thenReturn(status);
+		assertOriginalRejection();
+	}
+	@Test void missingSessionKeepsOriginalError() {
+		when(sessions.findByTokenHash(hasher.hash(request.refreshToken()))).thenReturn(Optional.empty());
+		assertOriginalRejection();
+	}
+	@Test void missingUserKeepsOriginalError() {
+		when(users.findById(session.getUserId())).thenReturn(Optional.empty());
+		assertOriginalRejection();
+	}
+	@Test void unknownAccountTypeKeepsOriginalError() {
+		when(user.getAccountType()).thenReturn(null);
+		assertOriginalRejection();
+	}
+	@Test void sessionLookupFailureKeepsOriginalError() {
+		when(sessions.findByTokenHash(hasher.hash(request.refreshToken()))).thenThrow(new IllegalStateException("test-only"));
+		assertOriginalRejection();
+	}
+	@Test void userLookupFailureKeepsOriginalError() {
+		when(users.findById(session.getUserId())).thenThrow(new IllegalStateException("test-only"));
+		assertOriginalRejection();
+	}
+	private void assertOriginalRejection() {
+		var original = AuthException.loggedOut(SessionRejectionReason.SOURCE_REVOKED);
+		when(recovery.reissue(request, ids)).thenThrow(original);
+		assertThatThrownBy(() -> service.reissue(request, ids)).isSameAs(original);
 	}
 	@ParameterizedTest @EnumSource(value = AuthErrorStatus.class, names = {
 			"REFRESH_TOKEN_REUSE_DETECTED", "REFRESH_TOKEN_EXPIRED", "ACCOUNT_WITHDRAWN",
@@ -113,19 +152,22 @@ class ReissueErrorCompatibilityTests {
 		mvc.perform(post("/api/v1/auth/reissue").header("Idempotency-Key", ids.get(0))
 				.contentType("application/json").content("{\"refreshToken\":\"test-only-refresh\"}"))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"))
+				.andExpect(jsonPath("$.code").value(guest ? "INVALID_REFRESH_TOKEN" : "SESSION_LOGGED_OUT"))
 				.andExpect(header().string("Cache-Control", "no-store"))
 				.andExpect(header().doesNotExist("Reissue-Access-Expires-At"));
 		verifyNoInteractions(access, issuer);
 	}
-	@Test void legacyFenceRejectionAlsoMapsWithoutIssuing() {
+	@ParameterizedTest @EnumSource(UserAccountType.class)
+	void legacyFenceRejectionRespectsAccountTypeWithoutIssuing(UserAccountType type) {
+		when(user.getAccountType()).thenReturn(type);
 		service.setRecovery(null);
 		var security = mock(SessionSecurityService.class);
 		when(issuer.isFenceEnabled()).thenReturn(true);
 		when(issuer.security()).thenReturn(security);
 		when(security.transaction(any())).thenThrow(AuthException.loggedOut(SessionRejectionReason.EPOCH_MISMATCH));
 		assertThatThrownBy(() -> service.reissue(request, ids)).isInstanceOfSatisfying(AuthException.class,
-				e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN));
+				e -> assertThat(e.getErrorCode()).isEqualTo(type == UserAccountType.GUEST
+						? AuthErrorStatus.INVALID_REFRESH_TOKEN : AuthErrorStatus.SESSION_LOGGED_OUT));
 		verifyNoInteractions(access);
 		verify(sessions, never()).save(any());
 	}
