@@ -71,6 +71,17 @@ public final class BillingSigV4JsonTransport {
 	}
 
 	public WorkloadDeliveryResult post(String route, byte[] body) {
+		DetailedResult result = postDetailed(route, body);
+		return new WorkloadDeliveryResult(result.status(), parseRetryAfter(result.retryAfter()));
+	}
+
+	/** Preserves separate header values for the withdrawal contract; existing post semantics stay unchanged. */
+	public record DetailedResult(int status, List<String> retryAfter) {
+		public DetailedResult { retryAfter = List.copyOf(retryAfter); }
+		@Override public String toString() { return "DetailedResult[status=" + status + "]"; }
+	}
+
+	public DetailedResult postDetailed(String route, byte[] body) {
 		URI endpoint = endpoint(route);
 		byte[] requiredBody = Objects.requireNonNull(body, "body must not be null").clone();
 		SdkHttpRequest unsigned = SdkHttpRequest.builder()
@@ -102,7 +113,10 @@ public final class BillingSigV4JsonTransport {
 		try {
 			HttpResponse<Void> response = httpClient.send(
 					request.build(), HttpResponse.BodyHandlers.discarding());
-			return new WorkloadDeliveryResult(response.statusCode(), retryAfter(response));
+			List<String> values = response.headers().allValues("Retry-After");
+			// Retain ambiguity but bound data retained by the application. Oversized values parse as invalid.
+			List<String> bounded = values.stream().limit(2).map(v -> v.length() > 128 ? "INVALID" : v).toList();
+			return new DetailedResult(response.statusCode(), bounded);
 		} catch (HttpTimeoutException exception) {
 			throw new TransportException(FailureKind.TIMEOUT, exception);
 		} catch (ConnectException exception) {

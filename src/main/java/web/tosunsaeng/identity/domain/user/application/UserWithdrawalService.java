@@ -32,6 +32,9 @@ import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 @Service
 public class UserWithdrawalService {
+	private boolean captureEnabled;
+	@Autowired(required = false)
+	public void setCapture(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService capture) { captureEnabled = true; }
 	private SessionSecurityService sessionSecurity;
 	@Autowired(required = false)
 	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
@@ -98,13 +101,18 @@ public class UserWithdrawalService {
 		}
 
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
-		for (int attempt = 1; attempt <= MAX_WITHDRAWAL_ATTEMPTS; attempt++) {
+		String eventId = java.util.UUID.randomUUID().toString();
+		int maxAttempts = captureEnabled ? 3 : MAX_WITHDRAWAL_ATTEMPTS;
+		long attemptBudgetStart = System.nanoTime();
+		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 			Instant withdrawnAt = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
 			validateCredentialSession(tokenHash, userId, withdrawnAt);
 			FirebaseWithdrawalTarget firebaseTarget = validateProviderCredential(user, request);
 
 			try {
-				WithdrawalTransactionResult result = lifecycleRepository == null
+				WithdrawalTransactionResult result = captureEnabled
+						? transactionService.withdrawWithEvent(user, tokenHash, withdrawnAt, firebaseTarget, eventId)
+						: lifecycleRepository == null
 						? transactionService.withdraw(user, tokenHash, withdrawnAt)
 						: transactionService.withdraw(
 								user, tokenHash, withdrawnAt, firebaseTarget
@@ -119,6 +127,14 @@ public class UserWithdrawalService {
 				return result.response();
 			} catch (DuplicateKeyException exception) {
 				return resolveConcurrentCompletion(userId, user, attempt);
+			} catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException exception) {
+				// Unknown commit is not rollback. Never issue a second event on this path.
+				if (captureEnabled && attempt < maxAttempts && transientOnly(exception)
+						&& System.nanoTime() - attemptBudgetStart < java.time.Duration.ofSeconds(30).toNanos()) {
+					user = findUser(userId);
+					continue;
+				}
+				throw new UserException(UserErrorStatus.WITHDRAWAL_CAPTURE_UNAVAILABLE);
 			} catch (UserException exception) {
 				if (exception.getErrorCode() != UserErrorStatus.WITHDRAWAL_CONFLICT) {
 					throw exception;
@@ -136,7 +152,7 @@ public class UserWithdrawalService {
 					);
 					return response;
 				}
-				if (attempt == MAX_WITHDRAWAL_ATTEMPTS) {
+				if (attempt == maxAttempts) {
 					logWithdrawalConflict(userId, "rejected", attempt);
 					throw exception;
 				}
@@ -162,6 +178,17 @@ public class UserWithdrawalService {
 		return response;
 	}
 
+	private static boolean transientOnly(Throwable failure) {
+		boolean transientError = false;
+		for (int depth = 0; failure != null && depth < 12; depth++, failure = failure.getCause()) {
+			if (failure instanceof com.mongodb.MongoException mongo) {
+				if (mongo.hasErrorLabel(com.mongodb.MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)) return false;
+				transientError |= mongo.hasErrorLabel(com.mongodb.MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL);
+			}
+		}
+		return transientError;
+	}
+
 	private void logWithdrawalCompleted(
 			User user,
 			WithdrawResponse response,
@@ -172,9 +199,7 @@ public class UserWithdrawalService {
 		log.atInfo()
 				.addKeyValue("event", "user.withdrawal.completed")
 				.addKeyValue("outcome", outcome)
-				.addKeyValue("userId", user.getUserId())
 				.addKeyValue("accountType", user.getAccountType())
-				.addKeyValue("withdrawnAt", response.withdrawnAt())
 				.addKeyValue("revokedSessionCount", revokedSessionCount)
 				.addKeyValue("attempt", attempt)
 				.log("회원 탈퇴 처리가 완료되었습니다");
@@ -184,7 +209,6 @@ public class UserWithdrawalService {
 		log.atWarn()
 				.addKeyValue("event", "user.withdrawal.conflict")
 				.addKeyValue("outcome", outcome)
-				.addKeyValue("userId", userId)
 				.addKeyValue("attempt", attempt)
 				.addKeyValue("errorCode", UserErrorStatus.WITHDRAWAL_CONFLICT.getCode())
 				.log("회원 탈퇴 처리 중 충돌이 발생했습니다");

@@ -93,6 +93,9 @@ public class UserWithdrawnOutbox {
 	public static UserWithdrawnOutbox create(String userId, Instant withdrawnAt) {
 		return new UserWithdrawnOutbox(UUID.randomUUID().toString(), userId, withdrawnAt);
 	}
+	public static UserWithdrawnOutbox createWithEventId(String eventId, String userId, Instant withdrawnAt) {
+		return new UserWithdrawnOutbox(eventId, userId, withdrawnAt);
+	}
 
 	public static UserWithdrawnOutbox createBackfill(String userId, Instant withdrawnAt) {
 		String requiredUserId = requireUuid(userId, "userId");
