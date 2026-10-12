@@ -141,11 +141,13 @@ class GuestAuthServiceTests {
 			assertThat(guestAuthService.authenticate(validRequest(INSTALLATION_ID))).isSameAs(recovered);
 			assertThat(logs.events("identity.guest.recovered")).hasSize(1);
 			assertThat(LogCapture.rendered(logs.events("identity.guest.recovered").get(0)))
-					.doesNotContain(INSTALLATION_ID, recovered.accessToken(), recovered.refreshToken());
+					.doesNotContain(INSTALLATION_ID, installationIdHasher.hash(INSTALLATION_ID),
+							recovered.accessToken(), recovered.refreshToken());
 		}
 		verify(recoveryTransactionService).recover(installationIdHasher.hash(INSTALLATION_ID));
 		verify(registrationTransactionService, never()).register(any(), any(), any());
 		verify(refreshSessionIssuer, never()).prepare(anyString());
+		verify(accessTokenIssuer, never()).issue(anyString(), any(UserAccountType.class), any());
 	}
 
 	@Test

@@ -1,5 +1,25 @@
 # Codex Current State
 
+## 2026-10-12 — 충돌 해결 merge commit 원격 게시 완료
+
+- 별도 브랜치 codex/resolve-develop-main의 merge commit e698b140 생성·원격 push 성공. 부모는 develop 251b4fdf와 main 7f2188df이며 두 브랜치가 모두 ancestor임을 확인했다.
+- 8개 충돌 해결, 최종 변경6파일, clean test 1,404건 중1,398통과/6skipped·실패0. 추가 기록 갱신은 제품 변경 없음.
+- develop/main 원격 반영·PR 생성·배포 없음. 사용자 승인 범위의 별도 브랜치만 게시했다. 후속 develop 반영 시 main ancestry를 보존하는 merge 방식 필요; squash/rebase는 이번 이력 연결을 잃을 수 있다. 원래 TMI-202 작업은 보존.
+
+## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 한정 승인
+
+- 사용자가 이번 충돌 해결 브랜치의 commit/push만 추가 허용했다. 아래의 커밋 직전 상태에서 main 부모 이력을 보존하는 merge commit과 별도 브랜치 원격 게시를 진행한다.
+- develop/main 반영 및 배포는 범위 밖. 배포 workflow의 push 대상은 main/develop으로 확인. 테스트 성공 결과 및 변경6파일 범위 유지, TMI-202 변경 미포함.
+
+## 2026-10-12 — develop/main 충돌 해결 브랜치 준비 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- codex/resolve-develop-main, 별도 작업 폴더 /Users/msde76/.codex/worktrees/resolve-develop-main/identity. develop 251b4fdf에 main 7f2188df --no-commit 통합, 충돌8항목 해결. 원래 develop의 TMI-202 변경 보존.
+- 최신 Guest 복구·병합 차단·epoch/fence·기본OFF 설정 유지. 중복 구버전 Service/Tests/구 package 참조 제거, 로그 해시 비노출/중복 토큰 발급 금지 테스트 보강. 외부 계약/운영 설정 변경 없음.
+- clean test 성공: 1,404건 중1,398통과/6skipped/실패0, 179 suites. 과거 WORKLOG 보존, diff·marker·unmerged 검사. 제품/문서 최종6파일 변경, 예상 밖 수정 없음.
+- 커밋 직전 staging/MERGE_HEAD 유지. commit/push/develop·main 반영/배포 없음. GitHub에는 아직 미반영이며 사용자 merge commit과 push 후 PR gate 확인 필요. main ancestry를 보존해야 하므로 squash/rebase 반영 주의. 실환경 검증/배포 별도.
+
 ## 2026-10-12 — TMI-200 OFF 구현 및 로컬 회귀 완료
 
 <!-- codex-turn:01a12dd8-fe3d-73e0-8d5a-fec93228cd5c -->
