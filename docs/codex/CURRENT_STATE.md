@@ -1,5 +1,11 @@
 # Codex Current State
 
+## 2026-10-12 — 충돌 해결 merge commit 원격 게시 완료
+
+- 별도 브랜치 codex/resolve-develop-main의 merge commit e698b140 생성·원격 push 성공. 부모는 develop 251b4fdf와 main 7f2188df이며 두 브랜치가 모두 ancestor임을 확인했다.
+- 8개 충돌 해결, 최종 변경6파일, clean test 1,404건 중1,398통과/6skipped·실패0. 추가 기록 갱신은 제품 변경 없음.
+- develop/main 원격 반영·PR 생성·배포 없음. 사용자 승인 범위의 별도 브랜치만 게시했다. 후속 develop 반영 시 main ancestry를 보존하는 merge 방식 필요; squash/rebase는 이번 이력 연결을 잃을 수 있다. 원래 TMI-202 작업은 보존.
+
 ## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 한정 승인
 
 - 사용자가 이번 충돌 해결 브랜치의 commit/push만 추가 허용했다. 아래의 커밋 직전 상태에서 main 부모 이력을 보존하는 merge commit과 별도 브랜치 원격 게시를 진행한다.

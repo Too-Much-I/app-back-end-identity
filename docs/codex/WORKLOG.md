@@ -18501,3 +18501,14 @@
 - 변경 파일: WORKLOG/CURRENT_STATE 승인 기록 추가, 나머지 staged4파일 유지. 제품 추가 변경 없음.
 - 검증: staged diff/check 및 Git index 범위 확인, clean test 1,404건/실패0/6skipped 결과 유지. deploy-staging.yml의 push trigger는 main/develop이며 이 브랜치 push는 배포 대상 아님.
 - 유지 계약/위험/다음: 기존 인증/복구 계약 유지. main ancestry 보존, 다른 작업 미포함. 실제 원격 게시 결과 확인 후 인계; develop/main PR과 배포는 별도 승인. 예상 밖 변경 없음.
+
+## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- 브랜치: codex/resolve-develop-main. 목표: 사용자 이번 작업 한정 승인에 따라 해결 결과를 원격 게시.
+- 변경 파일: 해결6파일(README, hotfix 기록, GuestAuthService 주석, GuestAuthServiceTests, WORKLOG, CURRENT_STATE); 완료 기록은 문서2파일만 추가 갱신.
+- 결과: merge commit e698b140(부모251b4fdf/7f2188df) 생성 및 origin/codex/resolve-develop-main 최초 push 성공. merge-base 검사로 main/develop ancestry 보존 확인, 미해결 index0 및 push 직후 작업 트리 clean.
+- 테스트: clean test 179 suites, 총1,404/통과1,398/skipped6/실패0; diff check 통과. 이후 기록만 추가하여 재실행 불필요.
+- 유지 계약/결정: 최신 인증·Guest 복구·session 보호·기본OFF 유지. develop/main 변경·PR 생성·배포 없음. merge 이력을 보존하기 위해 후속 squash/rebase 주의.
+- 위험/다음 작업: 이후 원격 변경/PR gate는 재확인 필요. 별도 PR 반영 및 운영 배포는 승인 전 미수행. 동시 TMI-202 코드/계획서 미포함, 예상 밖 변경 없음. Jira 쓰기 없음.
