@@ -61,7 +61,8 @@ public final class ReissueRecoveryService {
 		for (int attempt = 0; attempt < properties.getConcurrencyAttempts(); attempt++) {
 			final boolean only = replayOnly;
 			try {
-				Outcome outcome = transactions.execute(status -> rotateOrReplay(sourceHash, requestHash, only));
+				Outcome outcome = transactions.execute(status -> web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.execute(
+						accessIssuer, () -> rotateOrReplay(sourceHash, requestHash, only)));
 				if (outcome == null) throw SessionSecurityService.unavailable();
 				count(outcome.event());
 				if (outcome.error() != null) throw outcome.error(); // security revocations have committed
@@ -155,11 +156,14 @@ public final class ReissueRecoveryService {
 		child.touchForRecovery(now);
 		sessions.save(child); // CAS write, not just a snapshot read; conflicts with logout/rotation
 		ReissueResult result;
+		boolean purchase;
 		try {
 			var document = responses.findById(source.getRotationResponseId()).orElseThrow(SessionSecurityService::unavailable);
 			result = cipher.decrypt(source, document);
 			var response = Objects.requireNonNull(result.response());
 			var claims = SignedJWT.parse(response.accessToken()).getJWTClaimsSet();
+			String scope = claims.getStringClaim("scope");
+			purchase = scope != null && java.util.Arrays.asList(scope.split(" ")).contains("billing:purchase");
 			// Ciphertext authenticity is already verified. This is consistency checking, not external JWT authentication.
 			if (!hasher.hash(response.refreshToken()).equals(child.getTokenHash())
 					|| !child.getExpiresAt().equals(result.refreshExpiresAt())
@@ -171,6 +175,8 @@ public final class ReissueRecoveryService {
 			}
 		} catch (Exception exception) { throw unavailable("crypto_failure"); }
 		ensureDeadline(result);
+		if (accessIssuer instanceof web.tosunsaeng.identity.global.security.jwt.JwtAccessTokenIssuer jwt)
+			jwt.validateReplay(source.getUserId(), source.getIssuedAccountType(), result.accessExpiresAt(), purchase);
 		return new Outcome(result, null, "replayed");
 	}
 	private void validateChild(RefreshSession source, RefreshSession child) {

@@ -24,6 +24,42 @@ public class UserSessionControl {
 	private long revision;
 	private String activeLogoutId;
 	private boolean markingRequired;
+	// Additive purchase metadata. Null means not migrated, never an ACTIVE default.
+	private web.tosunsaeng.identity.domain.user.domain.enums.UserStatus purchaseState;
+	private web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType purchaseAccountType;
+	private Instant lastPurchaseTokenExpiresAt;
+
+	public void initializePurchaseState(web.tosunsaeng.identity.domain.user.domain.enums.UserStatus state,
+			web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType type) {
+		Objects.requireNonNull(state); Objects.requireNonNull(type);
+		if ((purchaseState != null && purchaseState != state)
+				|| (purchaseAccountType != null && purchaseAccountType != type))
+			throw new IllegalStateException("Purchase control state conflict.");
+		purchaseState = state; purchaseAccountType = type; touch();
+	}
+	public void changePurchaseState(web.tosunsaeng.identity.domain.user.domain.enums.UserStatus state,
+			web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType type) {
+		Objects.requireNonNull(state); Objects.requireNonNull(type);
+		if (purchaseState != null && purchaseState != web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.ACTIVE
+				&& (purchaseState != state || purchaseAccountType != type))
+			throw new IllegalStateException("Terminal control cannot be reactivated or retyped.");
+		if (state != web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.ACTIVE && purchaseState != state) {
+			sessionEpoch = Math.incrementExact(sessionEpoch);
+			markingRequired = true;
+		}
+		purchaseState = state; purchaseAccountType = type; touch();
+	}
+	public void approvePurchase(Instant expiresAt) {
+		if (purchaseState != web.tosunsaeng.identity.domain.user.domain.enums.UserStatus.ACTIVE
+				|| purchaseAccountType != web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType.MEMBER)
+			throw new IllegalStateException("Purchase requires an active member control.");
+		lastPurchaseTokenExpiresAt = max(lastPurchaseTokenExpiresAt, Objects.requireNonNull(expiresAt));
+		touch();
+	}
+	public web.tosunsaeng.identity.domain.user.domain.enums.UserStatus getPurchaseState() { return purchaseState; }
+	public web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType getPurchaseAccountType() { return purchaseAccountType; }
+	public Instant getLastPurchaseTokenExpiresAt() { return lastPurchaseTokenExpiresAt; }
+	public boolean isMarkingRequired() { return markingRequired; }
 	public void markingComplete() { markingRequired = false; touch(); }
 	public String getActiveLogoutId() { return activeLogoutId; }
 	public void claimLogout(String logoutId) {

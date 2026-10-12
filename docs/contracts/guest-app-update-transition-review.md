@@ -1,5 +1,7 @@
 # Guest 앱 업데이트 전환 검토
 
+> 2026-10-08 재확인: 프론트 최신 main `64959404e1fe6fdd013cbb395c88ff6efb8f8b77`에는 새 인증 runtime이 연결되어 있다. `auth-restoration-storage.ts`는 v2가 없을 때 기존 `auth-session.v1`을 읽고, `session-controller.ts`는 요청 ID를 먼저 저장한 뒤 재발급하며, `reissue-session.ts`는 Idempotency-Key와 절대 만료 응답을 처리한다. 아래의 main 무헤더·신규 SNS revision 미확인 설명은 과거 조사 당시 상태다. 실제 출시 빌드의 commit·EAS 환경 URL·기기 업데이트 보존은 여전히 미확인이다. dev `e42409e`는 옛 재발급 경로가 남아 있으므로 main과 혼동하지 않는다.
+
 > 최신 반영(2026-10-05, TMI-195): 앱 버전 조회는 [Identity 공개 API](app-version-api.md)로 구현 완료(미배포). 아래 검토 당시의 미구현·미확정 표기는 버전 조회 API에 한해 새 계약으로 대체한다.
 
 ## 1. 5줄 결론

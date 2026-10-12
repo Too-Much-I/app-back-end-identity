@@ -89,7 +89,8 @@ public class TokenReissueService {
 		if (refreshSessionIssuer.isFenceEnabled()) {
 			// Reuse revocations must commit even though the public result is an error.
 			Object result = refreshSessionIssuer.security().transaction(() -> {
-				try { return reissueInternal(request); }
+				try { return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.execute(
+						accessTokenIssuer, () -> reissueInternal(request)); }
 				catch (AuthException exception) {
 					if (exception.getErrorCode() == AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED) return exception;
 					throw exception;

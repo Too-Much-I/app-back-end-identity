@@ -33,6 +33,10 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 
 @Service
 public class UserWithdrawalTransactionService {
+	private web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService purchaseControls;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setPurchaseControls(web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService controls) { purchaseControls = controls; }
+
 	private SessionSecurityService sessionSecurity;
 	@Autowired(required = false)
 	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
@@ -101,6 +105,7 @@ public class UserWithdrawalTransactionService {
 			throw new UserException(UserErrorStatus.WITHDRAWAL_CONFLICT);
 		}
 
+		if (purchaseControls != null) purchaseControls.transition(tombstone);
 		validateFirebaseTarget(currentUser.getUserId(), firebaseTarget);
 		createLifecycle(currentUser.getUserId(), firebaseTarget, withdrawnAt);
 

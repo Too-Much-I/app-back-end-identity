@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum AuthErrorStatus implements ErrorCode {
+	AUTH_ISSUANCE_UNRESOLVED(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_ISSUANCE_UNRESOLVED", "인증 발급 결과를 확인할 수 없습니다. 로그인 상태를 다시 확인해 주세요."),
     INVALID_MERGE_STATUS_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_MERGE_STATUS_REQUEST", "병합 조회 요청이 올바르지 않습니다."),
     MERGE_STATUS_NOT_FOUND(HttpStatus.NOT_FOUND, "MERGE_STATUS_NOT_FOUND", "병합 작업을 찾을 수 없습니다."),
     MERGE_STATUS_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "MERGE_STATUS_RATE_LIMITED", "잠시 후 다시 조회해 주세요."),

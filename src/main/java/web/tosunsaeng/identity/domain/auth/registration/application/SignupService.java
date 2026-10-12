@@ -19,6 +19,9 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 @Service
 @RequiredArgsConstructor
 public class SignupService {
+	private web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService purchaseControls;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setPurchaseControls(web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService controls) { purchaseControls = controls; }
 
 	private static final Logger log = LoggerFactory.getLogger(SignupService.class);
 
@@ -48,7 +51,7 @@ public class SignupService {
 
 		// 사전 중복 검사 이후의 동시 가입은 MongoDB 고유 인덱스로 다시 차단한다.
 		try {
-			User savedUser = userRepository.save(user);
+			User savedUser = purchaseControls == null ? userRepository.save(user) : purchaseControls.register(user);
 			SignupResponse response = SignupResponse.from(savedUser);
 			log.atInfo()
 					.addKeyValue("event", "identity.user.registered")

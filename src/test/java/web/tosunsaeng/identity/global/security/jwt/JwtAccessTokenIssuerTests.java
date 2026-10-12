@@ -115,6 +115,19 @@ class JwtAccessTokenIssuerTests {
 				.hasMessage("Access Token accountType must not be null.");
 	}
 
+	@ParameterizedTest
+	@EnumSource(UserAccountType.class)
+	void untrustedDefaultAndExplicitPurchaseScopesAreAlwaysRemoved(UserAccountType type) {
+		JwtProperties injected = new JwtProperties(ISSUER, AUDIENCE, KEY_ID, ACCESS_TOKEN_TTL,
+				"unused-private", "unused-public", List.of("billing:purchase", "profile:read"));
+		var issuer = new JwtAccessTokenIssuer(encoder, injected, Clock.fixed(NOW, ZoneOffset.UTC));
+		for (Set<String> scopes : List.of(Set.<String>of(), Set.of("billing:purchase", "profile:read"))) {
+			var jwt = decodeWith(publicKey, issuer.issue(USER_ID, type, scopes).tokenValue());
+			assertThat(jwt.getClaimAsString("scope")).isEqualTo("billing:read profile:read");
+			assertThat(jwt.getClaimAsString("account_type")).isEqualTo(type.name());
+		}
+	}
+
 	@Test
 	void usesDefaultScopesWhenRequestedScopesAreEmptyOrNull() {
 		IssuedAccessToken emptyScopesToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());

@@ -180,6 +180,11 @@ public final class FirebaseExchangeService implements FirebaseExchangeUseCase {
 		SingleSocialIdentityPolicy.owned(principal, user.getUserId(), socialIdentityRepository.findAllByUserId(user.getUserId()));
 		long epoch = refreshSessionIssuer.captureEpoch(firebaseIdentity.getUserId());
 
+		return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.execute(accessTokenIssuer,
+				() -> issueAuthenticated(user, epoch, principal));
+	}
+
+	private FirebaseAuthenticatedResponse issueAuthenticated(User user, long epoch, VerifiedFirebasePrincipal principal) {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				user.getUserId(), user.getAccountType(), Set.of()
 		);

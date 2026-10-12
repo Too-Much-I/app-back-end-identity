@@ -96,16 +96,20 @@ public final class FirebaseGuestMergeService implements FirebaseGuestMergeUseCas
 				now
 		);
 		IssuedRefreshSession refreshSession = mergeResult.refreshSession();
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(
-				target.getUserId(), target.getAccountType(), Set.of()
-		);
-		return new FirebaseGuestMergeResponse(
-				accessToken.tokenValue(),
-				refreshSession.tokenValue(),
-				IssuedAccessToken.BEARER_TOKEN_TYPE,
-				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
-				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis(),
-				mergeResult.mergeId()
-		);
+		var issuanceSession = preparedTargetSession.session();
+		return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.withSession(accessTokenIssuer,
+				issuanceSession, () -> {
+			IssuedAccessToken accessToken = accessTokenIssuer.issue(
+					target.getUserId(), target.getAccountType(), Set.of()
+			);
+			return new FirebaseGuestMergeResponse(
+					accessToken.tokenValue(),
+					refreshSession.tokenValue(),
+					IssuedAccessToken.BEARER_TOKEN_TYPE,
+					Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
+					Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis(),
+					mergeResult.mergeId()
+			);
+		});
 	}
 }

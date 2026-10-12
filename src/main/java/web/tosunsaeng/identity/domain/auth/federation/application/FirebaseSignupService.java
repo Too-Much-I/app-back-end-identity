@@ -188,16 +188,20 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 			throw classifyUniqueConflict(principal, phoneFingerprints);
 		}
 
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(
-				user.getUserId(), user.getAccountType(), Set.of()
-		);
-		return new FirebaseSignupResponse(
-				accessToken.tokenValue(),
-				refreshSession.tokenValue(),
-				IssuedAccessToken.BEARER_TOKEN_TYPE,
-				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
-				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
-		);
+		var issuanceSession = preparedRefreshSession.session();
+		return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.withSession(accessTokenIssuer,
+				issuanceSession, () -> {
+			IssuedAccessToken accessToken = accessTokenIssuer.issue(
+					user.getUserId(), user.getAccountType(), Set.of()
+			);
+			return new FirebaseSignupResponse(
+					accessToken.tokenValue(),
+					refreshSession.tokenValue(),
+					IssuedAccessToken.BEARER_TOKEN_TYPE,
+					Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
+					Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
+			);
+		});
 	}
 
 	private FirebaseEnrollmentAttempt requireActiveAttempt(
