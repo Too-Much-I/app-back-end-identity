@@ -99,7 +99,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "403", description = "비활성 계정 또는 허용되지 않은 Provider·phone 로그인", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "409", description = "Firebase·Social identity 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
+			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성·일시 장애, SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED(발급 상태 미확정)", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
 	@PostMapping(value = "/exchange", consumes = "application/json", produces = "application/json")
 	public BaseResponse<FirebaseExchangeResponse> exchange(
@@ -122,7 +122,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "403", description = "provider·phone·email proof 또는 동의 요건 미충족", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "409", description = "enrollment·Firebase·Social·phone 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
+			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성·일시 장애, SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED(발급 상태 미확정)", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
 	@PostMapping(value = "/signup", consumes = "application/json", produces = "application/json")
 	public BaseResponse<FirebaseSignupResponse> signup(
@@ -204,7 +204,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "403", description = "Guest 승격 또는 Firebase 증명 요건 미충족", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "409", description = "MERGE_REQUIRED, enrollment·identity·phone 충돌 또는 회원가입 재시작 필요", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성 또는 일시 장애", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
+			@ApiResponse(responseCode = "503", description = "Firebase 기능 비활성·일시 장애, SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED(발급 상태 미확정)", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
 	@PostMapping(value = "/guest/upgrade", consumes = "application/json", produces = "application/json")
 	public BaseResponse<FirebaseSignupResponse> upgradeGuest(
@@ -227,7 +227,7 @@ public class FirebaseExchangeController {
 			@ApiResponse(responseCode = "403", description = "ACTIVE GUEST가 아니거나 GUEST_MERGE_TARGET_WITHDRAWN / GUEST_MERGE_TARGET_NOT_ACTIVE", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "409", description = "target 소유권·원본 상태 충돌 또는 탈퇴 정리 중; 중복 요청 처리 중을 의미하지 않음", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(responseCode = "429", description = "Firebase 요청 제한", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
-			@ApiResponse(responseCode = "503", description = "Firebase 또는 Guest merge 기능 비활성", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
+			@ApiResponse(responseCode = "503", description = "Firebase 또는 Guest merge 기능 비활성, SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED(병합 commit 후 발급 실패 가능)", content = @Content(schema = @Schema(implementation = BaseResponse.class)))
 	})
 	@PostMapping(value = "/guest/merge", consumes = "application/json", produces = "application/json")
 	public BaseResponse<FirebaseGuestMergeResponse> mergeGuest(

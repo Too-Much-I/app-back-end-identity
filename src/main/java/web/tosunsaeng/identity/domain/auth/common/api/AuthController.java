@@ -76,6 +76,7 @@ public class AuthController {
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "회원가입 성공"),
+			@ApiResponse(responseCode = "503", description = "AUTH_ISSUANCE_UNRESOLVED: 저장 결과 미확정. 실패가 rollback을 보장하지 않음", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(
 					responseCode = "400",
 					description = "입력값 검증, 필수 동의 누락 또는 현재 정책 버전 불일치",
@@ -239,6 +240,7 @@ public class AuthController {
 	)
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "로그인 성공"),
+			@ApiResponse(responseCode = "503", description = "SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED: 발급 상태 확인 불가", content = @Content(schema = @Schema(implementation = BaseResponse.class))),
 			@ApiResponse(
 					responseCode = "400",
 					description = "입력값 검증 실패",
@@ -275,7 +277,7 @@ public class AuthController {
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "인증 토큰 재발급 성공"),
 			@ApiResponse(responseCode = "409", description = "REISSUE_REQUEST_CONFLICT / REISSUE_RECOVERY_EXPIRED / REISSUE_RESULT_SUPERSEDED"),
-			@ApiResponse(responseCode = "503", description = "SESSION_SECURITY_UNAVAILABLE: 같은 요청 ID로 제한 재시도"),
+			@ApiResponse(responseCode = "503", description = "SESSION_SECURITY_UNAVAILABLE 또는 AUTH_ISSUANCE_UNRESOLVED: 같은 Idempotency-Key로 제한 재시도. 새로운 키로 반복 회전하지 않음"),
 			@ApiResponse(
 					responseCode = "400",
 					description = "입력값 검증 실패",

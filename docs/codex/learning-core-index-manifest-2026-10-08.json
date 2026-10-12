@@ -1,0 +1,335 @@
+{
+  "formatVersion": 1,
+  "collections": [
+    {
+      "collection": "notification_devices",
+      "indexes": [
+        {
+          "keys": {
+            "tokenHash": 1
+          },
+          "options": {
+            "name": "notification_token_unique",
+            "unique": true,
+            "sparse": true
+          }
+        },
+        {
+          "keys": {
+            "active": 1,
+            "accountType": 1,
+            "permission": 1,
+            "_id": 1
+          },
+          "options": {
+            "name": "notification_candidates"
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "notification_owner"
+          }
+        },
+        {
+          "keys": {
+            "active": 1,
+            "lastSeenAt": 1
+          },
+          "options": {
+            "name": "notification_stale"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "exam_submission_receipts",
+      "indexes": [
+        {
+          "keys": {
+            "examId": 1,
+            "questionNumber": 1
+          },
+          "options": {
+            "name": "submission_question_unique",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "name": "submission_receipt_ttl",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "daily_exam_reminder_deliveries",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "dateKst": 1,
+            "type": 1,
+            "installationId": 1
+          },
+          "options": {
+            "name": "reminder_daily_device_unique",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "attemptedAt": 1
+          },
+          "options": {
+            "name": "reminder_stale_sending"
+          }
+        },
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "name": "reminder_history_ttl",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "daily_reminder_suppressions",
+      "indexes": [
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "name": "reminder_suppression_ttl",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "notification_control",
+      "indexes": [
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "name": "notification_control_ttl",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_ownership_guards",
+      "indexes": []
+    },
+    {
+      "collection": "challenge_10s_questions",
+      "indexes": [
+        {
+          "keys": {
+            "dayNumber": 1
+          },
+          "options": {
+            "name": "challenge_day_unique",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "questions.questionId": 1
+          },
+          "options": {
+            "name": "challenge_question_id_unique",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "challenge_10s_catalog_state",
+      "indexes": []
+    },
+    {
+      "collection": "challenge_10s_attempts",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "challengeDate": 1,
+            "questionNumber": 1
+          },
+          "options": {
+            "name": "challenge_owner_date_question_unique",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "state": 1,
+            "submissionDeadlineAt": 1,
+            "_id": 1
+          },
+          "options": {
+            "name": "challenge_expiry"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "challenge_10s_submit_receipts",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "idempotencyKey": 1
+          },
+          "options": {
+            "name": "challenge_submit_key_unique",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "challenge_10s_grading_jobs",
+      "indexes": [
+        {
+          "keys": {
+            "attemptId": 1,
+            "generation": 1
+          },
+          "options": {
+            "name": "challenge_generation_unique",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "state": 1,
+            "nextAttemptAt": 1,
+            "_id": 1
+          },
+          "options": {
+            "name": "challenge_dispatch_due"
+          }
+        },
+        {
+          "keys": {
+            "state": 1,
+            "leaseUntil": 1
+          },
+          "options": {
+            "name": "challenge_lease_due"
+          }
+        },
+        {
+          "keys": {
+            "state": 1,
+            "callbackDeadlineAt": 1
+          },
+          "options": {
+            "name": "challenge_callback_due"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "challenge_10s_callback_receipts",
+      "indexes": []
+    },
+    {
+      "collection": "user_merged_inbox_events",
+      "indexes": []
+    },
+    {
+      "collection": "user_merged_transaction_probe",
+      "indexes": []
+    },
+    {
+      "collection": "user_withdrawn_event_inbox",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_user_withdrawn_inbox_cleanup",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "withdrawn_user_access_denies",
+      "indexes": [
+        {
+          "keys": {
+            "expireAt": 1
+          },
+          "options": {
+            "name": "ttl_withdrawn_user_access_deny_expire",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_withdrawn_transaction_probe",
+      "indexes": []
+    },
+    {
+      "collection": "exam_sessions",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "submissionCompletedAt": 1,
+            "createdAt": 1
+          },
+          "options": {
+            "name": "notification_submission_date"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "exam_results",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "idx_exam_results_user"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "exam_summaries",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "idx_exam_summaries_user"
+          }
+        }
+      ]
+    }
+  ]
+}

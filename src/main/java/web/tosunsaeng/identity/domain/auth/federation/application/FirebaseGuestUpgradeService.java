@@ -193,14 +193,18 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 			if (SingleSocialIdentityPolicy.isUserIndexConflict(exception)) throw new AuthException(AuthErrorStatus.SINGLE_SNS_REQUIRED);
 			throw classifyUniqueConflict(principal, userId, phoneFingerprints);
 		}
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(userId, user.getAccountType(), Set.of());
-		return new FirebaseSignupResponse(
-				accessToken.tokenValue(),
-				refreshSession.tokenValue(),
-				IssuedAccessToken.BEARER_TOKEN_TYPE,
-				Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
-				Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
-		);
+		var issuanceSession = preparedRefreshSession.session();
+		return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.withSession(accessTokenIssuer,
+				issuanceSession, () -> {
+			IssuedAccessToken accessToken = accessTokenIssuer.issue(userId, user.getAccountType(), Set.of());
+			return new FirebaseSignupResponse(
+					accessToken.tokenValue(),
+					refreshSession.tokenValue(),
+					IssuedAccessToken.BEARER_TOKEN_TYPE,
+					Duration.between(accessToken.issuedAt(), accessToken.expiresAt()).toMillis(),
+					Duration.between(refreshSession.issuedAt(), refreshSession.expiresAt()).toMillis()
+			);
+		});
 	}
 
 	private FirebaseEnrollmentAttempt requireActiveAttempt(

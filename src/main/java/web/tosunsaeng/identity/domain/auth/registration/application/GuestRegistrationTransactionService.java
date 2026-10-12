@@ -16,6 +16,10 @@ import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 @Service
 @RequiredArgsConstructor
 public class GuestRegistrationTransactionService {
+	private web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService purchaseControls;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setPurchaseControls(web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService controls) { purchaseControls = controls; }
+
 
 	private final UserRepository userRepository;
 	private final RefreshSessionIssuer refreshSessionIssuer;
@@ -32,6 +36,7 @@ public class GuestRegistrationTransactionService {
 		}
 
 		userRepository.save(guestUser);
+		if (purchaseControls != null) purchaseControls.initializeNew(guestUser);
 		IssuedRefreshSession refreshSession = refreshSessionIssuer.savePrepared(
 				preparedRefreshSession
 		);

@@ -1,0 +1,100 @@
+{
+  "status": "SERVICES_HEALTHY_E2E_PENDING",
+  "registeredTaskRevisions": {"identity": 8, "learningCore": 6, "examAi": 1, "challengeAi": 2},
+  "registeredMode": "FOUR_SERVICES_RUNNING_FCM_REVISION_TARGET_HEALTHY",
+  "allFourDeploymentsCompleted": true,
+  "identityWithdrawalDeployment": "COMPLETED",
+  "requestedDesiredCounts": {"identity": 1, "learningCore": 1, "examAi": 1, "challengeAi": 1},
+  "lastPublicHealth": {"identity": 200, "learningCore": 200, "date": "2026-10-08"},
+  "appHealthCheckGracePeriodSeconds": 300,
+  "runtimeValidated": false,
+  "deployableTaskDefinition": false,
+  "region": "ap-northeast-2",
+  "cluster": "tosunsaeng-staging-cluster",
+  "vpc": "vpc-04068339482839ff1",
+  "subnets": ["subnet-0fa638ca8effafa81", "subnet-0dc3e0343bb98e3e3"],
+  "assignPublicIp": "DISABLED",
+  "initialDesiredCount": 0,
+  "createAutoscaling": false,
+  "enableExecuteCommand": false,
+  "modifyExistingServices": false,
+  "listenerArn": "arn:aws:elasticloadbalancing:ap-northeast-2:889384901776:listener/app/tosunsaeng-staging-alb/455925e3ff93252c/fd9dacab3823ed54",
+  "dnsCnameTarget": "tosunsaeng-staging-alb-447454057.ap-northeast-2.elb.amazonaws.com",
+  "dnsNames": ["identity-prod.to-teacher.com", "api-prod.to-teacher.com"],
+  "dnsTtlSeconds": 600,
+  "services": {
+    "identity": {
+      "name": "tosunsaeng-identity-prod-service",
+      "family": "tosunsaeng-identity-prod",
+      "sourceTask": "tosunsaeng-identity-test:34",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-identity@sha256:bdf3cc1d0b3f5fdd22c15c749abe21297a2824a1f0d694dd38de8919b1bc2589",
+      "cpu": "512", "memory": "1024",
+      "securityGroup": "sg-04d7f68de195b83cd",
+      "executionRole": "tosunsaeng-identity-prod-execution-role",
+      "runtimeRole": null,
+      "targetGroupName": "tosunsaeng-identity-prod-tg",
+      "port": 8081, "healthPath": "/actuator/health"
+    },
+    "learningCore": {
+      "name": "tosunsaeng-learning-core-prod-service",
+      "family": "tosunsaeng-learning-core-prod",
+      "sourceTask": "tosunsaeng-learning-core-test:19",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-learning-core@sha256:fe0015a2eb500ff090202cd072ef8835ff474f3b86662b849f687982d9ffb062",
+      "cpu": "512", "memory": "2048",
+      "sizingReason": "Preserve existing operating LC memory, not smaller test sizing",
+      "securityGroup": "sg-0372f877eda5ef96f",
+      "executionRole": "tosunsaeng-learning-core-prod-execution-role",
+      "runtimeRole": "tosunsaeng-learning-core-prod-task-role",
+      "targetGroupName": "tosunsaeng-lc-prod-tg",
+      "port": 8080, "healthPath": "/actuator/health",
+      "serviceConnectClient": true
+    },
+    "examAi": {
+      "name": "tosunsaeng-ai-prod-service",
+      "family": "tosunsaeng-ai-prod",
+      "sourceTask": "tosunsaeng-ai:17",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-ai@sha256:b643d5088e2edd928685f9bbbefce13f43c844436d1118239ea8d6df2c5ac7fe",
+      "cpu": "1024", "memory": "2048",
+      "securityGroup": "sg-0ad44f5b1cd431582",
+      "executionRole": "tosunsaeng-ai-prod-execution-role",
+      "runtimeRole": null,
+      "targetGroupName": null,
+      "port": 8000, "healthPath": "/ready",
+      "serviceConnectAlias": "tosunsaeng-ai-prod",
+      "apiContainers": 1, "workerContainers": 4
+    },
+    "challengeAi": {
+      "name": "tosunsaeng-ai-learning-prod-service",
+      "family": "tosunsaeng-ai-learning-prod",
+      "sourceTask": "tosunsaeng-ai-learning-test:2",
+      "image": "889384901776.dkr.ecr.ap-northeast-2.amazonaws.com/tosunsaeng-ai-learning-worker@sha256:a5f8fbb3893ba93ac0c7638fe99fdf8409cce073eb77cf9eced216a2dddd94e8",
+      "cpu": "512", "memory": "1024",
+      "securityGroup": "sg-0fbdd465295302407",
+      "executionRole": "tosunsaeng-ai-learning-prod-execution-role",
+      "runtimeRole": "tosunsaeng-ai-learning-prod-task-role",
+      "targetGroupName": "tosunsaeng-ai-learning-prod-tg",
+      "port": 8000, "healthPath": "/ready",
+      "apiContainers": 1, "workerContainers": 1
+    }
+  },
+  "targetGroupDefaults": {"protocol": "HTTP", "targetType": "ip", "healthSuccessCodes": "200"},
+  "listenerRules": [
+    {"priority": 60, "host": "identity-prod.to-teacher.com", "service": "identity"},
+    {"priority": 70, "host": "api-prod.to-teacher.com", "path": "/v1/challenges/evaluations", "service": "challengeAi"},
+    {"priority": 80, "host": "api-prod.to-teacher.com", "service": "learningCore"}
+  ],
+  "applyPreconditions": [
+    "Confirm approval for new task/service/ALB/DNS binding and public host routes",
+    "Recheck names/priorities and abort on existing conflicts; no overwrite",
+    "Produce and validate complete task definitions with production secrets and settings; never bulk-clone test env",
+    "Initial desiredCount must be zero; no autoscaling or scheduled start"
+  ],
+  "startPreconditions": [
+    "Resolve release app minimum/latest versions and required consent versions",
+    "Validate all environment names, Redis connection and image-specific audio prefix",
+    "Prepare API-only bootstrap or explicitly controlled workers; desiredCount zero is not a worker isolation design",
+    "Check callback reachability and pending event effects before worker activation",
+    "Validate actual logs, S3, NAT, NACL and endpoint access; IAM simulation alone is insufficient",
+    "Obtain separate authorization for service start and production worker effects"
+  ]
+}

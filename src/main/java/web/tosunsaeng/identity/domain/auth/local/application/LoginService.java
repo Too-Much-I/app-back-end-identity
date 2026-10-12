@@ -53,6 +53,19 @@ public class LoginService {
 		}
 
 		// 사용자와 비밀번호 검증이 끝난 뒤에만 인증 토큰을 발급한다.
+		LoginResponse response = web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.execute(accessTokenIssuer,
+				() -> issueAuthenticated(user, epoch));
+		log.atInfo()
+				.addKeyValue("event", "auth.login.succeeded")
+				.addKeyValue("outcome", "authenticated")
+				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("accountType", user.getAccountType())
+				.addKeyValue("provider", user.getProvider())
+				.log("로그인에 성공했습니다");
+		return response;
+	}
+
+	private LoginResponse issueAuthenticated(User user, long epoch) {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				user.getUserId(), user.getAccountType(), Set.of()
 		);
@@ -65,13 +78,6 @@ public class LoginService {
 				accessToken,
 				refreshSession.tokenValue()
 		);
-		log.atInfo()
-				.addKeyValue("event", "auth.login.succeeded")
-				.addKeyValue("outcome", "authenticated")
-				.addKeyValue("userId", user.getUserId())
-				.addKeyValue("accountType", user.getAccountType())
-				.addKeyValue("provider", user.getProvider())
-				.log("로그인에 성공했습니다");
 		return response;
 	}
 }

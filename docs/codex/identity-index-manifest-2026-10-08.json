@@ -1,0 +1,936 @@
+{
+  "formatVersion": 1,
+  "scope": "Identity mapped entities; implicit _id indexes and programmatic Support indexes excluded",
+  "collections": [
+    {
+      "collection": "abandoned_firebase_enrollment_cleanups",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.AbandonedFirebaseEnrollmentCleanup",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "graceUntil": 1,
+            "updatedAt": 1
+          },
+          "options": {
+            "name": "idx_abandoned_firebase_cleanup_grace"
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "nextAttemptAt": 1,
+            "leaseUntil": 1
+          },
+          "options": {
+            "name": "idx_abandoned_firebase_cleanup_retry_lease"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_abandoned_firebase_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "firebaseProjectId": 1,
+            "firebaseUid": 1
+          },
+          "options": {
+            "name": "uk_abandoned_firebase_cleanup_target",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "account_recovery_attempts",
+      "entity": "web.tosunsaeng.identity.domain.auth.accountrecovery.MongoRecoveryStore$Attempt",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "cleanupAt",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "account_recovery_budgets",
+      "entity": "web.tosunsaeng.identity.domain.auth.accountrecovery.MongoRecoveryStore$Budget",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "cleanupAt",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "account_recovery_proofs",
+      "entity": "web.tosunsaeng.identity.domain.auth.accountrecovery.MongoRecoveryStore$Proof",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "cleanupAt",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "auth_method_change_controls",
+      "entity": "web.tosunsaeng.identity.domain.auth.providerchange.AuthMethodChangeControl",
+      "indexes": []
+    },
+    {
+      "collection": "firebase_enrollment_attempts",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseEnrollmentAttempt",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_firebase_enrollment_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "firebaseProjectId": 1,
+            "firebaseUid": 1,
+            "bindingType": 1,
+            "boundUserId": 1
+          },
+          "options": {
+            "name": "uk_firebase_enrollment_pending_binding",
+            "unique": true,
+            "partialFilterExpression": {
+              "status": "PENDING"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "collection": "firebase_identities",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity",
+      "indexes": [
+        {
+          "keys": {
+            "firebaseProjectId": 1,
+            "firebaseUid": 1
+          },
+          "options": {
+            "name": "uk_firebase_identities_project_uid",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "uk_firebase_identities_user_id",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "logout_all_operations",
+      "entity": "web.tosunsaeng.identity.domain.auth.session.domain.LogoutAllOperation",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "nextAttemptAt": 1
+          },
+          "options": {
+            "name": "ix_logout_due"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_logout_operations",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "requestFingerprint": 1
+          },
+          "options": {
+            "name": "uk_logout_request",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "userId": 1,
+            "epoch": 1
+          },
+          "options": {
+            "name": "uk_logout_user_epoch",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "merge_query_cursors",
+      "entity": "web.tosunsaeng.identity.domain.auth.mergeprogress.MergeQueryCursor",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_merge_cursor",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "merge_query_quotas",
+      "entity": "web.tosunsaeng.identity.domain.auth.mergeprogress.MergeQueryQuota",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_merge_quota",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "owner_event_consumer_states",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.OwnerEventConsumerState",
+      "indexes": []
+    },
+    {
+      "collection": "owner_event_cores",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.OwnerEventCore",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_owner_event_core_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "phoneRejoinLineageId": 1
+          },
+          "options": {
+            "name": "uk_owner_event_trial_lineage",
+            "unique": true,
+            "partialFilterExpression": {
+              "eventType": "TRIAL_OWNER_REBIND_APPROVED"
+            }
+          }
+        },
+        {
+          "keys": {
+            "sourceUserId": 1
+          },
+          "options": {
+            "name": "uk_owner_event_user_merged_source",
+            "unique": true,
+            "partialFilterExpression": {
+              "eventType": "USER_MERGED"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "collection": "owner_event_deliveries",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.OwnerEventDelivery",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "retentionReviewAt": 1
+          },
+          "options": {
+            "name": "ix_owner_delivery_dead_letter_review"
+          }
+        },
+        {
+          "keys": {
+            "consumer": 1,
+            "status": 1,
+            "nextAttemptAt": 1,
+            "consumerSequence": 1
+          },
+          "options": {
+            "name": "ix_owner_delivery_due"
+          }
+        },
+        {
+          "keys": {
+            "consumer": 1,
+            "status": 1,
+            "leaseExpiresAt": 1,
+            "consumerSequence": 1
+          },
+          "options": {
+            "name": "ix_owner_delivery_expired_lease"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_owner_event_delivery_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "consumer": 1,
+            "consumerSequence": 1
+          },
+          "options": {
+            "name": "uk_owner_delivery_consumer_sequence",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "eventId": 1,
+            "consumer": 1
+          },
+          "options": {
+            "name": "uk_owner_delivery_event_consumer",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "phone_eligibility_binding_delivery_scopes",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingDeliveryScopeState",
+      "indexes": []
+    },
+    {
+      "collection": "phone_eligibility_binding_outbox",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "retentionReviewAt": 1
+          },
+          "options": {
+            "name": "ix_phone_eligibility_outbox_dead_letter_review"
+          }
+        },
+        {
+          "keys": {
+            "consumerScopeId": 1,
+            "status": 1,
+            "nextAttemptAt": 1,
+            "occurredAt": 1
+          },
+          "options": {
+            "name": "ix_phone_eligibility_outbox_due"
+          }
+        },
+        {
+          "keys": {
+            "consumerScopeId": 1,
+            "status": 1,
+            "leaseExpiresAt": 1,
+            "occurredAt": 1
+          },
+          "options": {
+            "name": "ix_phone_eligibility_outbox_expired_lease"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_phone_eligibility_outbox_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "userId": 1,
+            "consumerScopeId": 1,
+            "bindingRevision": 1
+          },
+          "options": {
+            "name": "uk_phone_eligibility_outbox_user_scope_revision",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "phone_eligibility_binding_revisions",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "consumerScopeId": 1
+          },
+          "options": {
+            "name": "uk_phone_eligibility_revision_user_scope",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "phone_fingerprint_aliases",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneFingerprintAlias",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "status": 1
+          },
+          "options": {
+            "name": "ix_phone_aliases_user_status"
+          }
+        },
+        {
+          "keys": {
+            "fingerprintKeyVersion": 1,
+            "phoneFingerprint": 1
+          },
+          "options": {
+            "name": "uk_phone_aliases_active_fingerprint",
+            "unique": true,
+            "partialFilterExpression": {
+              "status": "ACTIVE"
+            }
+          }
+        },
+        {
+          "keys": {
+            "phoneIdentityId": 1,
+            "fingerprintKeyVersion": 1
+          },
+          "options": {
+            "name": "uk_phone_aliases_active_identity_version",
+            "unique": true,
+            "partialFilterExpression": {
+              "status": "ACTIVE"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "collection": "phone_identities",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneIdentity",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "uk_phone_identities_active_user",
+            "unique": true,
+            "partialFilterExpression": {
+              "status": "ACTIVE"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "collection": "phone_rejoin_lineages",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.PhoneRejoinLineage",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "consumerScopeId": 1,
+            "releasedAt": 1
+          },
+          "options": {
+            "name": "ix_phone_rejoin_lookup"
+          }
+        },
+        {
+          "keys": {
+            "targetUserId": 1,
+            "status": 1
+          },
+          "options": {
+            "name": "ix_phone_rejoin_target_status"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_phone_rejoin_lineage_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "claimedEventId": 1
+          },
+          "options": {
+            "name": "uk_phone_rejoin_claimed_event",
+            "unique": true,
+            "partialFilterExpression": {
+              "claimedEventId": {
+                "$type": "string"
+              }
+            }
+          }
+        },
+        {
+          "keys": {
+            "sourcePhoneIdentityId": 1,
+            "consumerScopeId": 1
+          },
+          "options": {
+            "name": "uk_phone_rejoin_source_scope",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "provider_link_attempts",
+      "entity": "web.tosunsaeng.identity.domain.auth.providerchange.ProviderLinkAttempt",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_provider_link_cleanup",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "userId": 1,
+            "requestIdHash": 1
+          },
+          "options": {
+            "name": "uk_provider_link_request",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "userId"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "provider_relink_attempts",
+      "entity": "web.tosunsaeng.identity.domain.auth.providerchange.ProviderRelinkAttempt",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_provider_relink_cleanup",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "userId"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "provider_unlink_operations",
+      "entity": "web.tosunsaeng.identity.domain.auth.providerchange.ProviderUnlinkOperation",
+      "indexes": [
+        {
+          "keys": {
+            "state": 1,
+            "nextAttemptAt": 1,
+            "leaseUntil": 1
+          },
+          "options": {
+            "name": "ix_provider_unlink_due"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_provider_unlink_cleanup",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "userId": 1,
+            "requestIdHash": 1
+          },
+          "options": {
+            "name": "uk_provider_unlink_request",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "refresh_reissue_responses",
+      "entity": "web.tosunsaeng.identity.domain.auth.session.domain.RefreshReissueResponse",
+      "indexes": [
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_reissue_response",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "sourceSessionId": 1
+          },
+          "options": {
+            "name": "uk_reissue_source",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "refresh_sessions",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession",
+      "indexes": [
+        {
+          "keys": {
+            "userId": 1,
+            "revokedAt": 1
+          },
+          "options": {
+            "name": "ix_refresh_sessions_user_id_revoked_at"
+          }
+        },
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "name": "ttl_refresh_sessions_expires_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "tokenHash": 1
+          },
+          "options": {
+            "name": "uk_refresh_sessions_token_hash",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "userId": 1,
+            "rotationRequestKeyHash": 1
+          },
+          "options": {
+            "name": "uk_refresh_user_rotation_request",
+            "unique": true,
+            "partialFilterExpression": {
+              "rotationRequestKeyHash": {
+                "$type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "collection": "social_identities",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.SocialIdentity",
+      "indexes": [
+        {
+          "keys": {
+            "provider": 1,
+            "providerSubject": 1
+          },
+          "options": {
+            "name": "uk_social_identities_provider_subject",
+            "unique": true
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "uk_social_identities_user_id",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_merge_progress",
+      "entity": "web.tosunsaeng.identity.domain.auth.mergeprogress.UserMergeProgress",
+      "indexes": [
+        {
+          "keys": {
+            "retentionReviewAt": 1
+          },
+          "options": {
+            "name": "merge_retention_review"
+          }
+        },
+        {
+          "keys": {
+            "targetUserId": 1,
+            "completedAt": 1,
+            "createdAt": -1,
+            "_id": -1
+          },
+          "options": {
+            "name": "merge_target_active_created"
+          }
+        },
+        {
+          "keys": {
+            "targetUserId": 1,
+            "createdAt": -1,
+            "_id": -1
+          },
+          "options": {
+            "name": "merge_target_created"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_merge_progress",
+            "expireAfterSeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_merged_outbox",
+      "entity": "web.tosunsaeng.identity.domain.auth.domain.entity.UserMergedOutbox",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "retentionReviewAt": 1
+          },
+          "options": {
+            "name": "ix_user_merged_outbox_dead_letter_review"
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "nextAttemptAt": 1,
+            "occurredAt": 1
+          },
+          "options": {
+            "name": "ix_user_merged_outbox_due"
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "leaseExpiresAt": 1,
+            "occurredAt": 1
+          },
+          "options": {
+            "name": "ix_user_merged_outbox_expired_lease"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_user_merged_outbox_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "sourceUserId": 1
+          },
+          "options": {
+            "name": "uk_user_merged_outbox_source_user_id",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_session_controls",
+      "entity": "web.tosunsaeng.identity.domain.auth.session.domain.UserSessionControl",
+      "indexes": []
+    },
+    {
+      "collection": "user_withdrawal_lifecycles",
+      "entity": "web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawalLifecycle",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "nextAttemptAt": 1,
+            "leaseUntil": 1
+          },
+          "options": {
+            "name": "ix_withdrawal_lifecycle_worker_claim"
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "uk_withdrawal_lifecycle_user_id",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "user_withdrawn_outbox",
+      "entity": "web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawnOutbox",
+      "indexes": [
+        {
+          "keys": {
+            "status": 1,
+            "retentionReviewAt": 1
+          },
+          "options": {
+            "name": "ix_user_withdrawn_outbox_dead_letter_review"
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "nextAttemptAt": 1,
+            "withdrawnAt": 1
+          },
+          "options": {
+            "name": "ix_user_withdrawn_outbox_due"
+          }
+        },
+        {
+          "keys": {
+            "status": 1,
+            "leaseExpiresAt": 1,
+            "withdrawnAt": 1
+          },
+          "options": {
+            "name": "ix_user_withdrawn_outbox_expired_lease"
+          }
+        },
+        {
+          "keys": {
+            "cleanupAt": 1
+          },
+          "options": {
+            "name": "ttl_user_withdrawn_outbox_cleanup_at",
+            "expireAfterSeconds": 0
+          }
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "name": "uk_user_withdrawn_outbox_user_id",
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "collection": "users",
+      "entity": "web.tosunsaeng.identity.domain.user.domain.entity.User",
+      "indexes": [
+        {
+          "keys": {
+            "guestInstallationIdHash": 1
+          },
+          "options": {
+            "name": "uk_users_guest_installation_id_hash",
+            "unique": true,
+            "partialFilterExpression": {
+              "guestInstallationIdHash": {
+                "$type": "string"
+              }
+            }
+          }
+        },
+        {
+          "keys": {
+            "normalizedEmail": 1
+          },
+          "options": {
+            "name": "uk_users_normalized_email_present",
+            "unique": true,
+            "partialFilterExpression": {
+              "normalizedEmail": {
+                "$type": "string"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

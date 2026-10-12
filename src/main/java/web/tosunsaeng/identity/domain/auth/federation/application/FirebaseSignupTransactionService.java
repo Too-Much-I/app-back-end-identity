@@ -34,6 +34,10 @@ import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 
 public class FirebaseSignupTransactionService {
+	private web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService purchaseControls;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setPurchaseControls(web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService controls) { purchaseControls = controls; }
+
 
 	private final UserRepository userRepository;
 	private final FirebaseIdentityRepository firebaseIdentityRepository;
@@ -136,6 +140,7 @@ public class FirebaseSignupTransactionService {
 		}
 
 		userRepository.save(user);
+		if (purchaseControls != null) purchaseControls.initializeNew(user);
 		firebaseIdentityRepository.save(firebaseIdentity);
 		PhoneIdentity phoneIdentity = phoneIdentityRepository.save(PhoneIdentity.create(
 				userId,

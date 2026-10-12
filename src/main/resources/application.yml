@@ -34,6 +34,11 @@ sentry:
     enabled: false
 
 app:
+  purchase:
+    # Preparation and strict issuance are separate. No automatic migration is performed.
+    control-writes-enabled: ${AUTH_PURCHASE_CONTROL_WRITES_ENABLED:false}
+    fence-enabled: ${AUTH_PURCHASE_FENCE_ENABLED:false}
+    scope-enabled: ${AUTH_PURCHASE_SCOPE_ENABLED:false}
   support:
     enabled: ${SUPPORT_INQUIRY_ENABLED:false}
     worker-enabled: ${SUPPORT_SLACK_WORKER_ENABLED:false}

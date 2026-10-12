@@ -54,6 +54,8 @@ public class User {
 	private Instant updatedAt;
 
 	private Instant withdrawnAt;
+	// Conditional migration performs a real write to contend with lifecycle changes.
+	private Long purchaseControlRevision;
 
 	private String mergedIntoUserId;
 

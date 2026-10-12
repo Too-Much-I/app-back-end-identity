@@ -99,7 +99,7 @@ public class UserWithdrawalService {
 
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
 		for (int attempt = 1; attempt <= MAX_WITHDRAWAL_ATTEMPTS; attempt++) {
-			Instant withdrawnAt = clock.instant();
+			Instant withdrawnAt = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
 			validateCredentialSession(tokenHash, userId, withdrawnAt);
 			FirebaseWithdrawalTarget firebaseTarget = validateProviderCredential(user, request);
 

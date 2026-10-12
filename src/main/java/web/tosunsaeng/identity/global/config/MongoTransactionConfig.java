@@ -14,8 +14,12 @@ public class MongoTransactionConfig {
 	@Bean(name = "mongoTransactionManager")
 	@Profile("!test")
 	public MongoTransactionManager mongoTransactionManager(
-			MongoDatabaseFactory mongoDatabaseFactory
+			MongoDatabaseFactory mongoDatabaseFactory,
+			@org.springframework.beans.factory.annotation.Value("${app.purchase.control-writes-enabled:false}") boolean purchaseFence
 	) {
-		return new MongoTransactionManager(mongoDatabaseFactory);
+		if (!purchaseFence) return new MongoTransactionManager(mongoDatabaseFactory);
+		return new MongoTransactionManager(mongoDatabaseFactory, com.mongodb.TransactionOptions.builder()
+				.readConcern(com.mongodb.ReadConcern.SNAPSHOT)
+				.writeConcern(com.mongodb.WriteConcern.MAJORITY.withJournal(true)).build());
 	}
 }
