@@ -15,11 +15,15 @@ public class MongoTransactionConfig {
 	@Profile("!test")
 	public MongoTransactionManager mongoTransactionManager(
 			MongoDatabaseFactory mongoDatabaseFactory,
-			@org.springframework.beans.factory.annotation.Value("${app.purchase.control-writes-enabled:false}") boolean purchaseFence
+			@org.springframework.beans.factory.annotation.Value("${app.purchase.control-writes-enabled:false}") boolean purchaseFence,
+			@org.springframework.beans.factory.annotation.Value("${app.withdrawal-capture.required:false}") boolean capture
 	) {
-		if (!purchaseFence) return new MongoTransactionManager(mongoDatabaseFactory);
-		return new MongoTransactionManager(mongoDatabaseFactory, com.mongodb.TransactionOptions.builder()
+		if (!purchaseFence && !capture) return new MongoTransactionManager(mongoDatabaseFactory);
+		var options = com.mongodb.TransactionOptions.builder()
 				.readConcern(com.mongodb.ReadConcern.SNAPSHOT)
-				.writeConcern(com.mongodb.WriteConcern.MAJORITY.withJournal(true)).build());
+				.writeConcern(com.mongodb.WriteConcern.MAJORITY.withJournal(true));
+		if (!capture) return new MongoTransactionManager(mongoDatabaseFactory, options.build());
+		return new BoundedMongoTransactionManager(mongoDatabaseFactory,
+				options.maxCommitTime(5L, java.util.concurrent.TimeUnit.SECONDS).build());
 	}
 }

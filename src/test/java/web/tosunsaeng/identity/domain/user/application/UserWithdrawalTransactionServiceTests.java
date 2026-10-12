@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
@@ -143,6 +145,44 @@ class UserWithdrawalTransactionServiceTests {
 	@AfterEach
 	void tearDown() {
 		context.close();
+	}
+
+	@Test
+	void billingCaptureFailureRollsBackExistingWithdrawalWork() {
+		var capture = mock(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService.class);
+		service.setCapture(capture);
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId())).thenReturn(List.of(credential));
+		org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("synthetic"))
+				.when(capture).capture(any(), any());
+		assertThatThrownBy(() -> service.withdraw(user,CREDENTIAL_HASH,WITHDRAWN_AT))
+				.isInstanceOf(org.springframework.dao.DataAccessException.class);
+		assertThat(transactionManager.commits).isZero();
+		assertThat(transactionManager.rollbacks).isEqualTo(1);
+		assertThat(persistedTombstone.get()).isNull();
+		assertThat(persistedSessions.get()).isNull();
+	}
+
+	@Test
+	void lcAndBillingCaptureShareStableEventAndTransaction() {
+		var capture = mock(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService.class);
+		service.setCapture(capture);
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId())).thenReturn(List.of(credential));
+		String eventId = "55555555-5555-4555-8555-555555555555";
+		org.mockito.Mockito.doAnswer(call -> {
+			assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isTrue();
+			assertThat(((UserWithdrawnOutbox)call.getArgument(0)).getEventId()).isEqualTo(eventId);
+			return null;
+		}).when(capture).capture(any(),any());
+		service.withdrawWithEvent(user,CREDENTIAL_HASH,WITHDRAWN_AT,null,eventId);
+		verify(userWithdrawnOutboxRepository).save(org.mockito.ArgumentMatchers.argThat(e -> eventId.equals(e.getEventId())));
+		verify(capture).capture(any(),any());
+		assertThat(transactionManager.commits).isEqualTo(1);
 	}
 
 	@Test

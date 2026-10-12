@@ -115,6 +115,25 @@ class UserWithdrawalServiceTests {
 	}
 
 	@Test
+	void captureUnknownCommitReturnsUnavailableWithoutSecondBusinessAttempt() {
+		User user=localUser();
+		stubCurrentUser(user,activeSession(user.getUserId()));
+		when(passwordEncoder.matches(PASSWORD,user.getPasswordHash())).thenReturn(true);
+		service.setCapture(mock(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService.class));
+		var unknown=new com.mongodb.MongoException("synthetic");
+		unknown.addLabel(com.mongodb.MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL);
+		when(transactionService.withdrawWithEvent(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+				.thenThrow(new org.springframework.transaction.TransactionSystemException("synthetic",unknown));
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.withdraw(new WithdrawRequest(REFRESH_VALUE,PASSWORD)))
+				.isInstanceOf(web.tosunsaeng.identity.domain.user.exception.UserException.class)
+				.satisfies(e -> assertThat(((web.tosunsaeng.identity.domain.user.exception.UserException)e).getErrorCode())
+						.isEqualTo(web.tosunsaeng.identity.domain.user.exception.UserErrorStatus.WITHDRAWAL_CAPTURE_UNAVAILABLE));
+		verify(transactionService,org.mockito.Mockito.times(1)).withdrawWithEvent(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
 	void guestUsesAccessAndRefreshSessionOwnershipWithoutPassword() {
 		User guest = guestUser();
 		stubCurrentUser(guest, activeSession(guest.getUserId()));

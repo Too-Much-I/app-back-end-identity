@@ -33,6 +33,12 @@ import web.tosunsaeng.identity.domain.user.exception.UserException;
 
 @Service
 public class UserWithdrawalTransactionService {
+	private web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService capture;
+	private java.time.Clock captureClock = java.time.Clock.systemUTC();
+	@Autowired(required = false)
+	public void setCapture(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService service) { capture = service; }
+	@Autowired(required = false)
+	public void setCaptureClock(java.time.Clock clock) { captureClock = clock; }
 	private web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService purchaseControls;
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	public void setPurchaseControls(web.tosunsaeng.identity.domain.auth.purchase.PurchaseControlService controls) { purchaseControls = controls; }
@@ -86,6 +92,13 @@ public class UserWithdrawalTransactionService {
 			Instant withdrawnAt,
 			@Nullable FirebaseWithdrawalTarget firebaseTarget
 	) {
+		return withdrawWithEvent(currentUser, credentialTokenHash, withdrawnAt, firebaseTarget, java.util.UUID.randomUUID().toString());
+	}
+
+	@Transactional(transactionManager = "mongoTransactionManager")
+	public WithdrawalTransactionResult withdrawWithEvent(User currentUser, String credentialTokenHash,
+			Instant withdrawnAt, @Nullable FirebaseWithdrawalTarget firebaseTarget, String eventId) {
+		Instant captureStarted = captureClock.instant();
 		validateCredentialSession(
 				credentialTokenHash,
 				currentUser.getUserId(),
@@ -125,10 +138,13 @@ public class UserWithdrawalTransactionService {
 			}
 		}
 
-		userWithdrawnOutboxRepository.save(UserWithdrawnOutbox.create(
+		UserWithdrawnOutbox event = UserWithdrawnOutbox.createWithEventId(
+				eventId,
 				currentUser.getUserId(),
 				withdrawnAt
-		));
+		);
+		userWithdrawnOutboxRepository.save(event);
+		if (capture != null) capture.capture(event, captureStarted);
 
 		return new WithdrawalTransactionResult(
 				WithdrawResponse.from(tombstone),

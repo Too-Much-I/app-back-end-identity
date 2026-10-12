@@ -17,7 +17,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Exports annotation-resolved metadata only: no application context, Mongo client or credentials. */
+/** Exports annotation metadata and explicit I2 index specs; no application context or Mongo client. */
 class MongoIndexManifestTests {
     @Test
     void exportsAllMappedIndexesWithoutConnectingToMongo() throws Exception {
@@ -40,12 +40,20 @@ class MongoIndexManifestTests {
                 indexes.add(new Document("keys", index.getIndexKeys())
                         .append("options", index.getIndexOptions()));
             }
+            String collectionName = context.getRequiredPersistentEntity(type).getCollection();
+            for (var spec : web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalIndexes.SPECS) {
+                if (!spec.collection().equals(collectionName)) continue;
+                var options = new Document("name",spec.name()).append("unique",spec.unique())
+                        .append("sparse",false).append("collation",new Document("locale","simple"));
+                if (spec.partial()!=null) options.append("partialFilterExpression",spec.partial());
+                indexes.add(new Document("keys",spec.keys()).append("options",options));
+            }
             indexes.sort(Comparator.comparing(d -> d.get("options", Document.class).toJson()));
             collections.add(new Document("collection", context.getRequiredPersistentEntity(type).getCollection())
                     .append("entity", type.getName()).append("indexes", indexes));
         }
         collections.sort(Comparator.comparing(d -> d.getString("collection")));
-        assertThat(collections).hasSize(31);
+        assertThat(collections).hasSize(34);
         assertThat(collections.stream().map(d -> d.getString("collection"))).doesNotHaveDuplicates();
         var refresh = collections.stream().filter(d -> "refresh_sessions".equals(d.getString("collection")))
                 .findFirst().orElseThrow().getList("indexes", Document.class);

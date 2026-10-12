@@ -34,6 +34,13 @@ sentry:
     enabled: false
 
 app:
+  withdrawal-capture:
+    required: ${WITHDRAWAL_CAPTURE_REQUIRED:false}
+    publisher-enabled: ${BILLING_WITHDRAWAL_PUBLISHER_ENABLED:false}
+    cleanup-enabled: ${WITHDRAWAL_SOURCE_CLEANUP_ENABLED:false}
+    environment: ${WITHDRAWAL_ENVIRONMENT:}
+    billing-origin: ${BILLING_WITHDRAWAL_ORIGIN:}
+    region: ${BILLING_WITHDRAWAL_REGION:}
   purchase:
     # Preparation and strict issuance are separate. No automatic migration is performed.
     control-writes-enabled: ${AUTH_PURCHASE_CONTROL_WRITES_ENABLED:false}

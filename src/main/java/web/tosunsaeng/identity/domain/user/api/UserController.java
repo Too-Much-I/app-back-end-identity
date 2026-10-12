@@ -188,7 +188,7 @@ public class UserController {
 			),
 			@ApiResponse(responseCode = "429", description = "Firebase 인증 요청 제한",
 					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class))),
-			@ApiResponse(responseCode = "503", description = "Firebase 또는 세션 보안 처리 일시 불가",
+			@ApiResponse(responseCode = "503", description = "Firebase·세션 보안 처리 일시 불가 또는 WITHDRAWAL_CAPTURE_UNAVAILABLE(탈퇴 저장 결과 미확정; rollback 의미 아님)",
 					content = @Content(schema = @Schema(implementation = web.tosunsaeng.identity.global.response.ApiErrorResponse.class)))
 	})
 	@PostMapping(

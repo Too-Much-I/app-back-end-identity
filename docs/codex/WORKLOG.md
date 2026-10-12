@@ -18477,6 +18477,157 @@
 - 실제 diff: 기존 운영/알림/전환·운영 스크립트 등의 dirty 변경 보존. 이번 범위 밖 추가 수정 발견 없음.
 - Jira 댓글 초안: 결과 문서 §6.3에 보관, 자동 등록하지 않음. Jira 변경 승인 요청/상태 전환 없음.
 
+## 2026-10-12 — develop → main 병합 차단 원인 조사
+
+<!-- codex-turn:01a12ded-675d-71e3-be6b-58c77d10310b -->
+
+- 브랜치: feat/TMI-200-purchase-scope-control-fencing. Jira: TMI-200 (현재 브랜치 문맥, 이번 요청은 병합 원인 진단). 목표: 자동 병합 불가 원인 확인, 수정/병합하지 않음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 기록. 시작 작업 트리 clean, 제품 코드 예상 밖 변경 없음.
+- 확인: GitHub 열린 PR 없음. #54 develop 병합 완료; 최신 원격 develop=251b4fdf, main=7f2188df. main 고유 #45/2ccfb2fb 게스트 복구 핫픽스가 develop의 인증 패키지 재구성·복구/설정/테스트 변경과 충돌.
+- 충돌 8항목: docs/codex/WORKLOG.md; auth/common/api/AuthController.java; auth/registration/application/GuestAuthService.java; auth/session/application/GuestRecoveryTransactionService.java(추가 파일 위치); application.yml; auth/registration/application/GuestAuthServiceTests.java; auth/session/application/GuestRecoveryTransactionServiceTests.java(추가 파일 위치); user/application/UserWithdrawalLifecycleTests.java. Java 경로는 src/main/java 또는 src/test/java/web/tosunsaeng/identity/domain 기준.
+- 테스트/결과: GitHub CLI read-only 조회 및 git ls-remote 성공. git merge-tree --write-tree --name-only로 충돌 재현(exit 1). 최초 sandbox 임시 객체 쓰기 차단 후 승인된 실행으로 진단; index/HEAD/작업 파일 변경 없음. git diff --check 수행. 코드 변경 없어 Gradle 미실행.
+- 유지 계약/결정: 기존 Guest 복구와 최신 인증/세션 계약 유지 필요. 별도 통합 브랜치에서 의미를 보존해 해결하고 회귀 테스트하는 방향 안내; 일괄 ours/theirs 채택하지 않음. 실제 충돌 해결/merge/commit/push/배포/외부 설정 변경 없음.
+- 위험/다음 작업: 브랜치 보호/승인/CI 추가 gate는 미검증. 사용자 요청 후 충돌 해결 및 clean test, PR 조건 재확인. 배포 승인으로 해석하지 않음.
+- Jira 댓글 초안(미등록): develop→main 충돌 8항목 진단, 기록2파일 갱신, merge-tree 검증, 추가 PR gate 미확인. Jira 쓰기 없음.
+
+## 2026-10-12 — 충돌 해결 절차와 보존할 코드 설명
+
+- 브랜치: develop. 목표: 사용자에게 해결 방법 설명; 실제 충돌 해결은 미요청. 이번 작업 Jira 없음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 기존 수정2파일 및 미추적 TMI-202 계획서 보존.
+- 조사: main GuestRecoveryTransactionService와 현재 registration/application 구현 비교. develop에 기존 복구뿐 아니라 merged 필드/accountType 검사, epoch 캡처·인증 세션 발급이 존재. application.yml의 guest-recovery 설정도 이미 존재.
+- 결정/계약: 별도 codex 통합 브랜치에서 main을 병합해 이력 연결, develop의 최신 보호 로직 유지. Git이 session/application에 제안한 복구 Service는 registration 구현과 중복되지 않도록 해결; 컨트롤러/설정/테스트/기록을 개별 검토. 무조건 한쪽 채택하지 않음. JWT/Guest/기존 세션 계약 변경 없음.
+- 테스트: 코드 정적 비교, git diff --check. 설명/기록만으로 Gradle 미실행; 실제 해결 후 ./gradlew clean test 및 merge 재검증 필요.
+- 위험/다음 작업: 해결되지 않은 충돌과 PR gate 남음. 구현 요청 후 격리된 작업 공간으로 진행. 커밋/푸시는 사용자 수행, 배포 별도. 이번 제품 코드 예상 밖 수정 없음, Jira 변경 없음.
+
+## 2026-10-12 — 충돌 해결 설명 턴 기록 보완
+
+<!-- codex-turn:01a12df0-7e8d-7f10-8f13-d009dd5d91ba -->
+
+- 브랜치: develop. 목표: 이번 충돌 해결 절차 설명의 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 수정 없이 append.
+- 내용/결정: 최신 develop의 게스트 복구·병합 차단·세션 보호를 보존하며 별도 통합 브랜치에서 main 이력을 합치는 절차 안내. 실제 충돌 해결 미수행.
+- 유지 계약: 기존 JWT/Guest/세션 계약 불변. 테스트: git diff --check; 기록만 보완하여 Gradle 미실행.
+- 위험/다음 작업: 실제 해결 후 clean test 및 PR gate 확인 필요. 기존 수정/미추적 계획서 보존, 예상 밖 제품 변경 없음. commit/push/배포/Jira 변경 없음. Secret 비기록.
+
+## 2026-10-12 — TMI-202 탈퇴 capture·Billing delivery 구현 계획
+
+<!-- codex-turn:01a12dee-164d-7e12-a52a-25369d3b80d8 -->
+
+- 날짜/브랜치: 2026-10-12 / develop. 사용자 현재 checkout 유지, 브랜치 생성 없음.
+- Jira: TMI-202. 공식 Jira 설명·완료 조건 조회만 수행, 댓글/상태/본문 변경 없음.
+- 작업 목표: TMI-200 공통 control/탈퇴 경계를 이어 I2 구현 범위·순서·검증·I3 의존성을 구체화.
+- 변경 파일: docs/contracts/TMI-202-withdrawal-capture-billing-delivery-plan.md 신규, docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md 최신 결과 추가.
+- 구현 내용: 제품 구현 없음. 원자 User/control/counter/journal/delivery, LC 분리, Billing SigV4/204-only·20회 budget·dispatch marker·lease/재개, Retry-After exact 분류, capturedAt120일/coverage cleanup과 I3 연결, cutover/restore/readiness·실제 Mongo 테스트 계획 작성.
+- 유지한 계약: push4필드/LC JWT·2xx·cleanup, 사용자 UUID 및 RS256, 기존 public envelope. 수락된 manifest7개 I2/6개 I3 경계, 보존/운영 승인 원칙 유지.
+- 결정: 세 구현 단위 권장, 제품 정책 추가 결정 없음. 내부 retry 초기값/운영 재개 실행기 등 미확정 구현 제안 구분. snapshot/feed API는 I3; 실제 cleanup·구매 ON은 관련 gate 전 금지.
+- 테스트/검증: 공식 이슈·공동 계약 관련 절·현재 소스 정적 대조, Markdown 로컬 링크 및 git diff --check. 코드 변경 없어 Gradle 미실행, 외부 DB/HTTP 테스트 없음.
+- 위험: 실제 다중노드 Mongo failover/commit 응답유실·IAM·barrier/clock·보존 정리 미검증. 기존 transport Retry-After1~300초 한계, global counter 병목, 복원 세대/cleanup CAS 공동 설계 필요.
+- 다음 작업: 계획 검토 후 구현 요청 시 TMI-202 키 포함 브랜치에서 A 원천/원자 capture부터 개발. 이관·배포·전송/cleanup 활성화·commit/push 별도.
+- 예상 밖 변경: 이번 문서3개 외 변경 없음. 시작 시 작업 트리 clean 확인. Jira 댓글 초안은 계획서 §6.4에만 보관, 자동 등록/Done 처리 없음.
+- 동시 작업 보완: 마무리 중 다른 작업의 develop→main 병합 진단 기록이 CURRENT_STATE/WORKLOG에 추가된 것을 확인했다. 해당 기록은 수정/삭제하지 않고 보존하며 이번 TMI-202 문서 변경과 구분한다.
+
+## 2026-10-12 — 병합 충돌 정리 시점 권고
+
+- 브랜치: develop. 목표: 지금 충돌을 해결하는 것이 좋은지 판단 설명. 이번 요청 Jira 없음; 다른 TMI-202 작업 보존.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 내용: 추가 인증 변경 전 별도 통합 브랜치에서 충돌 해결·회귀 검증 권고. main 반영/배포는 별도 결정.
+- 결정/유지 계약: 질문을 실행 승인으로 간주하지 않으며 기존 Guest 복구·최신 인증 보호 계약 유지. 제품/브랜치/외부 설정 변경 및 commit/push 없음.
+- 테스트: git diff --check. 설명·기록만으로 Gradle 미실행.
+- 위험/다음 작업: 실제 충돌 해결과 PR gate 검증 미완료; 실행 요청 후 동시 작업과 격리하여 진행. 이번 예상 밖 제품 변경 없음, 기존 동시 작업 기록 보존. 배포 전 회귀 테스트 및 대상 변경 범위 확인 필요.
+
+## 2026-10-12 — 충돌 정리 시점 권고 턴 기록 보완
+
+<!-- codex-turn:01a12df1-e781-7f81-8c97-5881261c5ac4 -->
+
+- 브랜치: develop. 목표: 이번 설명 턴 식별 기록 보완. 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용/결정: 추가 변경 전에 별도 브랜치에서 충돌 해결·테스트를 권고하되 실행 승인으로 해석하지 않음. main 반영/배포와 분리, 기존 인증 계약 유지.
+- 테스트: git diff --check. 문서 기록만 보완하여 Gradle 미실행.
+- 위험/다음 작업: 충돌 해결·PR gate 검증 미완료. 실행 요청 후 동시 TMI-202 작업과 격리. 기존 기록/수정 보존, 예상 밖 제품 변경 없음. commit/push/배포/Secret 기록 없음.
+
+## 2026-10-12 — TMI-202 계획 상세 설명
+
+<!-- codex-turn:01a12df2-1789-76b1-ac01-2847636e30b4 -->
+
+- 날짜/브랜치: 2026-10-12 / develop.
+- Jira: TMI-202.
+- 목표: 작성한 계획을 사용자 관점에서 탈퇴 저장·독립 전송·장애 재개·보존·활성화 순서로 설명.
+- 변경 파일: docs/codex/WORKLOG.md append, docs/codex/CURRENT_STATE.md. 계획서·제품 구현 변경 없음.
+- 내용: TMI-200 발급 차단/I2 탈퇴 전달/I3 누락 복구 구분, 신규 stream/journal/delivery 역할, 저장 실패와 전송 실패 차이, 동일 event 중복 수렴·20회 예산·권한 재개,120일과15일 보존 차이, 관련 writer barrier 및 단계 활성화 설명.
+- 유지 계약/결정: 기존4필드·LC 처리 유지. 추가 정책 결정 없음. 재개/cleanup/capture cutover·구매 활성화는 검증 및 별도 승인. DB 장애 시 부분 탈퇴 성공 금지, Billing 전송 장애는 이미 commit된 탈퇴를 되돌리지 않음.
+- 테스트: 계획서 재독 및 git diff --check. 설명/기록만 변경하여 Gradle 미실행. 외부 서비스 호출 없음.
+- 위험: 실제 다중노드 Mongo·IAM·복원·clock/commit bound·I3 증거 연동 미검증, 설명을 완료 증거로 사용하지 않음.
+- 다음 작업: 사용자 구현 요청 후 계획 A 원천/원자 capture부터 진행. Jira 댓글 초안(미등록): TMI-202 계획 상세 설명, 기록2파일, 정적 검사, 실제 통합 검증 미수행.
+- 범위: 동시 작업 기록 보존. 이번 예상 밖 제품 변경 없음. Jira 수정·배포·DB 변경·commit/push 없음.
+
+## 2026-10-12 — develop 기반 별도 브랜치의 main 충돌 해결 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- 브랜치: codex/resolve-develop-main. 기반 develop=251b4fdf, 통합 대상 main=7f2188df. 이번 요청 Jira 없음.
+- 목표: 별도 브랜치에서 충돌 해결·검증만 수행, develop/main 반영 및 commit/push/배포하지 않음.
+- 작업 폴더: /Users/msde76/.codex/worktrees/resolve-develop-main/identity. 원래 /Users/msde76/identity의 develop 및 TMI-202 계획서/기존 미커밋 기록은 보존.
+- 변경 파일(최종 develop 대비): README.md, docs/contracts/guest-session-recovery-hotfix-TMI-134.md, src/main/java/web/tosunsaeng/identity/domain/auth/registration/application/GuestAuthService.java, 대응 GuestAuthServiceTests.java, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현: --no-commit 병합에서 충돌8항목 해결. 최신 registration 복구 구현/Controller/설정 유지, session 경로에 잘못 제안된 구버전 중복 Service/Tests 제거. 자동 병합된 구 package 참조·중복 mock/필드도 제거하고 최신 테스트 구성을 보존. main 로그 주석·로그 해시 비노출/중복 Access 발급 금지 검증 반영. 과거 main 전용 운영 문서에는 최신 배포/롤백 지침이 아님을 명시.
+- 유지 계약: API URL/요청/응답, RS256/account_type, Guest 복구 기본OFF, ACTIVE·미병합·Guest/legacy 조건, epoch/fence 및 refresh 정책 유지. 런타임 동작 변경 없음. purchase3개 기본OFF 유지.
+- 테스트: ./gradlew clean test BUILD SUCCESSFUL (179 suites, 1,404 tests, 1,398 pass, 6 skipped, failures0/errors0). 실제 Atlas/Provider 호출 없음. 충돌 marker 검색·diff 검사, 최종 unmerged index0 검증. 기존 develop WORKLOG 완전 일치 및 main WORKLOG가 해당 prefix임을 append 전 확인.
+- 결정: 해결 내용을 stage하고 MERGE_HEAD를 유지하는 커밋 직전 상태로 인계. GitHub mergeability는 사용자 merge commit/push 후 갱신됨; squash/rebase로 main 부모 이력을 지우지 않도록 주의.
+- 위험/배포 전/다음: 원격 브랜치가 이후 변경되면 재통합 필요. 사용자가 별도 작업 폴더에서 staged diff 검토·merge commit/push 후 develop 반영 및 main PR 검증. branch protection/CI/실환경 Mongo 검증과 배포 승인은 별도. 원래 작업 폴더를 이 worktree 위로 복사하지 않음.
+- 예상 밖 변경: 최종 코드/문서 범위 밖 변경 없음. 자동 병합의 중복/구버전 참조는 제거했으며 다른 TMI-202 작업은 포함하지 않음. Jira 쓰기·commit·push·배포 없음.
+
+## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- 브랜치: codex/resolve-develop-main. 목표: 사용자 이번 작업 한정 승인에 따라 해결 결과를 원격 게시.
+- 변경 파일: 해결6파일(README, hotfix 기록, GuestAuthService 주석, GuestAuthServiceTests, WORKLOG, CURRENT_STATE); 완료 기록은 문서2파일만 추가 갱신.
+- 결과: merge commit e698b140(부모251b4fdf/7f2188df) 생성 및 origin/codex/resolve-develop-main 최초 push 성공. merge-base 검사로 main/develop ancestry 보존 확인, 미해결 index0 및 push 직후 작업 트리 clean.
+- 테스트: clean test 179 suites, 총1,404/통과1,398/skipped6/실패0; diff check 통과. 이후 기록만 추가하여 재실행 불필요.
+- 유지 계약/결정: 최신 인증·Guest 복구·session 보호·기본OFF 유지. develop/main 변경·PR 생성·배포 없음. merge 이력을 보존하기 위해 후속 squash/rebase 주의.
+- 위험/다음 작업: 이후 원격 변경/PR gate는 재확인 필요. 별도 PR 반영 및 운영 배포는 승인 전 미수행. 동시 TMI-202 코드/계획서 미포함, 예상 밖 변경 없음. Jira 쓰기 없음.
+
+## 2026-10-12 — TMI-202 OFF 구현 및 로컬 회귀
+
+<!-- codex-turn:01a12e4e-e68f-7533-8eb0-35378f274035 -->
+
+- 브랜치: feat/TMI-202-withdrawal-journal-billing-delivery.
+- Jira: TMI-202. 공식 설명/완료 기준 재조회, 댓글·본문·상태 변경 없음.
+- 목표: 승인 계획의 탈퇴 원자 capture·Billing delivery·재개/보존 경계 구현. 실제 DB·배포·활성화 제외.
+- 변경 파일: domain/user/withdrawalcapture 신규12종, BoundedMongoTransactionManager, 기존 UserWithdrawalService/TransactionService/Outbox/UserErrorStatus/UserController, MongoTransactionConfig/BillingSigV4JsonTransport/application.yml, 신규 테스트 및 기존 탈퇴/manifest 테스트, TMI-202 결과/계획, WORKLOG/CURRENT_STATE.
+- 구현: 동일 User/control/세션/LC transaction에 counter/journal/delivery 저장, 안정 eventId와 bounded transient/commit 재시도, SigV4 상세 header·204-only/20회 marker budget/lease CAS, Retry-After/권한 재개·내부 index/cutover 명령·I3 evidence 필요 cleanup, 개인정보 없는 metrics·로그, 구매 readiness 연결 포트.
+- 유지 계약: 기존 RS256/claim·LC JWT/2xx/cleanup, Billing4필드/4KiB, 일반 BaseResponse 유지. 신규503 WITHDRAWAL_CAPTURE_UNAVAILABLE 명세 추가(rollback 확정 아님). 신규 사용자 입력 ID/공개 관리 API 없음.
+- 테스트: 최종 ./gradlew clean test BUILD SUCCESSFUL(25초), XML 합계1,475건/실패0/오류0/기존skip6(통과1,469). 신규 suite68건+기존 탈퇴3건 추가. 원자 rollback/동일 event, BSON int64, status/retry/lease/marker/재개/expiry/guard/관측/unknown commit 검증. 문서 링크·git diff --check 통과.
+- 중간 검증: 테스트 import/상수 충돌·raw enum Document JSON 검증을 수정. 기존 manifest31개 기대값은 신규3개 collection/명시7개 index를 반영해34개로 갱신. 최종 startup guard는 scheduler 이전 초기화에서 검사.
+- 결정: 기능 기본OFF. RuntimeEvidence/PurchaseActivationEvidence, 관리 권한·durable 감사 adapter/실행기, I3 cleanup evidence는 운영·공동 연동 미완료 상태로 명시; 임시 허용 adapter 없음.
+- 위험/배포 전: 실제 disposable 다중노드 Mongo failover/commit 응답유실·partial unique stream 교체/cleanup 경합 미검증. 실제 IAM/clock/driver 지연·관측 경보 수신/비용·구 writer 차단/이관 검증 필요. TMI-202 전체 완료/Jira Done 또는 ON 가능으로 보고하지 않음.
+- 다음 작업: 운영 증거·관리 adapter/실행기와 I3 증거 연결, 승인된 실제 Mongo/공동 staging 검증 후 개별 활성화. DB 이관·전송·삭제·배포·commit/push 없음.
+- 실제 diff: 기존 다른 작업의 dirty 기록/계획 보존. 관련 탈퇴 로그 식별자 제거와 index export 보완 포함, 예상 밖 제품 변경 없음.
+- Jira 댓글 초안: docs/contracts/TMI-202-implementation-result.md §6.4, 미등록.
+
+
+## 2026-10-12 — TMI-202 착수 전 추가 주의사항 안내
+
+<!-- codex-turn:01a12e4e-e68f-7533-8eb0-35378f274035 -->
+
+- 브랜치: feat/TMI-202-withdrawal-journal-billing-delivery. Jira: TMI-202.
+- 목표: 추가 사용자 결정과 운영 주의사항 구분. 변경 파일: WORKLOG append, CURRENT_STATE.
+- 내용: 비동기 전달 지연과 기존 토큰/진행 결제 처리 한계, 결과 불명 UX, 실패 경보 담당·재개 절차, capture 유지 rollback, I3/공동 검증 전 구매·정리 활성화 금지 설명.
+- 유지 계약/결정: 기존 계획·보존·재시도 계약 유지, 신규 정책 결정 없음. 구현/운영 실행 승인으로 해석하지 않음.
+- 테스트: git diff --check. 설명 기록만 변경하여 Gradle 미실행. 제품·외부 시스템 검증 없음.
+- 위험/다음 작업: 실제 Mongo/IAM·Billing 지연 차단·경보 수신·운영 gate 미검증. 구현 요청 후 계획 순서로 개발, 활성화 별도 승인.
+- 기존 기록 보존, 이번 예상 밖 제품 변경 없음. Jira/DB/배포/commit/push 없음. Jira 댓글 초안(미등록): 착수 전 주의사항 안내, 기록2파일, 정적 검사, 운영 검증 미수행.
+
+## 2026-10-12 — TMI-202 사용자 9개 질문 설명
+
+<!-- codex-turn:01a12e44-a47c-7c50-b430-46732d07b0ae -->
+
+- 브랜치: develop. Jira: TMI-202.
+- 목표: 탈퇴 저장 실패·순번 범위/보존·LC/SigV4·재시도/재시작·수동 재개·Billing 삭제·prod 활성화·개발 단위 설명.
+- 변경 파일: WORKLOG append, CURRENT_STATE 최신 설명 추가. 계획 및 제품 코드 변경 없음.
+- 내용/결정: stream별 전체 탈퇴 순번과 이벤트별 Billing delivery 구분. userId 포함 원천은 개인정보 없는 영구 기록이 아니며 capturedAt120일; 기존 User tombstone 보존과 구분. 확정 저장 실패 rollback과 commit 불명 분리. LC 기존 JWT 유지, Billing task role 임시 자격으로 SigV4 서명/IAM 필요, 고정 인증값 생성 아님.
+- 유지 계약: Billing15일은 확인된 미구매 연결정보 조건부 삭제 기준이며 모든 거래 기록 삭제 아님. 동일 event 재전송·상태 CAS·권한 있는 재개 및 lifetime 이력 유지. 한 출시 시간 내 순차 활성화 가능하나 prod 준비·I3/공동 gate 확인 없이 동시 ON 금지. 3단위는 개발/검토 분리이며 반드시3회 운영 배포 아님.
+- 테스트: 계획 관련 절 재확인, git diff --check. 설명/기록만으로 Gradle 미실행. 외부 서비스 호출 없음.
+- 위험/다음: 수동 재개 도구는 계획 단계·실행 명령 미확정. 실제 Mongo/IAM/운영 gate 미검증. 구현 요청과 환경별 활성화 승인 분리.
+- 기존 동시 작업 기록 보존, 이번 예상 밖 제품 수정 없음. Jira·DB·배포·commit/push 없음. Jira 댓글 초안(미등록): 사용자9개 질문 설명, 기록2파일, 정적 확인, 운영/도구 구현 미완료.
+
 ## 2026-10-12 — develop 기반 별도 브랜치의 main 충돌 해결 완료
 
 <!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
@@ -18512,3 +18663,17 @@
 - 테스트: clean test 179 suites, 총1,404/통과1,398/skipped6/실패0; diff check 통과. 이후 기록만 추가하여 재실행 불필요.
 - 유지 계약/결정: 최신 인증·Guest 복구·session 보호·기본OFF 유지. develop/main 변경·PR 생성·배포 없음. merge 이력을 보존하기 위해 후속 squash/rebase 주의.
 - 위험/다음 작업: 이후 원격 변경/PR gate는 재확인 필요. 별도 PR 반영 및 운영 배포는 승인 전 미수행. 동시 TMI-202 코드/계획서 미포함, 예상 밖 변경 없음. Jira 쓰기 없음.
+
+## 2026-10-12 — TMI-202 구현 턴 식별 기록 보완
+
+<!-- codex-turn:01a12e50-1677-7d03-a80b-db06811a31a8 -->
+
+- 브랜치: feat/TMI-202-withdrawal-journal-billing-delivery.
+- Jira: TMI-202.
+- 목표: 현재 구현 턴의 정확한 식별 기록을 파일 끝에 추가. 과거 기록 수정/삭제 없음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 앞서 보고한 OFF 구현 결과 유지. 원자 탈퇴 capture·Billing delivery/재시도·재개/cleanup 연결 코드와 기존 계약 유지. 이번 보완에서 제품 코드는 변경하지 않음.
+- 테스트/결과: 구현 최종 clean test 1,475건 중1,469통과/6skipped·실패0/오류0 결과 유지. 이번 기록 보완은 git diff --check와 파일 끝 marker 확인, Gradle 재실행 없음.
+- 결정/위험: 운영 준비 증거·관리 권한/감사 실행기·I3 정리 증거 및 실제 Mongo 장애 검증 미완료. 기능 기본OFF, Jira Done 아님.
+- 다음 작업: 남은 연동/승인된 실제 검증 후 개별 활성화 판단. DB 이관·배포·commit/push·Jira 쓰기 없음. 기존 동시 기록 보존, 예상 밖 제품 변경 없음.
+- Jira 댓글 초안: 기존 구현 결과서 §6.4 유지, 미등록.
