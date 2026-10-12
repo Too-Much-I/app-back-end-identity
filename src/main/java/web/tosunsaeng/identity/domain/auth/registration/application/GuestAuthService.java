@@ -104,6 +104,7 @@ public class GuestAuthService {
 
 	private GuestAuthResponse recover(String installationIdHash) {
 		GuestAuthResponse response = recoveryTransactionService.recover(installationIdHash);
+		// Only log after the transaction proxy successfully committed. No identifiers/tokens.
 		log.atInfo().addKeyValue("event", "identity.guest.recovered")
 				.addKeyValue("outcome", "recovered")
 				.log("게스트 세션 복구가 완료되었습니다");

@@ -18476,3 +18476,28 @@
 - 배포 전/다음 작업: TMI-202에서 같은 탈퇴 transaction에 journal/delivery 및 실제 readiness 연결; 승인된 이관·재진단/구 writer 배제·staging 후 개별 ON. 실제 배포·DB 이관·Jira Done·commit/push 없음.
 - 실제 diff: 기존 운영/알림/전환·운영 스크립트 등의 dirty 변경 보존. 이번 범위 밖 추가 수정 발견 없음.
 - Jira 댓글 초안: 결과 문서 §6.3에 보관, 자동 등록하지 않음. Jira 변경 승인 요청/상태 전환 없음.
+
+## 2026-10-12 — develop 기반 별도 브랜치의 main 충돌 해결 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- 브랜치: codex/resolve-develop-main. 기반 develop=251b4fdf, 통합 대상 main=7f2188df. 이번 요청 Jira 없음.
+- 목표: 별도 브랜치에서 충돌 해결·검증만 수행, develop/main 반영 및 commit/push/배포하지 않음.
+- 작업 폴더: /Users/msde76/.codex/worktrees/resolve-develop-main/identity. 원래 /Users/msde76/identity의 develop 및 TMI-202 계획서/기존 미커밋 기록은 보존.
+- 변경 파일(최종 develop 대비): README.md, docs/contracts/guest-session-recovery-hotfix-TMI-134.md, src/main/java/web/tosunsaeng/identity/domain/auth/registration/application/GuestAuthService.java, 대응 GuestAuthServiceTests.java, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 구현: --no-commit 병합에서 충돌8항목 해결. 최신 registration 복구 구현/Controller/설정 유지, session 경로에 잘못 제안된 구버전 중복 Service/Tests 제거. 자동 병합된 구 package 참조·중복 mock/필드도 제거하고 최신 테스트 구성을 보존. main 로그 주석·로그 해시 비노출/중복 Access 발급 금지 검증 반영. 과거 main 전용 운영 문서에는 최신 배포/롤백 지침이 아님을 명시.
+- 유지 계약: API URL/요청/응답, RS256/account_type, Guest 복구 기본OFF, ACTIVE·미병합·Guest/legacy 조건, epoch/fence 및 refresh 정책 유지. 런타임 동작 변경 없음. purchase3개 기본OFF 유지.
+- 테스트: ./gradlew clean test BUILD SUCCESSFUL (179 suites, 1,404 tests, 1,398 pass, 6 skipped, failures0/errors0). 실제 Atlas/Provider 호출 없음. 충돌 marker 검색·diff 검사, 최종 unmerged index0 검증. 기존 develop WORKLOG 완전 일치 및 main WORKLOG가 해당 prefix임을 append 전 확인.
+- 결정: 해결 내용을 stage하고 MERGE_HEAD를 유지하는 커밋 직전 상태로 인계. GitHub mergeability는 사용자 merge commit/push 후 갱신됨; squash/rebase로 main 부모 이력을 지우지 않도록 주의.
+- 위험/배포 전/다음: 원격 브랜치가 이후 변경되면 재통합 필요. 사용자가 별도 작업 폴더에서 staged diff 검토·merge commit/push 후 develop 반영 및 main PR 검증. branch protection/CI/실환경 Mongo 검증과 배포 승인은 별도. 원래 작업 폴더를 이 worktree 위로 복사하지 않음.
+- 예상 밖 변경: 최종 코드/문서 범위 밖 변경 없음. 자동 병합의 중복/구버전 참조는 제거했으며 다른 TMI-202 작업은 포함하지 않음. Jira 쓰기·commit·push·배포 없음.
+
+## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 승인 추가
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- 브랜치: codex/resolve-develop-main. 사용자가 이번 작업에 한해 commit/push 명시 승인. 위의 미수행 기록은 승인 전 상태다.
+- 목표/결정: 검증된6파일만 merge commit으로 저장하고 같은 별도 브랜치만 원격 게시. develop/main 병합·배포·Jira 쓰기 없음.
+- 변경 파일: WORKLOG/CURRENT_STATE 승인 기록 추가, 나머지 staged4파일 유지. 제품 추가 변경 없음.
+- 검증: staged diff/check 및 Git index 범위 확인, clean test 1,404건/실패0/6skipped 결과 유지. deploy-staging.yml의 push trigger는 main/develop이며 이 브랜치 push는 배포 대상 아님.
+- 유지 계약/위험/다음: 기존 인증/복구 계약 유지. main ancestry 보존, 다른 작업 미포함. 실제 원격 게시 결과 확인 후 인계; develop/main PR과 배포는 별도 승인. 예상 밖 변경 없음.
