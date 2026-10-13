@@ -124,6 +124,7 @@ class PurchaseControlTests {
         assertThat(p.isFenceEnabled() || p.isScopeEnabled() || p.isControlWritesEnabled()).isFalse();
         p.validate(Duration.ofHours(1), false, false);
         p.setScopeEnabled(true);
+        p.setSourceStreamId("00000000-0000-4000-8000-000000000001");
         assertThatThrownBy(() -> p.validate(Duration.ofMinutes(30), true, true)).isInstanceOf(IllegalStateException.class);
         p.setControlWritesEnabled(true); p.setFenceEnabled(true);
         assertThatThrownBy(() -> p.validate(Duration.ofMinutes(30), true, false)).isInstanceOf(IllegalStateException.class);

@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
-import web.tosunsaeng.identity.global.workload.BillingSigV4JsonTransport;
+import web.tosunsaeng.identity.global.workload.BillingJsonTransport;
 import static web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalRecords.*;
 
 public final class BillingWithdrawalPublisher {
@@ -23,16 +23,15 @@ public final class BillingWithdrawalPublisher {
     private final BillingWithdrawalRetry retry;
     private final ObjectMapper mapper;
     private final Clock clock;
-    private final BooleanSupplier clockTrusted;
     private final BooleanSupplier enabled;
     private final String environment;
     private final String owner = UUID.randomUUID().toString();
     private final MeterRegistry metrics;
     public BillingWithdrawalPublisher(WithdrawalDeliveryStore store, Transport transport, BillingWithdrawalRetry retry,
-            ObjectMapper mapper, Clock clock, BooleanSupplier clockTrusted, BooleanSupplier enabled,
+            ObjectMapper mapper, Clock clock, BooleanSupplier enabled,
             String environment, MeterRegistry metrics) {
         this.store=store; this.transport=transport; this.retry=retry; this.mapper=mapper; this.clock=clock;
-        this.clockTrusted=clockTrusted; this.enabled=enabled; this.environment=environment; this.metrics=metrics;
+        this.enabled=enabled; this.environment=environment; this.metrics=metrics;
     }
     public boolean publishNext() {
         if (!enabled.getAsBoolean()) return false; // OFF stops new claims, not results already in flight.
@@ -41,10 +40,6 @@ public final class BillingWithdrawalPublisher {
         Journal journal = store.journal(d);
         if (journal == null || !clock.instant().isBefore(journal.expiresAt()) || !store.activeStream(journal, environment)) {
             finish(d, new BillingWithdrawalRetry.Decision(State.REPLAY_UNAVAILABLE, "SOURCE_UNAVAILABLE", clock.instant()));
-            return true;
-        }
-        if (!clockTrusted.getAsBoolean()) {
-            finish(d, new BillingWithdrawalRetry.Decision(State.BLOCKED_CLOCK, "CLOCK_UNTRUSTED", clock.instant()));
             return true;
         }
         if (d.generationAttemptCount() >= 20 || d.lifetimeAttemptCount() == Long.MAX_VALUE) {
@@ -67,13 +62,13 @@ public final class BillingWithdrawalPublisher {
         try {
             Response response = transport.send(body);
             decision = retry.classify(response.status(), response.retryAfter(), dispatched.generationAttemptCount(),
-                    clock.instant(), clockTrusted.getAsBoolean());
-        } catch (BillingSigV4JsonTransport.TransportException failure) {
-            decision = failure.kind() == BillingSigV4JsonTransport.FailureKind.CREDENTIAL_UNAVAILABLE
+                    clock.instant());
+        } catch (BillingJsonTransport.TransportException failure) {
+            decision = failure.kind() == BillingJsonTransport.FailureKind.CREDENTIAL_UNAVAILABLE
                     ? new BillingWithdrawalRetry.Decision(State.BLOCKED_AUTH, "CREDENTIAL_UNAVAILABLE", clock.instant())
                     : retry.network(dispatched.generationAttemptCount(), clock.instant());
         } catch (RuntimeException unknown) {
-            decision = retry.classify(0, List.of(), dispatched.generationAttemptCount(), clock.instant(), false);
+            decision = retry.classify(0, List.of(), dispatched.generationAttemptCount(), clock.instant());
         }
         finish(dispatched, decision);
         return true;

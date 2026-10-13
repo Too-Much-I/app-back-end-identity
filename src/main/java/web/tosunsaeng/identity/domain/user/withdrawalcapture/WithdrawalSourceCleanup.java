@@ -7,11 +7,12 @@ import org.springframework.data.mongodb.core.query.*;
 import org.springframework.transaction.support.TransactionTemplate;
 import static web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalRecords.*;
 
-/** I3 supplies the same-transaction generation CAS / coverage evidence. There is no permissive default. */
+/** I3 supplies same-transaction source CAS / replay evidence. There is no permissive default. */
 public final class WithdrawalSourceCleanup {
     public interface Evidence {
         void requireCleanupPermission();
-        /** Verify timing bounds; CAS source + current consumer generation, record floor/interval/gap without user IDs.
+        /** Verify timing bounds; CAS source stream/version and record floor/ranges without user IDs.
+         * Billing owns its local checkpoint/epoch; cleanup must not depend on remote consumer ACKs.
          * Must execute entirely in the caller's Mongo transaction; never an HTTP call. */
         void recordExpiry(Journal source, Instant now);
     }
@@ -40,7 +41,8 @@ public final class WithdrawalSourceCleanup {
                 evidence.recordExpiry(current, now);
                 // Deletes contend with claim/dispatch/resume writes; any conflict aborts evidence and deletion.
                 mongo.remove(Query.query(Criteria.where("eventId").is(current.eventId())), Delivery.class);
-                mongo.remove(Query.query(Criteria.where("_id").is(current.id()).and("capturedAt").is(current.capturedAt())), Journal.class);
+                if (mongo.remove(Query.query(Criteria.where("_id").is(current.id()).and("capturedAt").is(current.capturedAt())), Journal.class)
+                        .getDeletedCount() != 1) throw new IllegalStateException("Withdrawal source changed during cleanup.");
                 return 1;
             });
             if (outcome == 1) removed++; else if (outcome == 2) leased++;

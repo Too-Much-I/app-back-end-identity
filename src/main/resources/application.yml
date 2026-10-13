@@ -34,18 +34,36 @@ sentry:
     enabled: false
 
 app:
+  billing-workload:
+    private-jwk: ${BILLING_WORKLOAD_PRIVATE_JWK:}
+    issuer: ${BILLING_WORKLOAD_ISSUER:}
+    withdrawal-audience: ${BILLING_WORKLOAD_WITHDRAWAL_AUDIENCE:}
+    trial-audience: ${BILLING_WORKLOAD_TRIAL_AUDIENCE:}
+    trial-owner-audience: ${BILLING_WORKLOAD_TRIAL_OWNER_AUDIENCE:}
+    merge-audience: ${BILLING_WORKLOAD_MERGE_AUDIENCE:}
+  withdrawal-recovery:
+    source-jobs-enabled: ${WITHDRAWAL_RECOVERY_SOURCE_JOBS_ENABLED:false}
+    http-enabled: ${WITHDRAWAL_RECOVERY_HTTP_ENABLED:false}
+    workload-port: ${WITHDRAWAL_RECOVERY_WORKLOAD_PORT:0}
+    jwt:
+      public-jwks: ${WITHDRAWAL_RECOVERY_BILLING_PUBLIC_JWKS:}
+      issuer: ${WITHDRAWAL_RECOVERY_BILLING_ISSUER:}
+      audience: ${WITHDRAWAL_RECOVERY_AUDIENCE:}
+    tls:
+      certificate-file: ${WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE:}
+      private-key-file: ${WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE:}
   withdrawal-capture:
     required: ${WITHDRAWAL_CAPTURE_REQUIRED:false}
     publisher-enabled: ${BILLING_WITHDRAWAL_PUBLISHER_ENABLED:false}
     cleanup-enabled: ${WITHDRAWAL_SOURCE_CLEANUP_ENABLED:false}
     environment: ${WITHDRAWAL_ENVIRONMENT:}
     billing-origin: ${BILLING_WITHDRAWAL_ORIGIN:}
-    region: ${BILLING_WITHDRAWAL_REGION:}
   purchase:
     # Preparation and strict issuance are separate. No automatic migration is performed.
     control-writes-enabled: ${AUTH_PURCHASE_CONTROL_WRITES_ENABLED:false}
     fence-enabled: ${AUTH_PURCHASE_FENCE_ENABLED:false}
     scope-enabled: ${AUTH_PURCHASE_SCOPE_ENABLED:false}
+    source-stream-id: ${AUTH_PURCHASE_SOURCE_STREAM_ID:}
   support:
     enabled: ${SUPPORT_INQUIRY_ENABLED:false}
     worker-enabled: ${SUPPORT_SLACK_WORKER_ENABLED:false}
@@ -191,7 +209,6 @@ app:
   phone-eligibility-publisher:
     enabled: ${PHONE_ELIGIBILITY_PUBLISHER_ENABLED:false}
     base-url: ${PHONE_ELIGIBILITY_PUBLISHER_BASE_URL:}
-    region: ${PHONE_ELIGIBILITY_PUBLISHER_REGION:ap-northeast-2}
     lease-duration: ${PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION:PT60S}
     fixed-delay: ${PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY:PT5S}
     max-attempts: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS:12}
@@ -220,7 +237,6 @@ app:
     learning-core-user-merged-publisher-enabled: ${OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED:false}
     billing-trial-rebind-publisher-enabled: ${OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED:false}
     billing-base-url: ${OWNER_EVENT_BILLING_BASE_URL:}
-    billing-region: ${OWNER_EVENT_BILLING_REGION:ap-northeast-2}
     learning-core-endpoint: ${OWNER_EVENT_LEARNING_CORE_ENDPOINT:}
     lease-duration: ${OWNER_EVENT_LEASE_DURATION:PT60S}
     fixed-delay: ${OWNER_EVENT_FIXED_DELAY:PT5S}

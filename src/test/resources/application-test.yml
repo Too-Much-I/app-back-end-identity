@@ -58,7 +58,6 @@ app:
   phone-eligibility-publisher:
     enabled: false
     base-url: ""
-    region: ap-northeast-2
   owner-event:
     user-merged-capture-enabled: false
     trial-rebind-capture-enabled: false

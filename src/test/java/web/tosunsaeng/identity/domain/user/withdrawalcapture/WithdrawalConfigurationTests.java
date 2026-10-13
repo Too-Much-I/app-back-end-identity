@@ -9,11 +9,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class WithdrawalConfigurationTests {
     @Test void captureAloneDoesNotSatisfyPurchaseReadiness() {
         var mongo=org.mockito.Mockito.mock(org.springframework.data.mongodb.core.MongoTemplate.class);
-        var evidence=org.mockito.Mockito.mock(WithdrawalCaptureConfiguration.RuntimeEvidence.class);
-        var provider=new org.springframework.beans.factory.support.DefaultListableBeanFactory()
-                .getBeanProvider(WithdrawalCaptureConfiguration.PurchaseActivationEvidence.class);
         var p=new WithdrawalCaptureProperties(); p.setRequired(true);
-        var readiness=new WithdrawalCaptureConfiguration().withdrawalPurchaseReadiness(mongo,p,evidence,provider);
+        var readiness=new WithdrawalCaptureConfiguration().withdrawalPurchaseReadiness(new CaptureReadiness(mongo,p),
+                new web.tosunsaeng.identity.domain.auth.purchase.PurchaseProperties(),true);
         assertThat(readiness.ready()).isFalse(); org.mockito.Mockito.verifyNoInteractions(mongo);
     }
     @Test void persistedCutoverCannotBeBypassedByTurningFlagsOff() throws Exception {
