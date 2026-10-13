@@ -17,12 +17,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import web.tosunsaeng.identity.global.workload.BillingSigV4JsonTransport;
 import static web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalRecords.*;
 
 @Configuration(proxyBeanMethods=false)
-@EnableConfigurationProperties(WithdrawalCaptureProperties.class)
+@EnableConfigurationProperties({WithdrawalCaptureProperties.class, web.tosunsaeng.identity.domain.auth.purchase.PurchaseProperties.class})
 public class WithdrawalCaptureConfiguration {
     @Configuration(proxyBeanMethods=false)
     @EnableScheduling
@@ -32,22 +30,12 @@ public class WithdrawalCaptureConfiguration {
             return new WithdrawalMonitor(mongo,clock,metrics);
         }
     }
-    /** Production clock/cutover evidence is provided by deployment integration, not a boolean default. */
-    public interface RuntimeEvidence { boolean clockTrusted(); boolean captureReady(); }
-    /** I1 migration/old-writer drain plus I3 and joint token gates, bound to the current source incarnation. */
-    public interface PurchaseActivationEvidence { boolean verifiedFor(String streamId); }
     @Bean
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="required",havingValue="true")
     web.tosunsaeng.identity.domain.auth.purchase.PurchaseReadiness withdrawalPurchaseReadiness(
-            MongoTemplate mongo, WithdrawalCaptureProperties p, RuntimeEvidence runtime,
-            ObjectProvider<PurchaseActivationEvidence> evidence) {
-        return () -> {
-            var proof = evidence.getIfAvailable();
-            if (proof == null || !p.isRequired() || !runtime.captureReady() || !runtime.clockTrusted()) return false;
-            var stream = mongo.findOne(Query.query(Criteria.where("environment").is(p.getEnvironment())
-                    .and("status").is("ACTIVE")), Stream.class);
-            return stream != null && proof.verifiedFor(stream.streamId());
-        };
+            CaptureReadiness capture, web.tosunsaeng.identity.domain.auth.purchase.PurchaseProperties purchase,
+            @Value("${app.session-revocation.fence-enabled:false}") boolean sessionFence) {
+        return new web.tosunsaeng.identity.domain.auth.purchase.SourceBoundPurchaseReadiness(capture,purchase,sessionFence);
     }
     @Bean org.springframework.beans.factory.InitializingBean withdrawalFlags(WithdrawalCaptureProperties p,
             @Value("${app.purchase.control-writes-enabled:false}") boolean controls,
@@ -71,10 +59,18 @@ public class WithdrawalCaptureConfiguration {
     }
     @Bean
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="required",havingValue="true")
+    CaptureReadiness captureReadiness(MongoTemplate mongo, WithdrawalCaptureProperties p) {
+        new WithdrawalIndexes(mongo).verify();
+        var readiness = new CaptureReadiness(mongo, p);
+        if (!readiness.ready()) throw new IllegalStateException("Capture database/configuration is not ready.");
+        return readiness;
+    }
+    @Bean
+    @ConditionalOnProperty(prefix="app.withdrawal-capture",name="required",havingValue="true")
     WithdrawalCaptureService withdrawalCaptureService(MongoTemplate mongo, WithdrawalCaptureProperties p, Clock clock,
-            RuntimeEvidence evidence) {
-        if (!evidence.captureReady() || !evidence.clockTrusted()) throw new IllegalStateException("Capture evidence unavailable.");
-        return new WithdrawalCaptureService(mongo,p.getEnvironment(),clock,() -> evidence.captureReady() && evidence.clockTrusted());
+            CaptureReadiness readiness) {
+        if (!readiness.ready()) throw new IllegalStateException("Capture database/configuration is not ready.");
+        return new WithdrawalCaptureService(mongo,p.getEnvironment(),clock,readiness::ready);
     }
     @Bean
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="required",havingValue="true")
@@ -83,8 +79,12 @@ public class WithdrawalCaptureConfiguration {
     @Bean
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="cleanup-enabled",havingValue="true")
     WithdrawalSourceCleanup withdrawalSourceCleanup(MongoTemplate mongo, WithdrawalDeliveryStore store,
-            MongoTransactionManager manager, WithdrawalSourceCleanup.Evidence evidence, Clock clock) {
-        return new WithdrawalSourceCleanup(mongo,store,new TransactionTemplate(manager),evidence,clock);
+            WithdrawalSourceCleanup.Evidence evidence, Clock clock) {
+        var tx = new TransactionTemplate(new MongoTransactionManager(mongo.getMongoDatabaseFactory(),
+                com.mongodb.TransactionOptions.builder().readConcern(com.mongodb.ReadConcern.SNAPSHOT)
+                        .writeConcern(com.mongodb.WriteConcern.MAJORITY).readPreference(com.mongodb.ReadPreference.primary()).build()));
+        tx.setTimeout(30);
+        return new WithdrawalSourceCleanup(mongo,store,tx,evidence,clock);
     }
     @Bean
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="required",havingValue="true")
@@ -100,16 +100,15 @@ public class WithdrawalCaptureConfiguration {
     @EnableScheduling
     @ConditionalOnProperty(prefix="app.withdrawal-capture",name="publisher-enabled",havingValue="true")
     static class PublisherConfiguration {
-        @Bean(destroyMethod="close") DefaultCredentialsProvider withdrawalBillingCredentials() { return DefaultCredentialsProvider.create(); }
         @Bean BillingWithdrawalPublisher billingWithdrawalPublisher(WithdrawalDeliveryStore store,
-                @org.springframework.beans.factory.annotation.Qualifier("withdrawalBillingCredentials") DefaultCredentialsProvider credentials,
-                WithdrawalCaptureProperties p, RuntimeEvidence evidence, Clock clock, ObjectMapper mapper, MeterRegistry metrics) {
-            var transport = new BillingSigV4JsonTransport(p.getBillingOrigin(),p.getRegion(),Duration.ofSeconds(3),Duration.ofSeconds(5),credentials);
+                web.tosunsaeng.identity.global.workload.BillingJwtJsonTransport.Factory jwt,
+                WithdrawalCaptureProperties p, Clock clock, ObjectMapper mapper, MeterRegistry metrics) {
+            var transport = jwt.create(p.getBillingOrigin(), Duration.ofSeconds(3), Duration.ofSeconds(5));
             return new BillingWithdrawalPublisher(store,body -> {
                 var response = transport.postDetailed("/internal/v1/payments/accounts/withdrawal/events",body);
                 return new BillingWithdrawalPublisher.Response(response.status(),response.retryAfter());
             },new BillingWithdrawalRetry(() -> ThreadLocalRandom.current().nextDouble()),mapper,clock,
-                    evidence::clockTrusted,p::isPublisherEnabled,p.getEnvironment(),metrics);
+                    p::isPublisherEnabled,p.getEnvironment(),metrics);
         }
         @Bean PublisherScheduler billingWithdrawalScheduler(BillingWithdrawalPublisher publisher, MeterRegistry metrics) {
             return new PublisherScheduler(publisher, metrics);

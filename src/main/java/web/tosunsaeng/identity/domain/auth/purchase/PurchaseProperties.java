@@ -9,6 +9,14 @@ public class PurchaseProperties {
     private boolean fenceEnabled;
     private boolean controlWritesEnabled;
     private boolean scopeEnabled;
+    private String sourceStreamId;
+    public String getSourceStreamId() { return sourceStreamId; }
+    public void setSourceStreamId(String value) { sourceStreamId = value; }
+    public boolean hasValidSourceBinding() {
+        if (sourceStreamId == null) return false;
+        try { return java.util.UUID.fromString(sourceStreamId).toString().equals(sourceStreamId); }
+        catch (IllegalArgumentException invalid) { return false; }
+    }
     public boolean isFenceEnabled() { return fenceEnabled; }
     public void setFenceEnabled(boolean value) { fenceEnabled = value; }
     public boolean isControlWritesEnabled() { return controlWritesEnabled; }
@@ -16,6 +24,8 @@ public class PurchaseProperties {
     public boolean isScopeEnabled() { return scopeEnabled; }
     public void setScopeEnabled(boolean value) { scopeEnabled = value; }
     public void validate(Duration ttl, boolean sessionFence, boolean readiness) {
+        if (scopeEnabled && !hasValidSourceBinding())
+            throw new IllegalStateException("Purchase requires an explicit canonical source stream binding.");
         if (fenceEnabled && (!controlWritesEnabled || !sessionFence))
             throw new IllegalStateException("Purchase fence requires compatible control writers and session protection.");
         if (scopeEnabled && (!fenceEnabled || !sessionFence || !readiness))

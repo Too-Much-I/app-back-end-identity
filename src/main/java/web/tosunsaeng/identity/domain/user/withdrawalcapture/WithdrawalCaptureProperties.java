@@ -8,7 +8,6 @@ public class WithdrawalCaptureProperties {
     private boolean required, publisherEnabled, cleanupEnabled;
     private String environment;
     private URI billingOrigin;
-    private String region;
     public boolean isRequired() { return required; }
     public void setRequired(boolean v) { required=v; }
     public boolean isPublisherEnabled() { return publisherEnabled; }
@@ -19,8 +18,6 @@ public class WithdrawalCaptureProperties {
     public void setEnvironment(String v) { environment=v; }
     public URI getBillingOrigin() { return billingOrigin; }
     public void setBillingOrigin(URI v) { billingOrigin=v; }
-    public String getRegion() { return region; }
-    public void setRegion(String v) { region=v; }
     public void validate(boolean controlWrites, boolean sessionFence) {
         if (required && (environment == null || !environment.matches("[a-z0-9-]{1,40}")))
             throw new IllegalStateException("Withdrawal environment required.");
@@ -28,7 +25,7 @@ public class WithdrawalCaptureProperties {
             throw new IllegalStateException("Capture requires compatible control writers and session fence.");
         if ((publisherEnabled || cleanupEnabled) && !required)
             throw new IllegalStateException("Delivery/cleanup require capture.");
-        if (publisherEnabled && (billingOrigin == null || region == null || region.isBlank()))
+        if (publisherEnabled && billingOrigin == null)
             throw new IllegalStateException("Billing transport configuration missing.");
     }
 }

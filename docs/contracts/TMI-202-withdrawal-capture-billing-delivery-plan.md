@@ -130,7 +130,7 @@ Retry-After는429/503에만 적용한다.
 -24시간 초과 미래값은 BLOCKED_RETRY_AFTER와 경보, notBefore 유지.300초로 잘라 조기 재전송 금지.
 - 음수/overflow/parse 실패는 고정 reason을 기록하고 기본 backoff. 원 header 값 로그 금지.
 - 여러 header values는 AMBIGUOUS_RETRY_AFTER로 차단·검토. HTTP-date 내부 쉼표를 여러 값으로 오인하지 않는다.
-- clock 오차60초 초과 증거는 CLOCK_UNTRUSTED로 차단한다. Clock 객체만으로 오차를 증명했다고 하지 않고 운영 시각 동기화 관측을 readiness에 연결한다.
+- 2026-10-13 사용자 승인·Billing 회신에 따라 발신의 별도 clock 증명/관측 provider 요구를 제거한다. 인프라 시각 동기화·이상 알림·영향 작업 중단/복구를 운영 전제로 하며 앱의 독립 절대시각 오차 탐지·차단은 보장하지 않는다. JWT 시간 검증과 Retry-After 계산은 유지한다. 기존 BLOCKED_CLOCK은 호환 읽기 및 권한 있는 선택 재개만 유지하고 일괄 재개하지 않는다. 구매 readiness 보호는 별도다. [합의 인계](TMI-203-204-publisher-clock-simplification-Billing-handoff-2026-10-13.md).
 
 재개는 원천 유효·권한·notBefore를 확인한 뒤 expected resumeGeneration/leaseVersion CAS로 수행한다. 원 eventId/본문/lifetimeAttemptCount 유지, resumeGeneration 증가, generationAttemptCount만0으로 초기화한다. 재개 자체도 operation 식별자로 중복 실행을 방지하도록 내부 명령 계약을 고정한다. 옛 worker의 결과 쓰기는 실패해야 한다.
 

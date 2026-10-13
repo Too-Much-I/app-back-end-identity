@@ -16,7 +16,7 @@ class BillingWithdrawalPublisherTests {
     final Delivery claimed=delivery(State.IN_FLIGHT,0), dispatched=delivery(State.IN_FLIGHT,1);
     BillingWithdrawalPublisher publisher(boolean enabled) {
         return new BillingWithdrawalPublisher(store,transport,new BillingWithdrawalRetry(() -> .5),
-                JsonMapper.builder().findAndAddModules().build(),CLOCK,() -> true,() -> enabled,"test",new SimpleMeterRegistry());
+                JsonMapper.builder().findAndAddModules().build(),CLOCK,() -> enabled,"test",new SimpleMeterRegistry());
     }
     void seed() {
         when(store.claim(anyString(),eq(NOW))).thenReturn(claimed);
@@ -51,6 +51,29 @@ class BillingWithdrawalPublisherTests {
     @Test void wrong2xxIsNotDelivered() {
         seed(); when(transport.send(any())).thenReturn(new BillingWithdrawalPublisher.Response(200,List.of()));
         publisher(true).publishNext(); verify(store).finish(eq(dispatched),argThat(d -> d.state()==State.DEAD_LETTER),eq(NOW));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={401,403})
+    void authenticationFailuresStillBlock(int status) {
+        seed(); when(transport.send(any())).thenReturn(new BillingWithdrawalPublisher.Response(status,List.of()));
+        publisher(true).publishNext();
+        verify(store).finish(eq(dispatched),argThat(d -> d.state()==State.BLOCKED_AUTH),eq(NOW));
+    }
+    @Test void retryAfterUsesClockWithoutAttestation() {
+        seed(); when(transport.send(any())).thenReturn(new BillingWithdrawalPublisher.Response(503,List.of("600")));
+        publisher(true).publishNext();
+        verify(store).finish(eq(dispatched),argThat(d -> d.state()==State.PENDING
+                && d.nextAttemptAt().equals(NOW.plusSeconds(600))),eq(NOW));
+    }
+    @Test void responseLossRetriesSameEventBody() {
+        seed(); when(transport.send(any())).thenThrow(new IllegalStateException("synthetic response loss"))
+                .thenReturn(new BillingWithdrawalPublisher.Response(204,List.of()));
+        publisher(true).publishNext(); publisher(true).publishNext();
+        var bodies=org.mockito.ArgumentCaptor.forClass(byte[].class);
+        verify(transport,times(2)).send(bodies.capture());
+        assertThat(bodies.getAllValues().get(0)).isEqualTo(bodies.getAllValues().get(1));
+        verify(store).finish(eq(dispatched),argThat(d -> d.state()==State.PENDING),eq(NOW));
+        verify(store).finish(eq(dispatched),argThat(d -> d.state()==State.DELIVERED),eq(NOW));
     }
     @Test void priorMarkerCrashAtTwentiethAttemptCannotDispatchAgain() {
         var exhausted=delivery(State.IN_FLIGHT,20); seed(); when(store.claim(anyString(),eq(NOW))).thenReturn(exhausted);

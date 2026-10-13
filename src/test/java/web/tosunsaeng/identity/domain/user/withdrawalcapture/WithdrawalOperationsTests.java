@@ -22,8 +22,10 @@ class WithdrawalOperationsTests {
         assertThatThrownBy(() -> ops.resume(EVENT,0,OP,"AUTH_FIXED","v1")).isInstanceOf(SecurityException.class);
         verifyNoInteractions(store);
     }
-    @Test void resumeCasAndAuditInOneTransaction() {
-        var d=delivery(State.BLOCKED_AUTH,5);
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value=State.class, names={"BLOCKED_AUTH", "BLOCKED_CLOCK"})
+    void resumeCasAndAuditInOneTransaction(State state) {
+        var d=delivery(state,5);
         when(store.find(EVENT)).thenReturn(d); when(store.journal(d)).thenReturn(journal());
         when(store.activeStream(journal(),"test")).thenReturn(true);
         when(store.resume(d,OP,"AUTH_FIXED","v1",NOW)).thenReturn(true);
@@ -62,5 +64,17 @@ class WithdrawalOperationsTests {
         when(mongo.exists(any(Query.class),eq(Delivery.class))).thenReturn(true);
         var result=new WithdrawalSourceCleanup(mongo,store,new TransactionTemplate(manager),evidence,CLOCK).batch(1,true);
         assertThat(result.leased()).isEqualTo(1); verify(evidence,never()).recordExpiry(any(),any());
+    }
+    @Test void sourceDeleteMismatchRollsBackEvidenceAndDeliveryRemoval() {
+        var mongo=mock(MongoTemplate.class); var evidence=mock(WithdrawalSourceCleanup.Evidence.class);
+        var expired=new Journal(EVENT,STREAM,1,EVENT,USER,NOW.minus(RETENTION),NOW.minus(RETENTION));
+        when(store.expiryCandidates(NOW,1)).thenReturn(List.of(expired));
+        when(mongo.findById(EVENT,Journal.class)).thenReturn(expired);
+        when(mongo.remove(any(Query.class),eq(Journal.class))).thenReturn(com.mongodb.client.result.DeleteResult.acknowledged(0));
+        assertThatThrownBy(() -> new WithdrawalSourceCleanup(mongo,store,new TransactionTemplate(manager),evidence,CLOCK).batch(1,true))
+                .isInstanceOf(IllegalStateException.class);
+        verify(evidence).recordExpiry(expired,NOW);
+        assertThat(manager.rollbacks).isEqualTo(1);
+        assertThat(manager.commits).isZero();
     }
 }

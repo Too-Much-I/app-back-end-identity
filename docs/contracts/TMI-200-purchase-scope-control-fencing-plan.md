@@ -1,5 +1,7 @@
 # TMI-200 구현 계획 — 구매 권한·control 이관·발급/탈퇴 경합
 
+> 2026-10-13 구매 준비 연결 개정: 사용자 승인 후 DB/config와 명시 source binding을 검사하는 [구매 준비 구현](TMI-203-purchase-readiness-implementation.md)을 적용했다. 이관 완료·구writer drain·시간 동기화·Billing 판매 준비는 활성화/복원 전 운영 확인으로 유지한다. 별도 증명 provider·승인 DB는 요구하지 않는다. 아래 과거 readiness 증명 서술 중 공급 방식은 이 개정으로 대체하되 ACTIVE MEMBER/control·transaction·TTL·replay·unknown commit 보호와 운영 확인 자체는 제거하지 않는다. 구매 기본 OFF, 실제 활성화 별도.
+
 - 작성일: 2026-10-12
 - Jira: [TMI-200](https://to-teacher.atlassian.net/browse/TMI-200), 연계 [TMI-202](https://to-teacher.atlassian.net/browse/TMI-202)
 - 브랜치: `feat/TMI-200-purchase-scope-control-fencing` (사용자가 준비한 현재 브랜치 유지)

@@ -85,6 +85,15 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+    @Test
+    void recoveryPathsRejectEvenAnAuthenticatedUserWhileOff() throws Exception {
+        for (var route : web.tosunsaeng.identity.domain.user.withdrawalrecovery.RecoveryProtocol.Route.values()) {
+            mockMvc.perform(post(route.path())
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()))
+                    .andExpect(status().isForbidden()).andExpect(header().string("Cache-Control", "no-store"));
+            mockMvc.perform(post(route.path())).andExpect(status().isForbidden());
+        }
+    }
 	@org.springframework.test.context.bean.override.mockito.MockitoBean
 	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
 

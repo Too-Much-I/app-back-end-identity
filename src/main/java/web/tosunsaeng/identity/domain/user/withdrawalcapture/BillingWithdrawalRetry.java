@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.function.DoubleSupplier;
 import static web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalRecords.State;
 
-/** No HTTP body/header value is retained in decisions or failure codes. */
+/** Uses infrastructure-synchronized time; no independent clock attestation.
+ * No HTTP body/header value is retained in decisions or failure codes. */
 public final class BillingWithdrawalRetry {
     public record Decision(State state, String reason, Instant nextAttemptAt) { }
     private final DoubleSupplier random;
     public BillingWithdrawalRetry(DoubleSupplier random) { this.random = random; }
-    public Decision classify(int status, List<String> retryAfter, long attempt, Instant receivedAt, boolean clockTrusted) {
+    public Decision classify(int status, List<String> retryAfter, long attempt, Instant receivedAt) {
         if (status == 204) return new Decision(State.DELIVERED, null, null);
         if (status == 401 || status == 403) return blocked(State.BLOCKED_AUTH, "HTTP_AUTH", receivedAt);
         boolean retry = status == 408 || status == 425 || status == 429 || (status >= 500 && status <= 599)
@@ -23,7 +24,6 @@ public final class BillingWithdrawalRetry {
         Instant next = receivedAt.plusSeconds(backoff(attempt));
         String reason = status < 200 || status > 599 ? "PROTOCOL_ERROR" : "HTTP_RETRYABLE";
         if (status == 429 || status == 503) {
-            if (!clockTrusted) return blocked(State.BLOCKED_CLOCK, "CLOCK_UNTRUSTED", next);
             if (retryAfter.size() > 1) return blocked(State.BLOCKED_HEADER, "AMBIGUOUS_RETRY_AFTER", next);
             if (retryAfter.size() == 1) {
                 try {

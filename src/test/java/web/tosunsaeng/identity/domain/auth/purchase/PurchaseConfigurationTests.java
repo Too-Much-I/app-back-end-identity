@@ -45,7 +45,8 @@ class PurchaseConfigurationTests {
     }
     @Test void readyAdapterAllowsTestActivationButDoesNotWriteDbOnStartup() {
         runner.withBean(PurchaseReadiness.class, () -> () -> true)
-                .withPropertyValues("app.purchase.control-writes-enabled=true", "app.purchase.fence-enabled=true",
+                .withPropertyValues("app.purchase.source-stream-id=00000000-0000-4000-8000-000000000001",
+                        "app.purchase.control-writes-enabled=true", "app.purchase.fence-enabled=true",
                         "app.purchase.scope-enabled=true", "app.session-revocation.fence-enabled=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed().hasSingleBean(PurchaseTokenFence.class);

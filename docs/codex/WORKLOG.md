@@ -18677,3 +18677,1588 @@
 - 결정/위험: 운영 준비 증거·관리 권한/감사 실행기·I3 정리 증거 및 실제 Mongo 장애 검증 미완료. 기능 기본OFF, Jira Done 아님.
 - 다음 작업: 남은 연동/승인된 실제 검증 후 개별 활성화 판단. DB 이관·배포·commit/push·Jira 쓰기 없음. 기존 동시 기록 보존, 예상 밖 제품 변경 없음.
 - Jira 댓글 초안: 기존 구현 결과서 §6.4 유지, 미등록.
+
+## 2026-10-12 — TMI-203 snapshot·feed·checkpoint·복구 세대 계획
+
+<!-- codex-turn:01a12e66-aa3a-7941-bd1b-9d1142eb5cc0 -->
+
+- 브랜치: develop(조사); 후속 구현 브랜치 제안 codex/TMI-203-withdrawal-recovery, 이번 생성 없음.
+- Jira: TMI-203.
+- 목표: 다음 I3 구현 범위·선행 검증·완료 기준을 상세 계획서로 작성.
+- 변경 파일: docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: 공식 이슈 읽기, 고정 T/H Mongo spike·세대 authority/control CAS·strict 내부 API·snapshot digest/불변 page·고정 H2 feed·ACK·coverage·I2 cleanup Evidence 연결·I3 index6개·보존/운영 gate 정리. 제품 구현 없음.
+- 테스트/결과: 문서 로컬 링크 및 git diff --check 정적 검사. 문서 작업으로 Gradle/실제 DB/IAM 검증 미실행.
+- 유지 계약: exact wire/null/숫자/index, SigV4/Lattice, 원천120일·snapshot7일·operation120일, 기존 LC/JWT/구매 fence. 사용자 정책 추가 변경 없음.
+- 결정: 가능성 검증 후3개 PR 단위 구현 권장. TMI-202 runtime/관리 권한·감사와 공동 구매 활성화 증거는 별도 미완료 항목, I3 완료로 자동 해소하지 않음.
+- 위험/다음: 실제 고정 snapshot history·restore/cleanup 경합·IAM/직접 ingress·legacy coverage 증명 미검증. 구현 요청 후 단계0부터 진행, 실환경 적용은 별도 승인.
+- 예상 밖 변경: 없음. 기존 사용자/과거 기록 보존. DB/배포/commit/push/Jira 변경 없음. 공식 Jira 조회만 수행했으며 댓글 초안은 계획 §6.5, 등록·상태변경 없음.
+
+## 2026-10-12 — TMI-203 결제 이력 부재와 복구 범위 설명
+
+- 브랜치: develop. Jira: TMI-203.
+- 목표: 사용자가 알린 과거 결제 사례 부재와 탈퇴 복구 설계의 관계 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계획·계약 변경 없음.
+- 내용/결정: snapshot은 결제 이력이 아닌 탈퇴 사실 목록이다. 과거 구매 데이터 이관과 출시 후 장애 복구를 구분한다. 최초 Billing 상태·외부 거래 부재·잔존 토큰/계정 생성 경계를 확인하면 초기 기준점 단순화안을 공동 검토할 수 있으나 결제 없음만으로 legacy COMPLETE 선언 또는 복구 기능 삭제 불가.
+- 검증: 기록 diff 정적 검사. 설명만 수행하여 Gradle/외부 DB/결제 조회 미실행. 결제 부재는 사용자 제공 전제이며 독립 검증 결과 아님.
+- 유지 계약/위험: 현 수락 계약과 활성화 gate 유지. 초기 기준점·범위 축소는 양측 검토 전 미확정, TMI-203 완료로 처리하지 않음.
+- 다음: 초기 상태 검증 후 필요 시 초기화 범위 단순화 제안. 예상 밖 변경 없음. 배포/DB/Jira/commit/push 없음.
+- Jira 댓글 초안(미등록): 결제 이력 부재 전제에 따른 초기화와 장래 복구 범위를 설명. 변경은 작업 기록2파일, diff 검사만 수행. 초기 상태·거래 부재 독립 검증 및 계약 변경 없음.
+
+### 현재 설명 턴 식별 기록
+
+<!-- codex-turn:01a12e70-86e9-73f0-8754-017988588a55 -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203.
+- 목표/내용: 과거 구매 이력 부재와 향후 탈퇴 누락 복구의 차이 설명, 현재 턴 기록 보완.
+- 변경 파일: WORKLOG.md, CURRENT_STATE.md. 코드·계획·외부 계약 변경 없음.
+- 테스트: git diff --check, 기록 끝 확인. 문서 기록만 변경하여 Gradle 미실행.
+- 결정/유지 계약: 기존 복구·보존 계약 유지. 초기 기준점 단순화는 검증·공동 검토 후 판단.
+- 위험/다음: 결제 부재는 사용자 설명이며 독립 확인하지 않음. 필요 시 초기 Billing 상태·토큰 영향 확인. 배포·DB·Jira 쓰기 없음, 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 최초 결제 출시 범위 승인 반영
+
+- 브랜치: develop. Jira: TMI-203.
+- 목표: 사용자 승인에 따라 legacy COMPLETE 증명만 최초 출시 필수 조건에서 제외하고 복구 기능은 유지.
+- 변경 파일: docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용/결정: 기존 Billing 구매 계정·purchaseAccountRefId 발급·실제 거래 없음은 사용자 확인 전제. PARTIAL/UNKNOWN 유지, 기존 탈퇴 snapshot 생략 금지, 결제 시작 기준점 기록·이후 capture/전달/복구 검증 유지. 과거 완전성만을 위한 무기한 대기/반복 복구 제외. 실제 거래가 후일 발견되면 영향 재검토.
+- 유지 계약: exact API/DTO/인증, T/H·H2·checkpoint·generation·만료/누락/복원 및 기존 보존 정책. 변경한 것은 최초 출시 증명 범위이며 실제 기능·판매/삭제 활성화 아님.
+- 테스트/결과: diff·문서 로컬 링크 정적 검사. 문서 작업으로 Gradle/DB/외부 거래 조회 미실행.
+- 위험/다음: 구현 시 양 서버 출시 gate와 승인 정합성 반영, 활성화 시 실제 기준점·capture 순서 기록. 기준점 이후 GAP은 계속 복구 대상. Billing 원문/공동 계약 원문/Jira는 미변경.
+- 예상 밖 변경: 없음. 기존 작업 보존, commit/push/배포/DB 변경 없음. Jira 댓글 초안은 계획 §6.5, 미등록.
+
+### TMI-203 최초 출시 범위 개정 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12e73-05d9-7420-9e44-7c808058764c -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203.
+- 목표/내용: 사용자 승인으로 최초 출시 legacy COMPLETE 증명 의무 제외, 복구 기능·기준점 이후 연속성 유지. 위 개정 기록의 현재 턴 식별자 보완.
+- 변경 파일: 계획서 TMI-203-withdrawal-recovery-snapshot-feed-plan.md 및 WORKLOG.md/CURRENT_STATE.md. 이번 보완은 기록2파일만 변경.
+- 검증: 로컬 링크13개 확인·git diff --check 통과. 문서만 변경하여 Gradle 미실행.
+- 유지 계약/결정: exact API·보존·snapshot/feed/ACK/generation 유지, PARTIAL/UNKNOWN을 COMPLETE로 바꾸지 않음.
+- 위험/다음: 구현 시 양 서버 출시 gate 반영, 실제 출시 기준점과 이후 복구 검증 필요. 배포/판매/DB/Jira 변경 없음. 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 계획 상세 설명
+
+<!-- codex-turn:01a12e77-fb41-7a60-b762-c6e77a63c6d3 -->
+
+- 브랜치: develop / Jira: TMI-203.
+- 목표: 최초 출시 범위 변경을 반영한 복구 계획을 사용자 관점에서 상세 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획서·제품 코드 추가 변경 없음.
+- 내용: TMI-202 전달과 TMI-203 복구 구분, 고정 T/H snapshot·고정 H2 feed·ACK·세대 fence·보존·내부 인증·개발/검증 순서를 예시로 설명. Billing 적용 책임 및 실제 Mongo 검증 필요를 구분.
+- 결정/유지 계약: 최초 출시 legacy COMPLETE 증명 제외 승인 유지, PARTIAL/UNKNOWN 사실대로 반환. 기존 탈퇴 목록 생략 금지, 기준점 이후 연속성·복구·exact API·보존 유지.
+- 테스트/결과: 최신 계획 본문 재확인 및 git diff --check. 설명/기록 작업으로 Gradle·외부 인프라 호출 미실행.
+- 위험/다음: 고정 Mongo snapshot·IAM·복원 경합은 향후 구현/공동 검증 대상. 구현 요청 전 코드·DB·배포·Jira·commit/push 변경 없음. 기존 기록 보존, 예상 밖 변경 없음.
+- Jira 댓글 초안(미등록): 최신 TMI-203 계획을 상세 설명. 기록2파일만 변경, diff 검사 수행. 최초 출시 범위 승인과 복구 안전장치 유지, 실환경 검증 미수행.
+
+## 2026-10-12 — Sentry Identity Mongo 오류 읽기 전용 조사
+
+<!-- codex-turn:01a12e7e-2553-7192-936f-e1a8404b45a8 -->
+
+- 날짜/브랜치: 2026-10-12 KST, develop. 신규 Jira 없음. 목표: 사용자 제공 Sentry7778941899 및 두 알림의 오류/발생 위치 확인. 두 번째 메일 링크는 미제공이라 어느 이슈인지 확정하지 않았다.
+- 확인: to-teacher-identity 미해결 목록에3개 그룹. IDENTITY-4(7778941899)는 guest recovery findAndModify,11events; IDENTITY-3(7778858472)는 guest registration userRepository.save,73events; IDENTITY-2(7778713685)는 token reissue refreshSessionRepository.save,623events. 모두 staging 태그, POST guest/reissue,500 및 UncategorizedMongoDbException→MongoCommandException. 목록 first/last seen5days ago, 대표 이벤트10월7일. 이벤트 수는 사용자 수가 아니다.
+- 근거: Sentry UI 스택 recovery54/registration31/reissue84와 Controller232/290. 현재 소스는 package 재편되어 과거 line을 현재 파일에 그대로 대응하지 않았다. git history a0b63f4b 부모의 registration31/reissue84 쓰기 연산 대조, 현재 recovery 구현도 findAndModify 확인. 57192f45 및 a0b63f4b 부모에서 옛 recovery 경로 조회는 없어서 실패했고 현행 구현/실제 스택으로만 설명.
+- 원인 제한: SentryEventSanitizer.sanitizeExceptions는 type/module/stacktrace만 복사하고 원문 message를 보존하지 않아 Mongo code/message/label 없음. 공통 DB 쓰기 실패는 확인되나 용량/권한/transaction conflict를 확정할 수 없다. 기존10월7일 Atlas510.4/512MB 조사 기록은 용량 후보 근거일 뿐 현재 상태나 이번 원인 증명 아님. prod 발생/현재 지속/10월9일 배포 인과도 확정하지 않는다.
+- 변경 파일: 양 저장소 WORKLOG/CURRENT_STATE뿐. 코드·외부API/AI·DB·AWS/Sentry 설정/issue상태·배포·commit/push/Jira 변경 없음. 기존 dirty 변경 보존, 예상 밖 제품 변경 없음.
+- 검증: Sentry UI 및 로컬 코드/git 정적 대조, 양 저장소 git diff --check. 제품 미변경으로 단위 테스트 미실행. 다음: 두 번째 알림 링크 대조, 대표 requestId로 CloudWatch Mongo 오류 code/정제된 원인 확인 및 실제 연결 DB/current recovery 검증. Token/Secret/PII·원문 exception 기록 없음.
+
+## 2026-10-12 — TMI-203 사용자 이해 확인·삭제 증거와 사전 검증 구분
+
+<!-- codex-turn:01a12e80-5ca8-7aa1-a54a-ff02d6f2679c -->
+
+- 브랜치: develop / Jira: TMI-203. 목표: 사용자 정리8항목 확인과 오해 교정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현·계획 변경 없음.
+- 내용: I2 push와 I3 Billing 조회/ACK, 세대 차단, 고정 T/H snapshot과 고정 H2 feed 설명. ACK는 별도 적용 보고이며 원격 DB commit 직접 증명 아님. 삭제 시 개인정보 복제가 아닌 재생 불가 순번 구간과 최소 적용 증거를 구분해 보존.
+- 유지 계약/결정: 사전 검증 전체를 생략하지 않음. 최초 출시 이전 전체 legacy COMPLETE 증명만 제외하고 기능/인증/기준점 이후 capture·복원 검증 유지.
+- 검증: git diff --check. 설명·기록만 변경하여 Gradle 미실행. 실제 인프라 검증 결과 아님.
+- 위험/다음: 구현/공동 검증은 별도, 기록만으로 준비 완료 아님. 동시 Sentry 조사 기록과 기존 변경 보존. 예상 밖 변경 및 DB/배포/Jira/commit/push 없음.
+- Jira 댓글 초안(미등록): 계획8항목 이해 확인, 삭제 metadata와 사전 검증 범위 설명. 기록2파일·diff 검사만 수행, 운영 검증은 후속.
+
+## 2026-10-12 — Identity-2 오류 집중 시간대 확인
+
+<!-- codex-turn:01a12e81-2804-7683-a763-778f6dcfd911 -->
+
+- develop, 신규 Jira 없음. 사용자 질문에 Sentry7778713685의7일 그래프를 읽기 전용 조회. 최대 버킷 UTC10월7일12:00~14:00=KST21:00~23:00에591events(전체623의94.9%). 다음 UTC14:00~16:00=KST23:00~10월8일01:00에32events.
+- First/Latest 이벤트 time datetime 확인: UTC2026-10-07T12:23:42.220Z~14:16:44.814Z, KST10월7일21:23:42~23:16:44. 따라서 실제32건도 마지막23:16:44 이전 발생. 버킷은2시간 집계이며 분단위 최다 시각이나 사용자 수를 입증하지 않는다.
+- 변경 파일: 양 저장소 WORKLOG/CURRENT_STATE만. Sentry 기간 필터/조회 외 issue상태/코드/설정/DB/배포 변경 없음. 제품 미변경으로 테스트 생략, diff check 수행, 기존 변경 보존. 원인 판단은 이전과 동일하게 미확정; 다음은 해당 시간 CloudWatch 정제된 Mongo 오류 코드 확인. Secret/Token 기록 없음.
+
+## 2026-10-12 — 신규 게스트 저장 오류 환경·시각 확인
+
+<!-- codex-turn:01a12e82-5a78-72f2-9704-49147f7c4a67 -->
+
+- develop, 신규 Jira 없음. Sentry Identity-3(7778858472) 총73events의 환경 분포100%staging 재확인. First datetime2026-10-07T13:37:16.462Z/Latest14:10:41.958Z, 한국시간10월7일22:37:16~23:10:41, 약33분25초. 기존 Identity-2도staging 태그였음을 설명하며 특정 ECS 서비스/revision은 태그만으로 증명하지 않는다.
+- 양 저장소 WORKLOG/CURRENT_STATE만 갱신, 원격은 읽기 전용 조회/기간 메뉴만 사용. 제품/DB/AWS/Sentry issue상태/배포/commit/push 변경 없음, 기존 변경 보존. 테스트는 제품 미변경으로 생략, diff check 수행. 원인 미확정 유지; 다음은 해당 시간대의 Mongo 오류 코드 로그 대조. Secret/Token 기록 없음.
+
+## 2026-10-12 — 10월7일 작업 이력·Sentry 테스트 수집 구조 설명
+
+<!-- codex-turn:01a12e84-fdd9-79f3-babb-1edef7a96973 -->
+
+- develop, 신규 Jira 없음. 이전 조사 결과와10월7일 기록/Identity application.yml을 정적 대조. 당일 Atlas510.4/512MB(99.7%)·21:17 KST 뉴스레터 Mongo 오류 관측·계정 recovery 테스트 설정 배포·탈퇴3flag 테스트 활성화 및 azure_results 백업 후 승인 삭제 기록 존재. 각 작업 정확한 시각과 이번 Identity 장애 인과는 미확정.
+- Identity SENTRY_ENABLED/DSN/environment는 runtime 주입. 같은 프로젝트 DSN으로 테스트·운영 이벤트를 함께 보낼 수 있고 environment로 구분되며 메일 여부는 alert rule 조건에 따름. 이번3그룹 모두staging 태그였지만 태그는 설정값이므로 특정 ECS old staging/test 서비스 단독 발생을 증명하지 않는다. 이전 응답의staging 서버 단정은 태그 기준임을 명확히 한다.
+- DB 쓰기3경로 동시 실패와 당시 용량한계는 공통DB 문제 후보이나 Mongo 오류 code 미확인으로 확정 금지. 현재 DB·AWS/alert rule 재조회 없음. 양 저장소 WORKLOG/CURRENT_STATE만 변경, 제품/계약/설정/배포/DB/Sentry issue상태 불변. 제품 미변경 테스트 생략, diff check 수행, 기존 변경 보존. 다음은 당시 requestId CloudWatch 로그/연결 DB 및 환경별 DSN·alert rule 대조. Secret/Token 기록 없음.
+
+## 2026-10-12 — 백업 정리 이후 Identity 동일 오류 재발 확인
+
+<!-- codex-turn:01a12e86-4623-7050-a273-ea522dc26d43 -->
+
+- develop, 신규 Jira 없음. 사용자 요청에 정리 결과와 Sentry3이슈 Latest를 새로 읽기 확인. /private/tmp/azure-results-cleanup.hkUzDF/result.json은 completed=true/deleted4721/after0/indexesUnchanged=true, 파일mtime2026-10-07 23:23:50 KST. 이는 결과 파일 저장 시각이며 실제 마지막 삭제의 정확한 시각은 문서에 없음.
+- Sentry latest: 신규Guest7778858472 UTC14:10:41.958=KST23:10:41, reissue7778713685 UTC14:16:44.814=23:16:44, Guest복구7778941899 UTC14:17:35.002=23:17:35, 모두10월7일. 현재 조회한 동일3그룹에 결과저장23:23:50 이후 이벤트 없음. 전체 오류없음/현재업무정상/DB용량원인 또는 정리인과 증명은 아니다. 복구그룹 header8/graph11 표시 차이는 미해결이며 횟수 아닌Latest시각으로 판단.
+- 변경 파일 양 저장소 WORKLOG/CURRENT_STATE만. 외부 read-only조회·로컬결과metadata 확인, 제품/DB/설정/Sentry상태/배포 변경 없음. 테스트 생략(제품미변경), diff check 수행, 기존 변경 보존. 다음은 필요시 Mongo 원인코드 및 정리후 실제 쓰기성공 로그 확인; 사용자데이터 원문/Secret/Token 비기록.
+
+## 2026-10-12 — TMI-203·204 단순화 공동 검토 회신
+
+<!-- codex-turn:01a12e8c-3455-79a2-9c0d-6d5bb5fc1b20 -->
+
+- 브랜치: develop / Jira: TMI-203, 연계 TMI-204.
+- 목표: 사용자 단순화 인계의5개 검토 항목을 비교하고 최소 책임 구조의 권장안 제시.
+- 변경 파일: docs/contracts/TMI-203-204-recovery-simplification-review.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 내용: Billing local checkpoint/epoch authority 권장, Identity remote ACK/generation3개 API·3개 상태 컬렉션 제거 후보. 고정 T/H snapshot·digest·H2 cursor 유지 사유, live overlap 삭제 경합 조건, source availability/cleanup 책임 이동, 실패별 판매/삭제 제한, 비용·fixture/index 변경·핵심 테스트 정리.
+- 확인 사실: 공식 Jira203 기존 범위 읽기, I2 record/cleanup/config와 Billing204 계획 정적 확인. Billing 구현/운영 상태·User tombstone 전체 삭제 경로 미검증, 실제 비용 수치는 추정하지 않음.
+- 유지 계약/결정: 제안만 작성. 원203 계획/exact/fixture/Billing 문서·제품 코드 변경 없음. I2 capture/push/멱등·token 경합/보존 유지, 상대 수락 전 단독 wire 변경 금지.
+- 테스트/결과: 문서 로컬 링크·git diff --check 정적 검사. 문서 작업으로 Gradle·실제 Mongo/IAM/외부 거래 호출 미실행.
+- 위험/다음: remote 완료 관측 제거에 따른 Billing 책임 이동·restore 격리 수락 필요. 양측 합의 후 exact/schema/fixtures/205 gate 개정, 구현·배포·판매·삭제는 별도.
+- 예상 밖 변경: 없음. 기존203 초안/동시 Sentry 기록 보존. DB/설정/Jira 쓰기/commit/push 없음. Jira 댓글 초안은 회신 §6.6, 미등록.
+
+## 2026-10-12 — TMI-203 단순화 방향 승인·현행 계획 개정
+
+<!-- codex-turn:01a12e93-8f69-7ad2-a365-027e1c460b5f -->
+
+- 브랜치: develop / Jira: TMI-203, 연계 TMI-204.
+- 목표: 사용자 승인한 Billing local authority 방향으로 실제203 계획의 개발/완료 범위를 수정.
+- 변경 파일: docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, TMI-203-withdrawal-recovery-plan-before-simplification.md, TMI-203-204-recovery-simplification-review.md 및 docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 내용: remote ACK/checkpoint/generation API3개·상태3종 제외,4개 source API·snapshot/feed·local fence 연동 중심으로 PR/DB/index/테스트 재편.202 Evidence 책임 변경과 source availability 새 exact 동결 필요 명시. 기존 상세 원문은 보관본으로 분리하고 검토 회신에는 후속 승인 안내 추가.
+- 유지 계약/결정: T/H snapshot·digest·H2·I2 push/capture·보존·Billing local epoch/restore 보호 유지. 최초 출시 legacy COMPLETE 증명 제외 유지. 공동 exact/Billing/Jira 원문은 미변경이며 구현 전 정합성 개정 필요.
+- 테스트/결과: 문서 로컬 링크·기록 append·git diff --check 정적 검사. 문서 작업이므로 Gradle/실제 DB/IAM 미실행.
+- 위험/다음: remote consumer 증거 제거에 따른 Billing 책임 수락,source availability DTO/index/fixture·구client 전환 동결 후 구현. 운영/판매/삭제 활성화는 별도 승인.
+- 예상 밖 변경: 없음. 이전 초안과 동시 작업 기록 보존. 제품 코드/DB/배포/Jira 쓰기/commit/push 없음. Jira 댓글 초안은 현행 계획 §6.4, 미등록.
+
+## 2026-10-12 — Billing 인계서·문서 개정 지침 후속 회신
+
+<!-- codex-turn:01a12e9a-d4ed-7c20-81c5-6fa5272cd3f8 -->
+
+- 브랜치: develop / Jira: TMI-203, 연계204·199·202·205·206.
+- 목표: Billing 전달 인계서 작성 및 진행 중 수신한 문서 개정 지침에 exact 미결안 회신.
+- 변경 파일: docs/contracts/TMI-203-to-Billing-TMI-204-simplified-recovery-handoff.md, TMI-203-single-authority-exact-amendment-response.md, 현행203 계획의 후속 링크, docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 내용: 승인 책임 분리·Billing local commit/epoch·restore·보존·205·검증 인계. 후속으로 versioned 전환 권장,명시 stream body·consumer/환경/key unique와 body binding,마지막 cursor non-null 의미,bounded availability 성공/410 예시·일관 읽기·manifest/fixture 변경 후보 제시. state baseline H와 원event (H,C] 증거 구분.
+- 확인: 첨부 전체 읽기,Billing204 local authority 개정 헤더/요약 확인,로컬 production source에서203 route 검색 미발견. 실제 배포/다른 브랜치 부재 증명 아님,실인프라 조회 미수행.
+- 유지 계약/결정: 문서 기술 제안이며 새 exact 동결 아님. 기존199 fixture/공동 원문/Billing 문서/202 코드 변경 없음. unrelated push204/resumeGeneration·token/보존 유지. 생성body/index 후보는 양측 수락 전 미확정.
+- 테스트/결과: 로컬 링크·예시JSON parse·git diff --check 정적 검사. 문서 작업으로 Gradle/Mongo/IAM 미실행.
+- 위험/다음: 실제 배포/client 검증,새 revision·오류·availability/index 동결 후 활성 문서/fixture 동시 개정 필요. Billing C 숫자만으로 purge 허용 금지. 안내문 추가를 본문 전체 개정 완료로 보지 않음.
+- 예상 밖 변경: 없음. 기존 초안·과거/동시 기록 보존,DB/배포/Jira 쓰기/commit/push 없음. 두 문서의 Jira 초안 미등록,타 채팅에 메시지 전송하지 않음.
+
+## 2026-10-12 — Billing 보완 회신 검토·recovery-v2 exact 후보
+
+<!-- codex-turn:01a12ea2-1379-7340-90de-c32d24b485bf -->
+
+- 브랜치: develop / Jira: TMI-203, 연계204·199·202·205·206.
+- 목표: Billing 보완안 수용 여부 및 미결 경계/route/index/DTO 후보 회신.
+- 변경 파일: docs/contracts/TMI-203-recovery-v2-exact-candidate.md, docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 내용:503 details 생략·page20검사범위 hole 전체오류·멱등 충돌 순서 수용. v2 prefix 후보,7일EXPIRED/120일metadata,논리expiry singleton410·full interval범위,head/MAX·500응답초과,10index/new operation명 후보 제시. source baseline과원event 적용 증거 분리 유지.
+- 유지 계약/결정: 공동 동결 전 후보이며 기존199 manifest/hash·공동본문·203계획·Billing원문·202코드 변경 없음. push/event1·local fence·T/H/digest/H2·보존 유지,일괄 ACK/generation 치환 없음.
+- 테스트/결과: 첨부 전체/기존index 대조,링크·예시JSON·diff 정적 검사. 문서 작업으로 Gradle/실Mongo/IAM/배포 미검증,fixture 미생성.
+- 위험/다음: 실제 배포/client·source 전체interval저장·429/고정message·최종schema/fixture/호환이관 미동결. Billing 수락/보완 후 새exact/활성본문 정합성 개정. 공동 수락 완료로 보고하지 않음.
+- 예상 밖 변경: 없음. 기존 초안/동시 기록 보존,DB/설정/Jira 쓰기/배포/commit/push 없음. Jira 댓글 초안은후보 §6.2,미등록.
+
+## 2026-10-12 — Billing 동일 회신 재확인
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: 사용자가 전달한 Billing 회신의 합의 상태 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품/계약/계획 추가 변경 없음.
+- 확인: 이번 첨부와 직전 Billing 회신은 byte 비교 동일. 방향·보완 권장 수용이며 신규 recovery-v2 후보에 대한 최종 수락은 아님. 이미 반영한503 details/페이지hole/멱등보존 내용을 반복 재설계하지 않음.
+- 테스트: 첨부 전체 읽기·cmp 동일 및 git diff --check. 문서 설명으로 Gradle/실인프라 미실행.
+- 결정/유지 계약: 현 후보 유지,다음은 남은 exact/fixture 정리 및 양측 수락. 실제 구현/판매/배포 승인과 구분.
+- 위험/다음: source interval 저장·최종오류/fixture·호환배포 미결 유지. 기존 변경 보존,예상 밖 변경 및DB/Jira/commit/push 없음. Jira 댓글 초안(미등록): 동일 회신 확인,추가 계약 변경 없음,정적 검사만 수행.
+
+### Billing 회신 재확인 — 현재 턴 식별 기록
+
+<!-- codex-turn:01a12ea6-9130-7151-9745-5da558a346df -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표/내용: 동일 Billing 회신 재확인 턴 식별자 보완. 방향 합의와 새 exact 최종 수락을 구분한 설명 유지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계약 변경 없음.
+- 검증: 첨부 byte 일치 확인 결과 유지,git diff --check 및 파일 끝 확인. 기록 작업으로 Gradle 미실행.
+- 결정/위험/다음: 기존 후보 유지,source interval·오류/fixture·호환 조건 확정 및 공동 수락 후 구현. DB/Jira/배포/commit/push 없음,예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 남은 확정 항목 설명
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: 큰 설계와 세부 기술 동결·검증 작업을 구분해 사용자에게 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획/제품 변경 없음.
+- 내용: source 소실 interval 저장/상한·정리,API/오류/index 후보 공동 수락,204 재시도/경보·권한 운영값을 기술 미결로 구분. schema/fixture 생성과실제배포/Mongo/IAM 확인은 선택이 아닌 검증 작업으로 설명.
+- 결정/유지 계약: local authority·remoteACK 제거·T/H/digest/H2·보존 방향 유지. 사용자에게 제품정책 재선택을 요구하지 않음,제안 수락과공동동결 구분.
+- 테스트: 최신 후보 §3 정적 재확인·git diff --check. 설명 작업으로 Gradle/실인프라 미실행.
+- 위험/다음: source interval 세부설계와양측기술합의 후fixture/호환검증 필요. 기존변경 보존,예상 밖 수정 및DB/Jira/배포/commit/push 없음.
+- Jira 댓글 초안(미등록): 미결 기술규격과후속검증을구분해설명,기록2파일만변경·diff검사,코드/계약추가변경없음.
+
+### 확정 항목 설명 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12ea7-719d-7b32-ae8d-84d4fbe47aff -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표/내용: 원천 누락 구간 저장·API 세부 합의·재시도/경보 값과 후속 검증을 구분한 설명의 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계약 변경 없음.
+- 검증: git diff --check 및 파일 끝 확인. 기록 작업으로 Gradle 미실행.
+- 결정/위험/다음: 기존 설계·보존 정책 유지,개발측 세부안과공동 수락·검증 필요. DB/Jira/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — 미구현 복구 API 주소 버전 설명 정정
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: 미구현 API의 v2 경로 필요성에 대한 사용자 질문 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획/후보/코드 변경 없음.
+- 내용/결정: 기존 구현/client가 없다는 사용자 전제에서는 v2 분리 불필요,기존 예정 /internal/v1/billing/withdrawals로 최초 구현 가능. API URL 버전과 계약 문서 revision/과거 fixture 보존을 구분. v2는 호환 전환 후보였으며 필수로 제시한 설명을 정정. 1번은 source interval 내부설계,3번은 사용자가 Billing에 요청할 운영값으로 구분.
+- 검증: 최신 후보·기록 확인 및 diff 정적 검사. 설명 작업으로 Gradle/실배포 조회 미실행. 배포 부재를 독립 확인한 것으로 표현하지 않음.
+- 유지 계약/위험/다음: source/consumer 책임·보존 유지. 명세 개정 요청 시 현행 계획/후보의 v2 전제를 일관 수정,과거 수락 기록 보존. DB/Jira/배포/메시지/commit/push 없음,예상 밖 변경 없음.
+- Jira 댓글 초안(미등록): 미구현 신규 API는 기존 예정 v1 사용 가능,문서 revision은 별도 관리. 기록만 변경,실환경 검증 없음.
+
+### 미구현 API 주소 설명 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12ea9-7c00-7403-bd7b-974aab435c69 -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표/내용: 미구현 복구 API에는 v2 분리가 필수가 아니며 기존 예정 v1 최초 구현과 문서 revision 관리를 구분한 설명의 턴 식별 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획·후보·제품 코드 변경 없음.
+- 검증: git diff --check 및 파일 끝 확인. 기록 작업으로 Gradle 미실행.
+- 결정/유지 계약: source/consumer 책임·보존 유지. 미구현은 사용자 전제이며 실배포 독립 검증 결과 아님.
+- 위험/다음: 후속 명세 개정 시 v2 후보 정합성 수정,Identity interval 설계 및 Billing 운영값 정리. DB/Jira/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 source 소실 구간 저장 권장안 설명
+
+<!-- codex-turn:01a12eaa-8208-7003-8dff-ac026a4dc34b -->
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: source interval 내부 저장 방식 권장안 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획/코드/fixture 변경 없음.
+- 내용: 기존 stream replayFloor와 별도 중간 소실 range 문서를 사용,인접 범위 병합·prefix 편입 후 중복 range 제거 권장. 사용자/event 원문 미저장,정상 가용 구간을 건너뛴 floor 증가 금지. source CAS/범위 기록/원천 삭제 원자성,동시 cleanup 보호 및 bounded batch/경보 구분.
+- 확인/검증: 기존 Stream.replayFloor와 WithdrawalSourceCleanup의 transaction 내 Evidence 후 삭제 구조 읽기,git diff --check. 설명 작업으로 Gradle/실DB 미실행.
+- 유지 계약/결정:120일 source·폐기stream metadata 보존 유지,source availability와 Billing 적용 증거 구분. 별도컬렉션/index는 설계 제안으로 공동명세 개정 필요,기존 예상10개 확정 아님.
+- 위험/다음: 장애로 evidence 저장 실패 시 삭제 rollback/재시도·경보하되 승인 없는 보존 연장 정책으로 취급하지 않음. 사용자 채택 후 schema/index/expiry 경합 fixture 정리. 기존기록 보존,예상 밖 변경·DB/Jira/배포/commit/push 없음.
+- Jira 댓글 초안(미등록): floor+중간range 정규화 저장 권장 설명,기록2파일·정적검사,구현/명세확정 없음.
+
+### 소실 구간 저장 설명 — 정확한 현재 턴 기록 보완
+
+<!-- codex-turn:01a12eaa-8208-7fa3-ba74-148b7f1c70f7 -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표/내용: replayFloor와 별도 중간 소실 구간 저장 권장 설명의 정확한 턴 식별자 보완. 과거 WORKLOG 기록은 변경하지 않음.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 계획·제품 코드 변경 없음.
+- 검증: git diff --check 및 파일 끝 marker 확인. 기록 작업으로 Gradle 미실행.
+- 결정/유지 계약: 원천 삭제와 가용성 기록 원자성·보존 정책 유지,consumer 적용 증거와 구분.
+- 위험/다음: 채택 후 collection/index·경합 테스트 구체화 필요. DB/Jira/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — source range 채택·v1 유지·Billing 운영값 통합 인계
+
+<!-- codex-turn:01a12eac-4590-7ba1-b6e1-e7a1bb1dadc7 -->
+
+- 브랜치: develop / Jira: TMI-203, 연계204·199·202·205·206.
+- 목표: 사용자가 채택한 floor+중간range 저장과 앞선 v1/책임분리·Billing 운영값 요청을 한 인계서로 정리.
+- 변경 파일: docs/contracts/TMI-203-Billing-consolidated-handoff-2026-10-12.md, 현행203 계획, 기존v2 후보의최신결정안내, docs/codex/WORKLOG.md, CURRENT_STATE.md.
+- 내용/결정: 미구현 API는 기존예정v1 유지·문서revision 별도. replayFloor+별도range·인접병합·prefix편입 채택 반영,원천삭제와증거 원자성/소비자증거분리 유지. Billing204 poll/retry/circuit/경보/watchdog/권한 제안 요청. 이전v2후보를현행주소로오인하지않도록참조정리.
+- 유지 계약: I2 capture/push204·T/H/digest/H2·local epoch/restore·보존·최초legacy예외 유지. exact오류/DTO 세부후보와range schema/index는후속공동동결,기존199fixture/Billing문서/코드미변경.
+- 테스트/결과: 로컬링크·git diff --check 및marker/append확인. 문서작업으로Gradle/실DB/IAM/배포검증미실행.
+- 위험/다음: range컬렉션추가에따른index총수미확정·batch/retention조건구체화,Billing운영값회신 후공동명세정리. 실제배포부재는사용자전제와독립검증구분.
+- 예상 밖 변경: 없음. 기존초안·과거기록보존,DB/Jira/배포/메시지전송/commit/push없음. Jira초안은통합인계§6.4,미등록.
+
+## 2026-10-12 — Billing204 운영 초기값 검토
+
+<!-- codex-turn:01a12eb1-dab1-78d0-bfe1-628e6882e80e -->
+
+- 브랜치: develop / Jira: TMI-203, 연계204·205·206.
+- 목표: Billing 운영값 회신을 기존 보존·복구 계약과 대조.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드·계획·공동명세 변경 없음.
+- 내용: 정상5초/빈scan30초·20회후5분probe·page20/lease60초·snapshot추가2run·장애단위경보는 초기안으로 타당하다고 평가. 실제 부하 검증/설정 적용과 구분. snapshot/staging7일 정리는 기한후경보만으로충족되지 않으며 기한내정리·미준수경보 구분 필요. Retry-After PAUSED_UNTIL과worker liveness/예정지연 경보 구분·pause만료후재개검사 필요.
+- 유지 계약/결정:204 pull값이며202 기존재시도와분리. local commit/epoch·GAP/restore·205보류·v1/source range방향 유지. 수치 공동동결/운영활성화 아님.
+- 테스트/결과: 첨부전체/통합인계정적대조·git diff --check. 설명검토로Gradle/실DB/IAM/부하실험미수행.
+- 위험/다음: 실제담당/채널/watchdog·Identity range schema/index/batch/429/FAILED page응답 등 세부규격 남음. 구현 전 명세화와206검증 필요. 기존기록보존,예상밖변경및DB/Jira/배포/전송/commit/push 없음.
+- Jira 댓글 초안(미등록): Billing운영값초기안검토,7일기한내정리·PAUSED상태경보구분보완권장.기록2파일·정적검사만,구현/활성화미수행.
+
+## 2026-10-12 — 구현 전 TMI-203 Jira 개정 범위 확인
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: Jira 수정 선행 여부 질문에 현재 이슈 확인과 변경안 제시.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품/계획 변경 없음.
+- 확인: 공식 Jira 조회 결과203 제목·본문에 remote checkpoint/generation·ACK 완료조건이 남고 상태는 해야 할 일. 수정 필요하나 이번 질문은 쓰기 승인으로 취급하지 않음.
+- 제안: 제목을 snapshot/feed/source 가용성 복구 API로 정리,원격3개API/consumer authority 제외,v1 최초구현·floor+별도range·원자cleanup·Billing local 책임·회귀 완료조건·후속exact 동결을 반영. 상태/담당/상위/댓글은 유지.
+- 테스트: Jira 읽기·기록 diff 정적 검사,설명 작업으로 Gradle/실인프라 미실행.
+- 유지 계약/위험/다음: 보존·push/token/local fence 유지. Jira 수정만으로exact/fixture 동결·구현/배포 승인 아님. 사용자 승인 후203 제목/설명만 수정,Billing204는 상대범위. DB/배포/Jira쓰기/commit/push 없음,기존기록 보존·예상밖변경없음.
+- Jira 댓글 초안(미등록): 현 이슈 구범위 확인 및 개정안 제시,기록만 변경·정적검사. 실제 이슈수정 승인 대기.
+
+### Jira 개정 범위 확인 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12eb4-cbcb-72a0-8a0e-24d672ec1d05 -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203.
+- 목표/내용: 구현 전 Jira 제목·설명 개정안을 제시한 턴의 식별자 보완. 수정 승인 대기 상태 유지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계약 변경 없음.
+- 검증: git diff --check 및 파일 끝 확인. 기록 작업으로 Gradle 미실행.
+- 결정/위험/다음: 사용자 승인 후 제목·설명만 수정,상태·담당·상위·댓글 유지. exact 동결/구현/배포 승인과 구분. Jira 쓰기·DB·배포·commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 Jira 제목·설명 개정 완료
+
+- 브랜치: develop / Jira: TMI-203.
+- 목표: 앞서 제시한 변경안에 대한 사용자 ‘수정해줘’ 승인으로 제목·설명만 개정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- Jira 작업: 공식 MCP로 기존 상태 확인→제목/설명 수정→재조회 검증. 제목은 [Identity I3] snapshot·feed·원천 가용성 기반 탈퇴 복구 API. 원격ACK/consumer authority 제외,v1·floor/range·원자cleanup·Billing local책임·새완료조건과exact동결전제를 반영했다.
+- 승인: 사용자 명시 승인 있음. 상태는 해야 할 일 유지,상위TMI-137/담당자 동일 확인. 댓글 미등록·상태변경 없음,다른 이슈 미수정.
+- 테스트/결과: 수정후 공식조회로 제목·새범위·상태/상위/담당자 보존 확인,git diff --check. Jira/기록 작업으로 Gradle 미실행.
+- 유지 계약/결정: push204·T/H/digest/H2·보존/token/LC 유지. 이슈수정은exact공동동결·구현·DB이관·배포·판매/삭제승인이 아님.
+- 위험/다음: range schema/index·오류세부/fixture·Billing운영값 동결 후 별도 구현 요청. 기존기록보존,예상밖제품변경·DB/배포/commit/push 없음.
+- Jira 댓글 초안(미등록): 승인받은 제목/설명 개정과 재조회 검증 완료. 기록2파일만변경,실코드/운영검증은후속.
+
+### TMI-203 Jira 개정 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12eb7-3fe9-7290-9c5e-aec4bb30472f -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203.
+- 목표/내용: 사용자 승인으로 완료한 Jira 제목·설명 개정의 현재 턴 식별자 기록 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계약 추가 변경 없음.
+- Jira 작업/승인: 제목·설명 수정 승인 및 완료. 상태 해야 할 일·담당자·상위TMI-137 유지,댓글 등록 없음. 이번 보완에서는 Jira 추가 변경 없음.
+- 검증: 기존 공식 재조회 검증 결과 유지,git diff --check 및 파일 끝 확인. 기록 작업으로 Gradle 미실행.
+- 유지 계약/위험/다음: 기존 push·보존·token 계약 유지,exact/schema/fixture 정리 후 별도 구현 요청. DB/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 구현 전 간단 설명
+
+- 브랜치: develop / Jira: TMI-203, 연계204.
+- 목표: 구현 착수 여부와 동작을 간단히 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드·계획 추가 변경 없음.
+- 내용/결정: 큰 범위/Jira는 정리됐고 첫 단계로 range schema/index·정확 DTO/error/fixture와 Billing 정합성을 확정한 뒤 코드 구현. Identity snapshot/feed·floor/range·원자 정리, Billing local 적용/진행·epoch 책임,기존 push 유지 설명.
+- 유지 계약/위험: 세부 공동동결·실Mongo/IAM/복원 검증 완료로 보고하지 않음. 구현/배포 승인 구분,실제 활성화 별도. 기존 보존/token/LC 유지.
+- 테스트: 기록 diff 정적 검사,설명 작업으로 Gradle 미실행. 다음은 명시 구현 요청 후 선행명세/검증부터 수행. 기존기록보존,예상밖변경·DB/Jira/배포/commit/push 없음.
+- Jira 댓글 초안(미등록): 구현 전 흐름과 선행 exact/schema 검증 설명,기록만 변경·정적 검사,실구현 없음.
+
+### 구현 전 요약 — 현재 턴 기록 보완
+
+<!-- codex-turn:01a12eb9-61fa-75e0-9110-a41ac79bd433 -->
+
+- 날짜: 2026-10-12 / 브랜치: develop / Jira: TMI-203.
+- 목표/내용: snapshot/feed·소실 구간·Billing 로컬 진행 관리와 구현 선행 조건 설명의 턴 식별자 보완.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품·계획 변경 없음.
+- 검증: git diff --check 및 파일 끝 marker 확인. 기록 작업으로 Gradle 미실행.
+- 유지 계약/결정: 기존 push·보존·token 보호 유지,세부 schema/exact/fixture 정리 후 구현. 공동 동결이나 실환경 검증 완료로 간주하지 않음.
+- 위험/다음: 명시 구현 요청 후 선행 명세·검증부터 진행. DB/Jira/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 내부 검증 코어 구현, API 공동 확정 경계 유지
+
+<!-- codex-turn:01a12ebb-824d-7b11-928a-b54ee5951f32 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery
+- Jira: TMI-203
+- 목표: 사용자 구현 요청에 따라 승인된 내부 로직을 개발하고, 공동 exact 선행 조건과 API 완료 여부를 분리한다.
+- 사전 확인: 공식 Jira 제목/설명/상태 조회. 최신 Identity 계획/통합 인계/후보와 Billing204 계획·운영 회신을 대조했다. 공동 exact 미동결/production adapter 선행 조건이 남아 있음을 확인했다. Jira 수정/댓글/상태 변경 없음.
+- 변경 파일: withdrawalrecovery의 UnavailableRanges/FeedPageVerifier/SnapshotDigest 3클래스와 동명 Tests 3개, WithdrawalSourceCleanup Javadoc, docs/contracts/TMI-203-core-implementation-and-freeze-gates.md, WORKLOG/CURRENT_STATE.
+- 구현: 최대100구간 lossless 정규화·prefix 편입·MAX 보호,20순번 feed 전체 검증·hole/논리expiry/불명 구분,기존 canonical snapshot digest streaming 계산. 개인정보 포함 객체 toString redaction. cleanup port의 remote consumer 증거 설명을 source version/floor/range 책임으로 변경했다.
+- 비구현/결정: controller/DB adapter/cursor/고정T builder/cleanup 저장·스케줄은 아직 없음. Bean/환경 flags/DB/인덱스 미변경. 내부 코어를 실제 서비스에 연결하지 않았으며 TMI-203 완료가 아니다. 새 range schema/index/남은 오류 권장안을 문서화했으나 공동 수락이나 DDL로 취급하지 않는다.
+- 테스트: 최초 clean test는 sandbox Gradle 캐시 권한으로 시작 실패. 승인된 재실행에서 새 테스트의 Runnable→ThrowingCallable 컴파일 오류를 확인하고 action::run으로 수정했다. 최종 env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공(26초),1492개 중1486통과/6skip/0failure/0error. 새17개 전부통과,range 고정seed2000개 집합 불변성 포함. git diff --check 통과. 실제 Atlas/OAuth/Mongo replica-set/IAM/Billing 통합 미실행.
+- 유지 계약: 기존 push204/4필드·LC·로그인/구매 token·capture/보존 규칙 유지. remote ACK/generation 신규 추가 없음. 기존199 fixture/hash 그대로 사용. 응답/권한을 느슨하게 하는 fallback 없음.
+- 위험/배포 전: 동일T Mongo 및 DB 원자성/restore·IAM ingress·source timing·7일/120일 정리·공동 fixture 검증은 미완료. 현재 변경만 배포해도 recovery API는 제공되지 않는다. 실제 활성화 별도 승인 필요.
+- diff 확인: 시작 시 dirty 문서7개·기록2개 보존. 이번 제품 변경은3개 내부 클래스와 cleanup 주석뿐,관련 테스트/문서 외 예상 밖 변경 없음. commit/push/외부쓰기/배포 없음.
+- 다음: 문서 §5의 기술안을 Billing과 확정하고 새 revision fixtures를 검증한 뒤 source/snapshot/feed 저장·HTTP adapter를 구현한다. 상세 완료/미완료 및 Jira 댓글 초안은 위 구현 범위 문서 §6; 댓글은 등록하지 않았다.
+
+## 2026-10-12 — Billing 후속 회신 §7 검토
+
+<!-- codex-turn:01a12ec7-f63c-7221-a4a5-35d9e5db544d -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery
+- Jira: TMI-203
+- 목표: 첨부 Billing exact 검토 회신 전체,특히 신규 §7을 현재 내부 코어와 대조하여 다음 작업 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 기존 dirty 코드/문서 보존,이번 제품 코드 수정 없음.
+- 확인/분석: range 최소 필드·2개index·availabilityVersion 명시이관·100구간 bounded 처리·FAILED page409/nonretryable·429 인프라body 비가정 방향은 채택 권장 회신이다. 문서가 공동 동결 완료를 명시하지 않으므로 최종 수락/배포 검증으로 승격하지 않는다. v2/10index 본문은 최신 header에 따라 과거 후보로 취급,현행v1 유지.
+- 구현 경계: FeedPageVerifier는 받은 range가100개 초과면 불명 오류이나DB에서100개만잘라준경우누락을증명할수없다. 향후조회는정규화batch제한과분리해필요page의최초소실을완전조회해야한다. UnavailableRanges는선택집합만처리하므로선택밖동일from/unique경합·잔여정규화진행은DB adapter에서해결해야한다. 현재adapter가없으므로관측된운영장애나실제DB버그라고단정하지않는다.
+- 결정/다음: 추가제품선택보다Identity의새exact/schema/message/operation index명/fixture 작성이먼저다. 101개이상·겹침·선택밖동일키·부분batch·MAX 및무한동일retry금지검증을포함하고양서버공동fixture확인후adapter/controller를이어간다. 검토회신만반복하며작성을미루지않는다.
+- 테스트: 첨부/현재소스정적대조와git diff --check. 분석·기록만변경하여Gradle미재실행;이전1492개결과를이번새검증으로주장하지않음. 실Mongo/IAM/복원미검증.
+- 유지 계약/위험: push204/LC/token/보존/default OFF 유지. 공동동결·실제API준비는미완료. Jira쓰기/댓글/상태변경·DB/배포·commit/push와예상밖변경없음.
+- Jira 댓글 초안(미등록): Billing §7을내부코어와대조,100구간정규화와feed완전조회분리·선택밖unique경합수렴을다음명세/테스트조건으로확인. 기록2파일변경·정적검사,실환경/새fixture공동검증미수행.
+
+## 2026-10-12 — TMI-203 후속 구현 순서 안내
+
+<!-- codex-turn:01a12ec7-f63c-7221-a4a5-35d9e5db544d -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표: 계속 구현 가능한지 질문에 착수 가능 범위와 순서 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 내용: 기록만,제품 코드 추가 변경 없음.
+- 결정: 다음은 구체적인 exact/schema/index 및 공통 fixture 작성·내부 검증이다. 공동 확인 뒤 DB/HTTP adapter를 이어가며 새 제품 정책 선택은 필요하지 않다. 질문을 신규 API 구현·배포 승인으로 확대하지 않는다.
+- 유지 계약: v1·기존 push/LC/token·보존·default OFF 유지. 공동 동결/실환경 검증 완료로 간주하지 않는다.
+- 테스트: git diff --check,설명·기록 작업이므로 Gradle 미실행.
+- 위험/다음: 100구간 밖 소실 판정 및 unique 충돌 수렴 테스트,공동 fixture 확인·Mongo/IAM/복원 검증 필요. DB/Jira쓰기/배포/commit/push·예상 밖 변경 없음. 기존 dirty 변경 보존.
+- Jira 댓글 초안(미등록): 후속 exact/fixture→공동확인→adapter 구현 순서 안내. 기록2파일만 변경,정적검사,운영검증 미수행.
+
+### 후속 구현 순서 안내 — 현재 턴 식별자 보완
+
+<!-- codex-turn:01a12ec9-c387-7581-8d6b-b83ca17a1b51 -->
+
+- 날짜: 2026-10-12 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표/내용: 후속 구현 순서 안내의 현재 턴 기록 보완. 과거 기록은 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: git diff --check 및 WORKLOG 끝 marker 확인. 기록만 변경하여 Gradle 미실행.
+- 유지 계약/결정: v1·push·token·보존/default OFF 유지. exact/schema/index·공통 fixture 작성 후 공동 확인,그 뒤 DB/HTTP adapter 구현 순서.
+- 위험/다음: Mongo/IAM/복원·공동 규격 검증 미완료. DB/Jira/배포/commit/push·예상 밖 변경 없음. 기존 dirty 변경 보존.
+
+## 2026-10-12 — TMI-203 recovery-r1 exact·공통 fixture 및 내부 연결 규칙 구현
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery
+- Jira: TMI-203
+- 목표: 사용자 ‘구현해줘’ 요청으로 후속1단계인 API/DB exact·공통 fixture를 실제파일/테스트로작성하고bounded조회/정리경계를구체화.
+- 사전조회: 공식Jira 제목/설명/상태재확인. 구현전공동규격확인조건유지,상태/댓글변경없음.
+- 변경 파일: RecoveryProtocol,SnapshotAccessRules,PageRangeWitnesses,RangeMutationPlan,RangeSweepPlan 신규;FeedPageVerifier보완;RecoveryProtocolTests/RecoverySchemaTests/RangeRecoveryBoundariesTests;recovery-r1의schema/request/response/errors/index/state/range/hash JSON8개와README;build.gradle testImplementation;TMI-203-recovery-r1-exact.md·현행계획링크·WORKLOG/CURRENT_STATE.
+- 구현 내용: strict UTF8/duplicate/trailing/추가키/숫자문자열·16KiBcodec,고정오류message/FAILED409/429인프라body비가정,멱등binding→stream→expiry우선순위;feed20개점containment로101번째range를놓치지않는port;seedexact동일키필수포함후99기존+seed정규화;keyset진행/carry로배치경계병합과앞부분반복방지. 실제DB쓰기는없음.
+- 명세: v1유지/recovery-r1분리,기능12+보조4=명시16index(_id_별도),operation index_r1·source version/명시이관·조회/경합재계획최대3회·보존·sweepprogress/carry규칙작성. Billing독립실행/공동수락대기이며운영DDL이나활성규격수락완료로취급하지않음.
+- 테스트/결과: 최종 env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공24초. 전체1559개중1553통과/6skip/실패0,추가67개통과. JSONSchema draft2020-12·신규JSON7개SHA256·기존199hash·101번째소실/100개초과겹침·선택밖동일key·sweep경계/MAX/nullable·고정message검증. git diff --check 통과.
+- 검증환경: 로컬Python과bundledPython에jsonschema없음을확인하고설치하지않음. Java schema-validator1.5.6을testImplementation에만추가. Gradle권한승인하에테스트,실Atlas/OAuth/업무API호출없음. 실Mongo/IAM/복원/DDL/부하검증미수행.
+- 유지 계약: 기존199fixture/hash·push204/event4필드/schema1·LC/token·보존/default OFF불변. 전역Jackson·HTTProute/Bean·설정미변경. remote consumer checkpoint/generation추가없음.
+- 위험/배포 전: 내부계산/codec/schema는완료됐지만controller/실제Mongoadapter·고정Tbuilder·signedcursor/auth·스케줄/원자cleanup미구현. 공동fixture검증/수락과실Mongo/IAM/복원검증뒤다음구현·활성화별도. 이번코드로API가열리지않음.
+- diff: 시작시dirty문서/코어/cleanup주석보존. 이번범위는위파일뿐,예상밖변경없음. Jira쓰기/댓글/상태전환·DB/배포/commit/push없음.
+- 다음: 새exact와recovery-r1파일을Billing이독립검증/수락한뒤productionadapter/controller작업. 상세와Jira댓글초안은TMI-203-recovery-r1-exact.md §6(미등록).
+
+### recovery-r1 구현 — 현재 턴 식별자 보완
+
+<!-- codex-turn:01a12eca-e4d6-7fd0-861b-d568f6aaa9a6 -->
+
+- 날짜: 2026-10-12 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표/구현: 바로 위 recovery-r1 구현 항목의 현재 턴 식별자 보완. 과거 기록은 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 추가 변경 없음.
+- 검증: 최종 전체 테스트1559개 중1553통과/6skip/실패0 결과 유지. 이번 기록 보완은 git diff --check 및 파일 끝 marker 확인만 수행했다.
+- 유지 계약/결정: 기존199/LC/push/token·보존/default OFF 유지. 공동 수락 전 API/DB 연결 미활성.
+- 위험/다음: Billing 독립 fixture 확인 후 production adapter/controller 구현,실Mongo/IAM/복원검증 필요. DB/Jira/배포/commit/push·예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-204 독립 검증 회신과 schema 끝 개행 차이 조사
+
+<!-- codex-turn:01a12ede-5122-7fe0-8b40-58a93c34ea66 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표: 사용자 전달 Billing 독립 검증 보고를 현재 recovery-r1 schema/decoder와 대조.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 이번에는 진단·기록만 수행,공유 schema/hash·제품 코드 수정 없음.
+- 확인: 보고된 Billing451개/신규58개 성공은 상대 실행 결과로 구분. 현재 schema의8개pattern(D0/D1/U32/UserId/NewId/Instant/Cursor/contentDigest)에서 Java Pattern.matcher(...).find()가끝LF를허용하는것을로컬재현했다. Java String.matches는같은값을거절했고JavaScript RegExp.test도multiline없는현재환경에서거절해엔진/검사방식차이를확인했다. networknt라이브러리자체재실행은이번에하지않음.
+- 검증/대안: 끝$를(?![\s\S])로바꾼메모리상후보는Java find에서8종끝LF를거절했다. JavaScript에서는8종중digest제외7종의정상값허용과LF/CR/CRLF/U+2028/U+2029거절을검사했다. 실제공유파일은미변경,양측validator회귀전해결완료라고하지않음. JShell기본엔진은sandbox로컬socket제한에실패하여local실행엔진으로재현했다.
+- 유지 계약/결정: canonical scalar계약불변,production취약점/배포실패확인아님. schema패턴전체보완+개행음성fixture+hash재생성+양측회귀가다음수정범위다. Java전용\\z를공유JSONSchema에사용하지않는방향을권장한다.
+- 테스트: 읽기전용Node/Java정규식재현·코드대조·git diff --check. 진단작업으로전체Gradle미재실행,실Mongo/IAM/운영미조회.
+- 위험/다음: 현재코어decoder검사와schema검사역할을분리하며semantic검증을유지한다. 수정후Billing known-gap assertion을정상거절검증으로교체하고새hash공동확인뒤exact동결. DB/Jira/배포/commit/push·예상밖변경없음.
+- Jira 댓글 초안(미등록): Billing 보고의끝개행차이를Java정규식으로재현하고8개pattern영향확인. 기록2파일만변경,공유규격수정·양측회귀는후속작업.
+
+## 2026-10-12 — TMI-203 recovery-r1 scalar-end-1 보완
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표: 사용자 보완 요청으로 공유schema 끝개행 허용차이 수정·공통회귀/hash갱신.
+- 변경 파일: recovery-r1 wire.schema.json/scalar-cases.json/hashes.json/README,RecoveryScalarBoundaryTests 신규·RecoverySchemaTests hash개수갱신,exact 안내·scalar-end 보완인계·WORKLOG/CURRENT_STATE.
+- 구현: 8개pattern의$를엄격한종료negative lookahead로교체. Java전용anchor를공유schema에넣지않음. 정상8개/11종삽입문자/3위치의264개공통실패입력과기존decoder99개회귀,전체pattern커버리지·정상ASCII허용테스트추가. runtime Java코드는이번에미변경.
+- 테스트: 최종 env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공24초,1923개중1917통과/6skip/실패0. 신규364개통과(networknt264+decoder99+정상/커버리지1). Node ECMAScript regex정상8/거절264성공(전체JSONSchema검증과구분). git diff --check 및8개입력SHA256검증통과.
+- 유지 계약: 원래canonical계약에맞춘schema강화이며요청/응답shape·범위·strictdecoder·기존199/LC/push/token/보존불변. 새schema hash와이전hash는공유hash파일/인계문서에기록. Billing저장소/기존6개공통입력미변경.
+- 결정/다음: Billing은수정schema/신규scalar/hash를동기화하고known-gap assertion을정상거절로교체해독립재검증한다. 공동수락/실API·Mongo/IAM/복원·배포는별도. 상대이전451개결과를이번수정본통과로승격하지않는다.
+- 위험/배포 전: 다른validator지원과semantic decoder검증은유지. 현재production취약점발견주장없음. 실업무인프라미호출,DB/Jira쓰기/배포/commit/push없음. 시작시dirty작업보존·예상밖변경없음.
+- Jira 댓글 초안(미등록): scalar-end-1 schema8종·fixture/hash보완,신규364개/전체1923개회귀성공(6skip). runtime계약불변,Billing재검증·실환경검증대기. 상세파일/결과는보완인계문서참조.
+
+### scalar-end-1 보완 — 현재 턴 식별자 기록
+
+<!-- codex-turn:01a12ee0-8a1f-7121-aad9-882008402a7e -->
+
+- 날짜: 2026-10-12 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표/내용: 위 schema8종 보완 작업의 현재 턴 식별자 기록. 과거 기록은 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 추가 변경 없음.
+- 테스트: 기존 최종 전체1923개 중1917통과/6skip/실패0 결과 유지. 이번 기록 보완은 git diff --check와 EOF marker 확인만 수행했다.
+- 유지 계약/결정: canonical scalar 강화,기존runtime/외부shape/199계약 유지. Billing 수정본 독립 검증 대기.
+- 위험/다음: 공동수락·실Mongo/IAM/복원·API/DB 연결 검증은 별도. DB/Jira/배포/commit/push 및 예상 밖 변경 없음.
+
+## 2026-10-12 — Billing scalar-end-1 재검증·기술 수락 확인
+
+<!-- codex-turn:01a12ee9-46e2-7981-bd56-dc9562b647ca -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery / Jira: TMI-203.
+- 목표: 사용자 전달 Billing 최신 독립 검증·기술 수락의 범위와 로컬 원본 일치 확인.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 내용: 상태 기록만,공유 fixture/schema/제품 코드 변경 없음.
+- 확인: 로컬 schema/scalar SHA256이 상대 보고의 수정본 hash와 일치하고 hashes.json의 입력8개도 전부 일치했다. Billing 전체724개/fixture331개 성공·정상8/거절264는 상대 보고 결과이며 이번 Identity 실행 결과로 주장하지 않는다.
+- 결정: recovery-r1/scalar-end-1 공유 wire/schema/fixture 보완본에 대한 Billing 기술 수락을 사용자 전달 근거로 기록한다. 문자열 종료 미결 항목은 닫는다. 이전 기록의 ‘Billing 재검증 대기’는 발신 당시 이력이며 현재 상태는 본 항목이다.
+- 수락 경계: 해당 보완 범위의 기술 수락이며 Phase0 전체 종료·Billing local schema/index 최종 확정·실제 API/DB 구현·Mongo/IAM/복원·판매/삭제 활성화 완료가 아니다. 전체 공동 계약/Jira 종료로 확대하지 않는다.
+- 테스트: 로컬8개 입력SHA256 및 보고의2개hash 대조,git diff --check. 기록 작업이므로 Gradle 미재실행. 원격 병합/배포·Billing 코드 실행은 확인하지 않았다.
+- 유지 계약/위험/다음: 기존199/push/LC/token/보존불변. 같은 개행 문제로 추가 회신을 반복할 필요는 없다. 다음 구현은 현행 exact 기준 source 저장/CAS·고정T 검증·snapshot/feed·cursor/인증 연결이며 관련 공동 문서 정합성 및 실제 연동/활성화 gate는 유지한다.
+- 예상 밖 변경: 없음. 기존 dirty 코드/문서 보존,DB/Jira쓰기/댓글/상태변경·배포·commit/push 없음.
+- Jira 댓글 초안(미등록): 사용자 전달 Billing 수정본724개 통과 및 기술 수락 확인,로컬8개hash 일치. 문자열 종료 미결 해소,기록2파일만 변경·정적 검증. Phase0 전체/실API/Mongo/IAM/복원은 별도 미완료.
+
+## 2026-10-12 — Billing 복구 단순화 인계 및 snapshot 포함·보존 범위 검토
+
+<!-- codex-turn:01a12ef7-2e25-7ef0-90b4-4a48c92f0167 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 전달 Billing 단순화 방향과 Identity snapshot의 포함·보존 범위를 구분해 확인한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 구현 내용: 분석 기록만,제품 코드/공유 계약 변경 없음.
+- 확인 근거: TMI-203-recovery-r1-exact.md §5.4는 동일 atClusterTime T의 WITHDRAWN User와 H를 조회한다. §5.7의 journal120일·snapshot7일·operation120일은 User tombstone의 보존기한과 동일한 개념이 아니다. UserWithdrawalTransactionService는 tombstone 전환을 저장하고 UserWithdrawalIdentityReleaseTransactionService는 Firebase/social 연결을 삭제한다. 검색한 main 코드에서 User 물리 삭제 경로는 찾지 못했다.
+- 결정: Billing의 snapshot 재동기화·H 이후 feed 재개 및 과거 불완전 최소 기록 방향은 기존 API 변경 없이 해석 가능하다. 기존 탈퇴 상태는 단조 유지한다. snapshot 부재를 활성화·과거 완전성·삭제 안전 증거로 사용하지 않는다.
+- 위험: T 이전 tombstone 물리 삭제나 복원 소실은 snapshot으로 되살릴 수 없다. journal 소실과 tombstone 소실을 구별해야 한다. 고정 T/count/digest는 조회 대상의 일관성과 전송 무결성을 검증할 뿐 사라진 과거 원천의 존재를 증명하지 않는다. 현재 builder 미구현,운영 데이터/보존 정책/복원 완전성 미검증. 무기한 보존 승인이 아니다.
+- 테스트: 코드/계약 정적 조회와 git diff --check. 기록만 변경해 Gradle 재실행하지 않았다.
+- 유지 계약: recovery-r1/scalar-end-1·4개 API·고정T/H·count/digest/만료·Identity replayFloor/range/보존·원격ACK없음·기존202 push/LC/token 유지.
+- 다음 작업/배포 전: snapshot 구현에서 잔존 WITHDRAWN 전체 포함 및 동일T/H 보장,원천 삭제/복원 시 복구 범위와 User tombstone 보존 정책 확인. 상세 범위 축소가 복구 완료나 삭제 안전의 과대 주장으로 이어지지 않게 Billing과 구분 유지.
+- 예상 밖 변경: 없음. 기존 dirty 변경 보존,DB/Jira댓글·상태/배포/commit/push 없음.
+- Jira 댓글 초안(미등록): Billing 단순화 인계 정적 검토. snapshot은 T에 존재하는 WITHDRAWN User 대상이며 삭제·소실된 tombstone 복원이나 과거 완전성을 보장하지 않음. 기록2파일만 변경,diff검사,실Mongo/운영 보존 확인은 별도.
+
+## 2026-10-12 — TMI-203 Mongo 조회·cursor·expiry evidence 구현 및 로컬 replica set 검증
+
+<!-- codex-turn:01a12efa-8661-74f3-b426-32df35ecc9a6 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 남은 구현 중 계산코어를 실제 Mongo snapshot 조회·transaction 증거·서명 cursor·feed application 경계로 연결. 구현 전 공식 Jira 설명/완료 조건 확인.
+- 변경 파일: withdrawalrecovery의 RecoveryCursor/MongoRecoveryReader/MongoSourceExpiryEvidence/RecoveryFeedService 신규4개,동명 테스트4개와RecoveryReplicaSetTests 신규,WithdrawalSourceCleanup/WithdrawalOperationsTests,docs/contracts/TMI-203-mongo-cursor-implementation.md 및기록2개.
+- 구현 내용: 전용 HMAC key ring/안전비교/1시간TTL/환경소비자용도streamrun범위·길이검증; Mongo snapshot session으로source H와WITHDRAWN전체를동일T조회;feed점조회·strictint64/version·실패시비어있음으로변환금지;source CAS와선택range삭제·대체를caller Mongo transaction에참여;원본삭제건수불일치rollback;feed고정H2/cursorTTL유지·exactJSON응답연결.
+- 테스트: compileJava와대상테스트성공. 최종 env -u SENTRY_AUTH_TOKEN TMI203_LOCAL_MONGO=true ./gradlew clean test 성공25초,전체1960개중1954통과/기존6skip/실패오류0. 신규37개포함. 실제로컬replicaset3개는늦은commit중41행/3page고정T/H,증거·원본rollback/정상commit,101번째range조회검증. git diff --check 수행. 운영Mongo/IAM/복원검증대체아님.
+- 유지 계약: recovery-r1/scalar-end-1 공유shape/hash/기존199/202push/LC/token/보존/원격ACK없음유지. Bean/controller/scheduler자동등록없음·플래그미변경. cursor/권한/clock evidence 허용기본값없음.
+- 결정/위험: 이번은부분구현. durable snapshot run/idempotency/lease/READY seal/retention,source sweep·bounded retry/unknowncommit/indexpreflight,4개HTTProute/수신IAM연결및공동복원검증은미완료. reader의private sink를완성snapshot으로공개하지않는다. source실패분류세분화도worker구현시필요.
+- 로컬 검증 환경: 기존로컬mongo:7.0이미지·localhost전용임시컨테이너/합성DB사용. 테스트DB는검증후삭제,이번생성컨테이너만종료·자동제거했다. 실제데이터없으므로보존대상손실없음. 기존컨테이너/외부DB불변.
+- 예상 밖 변경: 없음. 기존dirty코드/문서/cleanupJavadoc보존. 이번cleanup실동작추가는삭제건수검증뿐. 새의존성/운영DDL/Jira쓰기·댓글·상태/배포/commit/push없음.
+- 다음 작업/배포 전: durable snapshot 저장·worker·보존 → source sweep/reconciliation·명시migration/index검증 → 신뢰서비스주체/직접ingress차단·HTTPadapter → Billing/IAM/복원staging검증. 전용cursor key와clock/capture권한연결필요,사용자JWT나임의consumer헤더대체금지.
+- Jira 댓글 초안(미등록): Mongo조회/cursor/sourceexpiry/feed계층구현,신규37개포함전체1960개(1954통과/6skip),실로컬replicaset3개통과. 상세파일목록은결과문서참조. snapshot lifecycle/HTTP/IAM/sweep·복원은남아있어완료·활성화승인요청아님.
+
+## 2026-10-12 — TMI-203 snapshot 작업 저장·빌더·만료 정리 구현
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 후속 구현 요청에 따라 durable snapshot lifecycle 및 application create/status/page를 연결. 구현 전 공식 Jira 설명/완료조건 조회.
+- 변경 파일: MongoSnapshotStore/SnapshotBuilder/RecoverySnapshotService 신규,SnapshotBuilderTests/RecoverySnapshotServiceTests/SnapshotLifecycleReplicaSetTests 신규. 기존 MongoRecoveryReader/RecoveryCursor 수정. docs/contracts/TMI-203-snapshot-lifecycle-implementation.md 및기록2개.
+- 구현: owner/key/stream/scope 멱등생성·source fence,1회lease와phase CAS,20행저장·저장count/digest재검증·source/run조건부READY,중간실패/재시작새T혼합금지,응답유실durable상태재확인. snapshotkeysetcursor는기존발급시각유지. knownRanges동일T조회·초과시실패,legacyUNKNOWN유지. 7일논리만료/자료bounded정리·최소operation120일. 실제scheduler/HTTP자동연결없음.
+- 테스트: 최종 env -u SENTRY_AUTH_TOKEN TMI203_LOCAL_MONGO=true ./gradlew clean test 성공31초. 전체1986개중1980통과/기존6skip/실패오류0. 신규26개는단위13+로컬replicaset13이며기존로컬Mongo3개도재실행. git diff --check통과,공유fixturehash불변테스트포함.
+- 실제 검증: 멱등/소유격리/우선순위,41행3page/digest,빈목록,부분build/history합성오류,stalelease/owner소실,7일120일bounded정리,READY응답유실합성오류,저장자료변조,sourceversion변경,행소실/만료cursor,동시create,knownGaps크기초과. 실제primaryfailover/운영복원/IAM/Billing연동전체증거는아님.
+- 유지 계약: recovery-r1/scalar-end-1외부shape/4기능예정URL/공유hash·기존199/202push/LC/token/보존·원격ACK없음불변. cursor내부keyset자료만확장. 일반사용자JWT/임의consumer헤더로서비스권한대체없음.
+- 결정/위험: sourceversion경합은보수적실패로닫는다. 기존run재claim/새T이어붙이기없음. snapshot자료가없는과거탈퇴복원·완전성주장없음. 물리보존은worker실행/경보연결과운영검증필요,메서드만으로7일상한준수완료주장금지. 전체203완료아님.
+- 다음 작업/배포 전: source sweep/unknowncommit/indexmigrationpreflight,strictHTTP/IAM인증과직접ingress차단,worker/maintenance스케줄·적체경보,공동복원/운영동등검증. 전용cursor key·clock/capture근거주입필요.
+- 정리/예상 밖 변경: 무작위localhost합성DB는테스트후삭제,이번임시컨테이너만종료·자동제거. 실제사용자자료없음. 기존dirty/의존성변경보존·예상밖변경없음. 운영DB/DDL/Jira댓글·상태/배포/commit/push없음.
+- Jira 댓글 초안(미등록): snapshot durable lifecycle/builder/application연결 구현,신규26개포함1986개(1980통과/6skip),신규실로컬Mongo13개통과. 상세변경파일/위험은결과문서참조. HTTP/IAM/scheduler/index/source sweep·공동복원남음,기존계약유지.
+
+### 2026-10-12 — snapshot lifecycle 작업 턴 식별자 보완
+
+<!-- codex-turn:01a12f08-b6de-7c22-a137-4ab03fda2d4d -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/구현: 바로 위 snapshot 작업 저장·빌더·만료 정리 구현 기록에 현재 턴 식별자를 추가한다. 과거 WORKLOG는 변경하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 추가 변경 없음.
+- 테스트: 이번 구현의 최종 전체1986개 중1980통과/기존6skip/실패오류0 결과 유지. 식별자 보완은 git diff --check만 수행하고 Gradle은 재실행하지 않았다.
+- 유지 계약/결정: recovery-r1/scalar-end-1 및 기존199/202push/LC/token/보존 불변. 자동 활성화·배포 없음.
+- 위험/다음: HTTP/IAM·scheduler/보존 경보·index/source sweep·공동 복원 검증은 남아 있다. 전체 TMI-203 완료로 표시하지 않는다. 예상 밖 변경·Jira 쓰기·commit/push 없음.
+
+## 2026-10-12 — TMI-203 source range sweep·index preflight 구현
+
+<!-- codex-turn:01a12f1b-1e2f-7672-8393-98632307c25f -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 남은 source range 정리와 읽기 전용 index/이관 검사 구현. 구현 전 공식 Jira 조회.
+- 변경 파일: RecoveryIndexes.java, MongoSourceSweep.java, RecoveryIndexesTests.java, MongoSourceSweepTests.java 신규; RecoveryReplicaSetTests.java 보강; docs/contracts/TMI-203-source-sweep-implementation.md 신규 및 기록2개.
+- 구현: 최대99개+carry1개,source version CAS/원본교체/진행 동일transaction,carry소실시증거보존명시리셋,knownabort최대3회/unknowncommit자동재실행금지. 수락16개 index+_id_/옵션·이관long/상태/carry 검사. journal/delivery삭제·자동DDL·스케줄없음.
+- 테스트: env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공 후 신규실Mongo검증까지 env -u SENTRY_AUTH_TOKEN TMI203_LOCAL_MONGO=true ./gradlew clean test 재실행성공34초. XML집계2000개/1994통과/6기존skip/실패오류0. 신규14개(단위12+실로컬Mongo2),manifest16개비교포함. git diff --check통과.
+- 유지 계약: recovery-r1/scalar-end-1 wire/fixture/hash,기존199/202push/LC/JWT/보존불변. 사용자JWT/헤더를서비스인증대용으로추가하지않음.
+- 결정/위험: 각transaction30초,전체호출엄격30초deadline은아님. 실제IAM수신인증/strictHTTP/runtime wiring/스케줄경보·복원미완료. 명시sourcemigration필요하며자동0보정없음. 전체203완료/판매/삭제활성화아님.
+- 정리/예상밖변경: 합성DB자동정리및이번localhost컨테이너제거. 기존dirty보존,이번예상밖변경없음. 실제Atlas/AWS/Billing호출·Jira쓰기/상태·배포/commit/push없음.
+- 다음/배포전: strictHTTP와신뢰서비스인증·직접ingress차단,runtime wiring,스케줄/보존적체경보,staging Billing/IAM/복원검증. 상세결과문서참조.
+- Jira 댓글 초안(미등록): source range sweep/index preflight 구현,신규14개포함2000개중1994통과/6skip,실로컬Mongo2개추가검증. 변경파일/남은HTTP·IAM·스케줄·공동복원위험은결과문서참조. 이슈완료요청아님.
+
+## 2026-10-12 — TMI-203 strict HTTP adapter·fail-closed 인증 경계
+
+<!-- codex-turn:01a12f28-5625-72f1-a145-db4af345e22e -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 후속 구현 요청에 따라 HTTP와기존snapshot/feed service연결,사용자JWT와독립서비스인증경계구현. 구현전공식Jira조회.
+- 변경 파일: withdrawalrecovery/RecoveryIngressVerifier.java,RecoveryHttpFilter.java,RecoveryHttpConfiguration.java,RecoveryHttpFilterTests.java,RecoveryHttpConfigurationTests.java 신규. global/config/SecurityIntegrationTests.java 회귀추가. docs/contracts/TMI-203-http-ingress-implementation.md 신규,기록2파일갱신.
+- 구현: 네POST strict codec연결;별도우선순위securitychain기본OFF403;ON시검증기·서비스누락기동실패. 헤더권한→boundedraw16KiB→payload검증→decode→application호출. 중복헤더/query/encoding/UTF8검증,no-store,전체응답상한,예외원문비노출. 실제IAM검증기는구현하지않고명시port만제공. 자동운영bean/DDL/키주입없음.
+- 테스트: 최종 env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공27초. XML전체2020개/1996통과/24skip/실패오류0. 신규20개:filter16,실Springchain구성3,기존전체앱JWT격리1. skip은로컬Mongo18+기존support6 opt-in미설정. 이번실Mongo/외부AWS연동실행없음. git diff --check통과.
+- 유지 계약: recovery-r1/scalar-end-1 shape/hash/기존199/202push/LC/사용자JWT/보존/원격ACK없음불변. public BaseResponse/globalJackson변경없음. 내부filterAPI는자동Swagger탐색대상이아니며기존exact명세기준;SwaggerZIP미생성.
+- 결정/위험: HTTP port연결은실IAM인증완료가아니다. 직접ingress차단·서명/role/환경/route·시간/payload검증구현필요. 느린요청timeout/rate limit은배포망확인필요. runtime Mongo/index/key wiring·스케줄/보존경보·Billing복원미완료. 전체203완료표시하지않음.
+- 다음/배포전: 실제신뢰ingress인증방식확인후검증기연결,runtime preflight및스케줄/경보구현,staging IAM/Billing복원검증. 기능OFF유지.
+- 예상밖변경: 없음. 기존dirty코드/문서보존,이번변경은위파일만. 실제외부인프라/IAM/DB수정·배포·Jira댓글/상태·commit/push없음.
+- Jira 댓글 초안(미등록): strict HTTP adapter와별도인증chain구현,신규20개포함2020개중1996통과/24opt-in skip/실패0. 상세파일은결과문서참조. 실제IAM/runtime/스케줄·경보/공동복원남음;이슈완료나배포승인요청아님.
+
+## 2026-10-12 — TMI-203 구현 완료 여부 설명
+
+<!-- codex-turn:01a12f28-5625-72f1-a145-db4af345e22e -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/확인: 사용자의 완료 여부 질문에 최신 상태 기록을 확인했다. 핵심 로직/HTTP adapter와 실제 인증/runtime/스케줄 구현 잔여를 구분한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 테스트: 문서 상태 정적 확인 및 diff 검사만 수행. 상태 설명 작업이므로 Gradle 재실행 없음; 이전 실행 결과를 신규 검증으로 주장하지 않는다.
+- 유지 계약/결정: 외부 계약·기능 OFF 유지. 전체 구현 완료 또는 배포만 남았다고 설명하지 않는다.
+- 위험/다음: 실제 IAM 검증기·runtime Mongo/key/index 연결·스케줄/경보 구현 후 Billing 공동 연동/복원 검증 필요. 배포 전 실제 신뢰 ingress 확인 필요.
+- 예상 밖 변경 없음. Jira 쓰기/상태/commit/push/배포 없음. Jira 댓글 초안(미등록): 구현 완료 여부 정적 확인, 실제 인증/runtime/자동실행 연결 작업 및 공동검증 잔여. 코드·테스트 변경 없음.
+
+## 2026-10-12 — 완료 여부 설명의 현재 턴 식별자 보완
+
+<!-- codex-turn:01a12f2f-2a5a-7e60-81f6-a5a465deb6fd -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/구현: 완료 여부 설명 작업의 정확한 현재 턴 식별자를 append한다. 과거 기록은 수정하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: git diff --check. 기록 보완만 수행하므로 Gradle 재실행 없음.
+- 유지 계약/결정: 기능 OFF와 기존 외부 계약 유지. 전체 구현 완료 아님.
+- 위험/다음: 실제 IAM 검증·runtime 연결·스케줄/경보 구현과 Billing 공동 연동/복원 검증이 남음. 배포 전 신뢰 ingress 확인 필요.
+- 예상 밖 변경 없음. Secret 기록·Jira 쓰기·배포·commit/push 없음. 기존 Jira 댓글 초안은 미등록 상태 유지.
+
+## 2026-10-12 — TMI-203 runtime·snapshot 자동 실행·AWS IAM 조회
+
+<!-- codex-turn:01a12f28-5625-72f1-a145-db4af345e22e -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표: 사용자후속구현및IAM설정확인요청. 구현전공식Jira조회.
+- 변경파일: RecoveryRuntimeConfiguration/RecoveryJobsConfiguration/RecoverySnapshotJobs 및RecoveryRuntimeTests/RecoverySnapshotJobsTests 신규;docs/contracts/TMI-203-runtime-jobs-and-ingress-check.md및기록2개.
+- 구현: 기본OFF runtime에전용cursor key·capture/clock근거·read-onlyindex/migration검증과SNAPSHOT/MAJORITY서비스연결. 전용2thread snapshot1개build/100개run유지보수스케줄,고정태그실패/적체메트릭. 파싱오류원문비노출. 실제IAM검증기·외부경보수신미구현.
+- 검증: env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공26초,전체2032개/2008통과/24skip/실패오류0. 신규12개. 실제Mongo18+support6 opt-in미실행. git diff --check통과.
+- AWS조회: 로컬CLI NoCredentials. 기존Chrome서울콘솔ListServices는조직SCP명시거부. 서비스없음으로판단하지않음. 다른계정/리전미조사. 권한확대/우회/설정변경없음.
+- 유지계약: 기존exact/fixture/hash/JWT/LC/202push/보존불변. sourcejournal삭제자동활성화없음.
+- 결정/위험: 조직관리자에게기존Lattice구성과조회/사용정책확인필요. runtimeEvidence운영근거필수. source cleanup/sweep/폐기metadata운영연결·실제경보·IAM/Billing복원검증남음. 전체완료아님.
+- 다음/배포전: 신뢰ingress가능여부확인후실제검증기연결,source관리와경보부하/장애검증. 기본OFF유지. 새키/운영DDL/Secret주입없음.
+- 예상밖변경없음,기존dirty보존. Jira쓰기/commit/push/배포없음. Jira댓글초안(미등록): runtime/snapshotjobs/메트릭구현,신규12개포함2008통과/24skip. SCP조회거부로실제인증구성미확인;나머지연동/운영gate유지. 상세파일/위험은결과문서참조.
+
+## 2026-10-12 — runtime·AWS 조회 작업 턴 식별자 보완
+
+<!-- codex-turn:01a12f30-932b-7be1-a23d-4042b14d5ff2 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/구현: 이번 runtime·snapshot jobs 구현과 AWS 읽기 조회 기록의 정확한 현재 턴 식별자를 append한다. 과거 기록은 변경하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 추가 변경 없음.
+- 검증: git diff --check. 기록 보완이므로 Gradle 재실행 없음. 이번 구현 테스트 2008통과/24skip/실패오류0 결과 유지.
+- 유지 계약/결정: 기존 외부 계약과 기능 OFF 유지. AWS 정책·Secret·운영 설정 변경 없음.
+- 위험/다음: 조직 SCP 조회 거부로 Lattice 구성 유무 미확인. 실제 ingress 인증·원천 정리 운영 연결·경보·Billing 공동 검증 필요.
+- 예상 밖 변경 없음. Jira 쓰기·배포·commit/push 없음. 이전 Jira 댓글 초안은 미등록 상태 유지.
+
+## 2026-10-12 — TMI-203 SCP 차단 후 진행 방안 안내
+
+<!-- codex-turn:01a12f36-7198-76a3-afa4-f80c15324171 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/내용: 사용자의 다음 조치 질문에 조직 관리자/계정 제공 담당자의 정책 확인 → 허용 시 기존 구성과 최소 권한 검토 → 불허 시 Billing과 허용 인증 대안 합의 순서를 안내한다. 조회 거부를 서비스 미구성 또는 모든 작업 불허로 확대 해석하지 않는다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: 기존 상태 기록 정적 확인 및 git diff --check. 안내 작업이므로 Gradle 재실행·AWS 추가 조회 없음.
+- 유지 계약/결정: recovery 기능 OFF와 기존 계약 유지. 조직 정책 우회·광범위 IAM 추가·대체 인증 임의 구현 없음.
+- 위험/다음: 서비스 사용 가능 여부·실제 ingress 및 남은 source 운영 연결/경보/공동 검증 미확인. 관리자 응답 후 필요한 설정 변경은 별도 승인 대상이다.
+- 예상 밖 변경 없음. Secret 기록·Jira 쓰기·배포·commit/push 없음.
+- Jira 댓글 초안(미등록): SCP 차단 후 관리자 확인과 허용 인증 경로 합의 순서 안내. 코드 변경/신규 실행 테스트 없음. 기존 운영·인증 gate 유지.
+
+## 2026-10-12 — TMI-203 Lattice 기존 사용 여부 설명
+
+<!-- codex-turn:01a12f36-7198-76a3-afa4-f80c15324171 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/확인: 기존 사용 여부 질문에 BillingSigV4JsonTransport의 signing name을 정적 확인했다. Lattice 대상 서명 코드 존재와 실제 인프라 사용 여부를 구분한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: rg 정적 조회 및 git diff --check. 설명 작업이므로 Gradle/외부 AWS 조회 재실행 없음.
+- 유지 계약/결정: 실제 Lattice 사용이나 기존 로그인/LC 의존을 단정하지 않는다. 기존 계약과 기능 OFF 유지.
+- 위험/다음: SCP 거부로 실제 인프라 구성 미확인. 관리자 확인 후 사용 가능 여부와 기존 연결을 검증한다.
+- 예상 밖 변경·Secret 기록·Jira 쓰기·배포·commit/push 없음. Jira 댓글 초안(미등록): Lattice 서명 구현과 실제 사용 증거를 구분해 안내, 운영 구성은 미확인 유지.
+
+## 2026-10-12 — Lattice 사용 여부 설명의 턴 식별자 보완
+
+<!-- codex-turn:01a12f38-ca07-78d1-bb52-64b101ea5ef0 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/구현: 이번 설명 작업의 정확한 턴 식별자를 기록 끝에 추가했다. 과거 기록은 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: git diff --check. 기록 보완이므로 Gradle 재실행 없음.
+- 유지 계약/결정: Lattice 대상 서명 코드는 존재하지만 실제 사용 여부는 미확인이다. 기능 OFF와 기존 계약 유지.
+- 위험/다음: SCP 조회 거부에 대한 관리자 확인과 실제 구성 검증 필요.
+- 예상 밖 변경·Secret 기록·Jira 쓰기·배포·commit/push 없음. 기존 Jira 댓글 초안은 미등록 상태 유지.
+
+## 2026-10-12 — TMI-203 기존 Identity ECS Lattice 연결 여부 실조회
+
+<!-- codex-turn:01a12f39-e357-7fe1-9a1f-433e1ee16470 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표: 기존 Lattice 사용 여부를 먼저 확인하라는 요청에 ECS 서비스 실설정을 읽기 전용 조회했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 확인: AWS 서울 tosunsaeng-staging-cluster의 tosunsaeng-identity-test-service(task42),tosunsaeng-identity-service(task23) 모두 구성/네트워킹 화면에 VPC Lattice 미구성. 두 서비스 모두 tosunsaeng-staging-alb와 컨테이너8081 연결. Service Connect/서비스 검색도 미구성으로 표시.
+- 근거/검증: 기존 로그인된 Chrome AWS ECS 상세 UI 확인. 로컬 workflow의 두 서비스 대상과 application.yml Billing publisher 기본OFF·BillingSigV4JsonTransport 서명명 정적 조회. git diff --check. 분석 작업이므로 Gradle 재실행 없음.
+- 유지 계약/결정: 현재 Identity ECS는 ALB 연결이며 ECS Lattice 통합은 사용하지 않는 것으로 확인. 계정 전체 서비스 부재나 과거 미사용,외부 수동 연결까지 단정하지 않는다. 기존계약/기능OFF유지.
+- 위험/다음: Lattice 전체목록은SCP조회거부로확인불가. 신규Billing 인증인프라선택/기존계약변경은별도검토필요. 관련source연결/경보/공동복원미완료.
+- 예상 밖 변경·외부설정변경·Secret 기록·Jira쓰기·배포·commit/push 없음. Jira 댓글 초안(미등록): Identity 기존/테스트 ECS 모두Lattice미구성·ALB연결확인,계정전체/과거사용은미확인. 코드변경없음.
+
+## 2026-10-12 — TMI-203 ALB 재사용 인증 대안 설명
+
+<!-- codex-turn:01a12f39-e357-7fe1-9a1f-433e1ee16470 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/확인: ALB 재사용 가능 여부 질문에 라우팅과 인증 역할을 구분했다. WorkloadIdentityPurpose에서 현재 LC 전용 audience 두 개를 정적 확인했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드 변경 없음.
+- 검증: 코드 정적 조회 및 git diff --check. 설명 작업으로 Gradle/외부 서비스 호출 없음.
+- 유지 계약/결정: 기존 ALB+전용 서버 JWT 대안은 권장안이며 미승인 계약 변경. ALB가 SigV4 인증을 대신한다고 가정하지 않는다. 기존 LC/user JWT 허용 범위 불변.
+- 위험/다음: Billing 양방향 issuer/audience/subject/key/환경/route 권한과 ingress 노출 제한 합의,양 서버 인증 adapter와테스트개정필요. 기존snapshot/feed데이터로직은재사용가능하나자동활성화없음.
+- 예상밖변경·Secret기록·Jira쓰기·배포·commit/push없음. Jira댓글초안(미등록): ALB 재사용+전용workload인증대안검토,실제계약변경/구현/배포없음.
+
+## 2026-10-12 — ALB 재사용 대안 검토의 턴 식별자 보완
+
+<!-- codex-turn:01a12f3c-1075-73a0-987a-e78f3cdcad29 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표/구현: 이번 ALB 대안 설명의 정확한 턴 식별자를 파일 끝에 추가했다. 과거 기록은 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 제품 코드 변경 없음.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 재실행 없음.
+- 유지 계약/결정: ALB와 전용 서버 JWT 조합은 권장 대안이며 실제 계약 변경·활성화는 하지 않았다.
+- 위험/다음: Billing 양방향 인증 계약 합의와 접근 제한·검증 구현 필요. 기존 복구 로직 재사용 범위 확인 후 진행한다.
+- 예상 밖 변경·Secret 기록·Jira 쓰기·배포·commit/push 없음. Jira 댓글 초안은 미등록 상태 유지.
+
+## 2026-10-12 — TMI-203·204 ALB·workload JWT Billing 인계서 작성
+
+<!-- codex-turn:01a12f3f-127a-7d92-aabc-b6f465566dff -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203 (연계204/199/202/206).
+- 목표: 사용자채택ALB+서버전용JWT방향을Billing에전달할문서작성. 실제메시지전송/인증구현요청으로확대하지않음.
+- 변경파일: docs/contracts/TMI-203-204-ALB-workload-JWT-handoff-2026-10-12.md신규,docs/codex/WORKLOG.md및CURRENT_STATE.md.
+- 내용: 기존ECS ALB근거와조사한계,양방향인증·공통전송부영향,JWT키/issuer/audience/TTL검토안,Bearer와SigV4의본문바인딩차이,기존복구/보존불변,양서버역할/회신/검증순서. 인증exact값은미확정으로표시.
+- 검증: 기존문서/코드정적조회,문서로컬링크·git diff --check. 문서작업으로Gradle미실행. 기존테스트결과를새인증검증으로재사용하지않음.
+- 유지계약/결정: ALB재사용방향승인,실제인증전환은Billing공동확정후. recovery-r1/scalar-end-1 body/schema/hash·LC/userJWT/202재시도/보존불변. 기존SigV4자동fallback없음.
+- 위험/다음: Billing실배포/client/origin·키운영미확인. 내부경로공개여부/직접task차단과실제인증검증필요. 회신후공동계약/인증fixture및관련Jira개정안을준비하고코드구현/활성화별도진행.
+- 예상밖변경없음·기존dirty보존. Secret기록/외부전송/AWS설정변경/Jira쓰기/commit/push/배포없음.
+- Jira댓글초안(미등록): ALB+workload JWT전환Billing인계서작성,양방향영향과미확정인증값·요청바인딩차이명시. 코드변경/Gradle없음,문서검증실시. 인증공동수락·운영검증미완료.
+
+## 2026-10-12 — TMI-203 Billing ALB·JWT 회신 검토
+
+<!-- codex-turn:01a12f47-00b8-7751-8080-c8576c589e4f -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표: 사용자첨부Billing회신을기존인계/Identity실제코드와대조. 첨부는검토자료이며실행명령으로취급하지않음.
+- 변경파일: docs/contracts/TMI-203-ALB-JWT-Billing-response-review-2026-10-12.md신규,WORKLOG/CURRENT_STATE.
+- 내용: 전용connector/배포형JWK초기안타당성,누락trial/events실코드확인,환경매핑·Identity포트격리·Bearer보장/시간/오류경계공동보완,회신초안정리. Billing코드/배포는독립검증하지않음.
+- 검증: 첨부전체읽기,코드/설정정적조회,로컬링크·git diff --check. 문서작업으로Gradle미실행.
+- 유지계약/결정: ALB/JWT방향승인과exact미동결분리. 공유body/schema/hash·LC/userJWT/보존불변. 실제인증코드/AWS설정변경없음.
+- 위험/다음: test/staging/production신뢰영역표,Identityconnector범위,body서명미사용보안수락및exactfixture확정후계약범위개정. 운영키/ingress/공동검증미완료.
+- 예상밖변경없음·기존dirty보존. Secret기록·외부메시지/Jira쓰기/commit/push/배포없음.
+- Jira댓글초안(미등록): Billing회신검토문서작성,trial누락확인및환경/port격리보완권장. 코드변경없음/정적검사만실시. actual인증/운영검증미완료.
+
+## 2026-10-12 — TMI-203 ALB·JWT 계획 수정 및 Jira 변경안 제시
+
+<!-- codex-turn:01a12f4e-ce5b-72e3-a49d-fea11326f71f -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표: 사용자채택방향을계획과Jira에반영하는요청. 계획을수정하고Jira는사전변경내용제시·승인규칙에따라초안작성.
+- 변경파일: 현행TMI-203계획,docs/contracts/TMI-203-ALB-JWT-Jira-update-draft.md신규,WORKLOG/CURRENT_STATE.
+- 내용: ALB+전용connector/JWT/publicJWK방향,범위한정SigV4전제대체,4이벤트/복구4route,환경/port/TLS미확정gate,키/시간/오류/권한테스트·단계별OFF전환. 과거데이터후보표의exact우선관계명시.
+- Jira작업: 공식MCP조회만. 수정안대상은203설명,제목/상태/담당자/댓글/타이슈유지. 실행승인대기,원격쓰기없음. 추가댓글목적없음·상태변경없음.
+- 검증: 계획전체읽기·현재Jira설명조회·링크/diff정적검사. 문서작업으로Gradle미실행.
+- 유지계약/결정: 기존body/schema/hash·LC/userJWT·복구/보존불변. 사용자방향승인과exact미확정분리. 코드/운영설정변경없음.
+- 위험/다음: 표시한Jira수정안승인후최신본문재조회·설명만반영. 이후양서버환경/port/TLS/authfixture동결후구현. 실제인증/복원gate유지.
+- 예상밖변경없음·기존dirty보존. Secret/외부메시지/AWS쓰기/commit/push/배포없음.
+- Jira댓글초안(미등록): ALB/workloadJWT방향계획개정과203설명수정안작성,문서검사만수행. 인증exact·실운영검증미완료. 댓글등록요청아님.
+
+## 2026-10-12 — TMI-203 승인된 Jira 설명 수정 실행
+
+<!-- codex-turn:01a12f52-b062-7d33-ac92-7d57c7747400 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. Jira: TMI-203.
+- 목표: 직전제시한설명수정안에대한사용자후속승인을실행한다.
+- Jira작업/승인: 공식MCP최신본문조회→승인된인증범위/경로문구/완료기준6교체와ALB·JWT절추가→설명만갱신→재조회검증. 사용자승인있음. 제목/상태해야할일유지,담당자/상위이슈/타이슈/댓글변경없음. 추가댓글목적없음.
+- 변경파일: TMI-203계획·Jira수정안문서상태표기,WORKLOG/CURRENT_STATE. Jira본문전체는기록에복사하지않음.
+- 검증: 원격재조회제목/상태불변,승인본문과마크다운escape/list표기정규화후일치. git diff --check. 문서/이슈작업이므로Gradle미실행.
+- 유지계약/결정: 데이터body/schema/hash·LC/userJWT·복구/보존계약불변. 인증exact후보와양서버동결구분,기능OFF유지.
+- 위험/다음: 실제환경/port/TLS·키/시간/오류동결후OFF구현및공동검증. Jira수정을구현완료/배포승인으로취급하지않음.
+- 예상밖변경없음·기존dirty보존. Secret기록/AWS설정/commit/push/배포없음.
+- Jira댓글초안(미등록): 승인된ALB/JWT설명수정·재조회검증완료,제목/상태유지. 코드변경없음/정적검증,인증exact·실환경검증미완료. 댓글은자동등록하지않음.
+
+## 2026-10-12 — TMI-203 인증 exact 후보 구체화
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 후속 수정 요청에 따라 구현 전 공동 규격의 빈 부분을 구체화한다.
+- 변경 파일: docs/contracts/TMI-203-204-workload-jwt-exact-candidate.md 신규, TMI-203-withdrawal-recovery-snapshot-feed-plan.md, WORKLOG.md, CURRENT_STATE.md.
+- 내용: strict JOSE/claim/키 조건, 시간 부등식과 경계, 4이벤트/4복구 route, connector 격리, 인증/권한/장애 오류 순서, 정상/긴급 교체와 fixture 목록을 후보로 작성했다. 실제 환경/포트/TLS 값은 미확정으로 유지했다.
+- 검증: 현재 Jira 및 관련 문서/HTTP 코드 조회, 신규 문서 상대 링크 확인, git diff --check. 문서만 변경하여 Gradle 미실행.
+- 유지 계약/결정: recovery-r1/scalar-end-1 body/schema/hash, LC/user JWT·보존·재시도 불변. 후보의 상대 수락을 가장하지 않으며 Jira의 공동 확정 후 구현 순서를 유지한다.
+- 위험/다음: 환경/네트워크 표 및 Billing 수락 후 OFF 구현. Bearer는 body 서명이 아니며 운영 키/실제 ALB·복원 검증 미완료.
+- Jira 작업: 공식 조회만, 설명/댓글/상태 변경 없음. 외부 전송/배포/commit/push 없음. 기존 dirty 보존, 이번 예상 밖 변경 없음.
+- Jira 댓글 초안(미등록): 인증 exact 후보와 계획 링크 추가, 문서 정적 검사. 코드 전환·상대 수락·운영 검증은 아직 미완료.
+
+## 2026-10-12 — TMI-203 후속 수정 turn 기록 확인
+
+<!-- codex-turn:01a12f57-8b2f-7250-8188-6f8aae0cd530 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: ALB·workload JWT 후속 인증 규격 후보 작성 및 계획 연결. 이번 turn 식별자를 기록한다.
+- 변경 파일: TMI-203-204-workload-jwt-exact-candidate.md, TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 검증: 신규 문서 상대 링크 4개 존재 확인, git diff --check 통과. 코드 변경이 없어 Gradle 미실행.
+- 유지 계약/결정: body fixture/hash·LC/user JWT·보존·재시도 불변. 공동 확정 전 인증 코드 교체와 배포는 하지 않았다.
+- 위험/다음: Billing 수락 및 환경·포트·TLS 확인 후 OFF 구현. 실제 인증/복원 검증은 남아 있다.
+- Jira 조회만 수행. 원격 수정/댓글/상태 변경 없음. 기존 dirty 보존, 예상 밖 변경 없음. Secret 기록/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 인증 exact 후보와 계획 연결 완료, 문서 정적 검사 통과. 공동 수락 및 실제 구현/운영 검증 미완료.
+
+## 2026-10-12 — TMI-203 Billing 수락 후 workload JWT 구현
+
+<!-- codex-turn:01a12f5b-79b8-7c72-933c-ffd2654f4848 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/승인: 사용자가 Billing 인증 규격 수락을 전달하고 구현 요청. 로컬 수신·발신을 기본 OFF로 구현한다. 공식 Jira 조회, 원격 수정/댓글/상태 변경 없음.
+- 변경 파일(수신): RecoveryIngressVerifier.java, RecoveryHttpFilter.java, 신규 RecoveryJwtVerifier.java/RecoveryWorkloadConfiguration.java 및 HTTP2종/JWT/connector 테스트.
+- 변경 파일(발신): 신규 BillingJsonTransport.java/BillingJwtJsonTransport.java/BillingJwtConfiguration.java와 발신 테스트. BillingSigV4JsonTransport.java는 공통 interface 구현만 추가. WithdrawalCaptureConfiguration.java, OwnerEventConfiguration.java/BillingOwnerEventDeliveryAdapter.java, PhoneEligibilityPublisherConfiguration.java/JdkPhoneEligibilityBindingDeliveryAdapter.java에 명시 JWT 선택 연결.
+- 변경 파일(설정/자료): application.yml, 신규 workload-jwt-r1 README/time-cases.json, TMI-203-workload-jwt-implementation.md, 인증후보/계획 후속상태, WORKLOG/CURRENT_STATE.
+- 구현: strict RS256/배포형 public JWK/issuer·subject·audience/시간·jti 검증, 인증401/권한403/일시503, 실제 connector 기반 포트 격리와 별도 HTTPS. Bearer가 본문을 서명하지 않으므로 기존 payload 검증 인터페이스 제거. 발신4목적 audience·매시도 새 JWT/traceparent, HTTPS origin·route 제한·redirect금지·기존 응답/예외 분류 유지.
+- 검증: 초기 Gradle sandbox 캐시 접근 실패 후 허용된 실행 사용. 테스트 lambda 컴파일 오류1건 수정 후 대상/전체 재실행. 최종 `env -u SENTRY_AUTH_TOKEN ./gradlew clean test` 성공: 총2073/통과2049/skip24/실패0/오류0. 신규41개 테스트, 합성 시간 fixture16종은 단일 테스트 내 순회. opt-in Mongo18/support6은 미실행. git diff --check 및 recovery-r1 manifest8개 hash 일치 확인.
+- 유지 계약: 기존 body/schema/hash·snapshot/feed/보존·exact204·publisher 재시도·LC/userJWT 불변. SigV4 삭제 없음. 기본 JWT OFF와 기존 활성 플래그 유지. JWT 실행 오류 시 자동 인증 fallback 없음.
+- 결정사항: 신뢰 환경값은 기존 source environment를 사용하며 issuer/audience·포트는 명시 입력. HTTPS connector만 구현, 실제 ALB→task 정책/health check 승인과 구성은 별도. 사용자 수락 전달을 신규 fixture Billing 실행/실배포 증거로 확대하지 않는다.
+- 위험/다음: 실제 ALB/SG/TLS/키 운영·환경 매핑·Billing 양방향/복원 검증 후 승인 활성화. source sweep/cleanup 운영·폐기metadata·실경보 등의 기존 미완료 범위 유지. 신규 fixture Billing 동기화 필요.
+- 실제 diff: 이번 범위는 위 파일이며 기존 build.gradle/cleanup/과거 테스트 등 dirty 보존. 예상 밖 변경 없음. 실제 외부 호출·키 생성/주입·배포·commit/push 없음.
+- Jira 댓글 초안(미등록): 전용 JWT 수신·HTTPS connector·Billing4종 발신을 기본OFF 구현. 총2073 중2049통과/24skip, 기존body hash8개일치. 실제 인증/키교체/복원 공동검증과 운영 설정은 남아 있음.
+
+## 2026-10-13 — TMI-203 SigV4 제거 방향 검토
+
+<!-- codex-turn:01a132d2-fddb-7471-85e1-9382a456f84d -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: SigV4를 없애는 편이 좋겠다는 사용자 의견에 대해 제거 영향과 권장 방향 설명.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md만 갱신. 구현 파일은 변경하지 않았다.
+- 조사: SigV4 참조·AWS SDK 명시 의존성·JWT factory 선택을 정적 검색. 현재 JWT OFF는 기존 SigV4 선택이며 결과/예외/Retry-After 타입도 해당 클래스에 결합돼 있음을 확인.
+- 결정/권장: JWT 단일 인증으로 정리하고 publisher 활성 플래그만 유지. 공통 결과/예외를 분리한 뒤 SigV4/credential bean/불필요 의존성·region 요구 제거. publisher OFF는 키 없이 기동, ON은 JWT 미설정 시 기동 실패. 실제 삭제는 이번 작업에서 하지 않음.
+- 유지 계약: 기존 event body·exact204/재시도·snapshot/feed·LC/userJWT 불변.
+- 검증: 정적 검색, git diff --check. 코드 변경 없는 검토로 Gradle 미실행. 이전 테스트 결과를 이번 실행으로 주장하지 않음.
+- 위험/다음: 실제 활성 SigV4 sender와 Billing 수신 설정 미확인. 제거 배포 전에 사용 여부·전환 순서 확인 필요. AWS/Jira/외부설정/commit/push 변경 없음. 기존 dirty 보존, 예상 밖 변경 없음.
+- Jira 댓글 초안(미등록): SigV4 제거 영향 정적 검토. JWT 공통 타입 분리 및 발송 ON/OFF 유지 권장. 실제 코드 제거/배포 상태 확인은 미수행.
+
+## 2026-10-13 — TMI-203 SigV4 제거 Billing 인계서 작성
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 요청에 따라 Billing에 전달할 JWT 단일화/SigV4 제거 인계서 작성.
+- 변경 파일: docs/contracts/TMI-203-204-SigV4-removal-Billing-handoff-2026-10-13.md, WORKLOG.md, CURRENT_STATE.md.
+- 내용: 제거 범위·유지 계약·기능 OFF/ON·공통 결과/예외 분리·양측 활성 사용처 확인·전환 중 durable 기록 보존·회신 요청을 구분했다. SDK/IAM 제거 범위를 이 통신 전용으로 한정했다.
+- 검증: 상대 링크 존재 확인, git diff --check. 문서 작업으로 Gradle 미실행. 이전2073개 결과는 제거 후 검증이 아님을 명시했다.
+- 결정/계약: 제거 방향 인계이며 이번 코드 삭제/배포 승인 실행 아님. body/schema/hash·재시도·보존·LC/userJWT 유지.
+- 위험/다음: Billing 실제 구인증 사용 여부와 수신 JWT 준비 확인, 제거 구현·회귀·실환경 전환 검증. 기존 dirty 보존, 예상 밖 변경 없음.
+- Jira/외부 작업: 원격 수정·댓글·상태 변경/외부 메시지/키 주입/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): SigV4 제거·JWT 단일화 인계서 작성, 문서 정적 검증. 활성 사용처/배포 전환 확인과 실제 제거 구현은 미완료.
+
+## 2026-10-13 — TMI-203 인계서 작성 turn 기록 보완
+
+<!-- codex-turn:01a132d5-0c3f-7013-982b-94d958fdf569 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: Billing SigV4 제거 인계서 작성 작업의 turn 식별자 기록 보완.
+- 변경 파일: docs/contracts/TMI-203-204-SigV4-removal-Billing-handoff-2026-10-13.md 및 docs/codex/WORKLOG.md, CURRENT_STATE.md. 이번 보완에서는 기록 파일만 수정.
+- 검증: 인계서 상대 링크8개 존재 확인, git diff --check 통과. 문서 작업으로 Gradle 미실행.
+- 유지 계약/결정: JWT 단일화 방향과 제거 범위 인계만 작성. 기존 본문/재시도/복구·보존·LC/userJWT 불변. 코드 삭제·외부 전송·배포 없음.
+- 위험/다음: Billing 회신과 실제 SigV4 사용 여부 확인 후 제거 구현/전환 검증. 기존 dirty 보존, 예상 밖 변경 없음.
+- Jira 댓글 초안은 인계서에만 보관. Jira 수정/댓글/상태 변경·commit/push 없음.
+
+## 2026-10-13 — TMI-203 Billing SigV4 제거 회신 검토
+
+<!-- codex-turn:01a132d8-79b6-7293-8f88-51096e379aa0 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 제공 Billing 범위 확인·이행 회신이 기존 인계와 정합한지 검토한다.
+- 변경 파일: docs/codex/WORKLOG.md, CURRENT_STATE.md. 구현/계약 파일 변경 없음.
+- 내용: JWT 단일화/LC 분리/구설정 잔존 오류/수신 OFF 차단/발신과 수신 스위치 분리 방향을 타당하다고 검토. Identity 복구 chain의 OFF denyAll 및 기존 발신 JWT 선택 조건을 정적 확인했다. Billing 구현 관련 내용은 상대 보고로 분리했다.
+- 결정/유지 계약: 원문 숫자 token을 보존한 신규 fixture 검증 필요. 기존 body/hash/재시도/복구·보존·LC/userJWT 불변. 구 인증 선택 설정을 제거할 때 YAML 기본 선언도 정리하고 외부 잔존 설정은 명시 오류로 처리하는 후속 기준 권장.
+- 검증: 관련 코드 조회 및 git diff --check. 코드 변경 없는 검토로 Gradle 미실행.
+- 위험/다음: 양측 실제 활성 SigV4 사용처·네트워크/키·fixture 실행 미확인. 제거 구현은 별도 요청 후 진행하며 실제 전환/활성화와 구분한다.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira/외부 메시지/인프라/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): Billing 제거 회신 정합성 검토, Identity OFF 경로 차단 정적 확인. 구설정 잔존 검증/공통타입 분리 및 fixture 원문 보존 테스트 필요. 코드 제거·실배포 확인은 미완료.
+
+## 2026-10-13 — TMI-203 SigV4 제거·JWT 단일화 구현
+
+<!-- codex-turn:01a132da-0258-7e63-bbfd-96c4040a8a8b -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/승인: Billing 회신 검토 후 사용자 수정 요청에 따라 Identity–Billing 전송을 JWT 단일 방식으로 구현. 공식 Jira 재조회, 원격 수정/상태/댓글 변경 없음.
+- 변경 파일: BillingJsonTransport/BillingJwtJsonTransport/BillingJwtConfiguration, withdrawal/owner-event/phone-eligibility의 configuration/properties/delivery 및 BillingWithdrawalPublisher, build.gradle/main·test YAML, JWT/공통/설정/수신 테스트. SigV4 클래스와 대응 테스트 삭제. 상세 파일목록은 docs/contracts/TMI-203-SigV4-removal-implementation-2026-10-13.md; 이전 구현/계획 최신 주석 및 WORKLOG/CURRENT_STATE 갱신.
+- 구현: 공통 결과/예외/Retry-After 분리, SigV4 transport·전용 credential bean·선택 생성자·region·SDK 명시 의존성 제거. 기존 publisher ON일 때만 factory 생성, 활성 목적 audience만 요구. 구4설정 잔존은 OFF/빈값/false에서도 명시 기동 오류. JWT 실패 fallback 없음.
+- 검증: 초기 대상 테스트는 격리 test YAML의 구region을 guard가 거절해 실패. 해당 기본설정 제거 후 전체 재실행. 최종 `env -u SENTRY_AUTH_TOKEN ./gradlew clean test` 총2089개/통과2065/skip24/실패0/오류0. skip은 Mongo18/support6 opt-in. 기존8개 fixture SHA-256 일치, AWS SDK/SigV4 source 참조 제거 및 diff 검사.
+- 유지 계약: body/ID·멱등·exact204/각 이벤트 응답·재시도/Retry-After·snapshot/feed·보존·LC/userJWT 불변. source capture/미처리 기록/외부 DB 변경 없음.
+- 결정사항: 구선택 플래그를 제거하고 발신 기능 스위치 유지. 모두OFF면 signing key/client 불필요, ON이면 JWT/활성목적 설정 필요. 기존 Jira의 실사용 확인 조건은 배포 전 gate로 유지하며 원격 본문을 임의 수정하지 않음.
+- 위험/다음: 실제 SigV4 활성 사용처 확인과 배포4구설정 제거, 환경/키/ALB/TLS·Billing fixture/양방향/복원 검증 후 승인 활성화. 기존 source 운영/경보 미완료 항목은 별도.
+- 실제 diff: 기존 schema test dependency·cleanup/다른 테스트 dirty 보존. 예상 밖 변경 없음. 삭제한 추적 SigV4 클래스/테스트는 Git 이력으로 복구 가능. 인프라/키 생성·주입/외부 메시지/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): SigV4 및 전용 의존성 제거, JWT 단일화/구설정 거절/활성 목적별 signer 구현. 전체2065통과/24skip, body hash8개 일치. 실제 배포 설정·양측 연동/복원 검증은 남아 있음.
+
+## 2026-10-13 — TMI-203 구현 완료 범위 안내
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 완료 여부 질문에 인증 전환과 전체 복구 작업 범위를 구분해 안내.
+- 변경 파일: WORKLOG.md, CURRENT_STATE.md. 최신 구현 결과와 runtime 문서의 미완료 항목을 확인했다.
+- 내용/결정: SigV4 제거/JWT 단일화는 로컬 완료. source cleanup/sweep 운영 연결·폐기metadata 정리와 경보/실환경·Billing 복원 검증은 남아 있어203 전체 완료로 표현하지 않는다.
+- 검증: 문서 정적 확인 및 git diff --check. 상태 확인 작업으로 Gradle 미실행. 직전2065통과/24skip은 이전 실행 결과다.
+- 유지 계약/위험/다음: 기존 API/인증/보존 불변. 남은 원천 정리 구현·운영 연결을 먼저 점검하고 실제 연동/활성화는 별도 검증·승인 필요.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira/외부설정/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): 인증 전환 완료와203 전체 미완료 범위를 구분. 남은 원천 운영/폐기metadata/실경보·복원 검증 확인 필요.
+
+## 2026-10-13 — TMI-203 완료 범위 확인 기록 보완
+
+<!-- codex-turn:01a132e0-76eb-7912-821b-1c8ee7b7f94b -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 이번 완료 여부 안내 작업의 turn 식별자를 추가한다. JWT 단일화 로컬 완료와 전체203 미완료를 구분했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록은 수정하지 않았다.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/보존/인증 계약 변경 없음. 기존 테스트 결과를 이번 실행으로 주장하지 않는다.
+- 위험/다음: 원천 cleanup/sweep 운영 연결·폐기metadata 정리 및 실경보/실환경·Billing 복원 검증이 남아 있다.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira 수정/댓글/상태 변경·외부설정·commit/push·배포 없음.
+
+## 2026-10-13 — TMI-203 원천 정리 스케줄·폐기 metadata 구현
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 사용자 요청으로 남은 원천 정리 스케줄/권한 경계 연결과 폐기metadata 정리 로컬 구현.
+- 변경 파일: 신규 MongoRetiredSourceCleanup/RecoverySourceJobs/RecoverySourceJobsConfiguration 및 테스트2파일; WithdrawalCaptureConfiguration.java/application.yml; docs/contracts/TMI-203-source-maintenance-implementation.md와 WORKLOG/CURRENT_STATE.
+- 구현: 기본OFF인 source jobs, source expiry20건·stream1개/5초 순회, 기존 sweep 연결. retired closedAt+120일·활성대체존재·journal/snapshot참조없음·명시Approval 아래 source CAS와100range bounded정리 후 stream제거. unknowncommit 자동재시도금지. cleanup transaction SNAPSHOT/MAJORITY/primary·30초 명시. 개인정보없는실패/보류지표.
+- 검증: 대상테스트 및 최종 `env -u SENTRY_AUTH_TOKEN ./gradlew clean test` 성공. 총2104/통과2080/skip24/실패0/오류0, 신규15개. Mock transaction 경계 검증이며 실제Mongo18/support6 opt-in은skip. 기존8개bodyfixture hash일치·git diff --check.
+- 유지 계약/결정:120일/7일보존·API/DTO/fixture/index·LC/userJWT 불변. 실제Approval/시계·writer bound 증명은 배포 통합이 제공해야 하며 허용기본값 없음. 불명/참조잔존을 근거없이 삭제하지 않는다.
+- 위험/다음: 실제 replica-set 동시삭제/복원·query plan·운영Approval·외부경보/Billing검증 후 별도활성화. snapshot rows는streamId가없어 run을먼저삭제하지않는 기존불변식에의존,수동손상/orphan자료는별도조사.
+- 실제 diff: 기존dirty보존·예상밖변경없음. 실제DB/인프라/Jira쓰기/외부전송/commit/push/배포없음.
+- Jira 댓글 초안(미등록): 원천 정리 자동실행 연결·폐기metadata bounded정리 기본OFF 구현. 전체2080통과/24skip,공유hash유지. 실제Approval/경합·복원/경보검증은남아있음.
+
+## 2026-10-13 — TMI-203 원천 정리 구현 turn 기록 보완
+
+<!-- codex-turn:01a132e1-7bb6-78c3-ad33-25c7c2642a84 -->
+
+- 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 원천 정리 스케줄·폐기 metadata 구현 작업의 turn 식별자를 기록한다. 구현 상세는 직전 항목과 TMI-203-source-maintenance-implementation.md를 따른다.
+- 변경 파일: 이번 보완은 docs/codex/WORKLOG.md, CURRENT_STATE.md만 수정. 과거 기록은 변경하지 않았다.
+- 검증: 구현 최종 전체2104개 중2080통과/24skip/실패0·오류0. 이번 기록 보완에서는 테스트를 재실행하지 않고 git diff --check만 수행했다.
+- 유지 계약/결정: 보존기간·API·인증 계약 유지, 정리 기능 기본OFF. 실제 DB 삭제·배포 없음.
+- 위험/다음: 운영 Approval/시계·writer bounds 연결, 실제 Mongo 경합·Billing 복원·외부 경보 검증이 필요하다.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira 쓰기·외부설정·commit/push 없음.
+
+## 2026-10-13 — TMI-203 다음 작업 안내
+
+<!-- codex-turn:01a132e9-5423-7ee0-b208-e5333170962f -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 현재 기록을 확인하고 다음 작업 순서를 안내했다. 운영 Approval/runtime evidence 연결과 실제 로컬 Mongo 정리 경합 검증을 우선 권장한다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 구현 코드 변경 없음.
+- 테스트: 상태 안내이므로 Gradle 미실행. 기록 diff 검사 수행; 직전 2080통과/24skip은 이번 실행 결과가 아니다.
+- 유지 계약/결정: API/보존/인증 계약 및 기능 기본OFF 유지. 구현·배포 승인으로 해석하지 않았다.
+- 위험/다음: 실제 권한 증명·시계/capture·writer 경계, Mongo rollback/복원/query plan, Billing 공동 연동·키/ALB/TLS/외부경보가 남아 있다.
+- 이번 변경은 기록 두 파일에 한정하며 기존 dirty 보존, 예상 밖 변경 없음. Jira 쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 후속 우선순위를 운영 증명 연결 및 로컬 replica-set 안전성 검증으로 정리. 코드 변경과 테스트 재실행 없음; 실제 환경·공동 복원 검증은 미완료.
+
+## 2026-10-13 — TMI-203 운영 증거 조사·로컬 실DB 정리 회귀
+
+<!-- codex-turn:01a132ec-216c-79c1-b950-9617ee9b22ec -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203. 공식 조회 수행, 쓰기/상태 변경 없음.
+- 목표: 운영 정리 권한 연결 가능성 확인과 로컬 replica-set 안전성 검증.
+- 변경 파일: RecoveryReplicaSetTests.java, docs/contracts/TMI-203-source-maintenance-local-verification.md, WORKLOG.md, CURRENT_STATE.md.
+- 내용: 신규4개 테스트로101range 분할/재조회, 승인 철회 rollback, 동시source CAS 충돌, journal/snapshot 참조 보류 검증. 운영 Approval/RuntimeEvidence 제공자 부재 확인. 실제 증거 원천이 미정이므로 연결은 미완료로 남겼으며 허용 우회 없음.
+- 테스트: 임시 로컬 Mongo7.0.14에서 전체 clean test. 최초 신규fixture 초기version 불일치2건 수정 후 재실행 결과2108/통과2102/실패0/오류0/support skip6. 기존18개와 신규4개 replica-set 실행. git diff --check 수행.
+- 유지 계약/결정: production/API/fixture/보존/인증 불변, 기능OFF. 운영 데이터/인프라 접근 없음. 임시 합성 DB와 이번 컨테이너만 삭제·종료했으며 실제 사용자 자료 삭제 없음.
+- 위험/다음: 실제 승인·clock/capture/writer 증거 제공 위치와 신선도/철회/복원 절차 결정 필요. unknown commit 주입·delivery claim 경합·query plan·Billing 연동 미완료. 배포 전 실제 근거 연결과 별도 활성화 승인 필수.
+- 실제 diff: 이번 테스트/문서 외 예상 밖 변경 없음, 기존 dirty 보존. commit/push/Jira쓰기/배포 없음.
+- Jira 댓글 초안(미등록): 원천 정리 실DB 회귀4개 추가, 전체2102통과/6skip. 운영 증거 제공자 부재로 Approval 연결은 미완료·OFF 유지. 실제 복원 및 공동 검증은 별도.
+
+## 2026-10-13 — TMI-203 구현 완료 여부 재확인
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 완료 여부 질문에 핵심 로컬 구현과 미완료 운영 증거 제공자 연결을 구분해 안내했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 코드 구현 변경 없음.
+- 검증: 최신 상태/직전 작업 기록 확인 및 git diff --check. 상태 안내이므로 Gradle 재실행 없음; 직전 결과2102통과/6skip.
+- 유지 계약/결정: API/보존/인증/기능OFF 불변. 전체 구현 완료 또는 배포 준비 완료로 간주하지 않는다.
+- 위험/다음: Approval/RuntimeEvidence 실제 제공자 구현·연결, 실제 경보/환경 설정, Billing 공동 연동/복원 및 잔여 경합 검증 필요. 별도 승인 없이 활성화하지 않는다.
+- 기존 dirty 보존, 이번 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 핵심 로컬 구현 완료와 운영 증거 제공자 연결 미완료를 구분. 상태 확인만 수행, 추가 테스트 없음.
+
+## 2026-10-13 — TMI-203 완료 여부 안내 turn 기록 보완
+
+<!-- codex-turn:01a132f1-8a05-7710-b3ae-1ebea635f5b0 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 이번 완료 여부 안내의 turn 식별자를 기록했다. 핵심 로컬 구현 완료와 운영 증거 제공자 연결 미완료를 구분한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 변경 없음.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/보존/인증 및 기능OFF 유지. 전체 구현 완료로 보고하지 않는다.
+- 위험/다음: 실제 Approval/RuntimeEvidence 연결, 환경 설정·경보·Billing 공동 복원 검증 필요.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 운영 근거 연결 선행 확인
+
+<!-- codex-turn:01a132f2-de13-7212-b54b-9f22fc7bdb64 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표: 후속 요청을 운영 증거 연결로 해석하고 활용 가능한 근거 제공자를 조사.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. production 및 배포 관련 경로 검색에서 실제 RuntimeEvidence/Approval 제공자를 확인하지 못했다.
+- 내용/결정: 환경/stream별 만료·철회 가능한 배포 확인 기록과 별도 시계 관측 근거를 연결하는 방향을 제안한다. 새로운 운영 구조를 임의 도입하거나 bool 허용으로 대체하지 않는다. 실제 제공 원천과 절차 선택 전 코드 연결은 미완료다.
+- 테스트: 코드 변경 없는 조사이므로 Gradle 미실행. git diff --check 확인. 검색 결과는 운영 환경 부재의 증명이 아니다.
+- 유지 계약: API/보존/인증/기능OFF 유지. 실제 인프라/데이터 변경 없음.
+- 위험/다음: 운영 근거 수집 방식과 책임 확인 후 구현; 기록 존재만으로 writer 종료·시계 정상이라고 간주하지 않는다. 배포 전 실제 연동/복원 검증 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 운영 증거 제공자 연결 선행 조건 확인. 신규 운영 구조 결정 필요, 코드 변경/추가 테스트 없음.
+
+## 2026-10-13 — TMI-203 운영 근거 선택지 장단점 설명
+
+<!-- codex-turn:01a132f8-67b6-7aa3-80b3-4846bc482ac6 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 수동 제한 실행·혼합·자동 수집의 개발비용/운영부담/실수 가능성/실제 보장 비교. 초기 권장안은 배포·복원 경계의 명시 확인과 런타임 자동 검사를 결합하는 혼합 방식이며 미확정이다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 구현 변경 없음.
+- 검증: 현재 기록 확인, git diff --check. 선택지 설명만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 승인 기록 존재 자체로 안전 사실을 증명하지 않는다. TTL/시계 관측 원천/철회·복원 결합 상세 미확정. 정리 승인과 공용 RuntimeEvidence 책임 분리 필요, 전체 로그인/구매 차단을 새로 도입하지 않는다.
+- 위험/다음: ECS 정상 상태만으로 모든 writer 종료/DB capture/시계 신뢰를 증명할 수 없다. 자동 수집에는 권한·관측 원천 설계가 필요하다. 정리OFF 임시 유지가 무기한 보존 승인은 아니다. 사용자 선택 후 구체 설계·구현 및 배포 전 검증.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 운영 증거 연결3안 비교 및 혼합 방식 권장. 정책·구현 미확정, 테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 탈퇴 기록 정리 안전 기준 설명
+
+<!-- codex-turn:01a132fc-256f-76b3-9f9b-4173f3704fea -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 원본 정리의120일 보존·유효lease 부재·source CAS·삭제와 floor/range 원자성, 폐기metadata의 별도 조건 및 운영 증거 미완료를 구분했다. Billing 수신완료를 삭제 조건으로 재도입하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 검증: WithdrawalSourceCleanup/RecoverySourceJobsConfiguration 정적 확인, git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지 계약/결정: consumer 원격ACK 없음·보존기간·API 불변. 원본 만료 이후 전체 이력 복구 가능성을 보장하지 않으며 snapshot도 현재 제공 가능한 범위만 복구한다.
+- 위험/다음: 운영 clock/capture/구writer 종료 근거 제공자 연결 미완료. 사용자 선택 및 구체 설계 후 구현, 배포 전 실제 증거/연동 검증 필요.
+- 기존 dirty 보존·기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 정리 안전 기준과 운영 미확인 근거 설명. 코드 변경·테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 시간·구writer 운영 확인 설명
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사람이 확인할 배포/복원 경계와 자동 수집해야 할 시계 근거를 구분했다. 구task 종료·별도writer·진행transaction 종료, 시간원 동기화/오차/신선도 및 승인범위 확인을 안내한다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 검증: WithdrawalCaptureService 정적 확인, git diff --check. 설명 작업으로 Gradle 미실행, 실제 AWS/시계 상태는 미조회.
+- 유지 계약/결정: capture ACTIVE stream 갱신·30초검사 유지. elapsed 검사는 절대시각 신뢰증명이 아니며 afterCommit 실패로 이미 commit된 쓰기가 취소되는 것은 아니다. ECS 배포완료/ALB 제외만으로 안전을 단정하지 않는다.
+- 위험/다음: 실행환경별 시간 관측 가능성·허용오차·표본유효기간 및 writer 종료 증거 설계 필요. 운영 연결 미완료와 기능OFF 유지.
+- 기존 dirty 보존·기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 운영 확인 체크리스트 설명. 실제 운영 조사·코드 수정·테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 운영 확인 안내 turn 기록 보완
+
+<!-- codex-turn:01a132fe-a590-75e1-ae22-20455f0f8b9d -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 시간·구writer 운영 확인 안내의 현재 turn 식별자를 기록했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 수정 없음.
+- 검증: git diff --check. 기록 보완이므로 Gradle 미실행.
+- 유지 계약/결정: 코드/API/보존/인증/기능OFF 유지. 실제 운영 상태를 확인 완료로 간주하지 않는다.
+- 위험/다음: 시계 관측과 구writer 종료 증거의 실제 연결 및 배포 전 검증 필요.
+- 기존 dirty 보존, 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 별도 승인 시스템 필요성 재평가
+
+<!-- codex-turn:01a13301-aaa1-7932-8377-48c42f4b93f4 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 운영 복잡도 질문에 배포/복원 체크리스트와 상시 코드 보호를 구분했다. 별도 승인 저장소·만료 갱신 시스템은 미확정 제안이며 필수사항이 아님을 명확히 했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 현행 기록/대화 범위 분석, git diff --check. 코드 변경 없이 설명하므로 Gradle 미실행.
+- 유지 계약/결정: 기존 보존/lease/source fence/삭제증거 원자성/시간 신뢰 요구를 제거하지 않는다. 구writer 종료는 관련 배포 후·최초 활성화 전 및 복원 시 확인 필요. 제안 단순화는 아직 코드/공동 계약 개정 아님.
+- 위험/다음: 현재 Approval/RuntimeEvidence 연결 공백은 유지. 최소 운영 절차와 실제 시간 관측을 구체화해야 하며 true 기본값으로 대체하지 않는다. 사용자 확인 후 구현 범위를 조정한다.
+- 기존 dirty 보존·기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 별도 승인 시스템은 선택 설계로 재분류, 체크리스트 중심 단순화 검토. 상시 안전조건과 운영 연결 미완료 유지. 코드/테스트 변경 없음.
+
+## 2026-10-13 — TMI-203 최소 정리 구조 단순화 제안
+
+<!-- codex-turn:01a13304-6907-73a0-95d9-94f71eb29ff1 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 추가 단순화 요청에 별도 승인 기록/갱신/운영증명 공급체계를 제외하는 최소안을 설명. 기간·전송lease·CAS·원자적 가용성 기록·참조 검사는 실제 무결성 보호로 유지한다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 코드 변경 없음.
+- 검증: 기존 구조/계약 범위 분석 및 git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지 계약/결정: 원격ACK 없음·보존기간·API 불변. 인프라 시간 동기화/운영대응 의존 대안의 보장 차이를 명시하며 무조건 안전하다고 하지 않는다. 공용 RuntimeEvidence의 capture/복구 사용처는 일괄 제거 대상이 아니다.
+- 위험/다음: 실제 운영 시계 관측/복원절차 미확인. 앱의 독립 절대시각 검사 제거 시 조기삭제 위험을 자동 배제하지 못한다. 구현 시 계획/계약 영향 분리와 회귀 필요, 현재 단순화 코드 미적용.
+- 기존 dirty 보존·기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 정리 최소구조 제안 및 추가 운영증명 체계 제외 방향. 실제 코드·계약 개정 전이며 시간 보장 차이와 공용 readiness 영향 검토 필요.
+
+## 2026-10-13 — TMI-203 최소 정리안 수락 기록
+
+<!-- codex-turn:01a13306-f938-77e1-8fef-288dca8dd48a -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 최소안 수락 기록. 120일보존/전송lease/원자적 삭제와 가용성 기록/충돌rollback/참조보호는 유지하고 별도 승인·갱신·증명 시스템을 제외하는 방향 확정.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 검증: 직전 기록 확인 및 git diff --check. 방향 수락 기록만 수행하므로 Gradle 미실행.
+- 유지 계약/결정: 외부 API/보존기간 불변, 실제 운영조사/정리 활성화 승인 아님. 시간동기화/구writer종료는 인프라 및 배포/복원 운영 책임으로 두며 앱의 독립 시계 보장은 주장하지 않는다.
+- 위험/다음: 코드·계획/공동계약 정합화 미완료. 공용 RuntimeEvidence의 capture/복구 영향은 별도 검토 후 구현하며 상시true 우회로 완료 처리하지 않는다. 배포 전 회귀/운영 검증 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 최소 정리 방향 사용자 수락. 핵심 정합성 검사 유지, 별도 운영 승인 체계 제외. 코드 미적용·테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 최소 정리안 수락 turn 식별자 보완
+
+<!-- codex-turn:01a13306-0d79-7382-9e63-764ebb44845c -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: hook에서 제공한 정확한 현재 turn 식별자를 추가했다. 직전 항목의 잘못된 식별자는 과거 기록 보존 규칙에 따라 수정하지 않았다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 최소 정리 방향 수락 유지, 코드/API/보존기간/배포 변경 없음.
+- 위험/다음: 계획·코드 정합화 및 공용 readiness 영향 검토·회귀는 후속 작업이다.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/활성화 없음.
+
+## 2026-10-13 — TMI-203 최소 정리 계획 개정·Jira 설명 미리보기
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 요청으로 계획 요약·§5.6·신규§5.6.1·§5.8을 최소 정리안으로 정합화. 별도 승인/운영증명 시스템 제외, 핵심 원자성/lease/CAS/보존/참조검사 유지, 시간 신뢰 보장 차이 및 운영 책임 명시.
+- 변경 파일: docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/contracts/TMI-203-minimal-cleanup-Jira-update-draft.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- Jira 작업: 공식 MCP로 제목/설명/상태 조회. 설명의 범위 항목 교체·완료기준8 추가·운영 최소화 절 추가 미리보기 작성. 수정안 승인 대기이며 실제 Jira 쓰기/댓글/상태변경 없음.
+- 검증: 현재 Jira와 계획 정적 대조, git diff --check. 문서 작업으로 Gradle 미실행.
+- 유지 계약/결정: 외부API/body/schema/hash/index/보존/LC/user 인증 불변. 공용 RuntimeEvidence를 상시true/전역 삭제로 대체하지 않고 후속 코드 정합화 범위로 분리. 실제 배포/활성화 아님.
+- 위험/다음: 미리보기 승인 후 Jira 설명만 반영·재조회. 코드 구현과 운영/Billing 공동검증 미완료. 시간 운영전제는 실제 환경 검증이 필요하다.
+- 기존 dirty 보존, 이번 문서 외 예상 밖 변경 없음. commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 최소 정리 계획 개정 및 설명 수정안 준비. 문서 검사만 수행, 별도 운영증명 제외·DB 불변식 유지. 코드와 공동검증 미완료.
+
+## 2026-10-13 — TMI-203 계획 개정 turn 기록 보완
+
+<!-- codex-turn:01a13307-05c4-7b73-9636-779beb2130c4 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 계획 개정·Jira 미리보기 작업의 정확한 turn 식별자를 추가했다. 원격 Jira 수정은 미리보기 승인 대기다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 최소 정리 계획 개정 상태 유지, 코드/API/보존기간 변경 없음.
+- 위험/다음: 승인 후 Jira 설명만 수정·재조회. 후속 코드 정합화·공동 검증 미완료.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 최소 정리안 Jira 설명 반영
+
+<!-- codex-turn:01a1330e-0a91-7122-9cdf-f871e8351a80 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 사용자 미리보기 후 승인에 따라 설명의 journal/delivery 범위 교체, 완료기준8 및 최소정리 운영절 추가. 별도 승인증명 체계 제외·핵심DB 안전조건/운영전제 유지.
+- Jira 작업/승인: 공식 MCP 조회→설명만 수정→재조회. 설명 기대값 일치, 제목/상태 불변 확인. 댓글 목적/등록 및 상태변경 없음. 사용자 '어' 승인에 근거했다.
+- 변경 파일: docs/contracts/TMI-203-minimal-cleanup-Jira-update-draft.md, docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 원격 재조회 비교 및 git diff --check. 문서/Jira 작업으로 Gradle 미실행.
+- 유지 계약/결정: API/보존/인증/기능OFF 불변, 코드 구현·배포·판매·자동삭제 활성화 아님. Jira 본문 전체는 기록에 복사하지 않았다.
+- 위험/다음: 최소안 코드 정합화·공용 readiness 영향 구분·회귀 필요. 시간동기화 및 구writer 종료는 일반 운영 전제이며 실제 검증 미완료.
+- 기존 dirty 보존, 이번 문서 외 예상 밖 변경 없음. commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 최소 정리 범위/완료기준 개정 및 재조회 검증 완료. 코드 변경/테스트 재실행 없음, 운영/공동검증 남음.
+
+## 2026-10-13 — TMI-203 최소 정리 구성 구현·회귀
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203. 구현 전 공식 재조회, 설명/완료기준8 및 승인 최소안 확인.
+- 목표/내용: 정리전용 Approval 인터페이스/RuntimeEvidence 의존성 제거. capture/cleanup설정·환경문법·scope·보존경계 검사로 연결하며 index/migration preflight 유지. 저수준 정리 transaction/lease/CAS/원자성·참조보호 불변.
+- 변경 파일: RecoverySourceJobsConfiguration.java, RecoverySourceJobsTests.java, docs/contracts/TMI-203-minimal-cleanup-implementation.md, docs/contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 테스트: 기본 clean test 성공 후 임시 로컬 Mongo7.0.14 replica-set 포함 clean test 성공. 전체2110/통과2104/실패0/오류0/support skip6, replica-set22개 실행. 외부approval/runtime없는ON구성·preflight/잘못된index·설정해제·scope거절 회귀. git diff --check 통과.
+- 유지 계약/결정: API/body/hash/index/보존/LC/user/workload 인증 불변. 공용 capture/복구/구매 RuntimeEvidence는 그대로이며 상시true 우회 없음. 시간 신뢰는 정리 경로의 인프라 전제, 독립오차탐지 보장 없음.
+- 위험/배포 전: 공용runtime 실제연결 및 운영 시간동기화/구writer 종료·복원/Billing공동검증/실경보 미완료. 전체application ON기동이나 운영준비 완료를 주장하지 않는다. 기본정리OFF 유지.
+- 실제 diff: 기존dirty보존, 이번6파일 범위 외 예상 밖 변경 없음. 임시 합성DB와 이번컨테이너만 정리, 실제사용자데이터 변경 없음. Jira쓰기/commit/push/배포 없음.
+- 다음: 공용준비조건과 최소정리의 남은 운영경계 확인, 공동검증 후 별도활성화.
+- Jira 댓글 초안(미등록): 정리전용 외부Approval/runtime의존성 제거, DB/config보호 유지. 전체2104통과/6skip. 공용runtime·운영·공동검증 남음.
+
+## 2026-10-13 — TMI-203 최소 정리 구현 turn 기록 보완
+
+<!-- codex-turn:01a13310-bc05-7ee3-8547-a0fb20a3994e -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 최소 정리 구현 작업의 정확한 현재 turn 식별자를 기록했다. 구현·검증 상세는 직전 항목을 따른다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완에서는 Gradle 재실행 없음; 직전 실제 Mongo 포함 결과2104통과/6skip/실패0 유지.
+- 유지 계약/결정: 코드/API/보존/인증 변경 없이 정리 기본OFF 유지.
+- 위험/다음: 공용 runtime 운영 연결·Billing 공동검증·실경보 확인 필요. 전체 배포 준비 완료 아님.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 최소 정리 이후 다음 작업 안내
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 최신 상태를 확인해 공용 준비 조건의 소비처 구분 및 전체 구성 기동 검증을 다음 우선순위로 안내. 제거한 별도 승인시스템을 재도입하는 제안은 아니다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 최신 구현 기록 확인·git diff --check. 안내만 수행하므로 Gradle 미실행; 직전2104통과/6skip을 이번 실행으로 주장하지 않는다.
+- 유지 계약/결정: API/보존/인증/정리 기본OFF 불변. 구매 보호나 capture 원자성을 일괄 제거하지 않는다.
+- 위험/다음: 공용 runtime 연결 및 전체ON 기동 미검증, Billing 공동 연동/운영 설정/실경보 확인 후 별도 승인 활성화 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 최소 정리 후 공용 구성 연결·기동 검증을 다음 작업으로 정리. 코드/추가 테스트 없음, 운영 및 공동검증 미완료.
+
+## 2026-10-13 — TMI-203 다음 작업 안내 turn 기록 보완
+
+<!-- codex-turn:01a13315-ae3b-7e32-b871-3c5e9c8387ee -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 다음 작업 안내에 정확한 현재 turn 식별자를 추가했다. 공용 준비 조건 구분·전체 구성 기동 검증이 다음 단계다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/보존/인증/기능OFF 불변. 별도 승인시스템 재도입 없음.
+- 위험/다음: 공용 runtime 연결·전체ON 기동 및 Billing 공동검증 미완료. 운영 확인 후 별도 승인 활성화 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 capture·복구 로컬 readiness 분리
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203. 공식 이슈 재조회, 승인 최소안 및 완료기준 확인.
+- 목표/내용: capture/복구의 외부RuntimeEvidence 의존성을 실제DB/config 준비검사로 분리. 신규CaptureReadiness는 단일ACTIVE·환경·cutover·순번범위 확인, 장애를 성공으로 변환하지 않음. 구매 증명 부재는false·publisher clock정책 유지. snapshot reader/store 공급자 이름을 runtimeReady로 정합화.
+- 변경 파일: CaptureReadiness.java, WithdrawalCaptureConfiguration.java, RecoveryRuntimeConfiguration.java, MongoSnapshotStore.java, MongoRecoveryReader.java, WithdrawalConfigurationTests.java, RecoveryRuntimeTests.java, RecoveryCombinedConfigurationTests.java, RecoveryReplicaSetTests.java, docs/contracts/TMI-203-local-readiness-implementation.md, CURRENT_STATE.md, WORKLOG.md.
+- 테스트: 기본 clean test 및 최종 로컬Mongo 포함 clean test 성공. 전체2116/통과2110/실패0/오류0/support skip6, 실제Mongo23개. 결합3구성 기동/구매거절·누락source/control차단·중복/손상/DB오류 및 실제source폐쇄/교체 회귀. git diff --check 통과.
+- 유지 계약/결정: 외부API/body/보존/인증/index 불변. capture transaction/30초예산·sourceCAS·snapshotT/H/digest/H2 유지. 신규상시true RuntimeEvidence나구매허용 fallback 없음.
+- 위험/배포전: 결합테스트는Mock index/외부서비스 사용, 전체application HTTP/TLS실기동 검증 아님. publisher/구매 RuntimeEvidence 운영연결·Billing공동복원·실경보·실운영시간동기화/구writer격리 미완료. readiness DB조회부하/실쿼리계획은 후속 확인.
+- 실제diff: 기존dirty보존·이번범위 외 예상밖변경 없음. 임시합성DB 및 이번컨테이너만 정리, 실제사용자데이터 변경 없음. Jira쓰기/commit/push/배포 없음.
+- 다음: publisher/구매의 별도경계 확인, Billing공동연동 및 운영동등검증 후 승인활성화.
+- Jira 댓글 초안(미등록): capture/recovery localDB readiness 분리·결합기동 회귀. 전체2110통과/6skip. 구매보호/publisher정책 유지, 외부운영·공동검증 미완료.
+
+## 2026-10-13 — TMI-203 로컬 readiness 구현 turn 기록 보완
+
+<!-- codex-turn:01a13317-7c63-74a1-8c46-a2291dad356f -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 로컬 준비 조건 분리·결합 기동 검증 작업의 정확한 turn 식별자를 기록했다. 구현 상세는 직전 항목을 따른다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완에서 Gradle 재실행 없음; 직전 전체2110통과/6skip/실패0 유지.
+- 유지 계약/결정: 코드/API/보존/인증 및 기능OFF 불변. 구매보호·publisher 기존 정책 유지.
+- 위험/다음: 전체application HTTP/TLS·구매/발신 운영연결·Billing 공동검증 미완료. 별도 승인 후 활성화 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 로컬 readiness 이후 다음 작업 안내
+
+<!-- codex-turn:01a13360-aa9a-73c0-8b65-4d598abeb0cc -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 최신 기록에 근거해 남은 발신/구매 활성화 연결과 공동 연동 검증 순서를 안내했다. 기존 완료된 capture/recovery/정리 단순화와 구분했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 최신 상태 확인 및 git diff --check. 설명 작업으로 Gradle 미실행; 직전2110통과/6skip은 이번 실행이 아니다.
+- 유지 계약/결정: 구매 증명 부재시거절 유지, API/보존/인증 불변. 새 운영증명 시스템이나 무조건true 우회 도입 제안 아님.
+- 위험/다음: Billing 발신 및 구매 활성화의 남은 정책/구성 경계 확인, HTTP/TLS/JWT 공동연동·복원·경보 검증 후 별도 승인 활성화. 실제 배포 준비 완료 아님.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 후속 발신/구매 구성 및 공동연동 검증 순서 정리. 코드 변경/테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 Billing 발신 구성 검증
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202). 공식 조회만 수행.
+- 목표/내용: 발신 ON/OFF·JWT 구성 확인, 신규4개 회귀 추가. 기존202 clock/Retry-After 정책이 남아 있어 정리 최소안만으로 삭제하지 않았다. 현재 발신은 captureReady/구매증명이 아니라 clockTrusted만 사용함을 확인.
+- 변경 파일: BillingWithdrawalConfigurationTests.java, docs/contracts/TMI-203-publisher-configuration-check.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 테스트: env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공. 전체2120/통과2091/실패0/오류0/skip29(Mongo23/support6). 실제Mongo opt-in 이번미실행, 외부HTTP발송없음. git diff --check 통과.
+- 유지 계약/결정: production/API/보존/JWT/Retry-After/BLOCKED_CLOCK/구매보호 변경 없음. 별도clock시스템을 추가하거나 상시true로 우회하지 않았다.
+- 위험/다음: 발신도 인프라시간 운영 전제로 변경할지 결정 후 계약/코드 정합화 필요. 현재 요청의 발신 production 단순화는 미완료, 외부TLS/Billing 연동도 별도. 기존blocked자료 임의재개 금지.
+- 실제diff: 기존dirty보존, 이번테스트/문서 외 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 발신구성4회귀 추가·전체2091통과/29skip. 기존clock정책 범위차이로 production 변경 미완료, 사용자 결정 및 공동검증 필요.
+
+## 2026-10-13 — TMI-203 발신 구성 검증 turn 기록 보완
+
+<!-- codex-turn:01a13361-8d5b-7a52-a8e9-c659e773f662 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202).
+- 목표/내용: 발신 구성 회귀·시간 정책 경계 확인 작업의 정확한 turn 식별자를 기록했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완에서는 Gradle 미실행; 직전2091통과/29skip/실패0 유지.
+- 유지 계약/결정: production/API/보존/인증/구매보호 불변. 발신 시간 정책 변경은 사용자 결정 대기.
+- 위험/다음: 결정 후 코드 정합화 및 외부 연동 검증 필요. 실제 발송·배포 없음.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push 없음.
+
+## 2026-10-13 — TMI-203 구매 활성화 확인 순서 안내
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 다음 독립 조사로 구매 활성화 조건을 확인할 수 있음을 설명하고 발신 시간 정책은 별도 미결정으로 구분했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 최신 기록 확인 및 git diff --check. 안내 작업으로 Gradle 미실행.
+- 유지 계약/결정: 실제 구매 허용/판매 활성화 승인 아님. 발신 production 변경 미완료·기존 보호 유지.
+- 위험/다음: 구매 활성화 조건의 코드/계약 확인과 발신 정책 결정 후 공동 연동 검증 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 구매 활성화 조건 확인을 독립 후속 조사로 구분. 코드/테스트 변경 없음, 발신 정책 미결정 유지.
+
+## 2026-10-13 — TMI-203 후속 확인 안내 turn 기록 보완
+
+<!-- codex-turn:01a13365-2a31-7433-a844-b8503710dbed -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 구매 활성화 조건 확인 순서 안내의 정확한 현재 turn 식별자를 추가했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/구매 보호 불변. 발신 시간 정책 결정과 구매 조건 조사를 구분하며 실제 활성화 승인 아님.
+- 위험/다음: 구매 조건 조사·발신 정책 결정·공동 검증 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 발신 시간 증명 의미 설명
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 별도 시간 증명이 실제 오류 탐지가 아니라 clockTrusted 공급자를 요구하는 현행 발신 경계임을 설명. provider없음 기동실패와 false BLOCKED_CLOCK 구분, 발신 전 및429/503 재시도 정책 사용처 확인.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 발신/재시도/구성 코드 정적 검색, git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지 계약/결정: 발신 인프라 시간 전제 단순화 권장이나 코드/정책 변경 미수행. JWT시간검증·Retry-After·구매보호 자동 제거 아님.
+- 위험/다음: 별도 증명 제거 시 독립 시각 오차 차단 보장을 주장하지 않는다. 사용자 선택 후 발신 계약/코드 정합화 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 발신 clockTrusted의 의미 및 기동/전송 차단 조건 설명. 코드/추가 테스트 없음.
+
+## 2026-10-13 — TMI-203 발신 시간 설명 turn 기록 보완
+
+<!-- codex-turn:01a13366-b50b-7232-9e38-b5d57beea829 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 발신 시간 증명 의미 설명의 정확한 현재 turn 식별자를 기록했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/인증/구매보호 불변. 발신 시간 정책 변경은 사용자 결정 대기.
+- 위험/다음: 결정 후 발신 계약·코드 정합화와 회귀 필요. 실제 시간 오류 탐지/운영 검증 완료 아님.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 Billing 발신 시간 증명 단순화 인계서
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202·Billing204).
+- 목표/내용: 사용자 방향 수락 후 Billing 전달용 인계 작성. 발신 별도clock증명 의존성 제거 방향, 인프라 시간 운영전제·보장차이, 유지계약·Billing회신 항목·기존blocked상태 호환·후속 회귀 명시.
+- 변경 파일: docs/contracts/TMI-203-204-publisher-clock-simplification-Billing-handoff-2026-10-13.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 현행 상태/발신 구성 검증 문서 대조·git diff --check. 문서작업으로 Gradle 미실행. 직전2091통과/29skip을 변경후 검증으로 주장하지 않는다.
+- 유지 계약/결정: API/DTO/hash/index/보존/JWT시간검증/Retry-After/lease/구매보호 불변. 사용자 방향 수락과 Billing공동수락·발신구현 완료를 구분. true증명우회/상태전역reset 없음.
+- 위험/다음: 기존202 clock관측 요구 공동정합화, 발신코드·회귀 후 운영/TLS/Billing연동 검증 필요. 실제판매/자동삭제/배포승인 아님.
+- 기존dirty보존·이번문서 외 예상밖변경 없음. Billing파일/Jira/외부메시지/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): 발신 시간단순화 Billing인계서 작성. 유지계약·보장차이·회신/회귀 범위 명시. 코드변경/추가테스트 없음, 공동수락·구현 미완료.
+
+## 2026-10-13 — TMI-203 Billing 인계서 turn 기록 보완
+
+<!-- codex-turn:01a13367-d37b-7043-b239-0014c31c16fd -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202·Billing204).
+- 목표/내용: Billing 발신 시간 단순화 인계서 작성의 정확한 현재 turn 식별자를 기록했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 인계서 작성 완료, 발신 코드 변경·Billing 전달/수락·배포 완료 아님.
+- 위험/다음: 공동 정합화 회신 및 발신 코드·회귀·운영 연동 검증 필요.
+- 기존 dirty 보존, 기록 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 Billing 인계 외 작업 안내
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: Billing 시간정책 인계를 제외한 우선순위를 구매 활성화 조건 조사→전체HTTP/TLS 구성 및 잔여 장애/경합 검증→운영 경보/배포준비로 정리했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 최신기록과 withdrawalPurchaseReadiness 정적 확인, git diff --check. 안내 작업으로 Gradle 미실행.
+- 유지 계약/결정: 구매 보호·발신정책·API·보존 불변. 구매활성화 조건 조사는 실제판매/설정ON 승인이 아니다.
+- 위험/다음: 공급자 미연결과 정당한 보호조건을 구분해 조사할 필요. 실제외부연동/운영기동 검증 완료 아님. Billing 인계의 회신/코드개정은 별도 유지.
+- 기존dirty보존, 기록 외 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): Billing 인계 외 독립 후속작업 정리. 구매조건 조사 우선, 코드/추가테스트 없음.
+
+## 2026-10-13 — TMI-203 독립 후속 작업 안내 turn 기록 보완
+
+<!-- codex-turn:01a1336a-aea2-7e00-a73f-2651bffb0225 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: Billing 인계 외 후속 작업 안내의 정확한 현재 turn 식별자를 기록했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드/API/구매보호 불변. 구매조건 조사와 실제판매 활성화 구분 유지.
+- 위험/다음: 구매조건 조사·전체HTTP/TLS 검증·운영준비 필요. Billing 시간정책 건은 별도다.
+- 기존dirty보존, 기록 외 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 구매 활성화 조건 확인
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-200·202).
+- 목표/내용: 구매scope 전역설정/개별계정/재발급·replay 조건 및 미연결 조사. RuntimeEvidence/PurchaseActivationEvidence production 제공자 미발견, 기본readiness 거절→scope ON 기동실패 확인. 실제운영 설정은 조회하지 않았다.
+- 변경 파일: docs/contracts/TMI-203-purchase-activation-review-2026-10-13.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 테스트: 구매패키지 및 WithdrawalConfigurationTests 대상 Gradle test38개 통과/실패0/오류0/skip0. 외부DB/전체clean test 아님. git diff --check 통과.
+- 유지 계약/결정: 코드/API/구매보호/보존/설정 불변. ACTIVE MEMBER/control검사와 준비interface 공백을 구분, trueadapter·실제판매 승인 없음.
+- 위험/다음: DB/config준비조건과 운영전제 분리 설계, 실제control이관/TTL/원천/운영값 및 Billing공동검증 필요. 준비상실은 MEMBER발급오류일 수 있으며 조용한scope제외가 아님.
+- 기존dirty보존, 이번문서 외 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 구매활성화 조건 조사 및 대상38회귀통과. 준비제공자 미연결, 실운영값 미확인. 코드/설정 변경 없음.
+
+## 2026-10-13 — TMI-203 구매 활성화 조사 turn 기록 보완
+
+<!-- codex-turn:01a1336c-2436-7ff1-9b8a-e505eac9d121 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-200·202).
+- 목표/내용: 구매 활성화 조건 조사 작업의 정확한 현재 turn 식별자를 추가했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 기록 유지.
+- 검증: git diff --check. 기록 보완에서는 Gradle 재실행 없음; 직전 대상38개 통과 결과 유지.
+- 유지 계약/결정: 코드/API/구매보호/설정 불변. 실제 구매 활성화나 판매 승인 아님.
+- 위험/다음: 준비 조건의 DB검사/운영전제 분리 설계와 실제 환경·공동 검증 필요.
+- 기존dirty보존, 기록 외 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 구매 준비 조건 DB/운영 분리 설계
+
+<!-- codex-turn:01a13372-9ff2-7053-9f86-96680a4ad8ca -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-200·202). 공식 TMI-200/203 설명 조회, 쓰기 없음.
+- 목표/내용: 구매준비 조건을 DB/config검사·개별발급fence·일반운영점검으로 분리하고 코드연결안을 작성했다. 별도승인시스템 없이 대상source binding설정 후보로 복원 후 자동허용을 막는 방향을 제안했다.
+- 변경 파일: docs/contracts/TMI-203-purchase-readiness-separation-plan.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: 기존코드/계획/Jira정적대조, git diff --check. 설계작업으로 Gradle 미실행; 직전38회귀결과를 신규설계 검증으로 주장하지 않는다.
+- 유지 계약/결정: 코드/API/구매보호/환경 설정 불변. 새source설정은 후보이지 구현된값이 아니다. TMI-200 이관/구writer 증명책임 변경은 명시정합화 필요, 기존provider제거/상시true/구매ON 미수행.
+- 위험/다음: 설계수락·구매계약정합화 뒤 구현/회귀, 실제이관/시간/복원·Billing공동검증 및 별도활성화. 같은source를 되살린DB복원은 설정비교만으로 탐지불가.
+- 기존dirty보존, 이번문서 외 예상밖변경 없음. Jira쓰기/외부메시지/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 구매준비 DB/운영 분리 및 sourcebinding 연결설계 작성. 문서검사만 수행, 코드/테스트 추가 없음. 계약정합화·구현·운영검증 미완료.
+
+## 2026-10-13 — TMI-203 발신 시간 운영 전제 Billing 회신 검토
+
+<!-- codex-turn:01a13384-c718-7351-8967-51c50732a949 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202·204).
+- 목표/내용: 사용자 전달 Billing 수락 회신을 인계범위/Identity발신코드와 대조하고 인계문서에 수신상태 및 후속범위 추가. Billing1039통과/의존성부재/공동계약개정은 상대보고로 구분.
+- 변경 파일: docs/contracts/TMI-203-204-publisher-clock-simplification-Billing-handoff-2026-10-13.md, docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 검증: Identity발신/재시도/구성의clockTrusted 및RuntimeEvidence 사용처 정적 확인, git diff --check. 문서검토로 Gradle미실행, Billing독립검증없음.
+- 유지 계약/결정: JWT시간/Retry-After/exact204/lease/구매보호·legacyBLOCKED_CLOCK 호환 유지. push20회/blocked정책과 Billingpull기본backoff/probe 차이 보존. 이번 회신은 구매sourcebinding설계 수락 아님.
+- 위험/다음: Identity발신 구현·변경후공동회귀·실운영시간/TLS/키/blocked자료확인 필요. 이번코드/데이터/배포/활성화 변경 없음.
+- 기존dirty보존, 이번문서 외 예상밖변경 없음. Jira쓰기/외부메시지/commit/push 없음.
+- Jira 댓글 초안(미등록): Billing 시간운영전제 수락 회신 확인, Identity발신변경후검증 미완료. 문서/정적검토만 수행, 구매보호별도 유지.
+
+## 2026-10-13 — TMI-203 사용자 조치와 남은 구현 안내
+
+<!-- codex-turn:01a13387-f1a8-7dc0-93a5-866664210493 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202·204).
+- 목표/내용: 사용자 추가 결정·설정 필요 여부와 Identity 구현 잔여 작업을 구분해 설명했다. Billing 회신 수락이 Identity 구현 완료를 뜻하지 않음을 안내했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 유지.
+- 검증: git diff --check. 안내 및 기록만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 구매 활성화 보호, JWT 시간 검증, Retry-After, exact204, lease 및 legacy BLOCKED_CLOCK 호환 유지. 새 구현·배포 승인으로 간주하지 않는다.
+- 위험/다음: Identity 발신 시간 증명 의존성 제거 및 회귀 테스트가 남아 있다. 운영 환경 검증·활성화는 별도다.
+- 기존 dirty 보존, 이번 기록 외 예상 밖 변경 없음. 코드/Jira/데이터/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): 시간 운영 전제 합의 후 사용자 추가 조치와 Identity 잔여 구현을 구분해 안내. 코드·테스트 변경 없음, 발신 수정 및 회귀 필요.
+
+## 2026-10-13 — TMI-203 탈퇴 발신 별도 시간 증명 제거
+
+<!-- codex-turn:01a13388-ab7f-7963-9d81-af53edda3348 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-202·204). 구현 전 공식 MCP로 202/203 조회; Jira 쓰기/댓글/상태변경 없음.
+- 목표/구현: Billing 수락·사용자 구현 요청에 따라 발신 구성 RuntimeEvidence와 publisher/retry clockTrusted 인자/차단 제거. 상수 true 대체 없음. 구매 증명 보호 유지.
+- 변경 파일: WithdrawalCaptureConfiguration.java, BillingWithdrawalPublisher.java, BillingWithdrawalRetry.java; BillingWithdrawalConfigurationTests.java, BillingWithdrawalPublisherTests.java, BillingWithdrawalRetryTests.java, WithdrawalOperationsTests.java; TMI-202 계획, TMI-203 publisher clock 인계/신규 구현 결과, CURRENT_STATE, WORKLOG.
+- 테스트: env -u SENTRY_AUTH_TOKEN ./gradlew clean test 성공. XML 총2125/통과2096/실패0/오류0/skip29(Mongo23/support6). diff검사 통과. 별도 증명 없는 ON/false 증명 미호출·설정오류·204/401/403·Retry-After·동일body 재전송·legacy BLOCKED_CLOCK 재개 회귀. 실제 외부 서비스 미호출.
+- 유지 계약/결정: JWT시간/구매보호/LC·user인증/wire/schema/hash/index/보존/20회budget/lease/source 불변. 새 BLOCKED_CLOCK 발생만 제거, 기존 상태·명시 선택 재개 보존. 기존 자료 자동 전환 없음.
+- 위험/다음: 인프라 시각 동기화·알림/ALB TLS/키 교체/양측 연동 및 legacy 자료 선택 재개는 배포 전 별도 확인. 구매 readiness 설계 미구현, 이번 발신 변경으로 승인하지 않음. TMI-202 이전 SigV4 Jira 표기는 보고만 하고 변경하지 않음.
+- 기존 dirty 보존, 이번 범위 외 예상 밖 변경 없음. 데이터/commit/push/배포/활성화 없음.
+- Jira 댓글 초안(미등록): 발신 시간 증명 의존성 제거, 구매보호·기존 blocked 선택재개 유지. production3개/테스트4개 및 문서 갱신, 전체2096통과/29skip. 실제 인프라·공동연동 미검증.
+- 최종 diff 확인 보충: 작업 시작 후 AppVersionController.java에 외부 병행 변경이 나타났다. 이번 도구로 편집하지 않은 파일이며 보존했다. 위 예상 밖 편집 없음은 이번 자체 편집 범위를 뜻하며, 병행 변경까지 테스트 완료로 보고하지 않는다.
+
+## 2026-10-13 — TMI-203 다음 작업 순서 안내
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-200·202·204).
+- 목표/내용: 최신 CURRENT_STATE와 구매 준비 분리 설계를 확인해 발신 수정 완료와 구매 준비 연결 미구현을 구분했다. 구매 설계 범위 확정·구현 → 실제 Mongo/HTTP/TLS 및 공동 연동 → 환경별 확인·별도 활성화 순서를 안내한다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 과거 기록 보존.
+- 테스트: 안내 작업으로 Gradle 미실행, git diff --check 수행. 이전 테스트를 이번 새 실행으로 보고하지 않는다.
+- 유지 계약/결정: 구매 개별 발급 보호/외부 계약 불변. source binding은 후보이며 미구현, 자동 승인이나 구매 ON 없음.
+- 위험/다음: 구매 readiness 책임 변경은 기존 계약과 정합화 필요. 실환경/공동 검증은 로컬 회귀와 별도다.
+- 이번 기록 외 편집 없음, 기존 dirty 보존. Jira 쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 발신 수정 후 구매 준비 설계 확정·구현과 연동 검증 순서 안내. 코드·테스트 추가 없음, 구매 활성화 승인 아님.
+
+## 2026-10-13 — TMI-203 다음 작업 안내 turn 기록 보완
+
+<!-- codex-turn:01a1338d-29c1-7233-bd2b-8d44c26f89d3 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 다음 작업 안내의 현재 turn 식별자를 기록하고 CURRENT_STATE에 반영했다. 과거 WORKLOG 유지.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 테스트: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드·외부 계약·구매 보호 불변. 구매 준비 설계 확정 후 구현을 권장하며 활성화 승인 아님.
+- 위험/다음: 구매 준비 연결 및 실제 DB·Billing 공동 검증 미완료. 기록 외 편집·Jira 쓰기·commit/push·배포 없음.
+
+## 2026-10-13 — TMI-203 구매 준비 DB/config·source binding 구현
+
+<!-- codex-turn:01a13393-8622-7853-9aa0-bc912fc39560 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-200·202). 공식 MCP로 200/203 설명·완료 기준 조회, 쓰기/상태/댓글 변경 없음.
+- 목표/내용: 사용자 후속 구현 요청으로 SourceBoundPurchaseReadiness·명시source설정 연결. CaptureReadiness가 검증된 source를 동일조회에서 반환하며 scope OFF 구매replay에도 binding 유지. RuntimeEvidence/PurchaseActivationEvidence 공급자·인터페이스 제거. 이관/구writer/시간운영 책임을 local계획에 정합화.
+- 변경 파일: PurchaseProperties.java, SourceBoundPurchaseReadiness.java, CaptureReadiness.java, WithdrawalCaptureConfiguration.java, application.yml; PurchaseSourceReadinessTests.java, PurchaseConfigurationTests.java, PurchaseControlTests.java, WithdrawalConfigurationTests.java, BillingWithdrawalConfigurationTests.java, RecoveryCombinedConfigurationTests.java, RecoveryReplicaSetTests.java; TMI-200계획, TMI-203구매준비설계/신규구현결과, CURRENT_STATE/WORKLOG.
+- 테스트: 첫 기본 clean test 성공 후 추가구성/실DB회귀를 포함하여 env -u SENTRY_AUTH_TOKEN TMI203_LOCAL_MONGO=true ./gradlew clean test 재실행 성공. 최종 XML 총2137/통과2131/실패0/오류0/skip6(support). 실제 로컬 원천폐쇄/교체 후 구매binding 거절, 정상ON/누락·불일치기동실패·DB오류·OFF replay·기존인증/발급회귀. git diff --check 통과.
+- 유지 계약/결정: purchase기본OFF, source설정기본빈값. 외부API/body/schema/hash/index/JWT claim·TTL/LC·보존 불변. PurchaseTokenFence/ControlService/issuer/reissue runtime 무변경. 운영증명 공급시스템 대신 배포확인 책임 유지, 상수true 우회 없음.
+- 위험/다음: 동일source DB복원/진행발급과 source관리자교체는 읽기binding만으로 원자차단 못함. 복원격리/구writer종료/이관진단·실환경 시간·ALB/TLS/키·Billing 공동검증 후 별도활성화. 이번 결과로 판매 승인하지 않음.
+- 임시 합성 테스트DB는 테스트 종료 시 삭제, 전용 identity-tmi203-purchase-binding-1013 컨테이너 종료/자동제거. 다른 컨테이너 유지. 실제 외부 DB/서비스 호출 없음.
+- 기존 dirty와 별도 AppVersionController 변경 보존, 이번 의도 외 파일편집 없음. commit/push/Jira쓰기/실환경설정/배포/활성화 없음.
+- Jira 댓글 초안(미등록): 구매 준비 sourcebinding과 DB/config검사 구현, 이관/구writer/시간 확인은 운영책임으로 유지. production5개/테스트7개 및 문서 갱신. 전체2131통과/6skip. 실제 Billing 연동·복원·활성화 미수행.
+
+## 2026-10-13 — TMI-203 구매 source binding 의미 설명
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: SourceBoundPurchaseReadiness를 확인하고 source 설정의 의미·복원 후 불일치 차단·운영자 설정 책임을 설명했다. 사용자/상품 식별자나 매 탈퇴마다 바뀌는 값이 아님을 구분했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md.
+- 테스트: 설명만 수행하여 Gradle 미실행. 코드 정적 확인 및 git diff --check.
+- 유지 계약/결정: 코드·API·설정·구매 OFF 불변. 일치는 필요조건이며 동일source 복원 탐지나 기존토큰 무효화 증거 아님.
+- 위험/다음: 실제 source 설정/복원 격리·Billing 공동검증은 별도. 기록 외 편집 없음, 기존 dirty 보존. Jira/commit/push/배포 변경 없음.
+- Jira 댓글 초안(미등록): source binding 설정 의미 안내. 코드 변경/신규 테스트 없음, 운영 설정·연동 확인은 후속.
+
+## 2026-10-13 — TMI-203 source 설정 설명 turn 기록 보완
+
+<!-- codex-turn:01a13399-15a7-7e03-b2d7-4bccb56dd7a7 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 구매 source 설정 설명의 현재 turn 식별자를 WORKLOG와 CURRENT_STATE에 반영했다. 과거 WORKLOG는 보존했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 테스트: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드·설정·외부 계약 불변. source 일치는 운영 검증 완료 증거가 아니다.
+- 위험/다음: 실제 source 설정·복원 격리·Billing 연동 확인은 별도. 기록 외 편집·Jira 쓰기·commit/push·배포 없음.
+
+## 2026-10-13 — TMI-203 원천과 DB 의미 구분
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 원천은 MongoDB 자체가 아닌 DB 내부 탈퇴 기록 스트림이며 설정은 DB 주소가 아닌 streamId를 비교함을 설명했다. 복원만으로 ID가 자동 변경되는 것은 아님을 구분했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 기록 유지.
+- 테스트: git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지 계약/결정: 코드·설정·외부 계약 불변. 일반 재시작/탈퇴로 streamId를 교체하지 않는다.
+- 위험/다음: 복원 시 새 스트림 설치와 기존 작업 격리는 운영 절차로 수행해야 한다. 실제 환경 변경 없음.
+- 이번 기록 외 편집 없음, 기존 dirty 보존. Jira 쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): DB와 탈퇴 기록 스트림의 의미 구분 안내. 코드·테스트 변경 없음, 복원 운영 검증 별도.
+
+## 2026-10-13 — TMI-203 원천 설명 turn 기록 보완
+
+<!-- codex-turn:01a1339a-467f-7942-a4c8-640f454002ad -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: DB와 탈퇴 기록 스트림의 구분 설명에 현재 turn 식별자를 연결했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md. 과거 WORKLOG 유지.
+- 테스트: git diff --check. 기록 보완으로 Gradle 미실행.
+- 유지 계약/결정: 코드·설정 불변. DB 복원만으로 streamId가 자동 변경되지 않는다.
+- 위험/다음: 복원 시 원천 교체·기존 작업 격리는 별도 운영 절차다. 기록 외 편집·Jira 쓰기·commit/push·배포 없음.
+
+## 2026-10-13 — TMI-203 구매 준비 연결 후 연동 검증 순서 안내
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203 (연계 TMI-204).
+- 목표/내용: 최신 상태를 확인하고 테스트 환경 읽기 점검 → 필요한 배포/설정 승인 → Billing 양방향 공동 연동 → 별도 활성화 순서를 안내했다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 과거 기록 유지.
+- 검증: 상태 문서 확인, git diff --check. 안내만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 구매 기본 OFF 및 기존 보호 불변. 이번 안내는 배포/이관/외부 메시지/활성화 승인 아님.
+- 위험/다음: 실제 배포 버전·JWT/TLS·source/control 상태 미확인, Billing 공동 연동과 복원 검증 필요. 로컬 테스트 완료를 전체 완료로 확대하지 않는다.
+- 기존 dirty 보존, 기록 외 편집 없음. Jira/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 로컬 구매 준비 연결 후 테스트 환경 점검·Billing 연동 순서 안내. 코드 및 신규 테스트 변경 없음, 실제 환경 미조회.
+
+## 2026-10-13 — TMI-203 연동 검증 안내 turn 기록 보완
+
+<!-- codex-turn:01a1339b-b52c-7311-a661-50f077a61ae7 -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 다음 작업 안내의 현재 turn 식별자를 기록하고 CURRENT_STATE에 연결했다. 과거 WORKLOG는 유지했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 테스트: git diff --check. 기록 보완으로 Gradle 미실행.
+- 유지 계약/결정: 코드·설정·구매 OFF 불변. 테스트 환경 읽기 점검과 Billing 공동 검증을 권장하며 실제 실행·활성화 승인 아님.
+- 위험/다음: 실제 배포 버전·JWT/TLS·source/control 준비 상태 확인 필요. 기록 외 편집·Jira 쓰기·commit/push·배포 없음.
+
+## 2026-10-13 — TMI-203 테스트 서버 배포 여부 설명
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 기존 테스트 환경 읽기 확인과 변경 코드 배포를 구분해 설명했다. 실제 서버에서 새 코드 연동 검증을 하려면 이후 배포가 필요하지만 이번 질문은 배포 승인이 아니다.
+- 변경 파일: docs/codex/CURRENT_STATE.md, docs/codex/WORKLOG.md. 과거 기록 유지.
+- 테스트: git diff --check. 설명 작업으로 Gradle 미실행.
+- 유지 계약/결정: 코드·설정·구매 OFF 불변, 커밋/push는 사용자 수행. 이번 서버 조회/배포/활성화 없음.
+- 위험/다음: 현재 배포 버전·환경 준비 상태 확인 후 필요한 배포와 설정 변경 범위를 정해야 한다.
+- 기존 dirty 보존, 기록 외 편집 없음. Jira 쓰기/commit/push/배포 없음.
+- Jira 댓글 초안(미등록): 테스트 환경 조회와 배포 단계 구분 안내. 코드·테스트 변경 없음, 실제 환경 미조회.
+
+## 2026-10-13 — TMI-203 배포 단계 안내 turn 기록 보완
+
+<!-- codex-turn:01a1339c-b25e-7cd2-8975-f524e4fd9abf -->
+
+- 날짜/브랜치: 2026-10-13 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Jira: TMI-203
+- 목표/내용: 테스트 환경 조회와 배포 구분 안내에 현재 turn 식별자를 연결했다. 과거 WORKLOG는 유지했다.
+- 변경 파일: docs/codex/WORKLOG.md, docs/codex/CURRENT_STATE.md.
+- 테스트: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
+- 유지 계약/결정: 코드·설정 불변. 실제 서버 조회·배포·기능 활성화 없음.
+- 위험/다음: 테스트 환경 준비 상태 확인 후 사용자 커밋/push 및 필요한 배포·설정 변경 범위를 결정한다. 기록 외 편집·Jira 쓰기·commit/push 없음.

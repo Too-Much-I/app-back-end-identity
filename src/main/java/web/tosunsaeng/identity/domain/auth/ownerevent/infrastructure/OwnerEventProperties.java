@@ -32,7 +32,6 @@ public class OwnerEventProperties {
 	private boolean learningCoreUserMergedPublisherEnabled;
 	private boolean billingTrialRebindPublisherEnabled;
 	private URI billingBaseUrl;
-	private String billingRegion = "ap-northeast-2";
 	private URI learningCoreEndpoint;
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
@@ -52,7 +51,7 @@ public class OwnerEventProperties {
 
 	public void validateBilling() {
 		if (!billingUserMergedPublisherEnabled && !billingTrialRebindPublisherEnabled) return;
-		if (!validHttpsOrigin(billingBaseUrl) || billingRegion == null || billingRegion.isBlank()) invalid();
+		if (!validHttpsOrigin(billingBaseUrl)) invalid();
 		validateCommon();
 	}
 
@@ -100,8 +99,6 @@ public class OwnerEventProperties {
 	public void setBillingTrialRebindPublisherEnabled(boolean value) { this.billingTrialRebindPublisherEnabled = value; }
 	public URI getBillingBaseUrl() { return billingBaseUrl; }
 	public void setBillingBaseUrl(URI value) { this.billingBaseUrl = value; }
-	public String getBillingRegion() { return billingRegion; }
-	public void setBillingRegion(String value) { this.billingRegion = value == null ? "" : value.trim(); }
 	public URI getLearningCoreEndpoint() { return learningCoreEndpoint; }
 	public void setLearningCoreEndpoint(URI value) { this.learningCoreEndpoint = value; }
 	public Duration getLeaseDuration() { return leaseDuration; }

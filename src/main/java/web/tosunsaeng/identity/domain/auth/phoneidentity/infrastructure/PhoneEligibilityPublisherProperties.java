@@ -10,7 +10,6 @@ public class PhoneEligibilityPublisherProperties {
 
 	private boolean enabled;
 	private URI baseUrl;
-	private String region = "ap-northeast-2";
 	private Duration leaseDuration = Duration.ofSeconds(60);
 	private Duration fixedDelay = Duration.ofSeconds(5);
 	private int maxAttempts = 12;
@@ -28,7 +27,6 @@ public class PhoneEligibilityPublisherProperties {
 				|| baseUrl.getQuery() != null || baseUrl.getFragment() != null
 				|| (baseUrl.getPath() != null && !baseUrl.getPath().isEmpty()
 						&& !"/".equals(baseUrl.getPath()))
-				|| region == null || region.isBlank()
 				|| !positive(leaseDuration) || !positive(fixedDelay)
 				|| !positive(publishedRetention) || !positive(deadLetterReview)
 				|| !positive(connectTimeout) || !positive(readTimeout)
@@ -49,8 +47,6 @@ public class PhoneEligibilityPublisherProperties {
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
 	public URI getBaseUrl() { return baseUrl; }
 	public void setBaseUrl(URI baseUrl) { this.baseUrl = baseUrl; }
-	public String getRegion() { return region; }
-	public void setRegion(String region) { this.region = region == null ? "" : region.trim(); }
 	public Duration getLeaseDuration() { return leaseDuration; }
 	public void setLeaseDuration(Duration leaseDuration) { this.leaseDuration = leaseDuration; }
 	public Duration getFixedDelay() { return fixedDelay; }
@@ -71,6 +67,6 @@ public class PhoneEligibilityPublisherProperties {
 	@Override
 	public String toString() {
 		return "PhoneEligibilityPublisherProperties[enabled=" + enabled
-				+ ", baseUrl=[REDACTED], region=" + region + "]";
+				+ ", baseUrl=[REDACTED]]";
 	}
 }

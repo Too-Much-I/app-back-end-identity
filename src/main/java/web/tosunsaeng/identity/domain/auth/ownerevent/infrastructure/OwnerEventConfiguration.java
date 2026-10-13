@@ -1,7 +1,6 @@
 package web.tosunsaeng.identity.domain.auth.ownerevent.infrastructure;
 
 import web.tosunsaeng.identity.domain.auth.mergeprogress.MergeProgressStore;
-import web.tosunsaeng.identity.global.workload.BillingSigV4JsonTransport;
 
 import java.time.Clock;
 import java.util.concurrent.ThreadLocalRandom;
@@ -15,8 +14,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventCaptureService;
 import web.tosunsaeng.identity.domain.auth.ownerevent.application.OwnerEventDeliveryPort;
@@ -101,20 +98,14 @@ public class OwnerEventConfiguration {
 	@EnableScheduling
 	@ConditionalOnExpression("'${app.owner-event.billing-user-merged-publisher-enabled:false}' == 'true' || '${app.owner-event.billing-trial-rebind-publisher-enabled:false}' == 'true'")
 	static class BillingPublisherConfiguration {
-		@Bean("ownerEventAwsCredentialsProvider")
-		AwsCredentialsProvider ownerEventAwsCredentialsProvider() {
-			return DefaultCredentialsProvider.create();
-		}
-
 		@Bean("billingOwnerEventDeliveryPort")
 		OwnerEventDeliveryPort billingOwnerEventDeliveryPort(
 				OwnerEventProperties properties,
-				@Qualifier("ownerEventAwsCredentialsProvider") AwsCredentialsProvider credentialsProvider
+				web.tosunsaeng.identity.global.workload.BillingJwtJsonTransport.Factory jwt
 		) {
 			properties.validateBilling();
-			return new BillingOwnerEventDeliveryAdapter(new BillingSigV4JsonTransport(
-					properties.getBillingBaseUrl(), properties.getBillingRegion(),
-					properties.getConnectTimeout(), properties.getReadTimeout(), credentialsProvider));
+			return new BillingOwnerEventDeliveryAdapter(jwt.create(
+					properties.getBillingBaseUrl(), properties.getConnectTimeout(), properties.getReadTimeout()));
 		}
 
 		@Bean("billingOwnerEventPublisher")
