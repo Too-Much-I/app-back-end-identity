@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.scheduling.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 import web.tosunsaeng.identity.domain.auth.federation.infrastructure.firebase.FirebaseAppHandle;
 import web.tosunsaeng.identity.domain.auth.federation.infrastructure.firebase.FirebaseAuthProperties;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
@@ -19,14 +20,18 @@ import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprint
 public class PhoneOnlyCleanupAuditConfiguration {
     @Bean
     PhoneOnlyCleanupAudit phoneOnlyCleanupAudit(FirebaseAppHandle handle, FirebaseAuthProperties properties,
-                                               MongoTemplate mongo, PhoneFingerprintHasher hasher, Clock clock) {
+                                               MongoTemplate mongo, PhoneFingerprintHasher hasher, Clock clock,
+                                               PhoneOnlyCleanupFence fence,
+                                               @Value("${app.phone-only-cleanup.delete-enabled:false}") boolean deleteEnabled) {
         if (!properties.enabled() || !properties.phoneEnabled()) {
             throw new IllegalStateException("Phone-only audit requires Firebase phone authentication");
         }
         FirebaseAuth root = FirebaseAuth.getInstance(handle.firebaseApp());
         AbstractFirebaseAuth auth = properties.tenantId() == null || properties.tenantId().isBlank()
                 ? root : root.getTenantManager().getAuthForTenant(properties.tenantId());
-        return new PhoneOnlyCleanupAudit(auth, mongo, hasher, clock);
+        var audit = new PhoneOnlyCleanupAudit(auth, mongo, hasher, clock);
+        if (deleteEnabled) audit.setDeletion(new PhoneOnlyCleanupDeletion(auth, fence, audit, properties.projectId(), clock));
+        return audit;
     }
 
     @Bean
@@ -40,10 +45,10 @@ public class PhoneOnlyCleanupAuditConfiguration {
             var log = LoggerFactory.getLogger(AuditRunner.class);
             try {
                 var report = audit.inspectPage();
-                log.info("Phone-only audit: scanned={}, sweepComplete={}, decisions={}",
-                        report.scanned(), report.sweepComplete(), report.counts());
+                log.info("Phone-only cleanup: scanned={}, sweepComplete={}, decisions={}, deletions={}",
+                        report.scanned(), report.sweepComplete(), report.counts(), report.deletions());
             } catch (Exception failure) {
-                log.warn("Phone-only audit failed; no accounts mutated");
+                log.warn("Phone-only cleanup page interrupted; inspect aggregate outcomes and blocked records");
             }
         }
     }

@@ -164,6 +164,9 @@ app:
     read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
     enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
     enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  phone-only-cleanup:
+    audit-enabled: ${FIREBASE_PHONE_ONLY_CLEANUP_AUDIT_ENABLED:false}
+    delete-enabled: ${FIREBASE_PHONE_ONLY_CLEANUP_DELETE_ENABLED:false}
   firebase-abandoned-cleanup:
     capture-enabled: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_ENABLED:false}
     capture-dry-run: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_DRY_RUN:true}

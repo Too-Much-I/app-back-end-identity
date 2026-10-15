@@ -12,7 +12,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import web.tosunsaeng.identity.domain.auth.phoneidentity.domain.PhoneFingerprintHasher;
 import static web.tosunsaeng.identity.domain.auth.accountrecovery.PhoneOnlyCleanupPolicy.*;
 
-/** Read-only preflight. There is deliberately no Firebase mutation in this class. */
+/** Bounded scan. Read-only unless an explicitly configured deletion worker is attached. */
 public final class PhoneOnlyCleanupAudit {
     private final AbstractFirebaseAuth firebase;
     private final MongoTemplate mongo;
@@ -20,19 +20,24 @@ public final class PhoneOnlyCleanupAudit {
     private final Clock clock;
     private final PhoneOnlyCleanupPolicy policy = new PhoneOnlyCleanupPolicy();
     private String pageToken;
+    private PhoneOnlyCleanupDeletion deletion;
+
+    void setDeletion(PhoneOnlyCleanupDeletion deletion) { this.deletion = deletion; }
 
     public PhoneOnlyCleanupAudit(AbstractFirebaseAuth firebase, MongoTemplate mongo,
                                  PhoneFingerprintHasher hasher, Clock clock) {
         this.firebase = firebase; this.mongo = mongo; this.hasher = hasher; this.clock = clock;
     }
 
-    public record Report(int scanned, boolean sweepComplete, java.util.Map<Decision, Integer> counts) { }
+    public record Report(int scanned, boolean sweepComplete, java.util.Map<Decision, Integer> counts,
+                         java.util.Map<PhoneOnlyCleanupDeletion.Outcome, Integer> deletions) { }
 
     public synchronized Report inspectPage() throws com.google.firebase.auth.FirebaseAuthException {
         // Bounded page, no export of phone numbers, UIDs, claims or credentials.
         var page = firebase.listUsers(pageToken, 100);
         var counts = new EnumMap<Decision, Integer>(Decision.class);
         int scanned = 0;
+        var outcomes = new EnumMap<PhoneOnlyCleanupDeletion.Outcome, Integer>(PhoneOnlyCleanupDeletion.Outcome.class);
         for (var listed : page.getValues()) {
             scanned++;
             Decision result;
@@ -43,6 +48,9 @@ public final class PhoneOnlyCleanupAudit {
                         new ProductionState(true, false, false, false, false), clock.instant());
                 result = prelim == Decision.CANDIDATE
                         ? policy.evaluate(snapshot, state(user), clock.instant()) : prelim;
+                if (result == Decision.CANDIDATE && deletion != null) {
+                    outcomes.merge(deletion.process(user.getUid()), 1, Integer::sum);
+                }
             } catch (Exception failure) {
                 // Do not log exception messages: SDK/database exceptions may contain identifiers.
                 result = Decision.UNKNOWN;
@@ -50,7 +58,7 @@ public final class PhoneOnlyCleanupAudit {
             counts.merge(result, 1, Integer::sum);
         }
         pageToken = page.hasNextPage() ? page.getNextPageToken() : null;
-        return new Report(scanned, pageToken == null, java.util.Map.copyOf(counts));
+        return new Report(scanned, pageToken == null, java.util.Map.copyOf(counts), java.util.Map.copyOf(outcomes));
     }
 
     static Snapshot snapshot(UserRecord user) {
@@ -71,7 +79,7 @@ public final class PhoneOnlyCleanupAudit {
                 metadata == null ? null : time(metadata.getLastRefreshTimestamp()), null);
     }
 
-    private ProductionState state(UserRecord user) {
+    ProductionState state(UserRecord user) {
         // Intentionally no status/project filtering: any production reference protects the UID.
         Query uid = Query.query(Criteria.where("firebaseUid").is(user.getUid()));
         boolean binding = mongo.exists(uid, "firebase_identities");

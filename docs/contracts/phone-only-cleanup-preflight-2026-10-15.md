@@ -1,5 +1,7 @@
 # Phone-only 정리 사전 점검 — 부분 구현
 
+> 이 문서는 사전 점검 단계의 이력이다. 후속 삭제 실행부와 현재 배포 규칙은 [구현·운영 규칙](phone-only-cleanup-implementation-2026-10-15.md)을 따른다.
+
 ## 1. 5줄 결론
 
 1. 사용자 지정 범위는 prod DB 기준의 미연결 phone-only이며 test DB는 조회하지 않는다.
