@@ -237,9 +237,12 @@ public class FirebaseAuthenticationConfiguration {
 				havingValue = "true"
 		)
 		FirebaseEnrollmentAttemptService firebaseEnrollmentAttemptService(
-				FirebaseEnrollmentCoordinationTransactionService coordinator
+				FirebaseEnrollmentCoordinationTransactionService coordinator,
+				org.springframework.beans.factory.ObjectProvider<web.tosunsaeng.identity.domain.auth.accountrecovery.PhoneOnlyCleanupFence> fence
 		) {
-			return new FirebaseEnrollmentAttemptService(coordinator);
+			var service = new FirebaseEnrollmentAttemptService(coordinator);
+			service.setPhoneOnlyFence(fence.getIfAvailable());
+			return service;
 		}
 
 		@Bean
@@ -252,12 +255,15 @@ public class FirebaseAuthenticationConfiguration {
 		FirebaseEnrollmentAttemptService legacyFirebaseEnrollmentAttemptService(
 				FirebaseEnrollmentAttemptRepository repository,
 				FirebaseAuthProperties properties,
-				Clock clock
+				Clock clock,
+				org.springframework.beans.factory.ObjectProvider<web.tosunsaeng.identity.domain.auth.accountrecovery.PhoneOnlyCleanupFence> fence
 		) {
-			return new FirebaseEnrollmentAttemptService(
+			var service = new FirebaseEnrollmentAttemptService(
 					repository, clock, properties.enrollmentTtl(),
 					properties.enrollmentCleanupRetention()
 			);
+			service.setPhoneOnlyFence(fence.getIfAvailable());
+			return service;
 		}
 
 		@Bean

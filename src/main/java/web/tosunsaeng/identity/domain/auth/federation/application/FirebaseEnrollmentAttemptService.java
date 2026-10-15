@@ -15,6 +15,12 @@ import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseEnrollm
 
 public final class FirebaseEnrollmentAttemptService {
 
+	private web.tosunsaeng.identity.domain.auth.accountrecovery.PhoneOnlyCleanupFence phoneOnlyFence;
+
+	public void setPhoneOnlyFence(web.tosunsaeng.identity.domain.auth.accountrecovery.PhoneOnlyCleanupFence fence) {
+		this.phoneOnlyFence = fence;
+	}
+
 	private static final int MAX_CONCURRENCY_RETRIES = 4;
 
 	private final FirebaseEnrollmentAttemptRepository repository;
@@ -53,6 +59,16 @@ public final class FirebaseEnrollmentAttemptService {
 			String boundUserId,
 			FirebaseAuthenticationMethod initialSignInMethod
 	) {
+		if (phoneOnlyFence != null) {
+			return phoneOnlyFence.enroll(firebaseProjectId, firebaseUid, () -> startOrReuseInternal(
+					firebaseProjectId, firebaseUid, bindingType, boundUserId, initialSignInMethod));
+		}
+		return startOrReuseInternal(firebaseProjectId, firebaseUid, bindingType, boundUserId, initialSignInMethod);
+	}
+
+	private FirebaseEnrollmentAttempt startOrReuseInternal(String firebaseProjectId, String firebaseUid,
+			FirebaseEnrollmentBindingType bindingType, String boundUserId,
+			FirebaseAuthenticationMethod initialSignInMethod) {
 		if (coordinator != null) {
 			for (int retry = 0; retry < MAX_CONCURRENCY_RETRIES; retry++) {
 				try {

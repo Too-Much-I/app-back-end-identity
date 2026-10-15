@@ -1,5 +1,13 @@
 # Codex Current State
 
+## 2026-10-15 — prod 기준 phone-only hotfix 분리
+
+<!-- codex-turn:01a13fdb-16b9-77c3-8258-e55307da376c -->
+
+- codex/phone-only-prod-hotfix: prod release ad207e36 기준으로 정리 변경만 적용. 구매/탈퇴 복구 기능 추가 없음.
+- clean test bootJar 성공: 1399 tests, 실패0/오류0/skip6. 로컬 replica-set fence5 포함. 외부 Firebase/Atlas 테스트 없음.
+- 30분 보호·5분 점검·SNS 및 prod 참조 제외, 공개 API 불변. 삭제 OFF 배포 뒤 구 task 종료 확인 후 ON 전환 필요. 현재 prod 배포 미수행.
+
 ## 2026-10-10 — Guest 복구 develop 이식 / prod 배포 준비
 
 - 기존 main 한시적 복구를 SNS 계정 유형·병합·현재 session epoch에 맞게 이식. 전체 clean test 통과, 기본 OFF. 사용자 이번 commit/push/배포 및 prod 복구 ON 승인.

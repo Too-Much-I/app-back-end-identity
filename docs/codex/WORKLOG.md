@@ -16392,3 +16392,14 @@
 - 검증: 전체 clean test 성공(1328 tests, skipped6, 실패0; 기존 로컬 테스트 포함), topology Node4개 통과. 최초 mock 미등록 컨텍스트74실패 및 신규 테스트 UUID fixture2실패를 수정 후 재검증. Gradle 캐시 승인 실행. 실제 DB/Firebase 호출 테스트 없음.
 - 운영: prod6에서 Android/iOS minimum/latest2.0.0 GET200 확인, 버전 네 값만 변경. LC consumer/writer/source-deny ON 및 workload issuer/JWKS/전달 endpoint 확인. 새 코드 prod 배포 때 Guest 복구·병합/LC owner-event capture/publisher/progress를 ON, LEARNING_CORE_ONLY 유지 예정. Billing/legacy publisher OFF 유지.
 - 위험/다음: CI 및 prod 최종 안정화/flag/API 확인 후 완료 기록. 설치 ID 신뢰 한시적 위험, 앱 fallback 호출과 실기기 E2E 미확인. 12건 SESSION_LOGGED_OUT의 사용자 유형·정확 폐기 사유는 미확정. Secret/토큰/사용자 원문 미기록. 예상 밖 제품 변경 없음.
+
+## 2026-10-15 — prod phone-only cleanup hotfix 분리
+
+<!-- codex-turn:01a13fdb-16b9-77c3-8258-e55307da376c -->
+
+- 브랜치: codex/phone-only-prod-hotfix. 목표: prod release ad207e36 기준으로 phone-only 정리만 분리 배포 준비.
+- 변경 파일: PhoneOnlyCleanup 계열6개와 테스트4개, FirebaseEnrollmentAttemptService/FirebaseAuthenticationConfiguration, application.yml, 정리 계약2개, CURRENT_STATE/WORKLOG.
+- 구현: 기존 5961fd03/b05d6f18의 정리 변경만 적용. shared enrollment fence·삭제 claim·disable/revoke/recheck/delete 및 불명 blocked 유지. 30분 활동 보호·5분 페이지 점검, SNS/prod 참조 제외.
+- 검증: PHONE_CLEANUP_LOCAL_MONGO=true clean test bootJar 성공. 1399 tests/실패0/오류0/skip6. 실제 로컬 Mongo fence 회귀 포함, Firebase/Atlas 미호출. cached diff check 통과.
+- 계약/결정: 공개 API/JWT 불변. prod에 없던 구매/탈퇴 복구225개 파일 제외. 첫 배포 delete OFF, 구 서버 종료 확인 뒤 ON 전환 필요.
+- 위험/다음: 아직 prod 배포 없음. 이미지 빌드/전달 및 운영 확인 필요. 구 서버가 fence를 사용하지 않아 최초부터 delete ON은 피함. 기존 주 작업공간 dirty 보존, 예상 밖 제품 변경 없음. Secret/개인정보 미기록, Jira 쓰기 없음.
