@@ -1557,3 +1557,14 @@
 - 유지 계약: commit/push는 사용자가 수행한다. poc/와 보관된 develop stash는 포함하지 않는다. PR base는 main이다.
 - 검증: branch/status 및 git diff --check. 문서만 변경하여 테스트 재실행 없음; 직전 329개 통과 결과 유지.
 - 위험·다음: stage 후 사용자가 diff를 검토하고 commit/push한다. 명령 안내는 실제 배포/활성화와 별개다. 실제 Git 쓰기·Jira 변경·Secret 기록 없음.
+
+## 2026-10-18 — TMI-205 main 구 staging 배포 차단
+
+<!-- codex-turn:01a14a6a-95ca-7f81-9add-9cb787303362 -->
+
+- Jira: TMI-205. 브랜치: codex/TMI-205-retire-staging-main. 목표: 사용자 예외 승인으로 main 배포 차단 반영.
+- 변경 파일: 기존 deploy-staging.yml, CURRENT_STATE.md, WORKLOG.md. main에 없는104개 커밋을 제외하고 최신 main에서 최소 변경.
+- 구현: push 트리거/AWS 권한 취득/빌드/배포 제거, 수동 실행은 안내 후 exit1. 새 배포 workflow 추가 없음.
+- 검증: Ruby YAML 구조 검사 및 실제 bash 차단 exit1 확인 통과, git diff --check. 제품 코드 불변으로 Gradle 미실행.
+- 유지 계약: develop test·제품 API·DB·운영 설정 불변. 예상 밖 변경 없음.
+- 결정/위험/다음: 사용자 commit/push 예외 및 main 반영 요청에 따라 PR 생성/검증/병합 진행. 과거 workflow 실행 재실행의 관리 차단까지 보장하지 않음. Jira 변경 없음. 댓글 초안: main staging 배포 최소 차단 및 정적/실행 검사 완료.
