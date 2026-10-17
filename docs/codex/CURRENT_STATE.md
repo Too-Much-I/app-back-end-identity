@@ -1,5 +1,10 @@
 # Codex Current State
 
+## 2026-10-18 — TMI-205 main 구 staging 배포 차단
+
+- 최신 main 기반의 최소 변경. 기존 workflow는 push 트리거와 AWS/배포 단계를 제거하고 수동 실행을 오류 종료한다. develop 브랜치 workflow 및 제품 코드는 불변.
+- 사용자 예외 승인으로 commit/push 및 main 반영 요청. 기존 작업 브랜치의 추가104개 커밋은 병합하지 않는다. PR 검증 후 병합 예정이며 운영 DB/설정 변경은 하지 않는다.
+
 이 문서는 Codex 세션 시작 시 추가 개발자 컨텍스트로 읽힌다. Secret, Token, Password, 실제 Key, 전체 MongoDB URI를 기록하지 않는다.
 
 ## 프로젝트
