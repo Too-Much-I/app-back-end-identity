@@ -1,9 +1,8 @@
-name: Deploy Identity
+name: Deploy Identity Test
 
 on:
   push:
     branches:
-      - main
       - develop
   workflow_dispatch:
 
@@ -33,17 +32,13 @@ jobs:
         id: target
         shell: bash
         env:
-          MAIN_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
           TEST_ROLE_ARN: ${{ vars.AWS_TEST_ROLE_ARN }}
         run: |
           set -euo pipefail
           case "$GITHUB_REF" in
             refs/heads/main)
-              SERVICE=tosunsaeng-identity-service
-              FAMILY=tosunsaeng-identity
-              TAG=staging
-              URL=https://identity-staging.to-teacher.com/actuator/health
-              ROLE="$MAIN_ROLE_ARN"
+              echo "::error::Legacy staging is retired. This workflow cannot deploy main or production."
+              exit 1
               ;;
             refs/heads/develop)
               SERVICE=tosunsaeng-identity-test-service
@@ -53,7 +48,7 @@ jobs:
               ROLE="$TEST_ROLE_ARN"
               ;;
             *)
-              echo "::error::Only main and develop may deploy"
+              echo "::error::Only develop may deploy to test"
               exit 1
               ;;
           esac

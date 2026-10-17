@@ -42,13 +42,12 @@ class DeploymentTargetTests {
 		return new Result(running.waitFor(), Files.readString(env), Files.readString(output), log);
 	}
 
-	@Test void mainKeepsExistingTarget() throws Exception {
-		var result = select("refs/heads/main", "");
-		assertThat(result.code()).isZero();
-		assertThat(result.env()).contains("ECS_SERVICE=tosunsaeng-identity-service\n",
-				"TASK_FAMILY=tosunsaeng-identity\n", "IMAGE_CHANNEL=staging\n",
-				"HEALTH_URL=https://identity-staging.to-teacher.com/actuator/health\n");
-		assertThat(result.output()).isEqualTo("role_arn=fake-main-role\n");
+	@Test void manualMainCannotDeployRetiredStagingOrProductionEvenWithRolesPresent() throws Exception {
+		var result = select("refs/heads/main", "fake-test-role");
+		assertThat(result.code()).isNotZero();
+		assertThat(result.env()).isEmpty();
+		assertThat(result.output()).isEmpty();
+		assertThat(result.log()).contains("Legacy staging is retired");
 	}
 
 	@Test void developUsesOnlyTestTarget() throws Exception {
@@ -83,7 +82,16 @@ class DeploymentTargetTests {
 		// SnakeYAML YAML 1.1 interprets the unquoted GitHub Actions key 'on' as boolean true.
 		var trigger = (Map<String, Object>) workflow.getOrDefault("on", workflow.get(Boolean.TRUE));
 		assertThat(((Map<String, Object>) trigger.get("push")).get("branches"))
-				.isEqualTo(List.of("main", "develop"));
+				.isEqualTo(List.of("develop"));
+		assertThat(trigger).containsKey("workflow_dispatch");
+		assertThat((Map<String, Object>) step("Select deployment target").get("env"))
+				.containsOnlyKeys("TEST_ROLE_ARN");
+		assertThat(steps().indexOf(step("Select deployment target")))
+				.isLessThan(steps().indexOf(step("Configure AWS credentials")));
+		assertThat(Files.readString(Path.of(".github/workflows/deploy-staging.yml")))
+				.doesNotContain("SERVICE=tosunsaeng-identity-service", "TAG=staging",
+						"identity-staging.to-teacher.com", "${{ vars.AWS_ROLE_ARN }}",
+						"tosunsaeng-identity-prod-service");
 		assertThat(((Map<String, Object>) workflow.get("concurrency")).get("group"))
 				.isEqualTo("identity-deploy-${{ github.ref }}");
 		var credentials = (Map<String, Object>) step("Configure AWS credentials").get("with");
