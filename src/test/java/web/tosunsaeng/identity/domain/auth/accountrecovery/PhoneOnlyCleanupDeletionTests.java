@@ -66,6 +66,31 @@ class PhoneOnlyCleanupDeletionTests {
         verifyNoInteractions(fence);
     }
 
+    @Test void phoneActivityInsideFiveMinutesNeverMutated() throws Exception {
+        var recent = user(false, "phone");
+        when(recent.getUserMetadata()).thenReturn(new UserMetadata(now.minusSeconds(3600).toEpochMilli(),
+                now.minusSeconds(299).toEpochMilli(), 0));
+        when(firebase.getUser("uid")).thenReturn(recent);
+        assertThat(worker.process("uid")).isEqualTo(SKIPPED);
+        verify(firebase, never()).updateUser(any());
+        verify(firebase, never()).revokeRefreshTokens(anyString());
+        verify(firebase, never()).deleteUser(anyString());
+        verifyNoInteractions(fence);
+    }
+
+    @Test void activityAtFiveMinutesCanCompleteExistingDeletionProtocol() throws Exception {
+        var original = user(false, "phone");
+        var disabled = user(true, "phone");
+        for (var record : List.of(original, disabled)) {
+            when(record.getUserMetadata()).thenReturn(new UserMetadata(now.minusSeconds(3600).toEpochMilli(),
+                    now.minusSeconds(300).toEpochMilli(), 0));
+        }
+        when(firebase.getUser("uid")).thenReturn(original, original, disabled).thenThrow(absent());
+        assertThat(worker.process("uid")).isEqualTo(DELETED);
+        verify(firebase).deleteUser("uid");
+        verify(fence).mark("project", "uid", "DELETED", true);
+    }
+
     @Test void ownerAppearingAfterClaimPreventsDisable() throws Exception {
         doReturn(user(false, "phone")).when(firebase).getUser("uid");
         when(audit.state(any())).thenReturn(new PhoneOnlyCleanupPolicy.ProductionState(true, false, false, false, false),

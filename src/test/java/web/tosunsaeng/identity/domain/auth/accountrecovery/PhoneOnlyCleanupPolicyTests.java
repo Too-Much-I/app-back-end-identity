@@ -30,11 +30,18 @@ class PhoneOnlyCleanupPolicyTests {
         assertThat(policy.evaluate(snapshot(Set.of("phone", provider), OLD, OLD, null, null), CLEAR, NOW))
                 .isEqualTo(Decision.NOT_PHONE_ONLY);
     }
-    @Test void exactThirtyMinutesBoundary() {
-        assertThat(policy.evaluate(snapshot(Set.of("phone"), OLD, NOW.minusSeconds(1800), null, null), CLEAR, NOW))
+    @Test void exactFiveMinutesBoundary() {
+        assertThat(PROTECTION).isEqualTo(Duration.ofMinutes(5));
+        assertThat(policy.evaluate(snapshot(Set.of("phone"), OLD, NOW.minusSeconds(300), null, null), CLEAR, NOW))
                 .isEqualTo(Decision.CANDIDATE);
-        assertThat(policy.evaluate(snapshot(Set.of("phone"), OLD, NOW.minusSeconds(1800).plusNanos(1), null, null), CLEAR, NOW))
+        assertThat(policy.evaluate(snapshot(Set.of("phone"), OLD, NOW.minusSeconds(300).plusNanos(1), null, null), CLEAR, NOW))
                 .isEqualTo(Decision.RECENT);
+    }
+    @Test void schedulerRetainsFiveMinuteInitialAndFixedDelay() throws Exception {
+        var scheduled = PhoneOnlyCleanupAuditConfiguration.AuditRunner.class.getDeclaredMethod("inspect")
+                .getAnnotation(org.springframework.scheduling.annotation.Scheduled.class);
+        assertThat(Duration.parse(scheduled.initialDelayString())).isEqualTo(Duration.ofMinutes(5));
+        assertThat(Duration.parse(scheduled.fixedDelayString())).isEqualTo(Duration.ofMinutes(5));
     }
     @Test void eachObservedActivityExtendsProtection() {
         Instant recent = NOW.minusSeconds(60);

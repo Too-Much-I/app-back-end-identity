@@ -1,8 +1,9 @@
-name: Deploy Identity Test
+name: Deploy Identity
 
 on:
   push:
     branches:
+      - main
       - develop
   workflow_dispatch:
 
@@ -33,12 +34,16 @@ jobs:
         shell: bash
         env:
           TEST_ROLE_ARN: ${{ vars.AWS_TEST_ROLE_ARN }}
+          PROD_ROLE_ARN: ${{ vars.AWS_PROD_ROLE_ARN }}
         run: |
           set -euo pipefail
           case "$GITHUB_REF" in
             refs/heads/main)
-              echo "::error::Legacy staging is retired. This workflow cannot deploy main or production."
-              exit 1
+              SERVICE=tosunsaeng-identity-prod-service
+              FAMILY=tosunsaeng-identity-prod
+              TAG=prod
+              URL=https://identity-prod.to-teacher.com/actuator/health
+              ROLE="$PROD_ROLE_ARN"
               ;;
             refs/heads/develop)
               SERVICE=tosunsaeng-identity-test-service
@@ -48,7 +53,7 @@ jobs:
               ROLE="$TEST_ROLE_ARN"
               ;;
             *)
-              echo "::error::Only develop may deploy to test"
+              echo "::error::Only main (production) and develop (test) may deploy"
               exit 1
               ;;
           esac
@@ -102,6 +107,7 @@ jobs:
             echo "::error::Selected ECS service must be provisioned before deployment"
             exit 1
           fi
+          echo "BASE_TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> "$GITHUB_ENV"
           aws ecs describe-task-definition \
             --task-definition "$TASK_DEFINITION_ARN" \
             --region "$AWS_REGION" \
@@ -135,8 +141,11 @@ jobs:
         id: image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_DIGEST: ${{ steps.build-image.outputs.digest }}
         run: |
-          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}@${IMAGE_DIGEST}"
           echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
           echo "Deploying image: ${IMAGE_URI}"
 
@@ -149,6 +158,17 @@ jobs:
           image: ${{ steps.image.outputs.image_uri }}
           environment-variables: |
             SENTRY_RELEASE=${{ env.SENTRY_RELEASE }}
+
+      - name: Check deployment has not changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" > current-service.json
+          jq -e --arg base "$BASE_TASK_DEFINITION_ARN" \
+            '.services | length == 1 and (.[0] | .status == "ACTIVE" and
+              .taskDefinition == $base and (.deployments | length) == 1 and
+              .deployments[0].rolloutState == "COMPLETED")' current-service.json > /dev/null
 
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
