@@ -42,6 +42,10 @@ app:
     trial-owner-audience: ${BILLING_WORKLOAD_TRIAL_OWNER_AUDIENCE:}
     merge-audience: ${BILLING_WORKLOAD_MERGE_AUDIENCE:}
   withdrawal-recovery:
+    runtime-enabled: ${WITHDRAWAL_RECOVERY_RUNTIME_ENABLED:false}
+    snapshot-jobs-enabled: ${WITHDRAWAL_RECOVERY_SNAPSHOT_JOBS_ENABLED:false}
+    cursor-active-key: ${WITHDRAWAL_RECOVERY_CURSOR_ACTIVE_KEY:}
+    cursor-keyring-json: ${WITHDRAWAL_RECOVERY_CURSOR_KEYRING_JSON:}
     source-jobs-enabled: ${WITHDRAWAL_RECOVERY_SOURCE_JOBS_ENABLED:false}
     http-enabled: ${WITHDRAWAL_RECOVERY_HTTP_ENABLED:false}
     workload-port: ${WITHDRAWAL_RECOVERY_WORKLOAD_PORT:0}

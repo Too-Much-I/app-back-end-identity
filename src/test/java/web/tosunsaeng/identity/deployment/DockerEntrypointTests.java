@@ -148,6 +148,48 @@ class DockerEntrypointTests {
         return env;
     }
 
+    @Test
+    void recoveryTlsMaterialUsesPrivateFilesAndStripsRawEnvironment() throws Exception {
+        Result result = run(Map.of("WITHDRAWAL_RECOVERY_HTTP_ENABLED", "true",
+                "WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM", "fake-recovery-cert",
+                "WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_PEM", "fake-recovery-key"));
+        assertThat(result.code()).isZero();
+        Path boot = bootDirectory();
+        assertThat(Files.readString(boot.resolve("recovery-cert.pem"))).isEqualTo("fake-recovery-cert");
+        assertThat(Files.readString(boot.resolve("recovery-key.pem"))).isEqualTo("fake-recovery-key");
+        assertPermissions(boot.resolve("recovery-cert.pem"), "rw-------");
+        assertPermissions(boot.resolve("recovery-key.pem"), "rw-------");
+        assertThat(result.output()).doesNotContain("fake-recovery-cert", "fake-recovery-key");
+    }
+
+    @Test
+    void recoveryTlsMissingKeyCleansGeneratedMaterial() throws Exception {
+        Result result = run(Map.of("WITHDRAWAL_RECOVERY_HTTP_ENABLED", "true",
+                "WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM", "fake-recovery-cert"));
+        assertThat(result.code()).isNotZero();
+        assertThat(result.output()).doesNotContain("STARTED", "fake-recovery-cert");
+        try (var paths = Files.list(temp.resolve("secrets"))) { assertThat(paths.toList()).isEmpty(); }
+    }
+
+    @Test
+    void recoveryTlsExistingFilesAreNotOverwritten() throws Exception {
+        Path cert = temp.resolve("cert.pem"), key = temp.resolve("key.pem");
+        Files.writeString(cert, "fake-cert"); Files.writeString(key, "fake-key");
+        assertThat(run(Map.of("WITHDRAWAL_RECOVERY_HTTP_ENABLED", "true",
+                "WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE", cert.toString(),
+                "WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE", key.toString())).code()).isZero();
+        assertThat(Files.readString(cert)).isEqualTo("fake-cert");
+        assertThat(Files.readString(key)).isEqualTo("fake-key");
+    }
+
+    @Test
+    void recoveryTlsRejectsConflictingSources() throws Exception {
+        Result result = run(Map.of("WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM", "fake-cert",
+                "WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE", temp.resolve("cert.pem").toString()));
+        assertThat(result.code()).isNotZero();
+        assertThat(result.output()).contains("choose raw content OR an existing file").doesNotContain("STARTED");
+    }
+
     private Result run(Map<String, String> overrides) throws Exception {
         Path bin = Files.createDirectories(temp.resolve("bin"));
         Path java = bin.resolve("java");
@@ -157,6 +199,8 @@ class DockerEntrypointTests {
                 [ "${JWT_PUBLIC_KEY_PEM+x}" != x ] || exit 82
                 [ "${FIREBASE_SERVICE_ACCOUNT_JSON+x}" != x ] || exit 83
                 [ "${AUTH_REISSUE_ENCRYPTION_KEYRING_CONTENT+x}" != x ] || exit 84
+                [ "${WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM+x}" != x ] || exit 86
+                [ "${WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_PEM+x}" != x ] || exit 87
                 [ "$1" = -jar ] && [ "$2" = /app/app.jar ] || exit 85
                 printf 'STARTED\\n%s\\n%s\\n%s\\n' "$JWT_PRIVATE_KEY_LOCATION" "${GOOGLE_APPLICATION_CREDENTIALS:-}" "${AUTH_REISSUE_ENCRYPTION_KEYRING_LOCATION:-}"
                 """);

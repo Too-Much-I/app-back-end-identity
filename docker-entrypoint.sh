@@ -17,7 +17,7 @@ chmod 700 "$SECRET_ROOT"
 # A fresh private directory avoids overwriting existing files or following file symlinks.
 KEY_DIR=$(mktemp -d "${SECRET_ROOT}/boot.XXXXXXXXXX")
 cleanup_failed_start() {
-  rm -f "$KEY_DIR/private.pem" "$KEY_DIR/public.pem" "$KEY_DIR/firebase.json" "$KEY_DIR/reissue.properties"
+  rm -f "$KEY_DIR/private.pem" "$KEY_DIR/public.pem" "$KEY_DIR/firebase.json" "$KEY_DIR/reissue.properties" "$KEY_DIR/recovery-cert.pem" "$KEY_DIR/recovery-key.pem"
   rmdir "$KEY_DIR"
 }
 trap cleanup_failed_start EXIT
@@ -93,6 +93,19 @@ case "${AUTH_REISSUE_RECOVERY_ENABLED:-false}" in
     ;;
 esac
 unset AUTH_REISSUE_ENCRYPTION_KEYRING_CONTENT prepared_path
+
+# Dedicated recovery TLS material; never reuse the user-token signing key.
+prepare_file "${WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM:-}" "${WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE:-}" "$KEY_DIR/recovery-cert.pem" "Recovery TLS certificate"
+export WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE="$prepared_path"
+prepare_file "${WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_PEM:-}" "${WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE:-}" "$KEY_DIR/recovery-key.pem" "Recovery TLS private key"
+export WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE="$prepared_path"
+case "${WITHDRAWAL_RECOVERY_HTTP_ENABLED:-false}" in
+  [Tt][Rr][Uu][Ee])
+    [ -n "$WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE" ] && [ -n "$WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE" ] \
+      || fail "Recovery TLS certificate and private key files are required"
+    ;;
+esac
+unset WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_PEM WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_PEM prepared_path
 
 # JVM startup performs JSON/PEM/keyring semantic validation. Files remain available
 # for its lifetime; use task-local ephemeral storage, never a shared persistent volume.
