@@ -1,5 +1,9 @@
 # Codex Current State
 
+<!-- codex-turn:01a15253-8e72-7aa2-8ea9-c066666565f0 -->
+
+- 2026-10-19: 사용자 한정 예외 승인으로 TMI-205 운영 Actions/phone-only5분 후보 커밋. main 이력과 통합하되 양쪽 과거 기록 보존. 전체2173개/실패0/skip34. 실제 배포는 아직 미실행, PR/main 반영 후 검증 예정. 기존 env/secrets/capture 보호 유지.
+
 ## 2026-10-13 — TMI-203 테스트 환경 조회와 배포 구분
 
 <!-- codex-turn:01a1339c-b25e-7cd2-8975-f524e4fd9abf -->
@@ -4226,6 +4230,10 @@
 <!-- codex-turn:01a0c2c4-6779-7622-a251-e8674a484157 -->
 
 - 2026-09-21 테스트 JWT RSA 키 준비 안내 기록 보완. 사용자 로컬 키 생성 및 개인키 Secret 보관 절차를 안내했으며 실제 키 생성/내용 조회/저장 검증은 수행하지 않았다. 다음은 키 준비 완료 후 테스트 ECS 주입 및 나머지 보안 설정 준비다.
+## 2026-10-18 — TMI-205 main 구 staging 배포 차단
+
+- 최신 main 기반의 최소 변경. 기존 workflow는 push 트리거와 AWS/배포 단계를 제거하고 수동 실행을 오류 종료한다. develop 브랜치 workflow 및 제품 코드는 불변.
+- 사용자 예외 승인으로 commit/push 및 main 반영 요청. 기존 작업 브랜치의 추가104개 커밋은 병합하지 않는다. PR 검증 후 병합 예정이며 운영 DB/설정 변경은 하지 않는다.
 
 이 문서는 Codex 세션 시작 시 추가 개발자 컨텍스트로 읽힌다. Secret, Token, Password, 실제 Key, 전체 MongoDB URI를 기록하지 않는다.
 

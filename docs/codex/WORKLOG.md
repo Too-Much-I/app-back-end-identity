@@ -20262,3 +20262,26 @@
 - 테스트: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
 - 유지 계약/결정: 코드·설정 불변. 실제 서버 조회·배포·기능 활성화 없음.
 - 위험/다음: 테스트 환경 준비 상태 확인 후 사용자 커밋/push 및 필요한 배포·설정 변경 범위를 결정한다. 기록 외 편집·Jira 쓰기·commit/push 없음.
+## 2026-10-18 — TMI-205 main 구 staging 배포 차단
+
+<!-- codex-turn:01a14a6a-95ca-7f81-9add-9cb787303362 -->
+
+- Jira: TMI-205. 브랜치: codex/TMI-205-retire-staging-main. 목표: 사용자 예외 승인으로 main 배포 차단 반영.
+- 변경 파일: 기존 deploy-staging.yml, CURRENT_STATE.md, WORKLOG.md. main에 없는104개 커밋을 제외하고 최신 main에서 최소 변경.
+- 구현: push 트리거/AWS 권한 취득/빌드/배포 제거, 수동 실행은 안내 후 exit1. 새 배포 workflow 추가 없음.
+- 검증: Ruby YAML 구조 검사 및 실제 bash 차단 exit1 확인 통과, git diff --check. 제품 코드 불변으로 Gradle 미실행.
+- 유지 계약: develop test·제품 API·DB·운영 설정 불변. 예상 밖 변경 없음.
+- 결정/위험/다음: 사용자 commit/push 예외 및 main 반영 요청에 따라 PR 생성/검증/병합 진행. 과거 workflow 실행 재실행의 관리 차단까지 보장하지 않음. Jira 변경 없음. 댓글 초안: main staging 배포 최소 차단 및 정적/실행 검사 완료.
+
+
+## 2026-10-19 — TMI-205 운영 Actions 및5분 보호 배포 후보
+
+<!-- codex-turn:01a15253-8e72-7aa2-8ea9-c066666565f0 -->
+
+- 브랜치: codex/TMI-205-prod-actions-release. Jira: TMI-205(연관 조회만, Billing purge 완료 판정 아님).
+- 목표/승인: 사용자 이번 작업 한정 commit/push/main 반영·prod 검증 예외 승인. 5분 보호/5분 검사 및 Actions main→prod, develop→test 반영.
+- 변경 파일: workflow, PhoneOnlyCleanupPolicy, 관련 테스트4개, 운영 Actions 계약 문서, CURRENT_STATE/WORKLOG. 제품 기준은 기존 운영 수동 배포557df62b이며 제품 추가 변경은 보호30→5분이다.
+- 검증: clean test 신규 실행 성공, 총2173/실패0/오류0/skip34. 기존 main의 별도 변경은 retired workflow·문서뿐. 병합 충돌에서 새 workflow 유지, 양쪽 문서 기록 보존. 병합 후 제품/workflow는 검증된 e0f1843과 동일. diff 검사 통과.
+- 유지 계약: 기존 회원/가입/번호소유/불명 및 SNS 제외·삭제 fence 유지. 운영 env/secrets/DB/기능 스위치 변경 없음. 설치된 capture OFF rollback 금지.
+- IAM/변수는 앞선 승인으로 main immutable OIDC 전용 role 준비 완료. 원격main에는 아직 retired workflow만 있어 현재 변경은 배포 후보 단계다. 실제 Actions/health 검증은 병합 후 수행.
+- 기존 작업폴더의 미커밋 문서/스크립트는 포함하지 않음. 별도 worktree에서 main 이력 통합, 예상 밖 제품 변경 없음. 다음은 PR/main 반영 및 실행 검증. Jira 댓글 초안(미등록): 후보 테스트 성공, 실배포 결과는 후속.
