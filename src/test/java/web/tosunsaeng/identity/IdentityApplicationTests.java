@@ -36,9 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -47,6 +49,11 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 		TestRsaKeyConfiguration.class
 })
 class IdentityApplicationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -55,10 +62,10 @@ class IdentityApplicationTests {
 	private UserRepository userRepository;
 
 	@MockitoBean
-	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+	private RefreshSessionRepository refreshSessionRepository;
 
 	@MockitoBean
-	private RefreshSessionRepository refreshSessionRepository;
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@Test
 	void contextLoads() {
@@ -169,9 +176,9 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.summary")
 						.value("Guest 사용자 생성 및 인증"))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
-						.value(org.hamcrest.Matchers.containsString("인증 수단이 아니므로")))
+						.value(org.hamcrest.Matchers.containsString("한시적 Guest 복구 설정")))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.description")
-						.value(org.hamcrest.Matchers.containsString("복구할 수 없습니다")))
+						.value(org.hamcrest.Matchers.containsString("멤버·정지·탈퇴·병합 계정은 복구하지 않습니다")))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['400']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['409']").exists())
@@ -218,7 +225,7 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath("$.components.schemas.GuestAuthRequest.properties.installationId.maxLength")
 						.value(36))
 				.andExpect(jsonPath("$.paths['/api/v1/auth/guest'].post.responses['200']"
-						+ ".content['application/json'].example.result.refreshTokenExpiresIn")
+						+ ".content['application/json'].examples.GUEST_CREATED.value.result.refreshTokenExpiresIn")
 						.value(1_209_600_000));
 	}
 
@@ -289,6 +296,12 @@ class IdentityApplicationTests {
 				.andExpect(jsonPath(
 						"$.components.schemas.UserProfileResponse.properties.termConsentedAt.type"
 				).value(org.hamcrest.Matchers.hasItems("string", "null")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.accountType.enum"
+				).value(org.hamcrest.Matchers.hasItems("GUEST", "MEMBER")))
+				.andExpect(jsonPath(
+						"$.components.schemas.UserProfileResponse.properties.provider.deprecated"
+				).value(true))
 				.andExpect(jsonPath(
 						"$.components.schemas.UserProfileResponse.properties.isAudioConsent"
 				).doesNotExist());

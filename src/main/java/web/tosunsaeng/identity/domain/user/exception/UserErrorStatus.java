@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import web.tosunsaeng.identity.global.exception.ErrorCode;
 
 public enum UserErrorStatus implements ErrorCode {
+	WITHDRAWAL_CAPTURE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "WITHDRAWAL_CAPTURE_UNAVAILABLE",
+			"탈퇴 기록 처리 결과를 확인할 수 없습니다. 잠시 후 상태를 확인해 주세요."),
 
 	USER_NOT_FOUND(
 			HttpStatus.NOT_FOUND,
@@ -25,6 +27,11 @@ public enum UserErrorStatus implements ErrorCode {
 			HttpStatus.CONFLICT,
 			"WITHDRAWAL_CONFLICT",
 			"회원 탈퇴 처리 중 사용자 정보가 변경되었습니다. 다시 시도해 주세요."
+	),
+	WITHDRAWAL_LIFECYCLE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"WITHDRAWAL_LIFECYCLE_CONFLICT",
+			"회원 탈퇴 정리 상태를 확인할 수 없습니다."
 	),
 	USER_UPDATE_CONFLICT(
 			HttpStatus.CONFLICT,

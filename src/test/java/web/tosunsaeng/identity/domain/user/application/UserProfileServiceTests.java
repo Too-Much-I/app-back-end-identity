@@ -20,6 +20,7 @@ import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.dto.response.UserProfileResponse;
@@ -57,6 +58,7 @@ class UserProfileServiceTests {
 		assertThat(response.userId()).isEqualTo(USER_ID);
 		assertThat(response.email()).isEqualTo("user@example.com");
 		assertThat(response.nickname()).isEqualTo("토스마스터");
+		assertThat(response.accountType()).isEqualTo(UserAccountType.MEMBER);
 		assertThat(response.provider()).isEqualTo(UserProvider.LOCAL);
 		assertThat(response.privacyConsented()).isTrue();
 		assertThat(response.privacyConsentVersion()).isEqualTo(PRIVACY_VERSION);
@@ -86,6 +88,7 @@ class UserProfileServiceTests {
 						"userId",
 						"email",
 						"nickname",
+						"accountType",
 						"provider",
 						"privacyConsented",
 						"privacyConsentVersion",
@@ -114,6 +117,7 @@ class UserProfileServiceTests {
 		User guest = user(UserStatus.ACTIVE, consented());
 		when(guest.getEmail()).thenReturn(null);
 		when(guest.getNickname()).thenReturn("게스트");
+		when(guest.getAccountType()).thenReturn(UserAccountType.GUEST);
 		when(guest.getProvider()).thenReturn(UserProvider.GUEST);
 		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(guest));
 
@@ -122,6 +126,7 @@ class UserProfileServiceTests {
 		assertThat(response.userId()).isEqualTo(USER_ID);
 		assertThat(response.email()).isNull();
 		assertThat(response.nickname()).isEqualTo("게스트");
+		assertThat(response.accountType()).isEqualTo(UserAccountType.GUEST);
 		assertThat(response.provider()).isEqualTo(UserProvider.GUEST);
 		assertThat(response.privacyConsented()).isTrue();
 		assertThat(response.termConsented()).isTrue();
@@ -166,6 +171,7 @@ class UserProfileServiceTests {
 		when(user.getUserId()).thenReturn(USER_ID);
 		when(user.getEmail()).thenReturn("user@example.com");
 		when(user.getNickname()).thenReturn("토스마스터");
+		when(user.getAccountType()).thenReturn(UserAccountType.MEMBER);
 		when(user.getProvider()).thenReturn(UserProvider.LOCAL);
 		when(user.getConsents()).thenReturn(consents);
 		when(user.getStatus()).thenReturn(status);

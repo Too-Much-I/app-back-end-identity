@@ -1,0 +1,692 @@
+package web.tosunsaeng.identity.domain.auth.federation.infrastructure.firebase;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseAuthenticationMethod;
+import web.tosunsaeng.identity.domain.auth.federation.application.FirebaseVerificationPurpose;
+import web.tosunsaeng.identity.domain.auth.federation.application.VerifiedFirebasePrincipal;
+import web.tosunsaeng.identity.domain.auth.domain.enums.SocialProvider;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
+
+class FirebaseAdminAuthenticationVerifierTests {
+
+	private static final String PROJECT_ID = "test-project";
+	private static final String FIREBASE_UID = "opaque-firebase-uid";
+	private static final String PROVIDER_SUBJECT = "opaque-google-subject";
+	private static final String ID_TOKEN = "test-only-firebase-id-token";
+	private static final Instant NOW = Instant.parse("2026-08-13T12:00:00Z");
+
+	@Test
+	void loginUsesPolicyGuardAndInvalidProofNeverReachesGuard() {
+		for (FirebaseVerificationPurpose purpose : FirebaseVerificationPurpose.values()) {
+			if (purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY) continue; // PHONE-only purpose tested separately.
+			var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+			var verifier = verifier(new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30))), properties(true, true, false));
+			verifier.setProviderChanges(guard);
+			var principal = verifier.verify(ID_TOKEN, purpose);
+			if (purpose == FirebaseVerificationPurpose.AUTH_METHOD_SYNC || purpose == FirebaseVerificationPurpose.HIGH_RISK_REAUTHENTICATION) {
+				org.mockito.Mockito.verifyNoInteractions(guard);
+			} else {
+				org.mockito.Mockito.verify(guard).validatePrincipal(principal, purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+			}
+		}
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		var verifier = verifier(new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(3600))), properties(true, true, false));
+		verifier.setProviderChanges(guard);
+		assertThatThrownBy(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE)).isInstanceOf(AuthException.class);
+		org.mockito.Mockito.verifyNoInteractions(guard);
+	}
+
+	@Test
+	void beanFactoryExplicitlyWiresOptionalPolicyGuard() {
+		var factory = new FirebaseAuthenticationConfiguration.EnabledFirebaseAuthenticationConfiguration();
+		var client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30)));
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		var verifier = factory.firebaseAuthenticationVerifier(client, properties(true, true, false),
+				Clock.fixed(NOW, ZoneOffset.UTC), guard);
+		var principal = verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+		org.mockito.Mockito.verify(guard).validatePrincipal(principal, true);
+		assertThat(factory.firebaseAuthenticationVerifier(client, properties(true, true, false),
+				Clock.fixed(NOW, ZoneOffset.UTC), null)
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE)).isNotNull();
+	}
+
+	@Test
+	void verifiesEnabledGooglePrincipalWithRevokeCheckAndRedactedResult() {
+		StubFirebaseAdminClient client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(60)));
+		FirebaseAdminAuthenticationVerifier verifier = verifier(client, properties(true, true, false));
+
+		VerifiedFirebasePrincipal principal = verifier.verify(
+				ID_TOKEN,
+				FirebaseVerificationPurpose.LOGIN_EXCHANGE
+		);
+
+		assertThat(client.checkRevoked).isTrue();
+		assertThat(principal.firebaseProjectId()).isEqualTo(PROJECT_ID);
+		assertThat(principal.firebaseUid()).isEqualTo(FIREBASE_UID);
+		assertThat(principal.signInMethod()).isEqualTo(FirebaseAuthenticationMethod.GOOGLE);
+		assertThat(principal.linkedMethods()).containsExactlyInAnyOrder(
+				FirebaseAuthenticationMethod.GOOGLE,
+				FirebaseAuthenticationMethod.PHONE
+		);
+		assertThat(principal.verifiedPhoneNumber()).isEqualTo("+820000000000");
+		assertThat(principal.linkedSocialPrincipals())
+				.singleElement()
+				.satisfies(social -> {
+					assertThat(social.provider()).isEqualTo(SocialProvider.GOOGLE);
+					assertThat(social.providerSubject()).isEqualTo(PROVIDER_SUBJECT);
+				});
+		assertThat(principal.toString())
+				.doesNotContain(ID_TOKEN)
+				.doesNotContain(FIREBASE_UID)
+				.doesNotContain(PROVIDER_SUBJECT)
+				.doesNotContain("+820000000000")
+				.contains("firebaseUid=[REDACTED]");
+	}
+
+	@Test
+	void everyFirebaseVerificationPurposeChecksRevocation() {
+		for (FirebaseVerificationPurpose purpose : FirebaseVerificationPurpose.values()) {
+			StubFirebaseAdminClient client = new StubFirebaseAdminClient(
+					purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+							? data(NOW.minusSeconds(30), "phone", false, true, false, List.of(new FirebaseLinkedProviderData("phone", null)))
+							: validGoogleData(NOW.minusSeconds(30))
+			);
+
+			assertThat(verifier(client, properties(true, true, false)).verify(
+					ID_TOKEN,
+					purpose
+			)).isNotNull();
+			assertThat(client.checkRevoked).as(purpose.name()).isTrue();
+		}
+	}
+
+	@Test
+	void recoveryAllowsPhoneOnlyButDoesNotRelaxMemberLogin() {
+		var snapshot = data(NOW.minusSeconds(30), "phone", false, true, false, List.of(new FirebaseLinkedProviderData("phone", null)));
+		var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false));
+		var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+		verifier.setProviderChanges(guard);
+		assertThat(verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.ACCOUNT_RECOVERY).signInMethod()).isEqualTo(FirebaseAuthenticationMethod.PHONE);
+		org.mockito.Mockito.verifyNoInteractions(guard);
+		for (var purpose : List.of(FirebaseVerificationPurpose.LOGIN_EXCHANGE, FirebaseVerificationPurpose.GUEST_MERGE,
+				FirebaseVerificationPurpose.DIRECT_ENROLLMENT, FirebaseVerificationPurpose.GUEST_ENROLLMENT)) {
+			assertThatThrownBy(() -> verifier.verify(ID_TOKEN, purpose)).isInstanceOf(AuthException.class);
+		}
+		assertThatThrownBy(() -> verifier(new StubFirebaseAdminClient(validGoogleData(NOW)), properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.ACCOUNT_RECOVERY)).isInstanceOf(AuthException.class);
+	}
+
+	@Test
+	void recoveryServiceOwnsRecentAuthWindowWithoutSharedFiveMinuteCap() {
+		for (int age : new int[]{301, 600, 601}) {
+			var snapshot = data(NOW.minusSeconds(age), "phone", false, true, false,
+					List.of(new FirebaseLinkedProviderData("phone", null)));
+			var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false));
+			var store = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryStore.class);
+			var resolver = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryAccountResolver.class);
+			String ring = "v1:" + java.util.Base64.getEncoder().encodeToString(new byte[32]);
+			var recovery = new web.tosunsaeng.identity.domain.auth.accountrecovery.AccountRecoveryService(
+					store, new web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryHasher(ring), verifier, resolver,
+					new web.tosunsaeng.identity.domain.auth.accountrecovery.RecoveryProperties(true, ring, null, null, null, 0, 0, 0),
+					Clock.fixed(NOW, ZoneOffset.UTC));
+			if (age <= 600) {
+				recovery.lookup("11111111-1111-4111-8111-111111111111", ID_TOKEN, "127.0.0.1");
+				org.mockito.Mockito.verify(store).lookup(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyList(),
+						org.mockito.ArgumentMatchers.eq(NOW.minusSeconds(age)), org.mockito.ArgumentMatchers.eq(NOW),
+						org.mockito.ArgumentMatchers.eq(Duration.ofMinutes(5)), org.mockito.ArgumentMatchers.any());
+			} else {
+				assertAuthError(() -> recovery.lookup("11111111-1111-4111-8111-111111111111", ID_TOKEN, "127.0.0.1"),
+						AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED);
+			}
+		}
+	}
+
+	@Test
+	void multiSocialEnrollmentRejectsEvenDisabledSecondaryProviders() {
+		var snapshot = data(NOW.minusSeconds(30), "google.com", true, true, false, List.of(
+				new FirebaseLinkedProviderData("google.com", "google"), new FirebaseLinkedProviderData("oidc.kakao", "kakao"),
+				new FirebaseLinkedProviderData("phone", null)));
+		for (var purpose : List.of(FirebaseVerificationPurpose.DIRECT_ENROLLMENT, FirebaseVerificationPurpose.GUEST_ENROLLMENT)) {
+			assertThatThrownBy(() -> verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false)).verify(ID_TOKEN, purpose))
+					.isInstanceOfSatisfying(AuthException.class, e -> assertThat(e.getErrorCode()).isEqualTo(AuthErrorStatus.SINGLE_SNS_REQUIRED));
+		}
+	}
+
+	@Test
+	void mapsEnabledAppleAndKakaoProviderSubjectsWithoutEmailIdentity() {
+		for (ProviderCase providerCase : List.of(
+				new ProviderCase(
+						"apple.com",
+						FirebaseAuthenticationMethod.APPLE,
+						SocialProvider.APPLE,
+						false
+				),
+				new ProviderCase(
+						"oidc.kakao",
+						FirebaseAuthenticationMethod.KAKAO,
+						SocialProvider.KAKAO,
+						true
+				)
+		)) {
+			FirebaseAdminPrincipalData data = data(
+					NOW.minusSeconds(30),
+					providerCase.providerId(),
+					false,
+					false,
+					false,
+					List.of(new FirebaseLinkedProviderData(
+							providerCase.providerId(),
+							PROVIDER_SUBJECT
+					))
+			);
+
+			VerifiedFirebasePrincipal principal = verifier(
+					new StubFirebaseAdminClient(data),
+					properties(false, false, providerCase.kakaoEnabled())
+			).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE);
+
+			assertThat(principal.signInMethod()).isEqualTo(providerCase.method());
+			assertThat(principal.linkedSocialPrincipals())
+					.singleElement()
+					.satisfies(social -> {
+						assertThat(social.provider()).isEqualTo(providerCase.socialProvider());
+						assertThat(social.providerSubject()).isEqualTo(PROVIDER_SUBJECT);
+					});
+		}
+	}
+
+	@Test
+	void disabledKakaoAndUnknownOidcNeverReachRegistrationGuard() {
+		for (String providerId : List.of("oidc.kakao", "oidc.untrusted")) {
+			var snapshot = data(NOW.minusSeconds(30), providerId, false, false, false,
+					List.of(new FirebaseLinkedProviderData(providerId, "test-only-subject")));
+			var guard = org.mockito.Mockito.mock(web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard.class);
+			// Known Kakao disabled; arbitrary OIDC still rejected even when Kakao is enabled.
+			var verifier = verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, !providerId.equals("oidc.kakao")));
+			verifier.setProviderChanges(guard);
+			assertAuthError(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+					AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+			org.mockito.Mockito.verifyNoInteractions(guard);
+		}
+	}
+
+	@Test
+	void loginAllowsExactFifteenMinuteBoundaryButRejectsOlderAuthentication() {
+		StubFirebaseAdminClient boundaryClient = new StubFirebaseAdminClient(
+				validGoogleData(NOW.minus(Duration.ofMinutes(15)))
+		);
+		assertThat(verifier(boundaryClient, properties(true, true, false)).verify(
+				ID_TOKEN,
+				FirebaseVerificationPurpose.LOGIN_EXCHANGE
+		)).isNotNull();
+
+		StubFirebaseAdminClient staleClient = new StubFirebaseAdminClient(
+				validGoogleData(NOW.minus(Duration.ofMinutes(15)).minusSeconds(1))
+		);
+		assertAuthError(
+				() -> verifier(staleClient, properties(true, true, false)).verify(
+						ID_TOKEN,
+						FirebaseVerificationPurpose.LOGIN_EXCHANGE
+				),
+				AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED
+		);
+	}
+
+	@Test
+	void highRiskPurposesUseFiveMinuteRecentAuthenticationLimit() {
+		StubFirebaseAdminClient staleClient = new StubFirebaseAdminClient(
+				validGoogleData(NOW.minus(Duration.ofMinutes(5)).minusSeconds(1))
+		);
+
+		for (var purpose : FirebaseVerificationPurpose.values()) {
+			if (purpose == FirebaseVerificationPurpose.LOGIN_EXCHANGE
+					|| purpose == FirebaseVerificationPurpose.ACCOUNT_RECOVERY
+					|| purpose == FirebaseVerificationPurpose.WITHDRAWAL) continue;
+			assertAuthError(
+					() -> verifier(staleClient, properties(true, true, false)).verify(
+							ID_TOKEN,
+							purpose
+					),
+					AuthErrorStatus.FIREBASE_RECENT_AUTH_REQUIRED
+			);
+		}
+	}
+
+	@Test
+	void withdrawalAcceptsRefreshedSessionWithOldAuthenticationAndChecksRevocation() {
+		for (long age : new long[]{301, Duration.ofDays(30).toSeconds()}) {
+			var client = new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(age)));
+			var principal = verifier(client, properties(true, true, false))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL);
+			assertThat(principal.authTime()).isEqualTo(NOW.minusSeconds(age));
+			assertThat(client.checkRevoked).isTrue();
+		}
+	}
+
+	@Test
+	void withdrawalAcceptsPhoneSessionWithOneSocialButExchangeStillRejectsIt() {
+		for (String provider : List.of("apple.com", "google.com", "oidc.kakao")) {
+			var snapshot = data(NOW.minusSeconds(30), "phone", false, true, false,
+					List.of(new FirebaseLinkedProviderData(provider, PROVIDER_SUBJECT),
+							new FirebaseLinkedProviderData("phone", null)));
+			var client = new StubFirebaseAdminClient(snapshot);
+			var verifier = verifier(client, properties(true, true, true));
+			var result = verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL);
+			assertThat(result.signInMethod()).isEqualTo(FirebaseAuthenticationMethod.PHONE);
+			assertThat(result.linkedSocialPrincipals()).hasSize(1);
+			assertThat(client.checkRevoked).isTrue();
+			assertAuthError(() -> verifier.verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+					AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+		}
+	}
+
+	@Test
+	void withdrawalRejectsUnverifiedPhoneAndMissingOrMultipleSocialLinks() {
+		var links = List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT),
+				new FirebaseLinkedProviderData("phone", null));
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+				data(NOW.minusSeconds(30), "phone", false, false, false, links)), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL),
+				AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED);
+		for (var invalidLinks : List.of(
+				List.of(new FirebaseLinkedProviderData("phone", null)),
+				List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT)),
+				List.of(new FirebaseLinkedProviderData("phone", null),
+						new FirebaseLinkedProviderData("password", null)))) {
+			assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+					data(NOW.minusSeconds(30), "phone", true, true, false, invalidLinks)), properties(true, true, true))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL),
+					invalidLinks.size() == 2 ? AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED
+							: AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+		}
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(data(NOW.minusSeconds(30), "phone", true, true, false,
+				List.of(new FirebaseLinkedProviderData("phone", null), new FirebaseLinkedProviderData("apple.com", "apple"),
+						new FirebaseLinkedProviderData("google.com", "google")))), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED);
+	}
+
+	@Test
+	void withdrawalPhoneSessionAllowsOldAuthButRejectsRevokedAndDisabledProof() {
+		var links = List.of(new FirebaseLinkedProviderData("apple.com", PROVIDER_SUBJECT),
+				new FirebaseLinkedProviderData("phone", null));
+		var client = new StubFirebaseAdminClient(data(NOW.minus(Duration.ofDays(30)), "phone", false, true, false, links));
+		assertThat(verifier(client, properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL)).isNotNull();
+		client.failure = new FirebaseAdminClientException(FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		assertAuthError(() -> verifier(client, properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		assertThat(client.checkRevoked).isTrue();
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(
+				data(NOW.minusSeconds(30), "phone", false, true, true, links)), properties(true, true, true))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+	}
+
+	@Test
+	void withdrawalStillRejectsInvalidTimesAndWrongAudience() {
+		for (var snapshot : List.of(
+				withdrawalData(NOW.minus(Duration.ofDays(30)), NOW.minusSeconds(3600), NOW.minusSeconds(31), PROJECT_ID),
+				withdrawalData(NOW.plusSeconds(31), NOW, NOW.plusSeconds(300), PROJECT_ID),
+				withdrawalData(NOW.minusSeconds(5), NOW.minusSeconds(10), NOW.plusSeconds(300), PROJECT_ID),
+				withdrawalData(NOW.minus(Duration.ofDays(30)), NOW, NOW.plusSeconds(300), "wrong-audience"))) {
+			assertAuthError(() -> verifier(new StubFirebaseAdminClient(snapshot), properties(true, true, false))
+					.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		}
+	}
+
+	@Test
+	void withdrawalStillRejectsDisabledAndInvalidOrRevokedCredentials() {
+		var disabled = data(NOW.minus(Duration.ofDays(30)), "google.com", true, true, true,
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT)));
+		assertAuthError(() -> verifier(new StubFirebaseAdminClient(disabled), properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED);
+		var client = new StubFirebaseAdminClient(validGoogleData(NOW.minus(Duration.ofDays(30))));
+		client.failure = new FirebaseAdminClientException(FirebaseAdminClientException.Reason.INVALID_TOKEN);
+		assertAuthError(() -> verifier(client, properties(true, true, false))
+				.verify(ID_TOKEN, FirebaseVerificationPurpose.WITHDRAWAL), AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN);
+		assertThat(client.checkRevoked).isTrue();
+	}
+
+	private FirebaseAdminPrincipalData withdrawalData(Instant authTime, Instant issuedAt, Instant expiresAt, String audience) {
+		return new FirebaseAdminPrincipalData(PROJECT_ID, FIREBASE_UID, null,
+				"https://securetoken.google.com/" + PROJECT_ID, audience, authTime, issuedAt, expiresAt,
+				"google.com", true, false, true, "+820000000000",
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT)));
+	}
+
+	@Test
+	void loginRejectsPhoneSignInEvenWhenPrimaryProviderIsLinked() {
+		FirebaseAdminPrincipalData phoneSignIn = data(
+				NOW.minusSeconds(30),
+				"phone",
+				true,
+				true,
+				false,
+				List.of(
+						new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT),
+						new FirebaseLinkedProviderData("phone", null)
+				)
+		);
+
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(phoneSignIn),
+						properties(true, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+				AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED
+		);
+	}
+
+	@Test
+	void enrollmentRequiresSameAccountPhoneAndVerifiedPasswordEmail() {
+		FirebaseAdminPrincipalData withoutPhone = data(
+				NOW.minusSeconds(30),
+				"password",
+				true,
+				false,
+				false,
+				List.of(new FirebaseLinkedProviderData("password", null))
+		);
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(withoutPhone),
+						properties(false, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.DIRECT_ENROLLMENT),
+				AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED
+		);
+
+		FirebaseAdminPrincipalData unverifiedEmail = data(
+				NOW.minusSeconds(30),
+				"password",
+				false,
+				true,
+				false,
+				List.of(
+						new FirebaseLinkedProviderData("password", null),
+						new FirebaseLinkedProviderData("phone", null)
+				)
+		);
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(unverifiedEmail),
+						properties(false, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.DIRECT_ENROLLMENT),
+				AuthErrorStatus.FIREBASE_EMAIL_VERIFICATION_REQUIRED
+		);
+	}
+
+	@Test
+	void guestPrepareAllowsPrePhoneProofButUpgradeRequiresVerifiedPhone() {
+		FirebaseAdminPrincipalData beforePhoneLink = data(
+				NOW.minusSeconds(30),
+				"google.com",
+				true,
+				false,
+				false,
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
+		);
+		FirebaseAdminAuthenticationVerifier verifier = verifier(
+				new StubFirebaseAdminClient(beforePhoneLink),
+				properties(true, true, false)
+		);
+
+		assertThat(verifier.verify(
+				ID_TOKEN,
+				FirebaseVerificationPurpose.GUEST_ENROLLMENT_PREPARE
+		)).isNotNull();
+		assertAuthError(
+				() -> verifier.verify(
+						ID_TOKEN,
+						FirebaseVerificationPurpose.GUEST_ENROLLMENT
+				),
+				AuthErrorStatus.FIREBASE_PHONE_VERIFICATION_REQUIRED
+		);
+	}
+
+	@Test
+	void disabledProviderAndMismatchedProjectFailClosed() {
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(validGoogleData(NOW.minusSeconds(30))),
+						properties(false, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+				AuthErrorStatus.FIREBASE_PROVIDER_NOT_ALLOWED
+		);
+
+		FirebaseAdminPrincipalData wrongAudience = new FirebaseAdminPrincipalData(
+				PROJECT_ID,
+				FIREBASE_UID,
+				null,
+				"https://securetoken.google.com/" + PROJECT_ID,
+				"different-project",
+				NOW.minusSeconds(30),
+				NOW.minusSeconds(20),
+				NOW.plusSeconds(300),
+				"google.com",
+				true,
+				false,
+				true,
+				"+820000000000",
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
+		);
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(wrongAudience),
+						properties(true, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+				AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN
+		);
+	}
+
+	@Test
+	void rejectsFutureOrInternallyInconsistentFirebaseTokenTimes() {
+		FirebaseAdminPrincipalData futureIssuedAt = new FirebaseAdminPrincipalData(
+				PROJECT_ID,
+				FIREBASE_UID,
+				null,
+				"https://securetoken.google.com/" + PROJECT_ID,
+				PROJECT_ID,
+				NOW.minusSeconds(10),
+				NOW.plusSeconds(31),
+				NOW.plusSeconds(300),
+				"google.com",
+				true,
+				false,
+				true,
+				"+820000000000",
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
+		);
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(futureIssuedAt),
+						properties(true, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+				AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN
+		);
+
+		FirebaseAdminPrincipalData authAfterIssue = new FirebaseAdminPrincipalData(
+				PROJECT_ID,
+				FIREBASE_UID,
+				null,
+				"https://securetoken.google.com/" + PROJECT_ID,
+				PROJECT_ID,
+				NOW.minusSeconds(5),
+				NOW.minusSeconds(10),
+				NOW.plusSeconds(300),
+				"google.com",
+				true,
+				false,
+				true,
+				"+820000000000",
+				List.of(new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT))
+		);
+		assertAuthError(
+				() -> verifier(
+						new StubFirebaseAdminClient(authAfterIssue),
+						properties(true, true, false)
+				).verify(ID_TOKEN, FirebaseVerificationPurpose.LOGIN_EXCHANGE),
+				AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN
+		);
+	}
+
+	@Test
+	void clientFailureReasonsMapToStableErrorsWithoutSdkMessage() {
+		for (ErrorMapping mapping : List.of(
+				new ErrorMapping(
+						FirebaseAdminClientException.Reason.INVALID_TOKEN,
+						AuthErrorStatus.INVALID_FIREBASE_ID_TOKEN
+				),
+				new ErrorMapping(
+						FirebaseAdminClientException.Reason.ACCOUNT_NOT_ALLOWED,
+						AuthErrorStatus.FIREBASE_ACCOUNT_NOT_ALLOWED
+				),
+				new ErrorMapping(
+						FirebaseAdminClientException.Reason.RATE_LIMITED,
+						AuthErrorStatus.FIREBASE_RATE_LIMITED
+				),
+				new ErrorMapping(
+						FirebaseAdminClientException.Reason.UNAVAILABLE,
+						AuthErrorStatus.FIREBASE_UNAVAILABLE
+				)
+		)) {
+			StubFirebaseAdminClient client = new StubFirebaseAdminClient(validGoogleData(NOW));
+			client.failure = new FirebaseAdminClientException(mapping.reason());
+			assertAuthError(
+					() -> verifier(client, properties(true, true, false)).verify(
+							ID_TOKEN,
+							FirebaseVerificationPurpose.LOGIN_EXCHANGE
+					),
+					mapping.errorStatus()
+			);
+		}
+	}
+
+	private FirebaseAdminAuthenticationVerifier verifier(
+			FirebaseAdminClient client,
+			FirebaseAuthProperties properties
+	) {
+		return new FirebaseAdminAuthenticationVerifier(
+				client,
+				properties,
+				Clock.fixed(NOW, ZoneOffset.UTC)
+		);
+	}
+
+	private FirebaseAdminPrincipalData validGoogleData(Instant authTime) {
+		return data(
+				authTime,
+				"google.com",
+				true,
+				true,
+				false,
+				List.of(
+						new FirebaseLinkedProviderData("google.com", PROVIDER_SUBJECT),
+						new FirebaseLinkedProviderData("phone", null)
+				)
+		);
+	}
+
+	private FirebaseAdminPrincipalData data(
+			Instant authTime,
+			String signInProvider,
+			boolean emailVerified,
+			boolean phoneVerified,
+			boolean disabled,
+			List<FirebaseLinkedProviderData> providers
+	) {
+		return new FirebaseAdminPrincipalData(
+				PROJECT_ID,
+				FIREBASE_UID,
+				null,
+				"https://securetoken.google.com/" + PROJECT_ID,
+				PROJECT_ID,
+				authTime,
+				NOW.minusSeconds(10),
+				NOW.plusSeconds(300),
+				signInProvider,
+				emailVerified,
+				disabled,
+				phoneVerified,
+				phoneVerified ? "+820000000000" : null,
+				providers
+		);
+	}
+
+	private FirebaseAuthProperties properties(
+			boolean googleEnabled,
+			boolean phoneEnabled,
+			boolean kakaoEnabled
+	) {
+		return new FirebaseAuthProperties(
+				true,
+				PROJECT_ID,
+				null,
+				googleEnabled,
+				true,
+				kakaoEnabled,
+				phoneEnabled,
+				"oidc.kakao",
+				Duration.ofMinutes(15),
+				Duration.ofMinutes(5),
+				Duration.ofSeconds(30),
+				Duration.ofSeconds(1),
+				Duration.ofSeconds(1),
+				Duration.ofMinutes(10),
+				Duration.ofHours(24)
+		);
+	}
+
+	private void assertAuthError(Runnable action, AuthErrorStatus expected) {
+		assertThatThrownBy(action::run)
+				.isInstanceOfSatisfying(
+						AuthException.class,
+						exception -> assertThat(exception.getErrorCode()).isEqualTo(expected)
+				)
+				.hasMessage(expected.getMessage())
+				.hasMessageNotContaining(ID_TOKEN);
+	}
+
+	private static final class StubFirebaseAdminClient implements FirebaseAdminClient {
+
+		private final FirebaseAdminPrincipalData data;
+		private FirebaseAdminClientException failure;
+		private boolean checkRevoked;
+
+		private StubFirebaseAdminClient(FirebaseAdminPrincipalData data) {
+			this.data = data;
+		}
+
+		@Override
+		public FirebaseAdminPrincipalData verify(String firebaseIdToken, boolean checkRevoked) {
+			this.checkRevoked = checkRevoked;
+			if (failure != null) {
+				throw failure;
+			}
+			return data;
+		}
+	}
+
+	private record ErrorMapping(
+			FirebaseAdminClientException.Reason reason,
+			AuthErrorStatus errorStatus
+	) {
+	}
+
+	private record ProviderCase(
+			String providerId,
+			FirebaseAuthenticationMethod method,
+			SocialProvider socialProvider,
+			boolean kakaoEnabled
+	) {
+	}
+}

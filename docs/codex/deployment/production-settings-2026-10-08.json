@@ -1,0 +1,286 @@
+{
+  "formatVersion": 1,
+  "status": "SERVICES_HEALTHY_E2E_PENDING",
+  "registeredMode": "Identity revision4 (four withdrawal flags enabled and corrected delivery path), LC revision3 (FCM sender enabled) and both AI revision1 requested desiredCount1. Identity guest merge and merge owner-event capture/publishers remain off. Release intent below is not a dump of active environments.",
+  "withdrawalProvisioning": {
+    "status": "APPLIED_E2E_PENDING",
+    "deploymentCompletedAtObservedUtc": "2026-10-08T10:10:13Z",
+    "targetHealthy": true,
+    "afterLifecycleCount": 0,
+    "afterOutboxCount": 0,
+    "existingPendingProcessingApproved": true,
+    "identityTaskRevision": 4,
+    "publisherEndpointCorrected": "https://api-prod.to-teacher.com/internal/v1/events/withdrawn",
+    "revision3StartupFailure": "Publisher endpoint path did not match required /internal/v1/events/withdrawn",
+    "flags": {
+      "FIREBASE_WITHDRAWAL_ENABLED": "true",
+      "FIREBASE_WITHDRAWAL_CLEANUP_ENABLED": "true",
+      "FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED": "true",
+      "USER_WITHDRAWN_PUBLISHER_ENABLED": "true"
+    },
+    "learningCoreConsumerAndDenyGateAlreadyEnabled": true,
+    "firebaseOAuthHttp": 200,
+    "firebaseGetUpdateDeletePermissionsVerified": true,
+    "beforeLifecycleCount": 0,
+    "beforeOutboxCount": 0,
+    "databaseModifiedByDiagnostic": false,
+    "actualWithdrawalE2eVerified": false,
+    "appleProviderObligationImplemented": false,
+    "backfillEnabled": false
+  },
+  "bootstrapObservation": {
+    "date": "2026-10-08",
+    "identityLastPublicHttp": 200,
+    "learningCoreLastPublicHttp": 200,
+    "appHealthCheckGraceSeconds": 300,
+    "identityDeploymentCompleted": true,
+    "learningCoreRevision3TargetHealthy": true,
+    "allFourDeploymentsCompleted": true,
+    "finalVerifiedAt": "2026-10-08T09:49:08Z",
+    "intermittentDnsFailureObserved": true,
+    "healthyForFrontend": false,
+    "apiInfrastructureHealthy": true,
+    "frontendReadinessLimitation": "Merge remains off; Apple withdrawal provider obligation is unresolved; withdrawal, grading, storage, callbacks and device receipt E2E are pending",
+    "pushSendingApproved": true,
+    "pushSendingApplied": true,
+    "pushSendingRuntimeVerified": true,
+    "trackingReadyAt": "2026-10-08T09:37:07.925145Z",
+    "fcmOAuthValidationHttp": 200,
+    "fcmValidateOnlyHttp": 200,
+    "actualDeviceReceiptVerified": false,
+    "fcmServiceAccountCreated": "learning-core-prod-fcm@to-teacher-firebase.iam.gserviceaccount.com",
+    "fcmRoleBindingConfirmed": true,
+    "fcmRole": "roles/firebasecloudmessaging.admin",
+    "fcmCredentialProvisioned": true,
+    "fcmSecretName": "tosunsaeng/prod/learning-core/fcm",
+    "fcmTemporaryCloudShellFileRemoved": true,
+    "phoneKeyStatusFormatCorrectedWithoutRotation": true
+  },
+  "deployableTaskDefinition": false,
+  "region": "ap-northeast-2",
+  "cluster": "tosunsaeng-staging-cluster",
+  "serviceConnectNamespace": "tosunsaeng-staging",
+  "existingServicesUnchanged": true,
+  "executionRoleProvisioning": {
+    "status": "POLICIES_APPLIED_RUNTIME_NOT_VERIFIED",
+    "source": "scripts/production-execution-roles.py",
+    "rolesAndLogGroups": 4,
+    "secretAndEcrSimulation": "PASSED",
+    "logSimulation": "INCONCLUSIVE_IMPLICIT_DENY_EVEN_WITH_WILDCARD_CONTROL",
+    "taskDefinitionBindingApplied": true,
+    "runtimeS3RolesApplied": true
+  },
+  "runtimeNetworkProvisioning": {
+    "status": "ATTACHED_TO_ZERO_COUNT_SERVICES",
+    "source": "scripts/production-runtime-network.py",
+    "runtimeRoles": {
+      "learningCore": "tosunsaeng-learning-core-prod-task-role",
+      "challengeAi": "tosunsaeng-ai-learning-prod-task-role"
+    },
+    "securityGroups": {
+      "identity": "sg-04d7f68de195b83cd",
+      "learningCore": "sg-0372f877eda5ef96f",
+      "examAi": "sg-0ad44f5b1cd431582",
+      "challengeAi": "sg-0fbdd465295302407"
+    },
+    "redisSecurityGroup": "sg-0f8528393d749b3a9",
+    "redisIngressRulesAdded": 3,
+    "existingBucketPolicyUnchanged": true,
+    "existingBucketPublicReadRiskAccepted": true,
+    "actualConnectivityVerified": false,
+    "servicesStarted": true
+  },
+  "identity": {
+    "plannedService": "tosunsaeng-identity-prod-service",
+    "firebaseProvisioning": {
+      "status": "BOUND_TO_BOOTSTRAP_TASK_RUNTIME_VALIDATION_INCOMPLETE",
+      "serviceAccount": "identity-prod@to-teacher-firebase.iam.gserviceaccount.com",
+      "secretName": "tosunsaeng/prod/identity/firebase",
+      "executionRoleName": "tosunsaeng-identity-prod-execution-role",
+      "executionRoleCurrentScope": "Exact operating Identity bundle and five prod Identity secrets, corresponding ECR pull and prod log group writes; actual ECS log writing still unverified",
+      "taskDefinitionBindingApplied": true
+    },
+    "imageSourceTask": "tosunsaeng-identity-test:34",
+    "environment": {
+      "SPRING_PROFILES_ACTIVE": "prod",
+      "MONGODB_DATABASE": "to-teacher-identity",
+      "JWT_ISSUER": "https://identity-staging.to-teacher.com",
+      "JWT_AUDIENCE": "tosunsaeng-learning-core",
+      "JWT_ACCESS_TOKEN_TTL": "PT30M",
+      "AUTH_REISSUE_ENCRYPTION_ENVIRONMENT": "prod",
+      "WORKLOAD_JWT_ISSUER": "https://identity-staging.to-teacher.com",
+      "WORKLOAD_JWT_SUBJECT": "identity-service",
+      "WORKLOAD_JWT_TTL": "PT2M",
+      "FIREBASE_PROJECT_ID": "to-teacher-firebase",
+      "PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID": "tosunsaeng-billing-prod",
+      "OWNER_EVENT_MERGE_COMPLETION_PROFILE": "LEARNING_CORE_ONLY",
+      "USER_MERGED_PUBLISHER_ENDPOINT": "https://api-prod.to-teacher.com/internal/v1/events/user-merged",
+      "OWNER_EVENT_LEARNING_CORE_ENDPOINT": "https://api-prod.to-teacher.com/internal/v1/events/user-merged",
+      "USER_WITHDRAWN_PUBLISHER_ENDPOINT": "https://api-prod.to-teacher.com/internal/v1/events/withdrawn"
+    },
+    "inheritEnvironmentFromOperatingTask": {"task": "tosunsaeng-identity:23", "names": ["JWT_KEY_ID"]},
+    "inheritSecretReferencesFromOperatingTask": {
+      "task": "tosunsaeng-identity:23",
+      "names": ["MONGODB_URI", "JWT_PRIVATE_KEY_PEM", "JWT_PUBLIC_KEY_PEM"]
+    },
+    "productionSecretInputsRequired": [
+      "AUTH_REISSUE_ENCRYPTION_KEYRING_CONTENT",
+      "AUTH_REISSUE_ENCRYPTION_ACTIVE_KEY_ID",
+      "FIREBASE_SERVICE_ACCOUNT_JSON",
+      "PHONE_IDENTITY_FINGERPRINT_KEY_RING",
+      "PHONE_ELIGIBILITY_BINDING_KEY_RING",
+      "ACCOUNT_RECOVERY_KEY_RING"
+    ],
+    "launchTargetFlags": {
+      "AUTH_SESSION_FENCE_ENABLED": "true",
+      "AUTH_REISSUE_RECOVERY_ENABLED": "true",
+      "FIREBASE_AUTH_ENABLED": "true",
+      "FIREBASE_GOOGLE_ENABLED": "true",
+      "FIREBASE_APPLE_ENABLED": "true",
+      "FIREBASE_KAKAO_ENABLED": "true",
+      "FIREBASE_PHONE_ENABLED": "true",
+      "PHONE_IDENTITY_FINGERPRINT_ENABLED": "true",
+      "PHONE_ELIGIBILITY_BINDING_ENABLED": "true",
+      "ACCOUNT_RECOVERY_ENABLED": "true",
+      "FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED": "true",
+      "FIREBASE_PROVIDER_LINK_ENABLED": "true",
+      "FIREBASE_PROVIDER_LINK_RECOVERY_ENABLED": "true",
+      "GUEST_MERGE_ENABLED": "true",
+      "WORKLOAD_JWT_ENABLED": "true",
+      "FIREBASE_WITHDRAWAL_ENABLED": "true",
+      "FIREBASE_WITHDRAWAL_CLEANUP_ENABLED": "true",
+      "FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED": "true",
+      "USER_WITHDRAWN_PUBLISHER_ENABLED": "true",
+      "USER_MERGED_PUBLISHER_ENABLED": "true",
+      "OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED": "true",
+      "OWNER_EVENT_MERGE_PROGRESS_CAPTURE_ENABLED": "true",
+      "OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED": "true"
+    },
+    "holdOffFlags": {
+      "USER_WITHDRAWN_BACKFILL_ENABLED": "false",
+      "FIREBASE_ABANDONED_CLEANUP_CAPTURE_ENABLED": "false",
+      "FIREBASE_ABANDONED_CLEANUP_WORKER_ENABLED": "false",
+      "FIREBASE_PROVIDER_UNLINK_ENABLED": "false",
+      "FIREBASE_PROVIDER_UNLINK_WORKER_ENABLED": "false",
+      "FIREBASE_PROVIDER_RELINK_ENABLED": "false",
+      "FIREBASE_LOGOUT_ALL_CAPTURE_ENABLED": "false",
+      "FIREBASE_LOGOUT_ALL_WORKER_ENABLED": "false",
+      "PHONE_ELIGIBILITY_PUBLISHER_ENABLED": "false",
+      "OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED": "false",
+      "OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED": "false",
+      "OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED": "false",
+      "SUPPORT_INQUIRY_ENABLED": "false",
+      "SUPPORT_SLACK_WORKER_ENABLED": "false"
+    }
+  },
+  "learningCore": {
+    "plannedService": "tosunsaeng-learning-core-prod-service",
+    "imageSourceTask": "tosunsaeng-learning-core-test:19",
+    "environment": {
+      "SPRING_PROFILES_ACTIVE": "prod",
+      "MONGODB_DATABASE": "to-teacher-app",
+      "APP_AUTH_MODE": "jwt",
+      "IDENTITY_ISSUER": "https://identity-staging.to-teacher.com",
+      "IDENTITY_JWK_SET_URI": "https://identity-staging.to-teacher.com/.well-known/jwks.json",
+      "IDENTITY_AUDIENCE": "tosunsaeng-learning-core",
+      "IDENTITY_CLOCK_SKEW": "PT60S",
+      "AI_SERVER_URL": "http://tosunsaeng-ai-prod:8000",
+      "CHALLENGE_AI_ENDPOINT": "https://api-prod.to-teacher.com/v1/challenges/evaluations",
+      "AWS_S3_BUCKET_NAME": "to-teacher-exam",
+      "APP_UPDATE_REQUIRED": "false",
+      "USER_MERGED_WORKLOAD_ISSUER": "https://identity-staging.to-teacher.com",
+      "USER_MERGED_WORKLOAD_JWK_SET_URI": "https://identity-staging.to-teacher.com/.well-known/jwks.json",
+      "USER_MERGED_WORKLOAD_CLOCK_SKEW": "PT30S",
+      "USER_WITHDRAWN_WORKLOAD_ISSUER": "https://identity-staging.to-teacher.com",
+      "USER_WITHDRAWN_WORKLOAD_JWK_SET_URI": "https://identity-staging.to-teacher.com/.well-known/jwks.json",
+      "USER_WITHDRAWN_WORKLOAD_AUDIENCE": "learning-core-user-withdrawn",
+      "USER_WITHDRAWN_WORKLOAD_PRINCIPAL_CLAIM": "sub",
+      "USER_WITHDRAWN_WORKLOAD_PRINCIPAL_VALUE": "identity-service",
+      "USER_WITHDRAWN_WORKLOAD_MAX_TOKEN_LIFETIME": "PT2M",
+      "USER_WITHDRAWN_WORKLOAD_CLOCK_SKEW": "PT30S",
+      "USER_WITHDRAWN_MAX_ACCESS_TOKEN_LIFETIME": "PT30M",
+      "USER_WITHDRAWN_ALLOWED_VERIFIER_CLOCK_SKEW": "PT60S",
+      "USER_WITHDRAWN_INBOX_RETENTION": "P7D",
+      "USER_WITHDRAWN_MAXIMUM_FUTURE_EVENT_SKEW": "PT1M"
+    },
+    "inheritEnvironmentFromOperatingTask": {"task": "tosunsaeng-learning-core:23", "names": ["REDIS_HOST", "REDIS_PORT"]},
+    "inheritSecretReferencesFromOperatingTask": {"task": "tosunsaeng-learning-core:23", "names": ["MONGODB_URI"]},
+    "productionSecretInputsRequired": ["CHALLENGE_AI_OUTBOUND_CREDENTIAL", "CHALLENGE_AI_CALLBACK_CREDENTIAL"],
+    "launchTargetFlags": {
+      "USER_MERGED_WRITER_ENABLED": "true",
+      "USER_MERGED_CONSUMER_ENABLED": "true",
+      "USER_MERGED_SOURCE_DENY_ENABLED": "true",
+      "USER_WITHDRAWN_CONSUMER_ENABLED": "true",
+      "USER_WITHDRAWN_DENY_GATE_ENABLED": "true",
+      "CHALLENGE_ENABLED": "true"
+    },
+    "holdOffFlags": {
+      "BILLING_CREATION_SAGA_ENABLED": "false",
+      "BILLING_PHONE_CONTINUATION_ENABLED": "false",
+      "BILLING_RECONCILIATION_ENABLED": "false",
+      "ATTEMPT_GROUP_EVENT_WRITER_ENABLED": "false",
+      "ATTEMPT_GROUP_EVENT_PUBLISHER_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_COMMAND_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_READ_FENCE_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_WRITER_FENCE_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_WORKER_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_BILLING_CONTINUATION_ENABLED": "false",
+      "LEARNING_RECORD_DELETION_AGGREGATE_ENABLED": "false"
+    },
+    "springPropertyOverrides": {
+      "app.notifications.api-enabled": true,
+      "app.notifications.tracking-enabled": true,
+      "app.notifications.sending-enabled": false,
+      "app.notifications.dry-run": true
+    }
+  },
+  "examAi": {
+    "plannedService": "tosunsaeng-ai-prod-service",
+    "imageSourceTask": "tosunsaeng-ai:17",
+    "serviceConnectAlias": {"dnsName": "tosunsaeng-ai-prod", "port": 8000},
+    "environmentForApiAndAllWorkers": {
+      "EVALUATION_QUEUE_MODE": "redis",
+      "EVALUATION_REDIS_QUEUE": "eval_agent-prod:evaluation_jobs",
+      "EVALUATION_REDIS_PROCESSING_QUEUE": "eval_agent-prod:evaluation_jobs:processing",
+      "EVALUATION_REDIS_JOB_PREFIX": "eval_agent-prod:evaluation_job",
+      "FEEDBACK_CALLBACK_URL": "https://api-prod.to-teacher.com/api/v1/exams/callback/feedback",
+      "AZURE_CALLBACK_URL": "https://api-prod.to-teacher.com/api/v1/exams/callback/azure"
+    },
+    "redisConnectionSource": "tosunsaeng-ai:17 REDIS_URL, existing database 1; preserve connection and change all three queue/job names",
+    "workers": "Preserve approved image commands and model settings; start consumers only after new callbacks are reachable"
+  },
+  "challengeAi": {
+    "plannedService": "tosunsaeng-ai-learning-prod-service",
+    "imageSourceTask": "tosunsaeng-ai-learning-test:2",
+    "containers": ["learning-api", "learning-worker"],
+    "environmentForApiAndWorker": {
+      "LEARNING_REDIS_QUEUE": "app-ai-learning-prod:{learning-jobs}:pending",
+      "LEARNING_REDIS_PROCESSING_QUEUE": "app-ai-learning-prod:{learning-jobs}:processing",
+      "LEARNING_REDIS_JOB_PREFIX": "app-ai-learning-prod:{learning-jobs}:job",
+      "LEARNING_AUDIO_BUCKET": "to-teacher-exam",
+      "LEARNING_JOB_KEEP_AUDIO": "0"
+    },
+    "workerEnvironment": {
+      "LEARNING_RESULT_CALLBACK_URL": "https://api-prod.to-teacher.com/internal/v1/challenges/grading/callback"
+    },
+    "redisConnectionSource": "Same verified Redis host/database 2 as existing challenge AI; distinct prod queue and job prefixes on both containers",
+    "credentialBindings": {
+      "LEARNING_CORE_TO_AI_CREDENTIAL": "same production secret reference as LC CHALLENGE_AI_OUTBOUND_CREDENTIAL",
+      "LEARNING_RESULT_CALLBACK_TOKEN": "same production secret reference as LC CHALLENGE_AI_CALLBACK_CREDENTIAL"
+    }
+  },
+  "plannedAlbRouting": [
+    {"host": "identity-prod.to-teacher.com", "target": "new Identity:8081"},
+    {"host": "api-prod.to-teacher.com", "path": "/v1/challenges/evaluations", "target": "new challenge AI learning-api:8000", "order": "before app backend host rule"},
+    {"host": "api-prod.to-teacher.com", "target": "new Learning Core:8080"}
+  ],
+  "beforeRegisterOrStart": [
+    "Resolve production-only secret references and permissions; never clone test credentials/keyrings blindly",
+    "Keep the chosen phone eligibility consumer scope stable; publishing and free-trial issuance remain disabled",
+    "Confirm Firebase/S3/AI-provider permissions and preserve required image entrypoints",
+    "Resolve image digests, ports, health checks, IAM, subnets, security groups, logs and ALB target groups separately",
+    "Review pending events and approve activation effects before enabling launchTargetFlags",
+    "Validate callbacks, shared Mongo grading job retry behavior and accepted cross-address authentication risks",
+    "Do not enable optional Support/learning deletion or notification sending without their separate readiness checks"
+  ]
+}

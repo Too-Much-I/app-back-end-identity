@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "회원 탈퇴 재인증 요청")
+@Schema(description = "회원 탈퇴 인증 요청")
 public record WithdrawRequest(
 		@Schema(
 				description = "현재 사용자가 소유한 Opaque Refresh Token",
@@ -16,14 +16,25 @@ public record WithdrawRequest(
 		String refreshToken,
 
 		@Schema(
-				description = "LOCAL 사용자의 현재 비밀번호. GUEST는 생략합니다.",
+				description = "LOCAL 사용자의 현재 비밀번호. GUEST와 SNS 회원은 생략합니다. firebaseIdToken과 함께 보내지 않습니다.",
 				format = "password",
 				accessMode = Schema.AccessMode.WRITE_ONLY,
 				nullable = true
 		)
 		@Size(max = 64, message = "비밀번호는 64자 이하여야 합니다.")
-		String password
+		String password,
+
+		@Schema(
+				description = "SNS 회원만 보내는 유효한 Firebase ID Token. SNS 인증 또는 동일 계정의 전화 인증 세션을 허용합니다. 전화 인증 세션은 검증된 전화번호와 서버 소유권이 일치하는 단일 연결 SNS가 필요합니다. 기존 세션에서 갱신 가능하며 SNS 재로그인은 요구하지 않습니다. LOCAL/GUEST는 생략합니다.",
+				accessMode = Schema.AccessMode.WRITE_ONLY,
+				nullable = true
+		)
+		@Size(max = 16384, message = "Firebase 인증 정보가 너무 깁니다.")
+		String firebaseIdToken
 ) {
+	public WithdrawRequest(String refreshToken, String password) {
+		this(refreshToken, password, null);
+	}
 
 	@Override
 	public String toString() {

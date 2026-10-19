@@ -27,6 +27,52 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  jwt-rotation:
+    previous-key-ids: ""
+    previous-public-key-locations: ""
+  workload-jwt:
+    enabled: false
+    issuer: ""
+    subject: identity-service
+    ttl: PT2M
+  firebase-auth:
+    enabled: false
+    google-enabled: false
+    apple-enabled: false
+    kakao-enabled: false
+    phone-enabled: false
+  firebase-withdrawal-cleanup:
+    enabled: false
+  firebase-withdrawal-identity-release:
+    enabled: false
+  guest-merge:
+    enabled: false
+  phone-identity:
+    fingerprint:
+      enabled: false
+      key-ring: ""
+  phone-eligibility-binding:
+    enabled: false
+    consumer-scope-id: ""
+    key-ring: ""
+  phone-eligibility-publisher:
+    enabled: false
+    base-url: ""
+  owner-event:
+    user-merged-capture-enabled: false
+    trial-rebind-capture-enabled: false
+    billing-user-merged-publisher-enabled: false
+    learning-core-user-merged-publisher-enabled: false
+    billing-trial-rebind-publisher-enabled: false
+  user-merged-publisher:
+    enabled: false
+    endpoint: ""
+  user-withdrawn-publisher:
+    enabled: false
+    endpoint: ""
+  user-withdrawn-backfill:
+    enabled: false
+    dry-run: true
 
 springdoc:
   swagger-ui:

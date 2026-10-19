@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrLogin", "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken", "Resource": "*"
+    },
+    {
+      "Sid": "PullIdentityImage", "Effect": "Allow",
+      "Action": ["ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage"],
+      "Resource": "arn:aws:ecr:ap-northeast-2:889384901776:repository/tosunsaeng-identity"
+    },
+    {
+      "Sid": "WriteTestLogs", "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:ap-northeast-2:889384901776:log-group:/ecs/tosunsaeng-identity-test:log-stream:*"
+    },
+    {
+      "Sid": "ReadExactTestSecrets", "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": [
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/mongodb-1sFgT4",
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/firebase-SljVoK",
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/jwt-private-key-OfpFd5",
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/jwt-public-key-U633eD",
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/phone-fingerprint-0PUfQU",
+        "arn:aws:secretsmanager:ap-northeast-2:889384901776:secret:tosunsaeng/test/identity/reissue-encryption-keyring-1IER7G"
+      ]
+    }
+  ]
+}

@@ -19,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 
@@ -53,6 +54,10 @@ class UserFactoryTests {
 		User user = createUser();
 
 		assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(user.getAccountType()).isEqualTo(UserAccountType.MEMBER);
+		assertThat(user.isMember()).isTrue();
+		assertThat(user.isGuest()).isFalse();
+		assertThat(user.hasLocalCredential()).isTrue();
 		assertThat(user.getProvider()).isEqualTo(UserProvider.LOCAL);
 	}
 
@@ -61,6 +66,10 @@ class UserFactoryTests {
 		User guest = userFactory.createGuest(GUEST_INSTALLATION_HASH, GUEST_CREATED_AT);
 
 		assertThat(UUID.fromString(guest.getUserId()).toString()).isEqualTo(guest.getUserId());
+		assertThat(guest.getAccountType()).isEqualTo(UserAccountType.GUEST);
+		assertThat(guest.isGuest()).isTrue();
+		assertThat(guest.isMember()).isFalse();
+		assertThat(guest.hasLocalCredential()).isFalse();
 		assertThat(guest.getProvider()).isEqualTo(UserProvider.GUEST);
 		assertThat(guest.getStatus()).isEqualTo(UserStatus.ACTIVE);
 		assertThat(guest.getEmail()).isNull();
@@ -83,6 +92,26 @@ class UserFactoryTests {
 	}
 
 	@Test
+	void createsFederatedMemberWithoutLocalOrGuestCredentials() {
+		User member = userFactory.createFederatedMember(" Firebase 회원 ", GUEST_CREATED_AT);
+
+		assertThat(UUID.fromString(member.getUserId()).toString()).isEqualTo(member.getUserId());
+		assertThat(member.getProvider()).isEqualTo(UserProvider.FEDERATED);
+		assertThat(member.getAccountType()).isEqualTo(UserAccountType.MEMBER);
+		assertThat(member.getStatus()).isEqualTo(UserStatus.ACTIVE);
+		assertThat(member.getNickname()).isEqualTo("Firebase 회원");
+		assertThat(member.hasLocalCredential()).isFalse();
+		assertThat(member.getEmail()).isNull();
+		assertThat(member.getNormalizedEmail()).isNull();
+		assertThat(member.getPasswordHash()).isNull();
+		assertThat(member.getGuestInstallationIdHash()).isNull();
+		assertThat(member.getConsents().getPrivacyConsentVersion())
+				.isEqualTo(PRIVACY_CONSENT_VERSION);
+		assertThat(member.getConsents().getTermConsentVersion())
+				.isEqualTo(TERM_CONSENT_VERSION);
+	}
+
+	@Test
 	void createsGuestWithExplicitQualityReviewConsentUsingServerTime() {
 		User guest = userFactory.createGuest(
 				GUEST_INSTALLATION_HASH,
@@ -90,6 +119,39 @@ class UserFactoryTests {
 				GUEST_CREATED_AT
 		);
 
+		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
+		assertThat(guest.getConsents().getQualityReviewConsentVersion())
+				.isEqualTo(QUALITY_REVIEW_CONSENT_VERSION);
+		assertThat(guest.getConsents().getQualityReviewConsentedAt())
+				.isEqualTo(GUEST_CREATED_AT);
+	}
+
+	@Test
+	void promotesGuestInPlaceAndPreservesCanonicalUuidAndOptionalConsent() {
+		User guest = userFactory.createGuest(
+				GUEST_INSTALLATION_HASH,
+				true,
+				GUEST_CREATED_AT
+		);
+		String canonicalUserId = guest.getUserId();
+		Instant promotedAt = GUEST_CREATED_AT.plusSeconds(600);
+
+		guest.promoteGuestToFederatedMember(
+				"  승격 회원  ",
+				PRIVACY_CONSENT_VERSION,
+				TERM_CONSENT_VERSION,
+				promotedAt
+		);
+
+		assertThat(guest.getUserId()).isEqualTo(canonicalUserId);
+		assertThat(guest.isMember()).isTrue();
+		assertThat(guest.isGuest()).isFalse();
+		assertThat(guest.getProvider()).isEqualTo(UserProvider.FEDERATED);
+		assertThat(guest.getNickname()).isEqualTo("승격 회원");
+		assertThat(guest.getGuestInstallationIdHash()).isNull();
+		assertThat(guest.getUpdatedAt()).isEqualTo(promotedAt);
+		assertThat(guest.getConsents().isPrivacyConsented()).isTrue();
+		assertThat(guest.getConsents().isTermConsented()).isTrue();
 		assertThat(guest.getConsents().isQualityReviewConsented()).isTrue();
 		assertThat(guest.getConsents().getQualityReviewConsentVersion())
 				.isEqualTo(QUALITY_REVIEW_CONSENT_VERSION);
@@ -146,6 +208,8 @@ class UserFactoryTests {
 		);
 		assertThat(firstDocument.getString("guestInstallationIdHash"))
 				.isNotEqualTo(secondDocument.getString("guestInstallationIdHash"));
+		assertThat(firstDocument.getString("accountType")).isEqualTo("GUEST");
+		assertThat(firstDocument.getString("provider")).isEqualTo("GUEST");
 		org.bson.Document storedConsents = firstDocument.get("consents", org.bson.Document.class);
 		assertThat(storedConsents.getBoolean("privacyConsented")).isTrue();
 		assertThat(storedConsents.getString("privacyConsentVersion"))

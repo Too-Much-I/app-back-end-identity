@@ -1,0 +1,273 @@
+package web.tosunsaeng.identity.domain.auth.federation.infrastructure.firebase;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Set;
+
+import com.google.firebase.ErrorCode;
+import com.google.firebase.IncomingHttpResponse;
+import com.google.firebase.auth.AbstractFirebaseAuth;
+import com.google.firebase.auth.AuthErrorCode;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserInfo;
+import com.google.firebase.auth.UserRecord;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import web.tosunsaeng.identity.support.LogCapture;
+
+import web.tosunsaeng.identity.domain.user.application.FirebaseAccountPresence;
+import web.tosunsaeng.identity.domain.user.application.FirebaseCleanupAccountSnapshot;
+import web.tosunsaeng.identity.domain.user.application.FirebaseCleanupProvider;
+import web.tosunsaeng.identity.domain.user.application.FirebaseWithdrawalCleanupException;
+import web.tosunsaeng.identity.domain.user.application.ProviderObligationResult;
+import web.tosunsaeng.identity.domain.user.domain.enums.WithdrawalCleanupFailureCode;
+
+class FirebaseSdkWithdrawalCleanupAdapterTests {
+
+	private static final String PROJECT_ID = "test-project";
+	private static final String FIREBASE_UID = "opaque-uid";
+
+	private AbstractFirebaseAuth firebaseAuth;
+	private FirebaseSdkWithdrawalCleanupAdapter adapter;
+
+	@BeforeEach
+	void setUp() {
+		firebaseAuth = mock(AbstractFirebaseAuth.class);
+		adapter = new FirebaseSdkWithdrawalCleanupAdapter(
+				firebaseAuth,
+				PROJECT_ID,
+				"oidc.kakao"
+		);
+	}
+
+	@Test
+	void inspectReturnsOnlySafeStateAndProviderEnums() throws Exception {
+		UserRecord user = mock(UserRecord.class);
+		UserInfo google = provider("google.com");
+		UserInfo kakao = provider("oidc.kakao");
+		UserInfo apple = provider("apple.com");
+		UserInfo phone = provider("phone");
+		when(user.isDisabled()).thenReturn(true);
+		when(user.getProviderData()).thenReturn(new UserInfo[]{
+				google,
+				kakao,
+				apple,
+				phone
+		});
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenReturn(user);
+
+		FirebaseCleanupAccountSnapshot snapshot = adapter.inspect(PROJECT_ID, FIREBASE_UID);
+
+		assertThat(snapshot.disabled()).isTrue();
+		assertThat(snapshot.providers()).containsExactlyInAnyOrder(
+				FirebaseCleanupProvider.GOOGLE,
+				FirebaseCleanupProvider.KAKAO,
+				FirebaseCleanupProvider.APPLE
+		);
+		assertThat(snapshot.toString()).doesNotContain(PROJECT_ID, FIREBASE_UID);
+	}
+
+	@Test
+	void delegatesDisableRevokeDeleteAndPresenceToSdk() throws Exception {
+		when(firebaseAuth.updateUser(any(UserRecord.UpdateRequest.class)))
+				.thenReturn(mock(UserRecord.class));
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenReturn(mock(UserRecord.class));
+
+		adapter.disable(PROJECT_ID, FIREBASE_UID);
+		adapter.revokeRefreshTokens(PROJECT_ID, FIREBASE_UID);
+		adapter.delete(PROJECT_ID, FIREBASE_UID);
+
+		assertThat(adapter.checkPresence(PROJECT_ID, FIREBASE_UID))
+				.isEqualTo(FirebaseAccountPresence.PRESENT);
+		verify(firebaseAuth).updateUser(any(UserRecord.UpdateRequest.class));
+		verify(firebaseAuth).revokeRefreshTokens(FIREBASE_UID);
+		verify(firebaseAuth).deleteUser(FIREBASE_UID);
+	}
+
+	@Test
+	void projectMismatchBlocksSdkMutation() throws Exception {
+		assertFailure(
+				() -> adapter.delete("wrong-project", FIREBASE_UID),
+				WithdrawalCleanupFailureCode.PROJECT_MISMATCH
+		);
+		verify(firebaseAuth, never()).deleteUser(any());
+	}
+
+	@Test
+	void userNotFoundIsIdempotentForPresenceAndSafelyClassifiedElsewhere() throws Exception {
+		FirebaseAuthException notFound = sdkFailure(
+				ErrorCode.NOT_FOUND,
+				AuthErrorCode.USER_NOT_FOUND,
+				"internal user detail"
+		);
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenThrow(notFound);
+
+		assertThat(adapter.checkPresence(PROJECT_ID, FIREBASE_UID))
+				.isEqualTo(FirebaseAccountPresence.ABSENT);
+		assertFailure(
+				() -> adapter.inspect(PROJECT_ID, FIREBASE_UID),
+				WithdrawalCleanupFailureCode.NOT_FOUND
+		);
+	}
+
+	@Test
+	void mapsRateTimeoutPermissionAndUnknownWithoutOriginalMessage() throws Exception {
+		assertSdkFailure(ErrorCode.RESOURCE_EXHAUSTED, null,
+				WithdrawalCleanupFailureCode.RATE_LIMITED);
+		assertSdkFailure(ErrorCode.DEADLINE_EXCEEDED, null,
+				WithdrawalCleanupFailureCode.TIMEOUT);
+		assertSdkFailure(ErrorCode.PERMISSION_DENIED, null,
+				WithdrawalCleanupFailureCode.PERMISSION_DENIED);
+		assertSdkFailure(ErrorCode.INVALID_ARGUMENT, null,
+				WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+	}
+
+	@Test
+	void appleProviderUsesClientManagedRevocationWithoutAnotherFirebaseCall() {
+		FirebaseCleanupAccountSnapshot snapshot = new FirebaseCleanupAccountSnapshot(
+				false,
+				Set.of(FirebaseCleanupProvider.APPLE)
+		);
+
+		assertThat(adapter.satisfyProviderDeletionObligations(snapshot))
+				.isEqualTo(ProviderObligationResult.CLIENT_MANAGED);
+		org.mockito.Mockito.verifyNoInteractions(firebaseAuth);
+	}
+
+	@Test
+	void runtimeFailureIsRedactedAsUnknownResult() throws Exception {
+		when(firebaseAuth.getUser(FIREBASE_UID))
+				.thenThrow(new IllegalStateException("sensitive internal runtime detail"));
+
+		assertFailure(
+				() -> adapter.inspect(PROJECT_ID, FIREBASE_UID),
+				WithdrawalCleanupFailureCode.RESULT_UNKNOWN
+		);
+	}
+
+	@Test
+	void runtimeDiagnosticsIdentifyEveryStageWithoutLeakingCredentials() throws Exception {
+		String sensitive = "fake-token fake-password " + PROJECT_ID + " " + FIREBASE_UID;
+		IllegalStateException failure = new IllegalStateException(sensitive,
+				new IllegalArgumentException(sensitive));
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenThrow(failure);
+		when(firebaseAuth.updateUser(any(UserRecord.UpdateRequest.class))).thenThrow(failure);
+		doThrow(failure).when(firebaseAuth).revokeRefreshTokens(FIREBASE_UID);
+		doThrow(failure).when(firebaseAuth).deleteUser(FIREBASE_UID);
+
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertFailure(() -> adapter.inspect(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.disable(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.revokeRefreshTokens(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.delete(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertFailure(() -> adapter.checkPresence(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).extracting(event -> LogCapture.value(event, "operation"))
+					.containsExactly("INSPECT", "DISABLE", "REVOKE_REFRESH_TOKENS", "DELETE", "CHECK_PRESENCE");
+			assertThat(capture.events()).allSatisfy(event -> {
+				assertThat(LogCapture.value(event, "event")).isEqualTo("user.withdrawal.firebase_operation_failed");
+				assertThat(LogCapture.value(event, "exceptionType")).isEqualTo(IllegalStateException.class.getName());
+				assertThat(LogCapture.value(event, "causeTypes")).isEqualTo(IllegalArgumentException.class.getName());
+				assertThat(LogCapture.value(event, "firebaseErrorCode")).isEqualTo("NONE");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("fake-token", "fake-password", PROJECT_ID, FIREBASE_UID);
+			});
+		}
+	}
+
+	@Test
+	void sdkDiagnosticsRetainEnumsWithoutAttachingOriginalException() throws Exception {
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertSdkFailure(ErrorCode.INVALID_ARGUMENT, AuthErrorCode.INVALID_ID_TOKEN,
+					WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "firebaseErrorCode")).isEqualTo("INVALID_ARGUMENT");
+				assertThat(LogCapture.value(event, "firebaseAuthErrorCode")).isEqualTo("INVALID_ID_TOKEN");
+				assertThat(LogCapture.value(event, "failureCode")).isEqualTo("RESULT_UNKNOWN");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("sensitive", FIREBASE_UID, PROJECT_ID);
+			});
+		}
+	}
+
+	@Test
+	void httpDiagnosticsLogSafeCodeAndStatusWithoutChangingClassification() throws Exception {
+		IncomingHttpResponse response = mock(IncomingHttpResponse.class);
+		when(response.getStatusCode()).thenReturn(400);
+		when(response.getContent()).thenReturn("{\"error\":{\"message\":"
+				+ "\"INSUFFICIENT_PERMISSION: fake-token private@example.invalid\"}}");
+		FirebaseAuthException failure = new FirebaseAuthException(ErrorCode.INVALID_ARGUMENT,
+				"fake-password", null, response, null);
+		when(firebaseAuth.updateUser(any(UserRecord.UpdateRequest.class))).thenThrow(failure);
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertFailure(() -> adapter.disable(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.RESULT_UNKNOWN);
+			assertThat(capture.events()).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "firebaseHttpStatus")).isEqualTo(400);
+				assertThat(LogCapture.value(event, "firebaseRemoteErrorCode")).isEqualTo("INSUFFICIENT_PERMISSION");
+				assertThat(LogCapture.value(event, "operation")).isEqualTo("DISABLE");
+				assertThat(event.getThrowableProxy()).isNull();
+				assertThat(LogCapture.rendered(event)).doesNotContain("fake-token", "fake-password",
+						"private@example.invalid", PROJECT_ID, FIREBASE_UID);
+			});
+			verify(response, never()).getHeaders();
+			verify(response, never()).getRequest();
+		}
+	}
+
+	@Test
+	void expectedNotFoundDoesNotEmitFailureDiagnostic() throws Exception {
+		when(firebaseAuth.getUser(FIREBASE_UID)).thenThrow(sdkFailure(ErrorCode.NOT_FOUND,
+				AuthErrorCode.USER_NOT_FOUND, "sensitive"));
+		try (LogCapture capture = LogCapture.forClass(FirebaseSdkWithdrawalCleanupAdapter.class)) {
+			assertThat(adapter.checkPresence(PROJECT_ID, FIREBASE_UID)).isEqualTo(FirebaseAccountPresence.ABSENT);
+			assertFailure(() -> adapter.inspect(PROJECT_ID, FIREBASE_UID), WithdrawalCleanupFailureCode.NOT_FOUND);
+			assertThat(capture.events()).isEmpty();
+		}
+	}
+
+	private void assertSdkFailure(
+			ErrorCode errorCode,
+			AuthErrorCode authErrorCode,
+			WithdrawalCleanupFailureCode expected
+	) throws Exception {
+		FirebaseAuthException sdkException = sdkFailure(
+				errorCode,
+				authErrorCode,
+				"sensitive sdk message"
+		);
+		doThrow(sdkException).when(firebaseAuth).deleteUser(FIREBASE_UID);
+		assertFailure(() -> adapter.delete(PROJECT_ID, FIREBASE_UID), expected);
+	}
+
+	private void assertFailure(Runnable operation, WithdrawalCleanupFailureCode expected) {
+		assertThatThrownBy(operation::run)
+				.isInstanceOfSatisfying(
+						FirebaseWithdrawalCleanupException.class,
+						exception -> assertThat(exception.failureCode()).isEqualTo(expected)
+				)
+				.hasMessage("Firebase withdrawal cleanup operation failed.")
+				.hasMessageNotContaining("sensitive")
+				.hasMessageNotContaining(PROJECT_ID)
+				.hasMessageNotContaining(FIREBASE_UID);
+	}
+
+	private FirebaseAuthException sdkFailure(
+			ErrorCode errorCode,
+			AuthErrorCode authErrorCode,
+			String message
+	) {
+		return new FirebaseAuthException(errorCode, message, null, null, authErrorCode);
+	}
+
+	private UserInfo provider(String providerId) {
+		UserInfo provider = mock(UserInfo.class);
+		when(provider.getProviderId()).thenReturn(providerId);
+		return provider;
+	}
+}

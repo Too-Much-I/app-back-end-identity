@@ -24,30 +24,33 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import web.tosunsaeng.identity.domain.auth.application.GuestAuthService;
-import web.tosunsaeng.identity.domain.auth.application.GuestRegistrationTransactionService;
-import web.tosunsaeng.identity.domain.auth.application.LoginService;
-import web.tosunsaeng.identity.domain.auth.application.RefreshSessionIssuer;
-import web.tosunsaeng.identity.domain.auth.application.SignupService;
-import web.tosunsaeng.identity.domain.auth.application.TokenReissueService;
-import web.tosunsaeng.identity.domain.auth.converter.AuthResponseConverter;
+import web.tosunsaeng.identity.domain.auth.registration.application.GuestAuthService;
+import web.tosunsaeng.identity.domain.auth.registration.application.GuestRegistrationTransactionService;
+import web.tosunsaeng.identity.domain.auth.local.application.LoginService;
+import web.tosunsaeng.identity.domain.auth.session.application.RefreshSessionIssuer;
+import web.tosunsaeng.identity.domain.auth.registration.application.SignupService;
+import web.tosunsaeng.identity.domain.auth.session.application.TokenReissueService;
+import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
-import web.tosunsaeng.identity.domain.auth.dto.request.GuestAuthRequest;
-import web.tosunsaeng.identity.domain.auth.dto.request.LoginRequest;
-import web.tosunsaeng.identity.domain.auth.dto.request.ReissueRequest;
-import web.tosunsaeng.identity.domain.auth.dto.request.SignupRequest;
-import web.tosunsaeng.identity.domain.auth.dto.response.GuestAuthResponse;
-import web.tosunsaeng.identity.domain.auth.dto.response.LoginResponse;
-import web.tosunsaeng.identity.domain.auth.dto.response.SignupResponse;
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
+import web.tosunsaeng.identity.domain.auth.registration.dto.request.GuestAuthRequest;
+import web.tosunsaeng.identity.domain.auth.local.dto.request.LoginRequest;
+import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
+import web.tosunsaeng.identity.domain.auth.registration.dto.request.SignupRequest;
+import web.tosunsaeng.identity.domain.auth.registration.dto.response.GuestAuthResponse;
+import web.tosunsaeng.identity.domain.auth.local.dto.response.LoginResponse;
+import web.tosunsaeng.identity.domain.auth.registration.dto.response.SignupResponse;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.ConsentPolicy;
 import web.tosunsaeng.identity.domain.user.domain.EmailNormalizer;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.global.exception.BusinessException;
@@ -123,9 +126,6 @@ class UserWithdrawalLifecycleTests {
 						refreshSessionIssuer,
 						responseConverter
 				);
-		var recoveryService = mock(web.tosunsaeng.identity.domain.auth.application.GuestRecoveryTransactionService.class);
-		when(recoveryService.recover(org.mockito.ArgumentMatchers.anyString())).thenThrow(
-				new web.tosunsaeng.identity.domain.auth.exception.AuthException(AuthErrorStatus.GUEST_ALREADY_EXISTS));
 		guestAuthService = new GuestAuthService(
 				userRepository,
 				userFactory,
@@ -134,13 +134,21 @@ class UserWithdrawalLifecycleTests {
 				accessTokenIssuer,
 				refreshSessionIssuer,
 				guestTransactionService,
-				recoveryService,
+				new web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService(
+						mock(org.springframework.data.mongodb.core.MongoTemplate.class), accessTokenIssuer,
+						refreshSessionIssuer, responseConverter, false),
 				clock
 		);
 
 		currentUserProvider = mock(CurrentUserProvider.class);
 		UserWithdrawalTransactionService withdrawalTransactionService =
-				new UserWithdrawalTransactionService(userRepository, sessionRepository);
+				new UserWithdrawalTransactionService(
+						userRepository,
+						sessionRepository,
+						mock(PhoneEligibilityBindingRevisionRepository.class),
+						mock(PhoneEligibilityBindingOutboxRepository.class),
+						mock(UserWithdrawnOutboxRepository.class)
+				);
 		withdrawalService = new UserWithdrawalService(
 				currentUserProvider,
 				userRepository,
@@ -212,7 +220,7 @@ class UserWithdrawalLifecycleTests {
 				BusinessException.class,
 				() -> reissueService.reissue(new ReissueRequest(firstAuth.refreshToken()))
 		);
-		assertThat(reissueFailure.getErrorCode()).isEqualTo(AuthErrorStatus.INVALID_REFRESH_TOKEN);
+		assertThat(reissueFailure.getErrorCode()).isEqualTo(AuthErrorStatus.ACCOUNT_WITHDRAWN);
 
 		guestAuthService.authenticate(request);
 		BusinessException duplicate = catchThrowableOfType(
@@ -341,7 +349,7 @@ class UserWithdrawalLifecycleTests {
 					() -> reissueService.reissue(new ReissueRequest(refreshToken))
 			);
 			assertThat(exception.getErrorCode()).isEqualTo(
-					AuthErrorStatus.INVALID_REFRESH_TOKEN
+					AuthErrorStatus.ACCOUNT_WITHDRAWN
 			);
 		});
 	}
@@ -419,7 +427,7 @@ class UserWithdrawalLifecycleTests {
 	private AccessTokenIssuer accessTokenIssuer() {
 		AccessTokenIssuer issuer = mock(AccessTokenIssuer.class);
 		AtomicInteger sequence = new AtomicInteger();
-		when(issuer.issue(any(), eq(Set.of()))).thenAnswer(invocation -> new IssuedAccessToken(
+		when(issuer.issue(any(), any(), eq(Set.of()))).thenAnswer(invocation -> new IssuedAccessToken(
 				"guest-lifecycle-access-value-" + sequence.incrementAndGet(),
 				IssuedAccessToken.BEARER_TOKEN_TYPE,
 				NOW,

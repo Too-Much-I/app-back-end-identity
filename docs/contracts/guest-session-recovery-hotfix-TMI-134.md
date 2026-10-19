@@ -1,5 +1,11 @@
 # TMI-134 — 기존 Guest 세션 긴급 복구
 
+> 이 문서는 당시 main 전용 핫픽스의 배포 기록이다. 2026-10-12 통합 준비에서는
+> develop의 `auth/registration/application/GuestRecoveryTransactionService`를 유지했다.
+> 현재 구현은 아래 원래 조건에 accountType(Guest 또는 legacy null), 미병합 조건과
+> 세션 epoch 보호를 추가한다. 아래의 main 전용 구성·이전 이미지 롤백 절차를
+> 최신 SNS/세션/구매 준비 코드의 운영 배포 지침으로 그대로 적용하지 않는다.
+
 ## 5줄 결론
 
 1. main 3894627 기반이며 SNS develop 기능은 포함하지 않는다.

@@ -29,6 +29,7 @@ import org.springframework.http.MediaType;
 import web.tosunsaeng.identity.global.exception.GlobalExceptionHandler;
 import web.tosunsaeng.identity.domain.user.application.UserConsentService;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.dto.request.UserConsentUpdateRequest;
 import web.tosunsaeng.identity.domain.user.dto.response.ConsentPolicyStatusResponse;
@@ -40,8 +41,8 @@ import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.application.UserProfileService;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.domain.user.exception.UserException;
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
-import web.tosunsaeng.identity.domain.auth.exception.AuthException;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 
 @WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -69,6 +70,7 @@ class UserControllerTests {
 				USER_ID,
 				"user@example.com",
 				"토스마스터",
+				UserAccountType.MEMBER,
 				UserProvider.LOCAL,
 				true,
 				"privacy-v1",
@@ -86,6 +88,7 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.result.userId").value(USER_ID))
 				.andExpect(jsonPath("$.result.email").value("user@example.com"))
 				.andExpect(jsonPath("$.result.nickname").value("토스마스터"))
+				.andExpect(jsonPath("$.result.accountType").value("MEMBER"))
 				.andExpect(jsonPath("$.result.provider").value("LOCAL"))
 				.andExpect(jsonPath("$.result.privacyConsented").value(true))
 				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
@@ -254,6 +257,7 @@ class UserControllerTests {
 						.content("{\"refreshToken\":\"invalid-test-value\"}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.code").value("INVALID_WITHDRAWAL_CREDENTIALS"))
+				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.result").value(nullValue()))
 				.andReturn();
 		assertThat(credentialFailure.getResponse().getContentAsString())
@@ -267,6 +271,7 @@ class UserControllerTests {
 						.content("{\"refreshToken\":\"valid-shape-test-value\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("WITHDRAWAL_PASSWORD_REQUIRED"))
+				.andExpect(jsonPath("$.isSuccess").value(false))
 				.andExpect(jsonPath("$.result").value(nullValue()));
 	}
 
@@ -276,6 +281,7 @@ class UserControllerTests {
 				USER_ID,
 				null,
 				"게스트",
+				UserAccountType.GUEST,
 				UserProvider.GUEST,
 				true,
 				"privacy-v1",
@@ -292,6 +298,7 @@ class UserControllerTests {
 				.andExpect(jsonPath("$.result.userId").value(USER_ID))
 				.andExpect(jsonPath("$.result.email").value(nullValue()))
 				.andExpect(jsonPath("$.result.nickname").value("게스트"))
+				.andExpect(jsonPath("$.result.accountType").value("GUEST"))
 				.andExpect(jsonPath("$.result.provider").value("GUEST"))
 				.andExpect(jsonPath("$.result.privacyConsented").value(true))
 				.andExpect(jsonPath("$.result.termConsented").value(true))

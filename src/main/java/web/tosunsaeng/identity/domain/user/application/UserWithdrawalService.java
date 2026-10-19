@@ -1,20 +1,26 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import web.tosunsaeng.identity.domain.auth.session.application.SessionSecurityService;
+
 import java.time.Clock;
 import java.time.Instant;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.lang.Nullable;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
-import web.tosunsaeng.identity.domain.auth.exception.AuthException;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.domain.entity.FirebaseIdentity;
+import web.tosunsaeng.identity.domain.auth.federation.repository.FirebaseIdentityRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawalLifecycleRepository;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
-import web.tosunsaeng.identity.domain.user.domain.enums.UserProvider;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
 import web.tosunsaeng.identity.domain.user.dto.request.WithdrawRequest;
@@ -25,8 +31,13 @@ import web.tosunsaeng.identity.global.security.currentuser.CurrentUserProvider;
 import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
 
 @Service
-@RequiredArgsConstructor
 public class UserWithdrawalService {
+	private boolean captureEnabled;
+	@Autowired(required = false)
+	public void setCapture(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService capture) { captureEnabled = true; }
+	private SessionSecurityService sessionSecurity;
+	@Autowired(required = false)
+	public void setSessionSecurity(SessionSecurityService security) { sessionSecurity = security; }
 
 	private static final int MAX_WITHDRAWAL_ATTEMPTS = 2;
 	private static final Logger log = LoggerFactory.getLogger(UserWithdrawalService.class);
@@ -38,28 +49,74 @@ public class UserWithdrawalService {
 	private final PasswordEncoder passwordEncoder;
 	private final UserWithdrawalTransactionService transactionService;
 	private final Clock clock;
+	private final FirebaseIdentityRepository firebaseIdentityRepository;
+	private final FirebaseWithdrawalCredentialVerifier firebaseWithdrawalCredentialVerifier;
+	private final UserWithdrawalLifecycleRepository lifecycleRepository;
+
+	@Autowired
+	public UserWithdrawalService(
+			CurrentUserProvider currentUserProvider,
+			UserRepository userRepository,
+			RefreshSessionRepository refreshSessionRepository,
+			RefreshTokenHasher refreshTokenHasher,
+			PasswordEncoder passwordEncoder,
+			UserWithdrawalTransactionService transactionService,
+			Clock clock,
+			@Nullable FirebaseIdentityRepository firebaseIdentityRepository,
+			FirebaseWithdrawalCredentialVerifier firebaseWithdrawalCredentialVerifier,
+			@Nullable UserWithdrawalLifecycleRepository lifecycleRepository
+	) {
+		this.currentUserProvider = currentUserProvider;
+		this.userRepository = userRepository;
+		this.refreshSessionRepository = refreshSessionRepository;
+		this.refreshTokenHasher = refreshTokenHasher;
+		this.passwordEncoder = passwordEncoder;
+		this.transactionService = transactionService;
+		this.clock = clock;
+		this.firebaseIdentityRepository = firebaseIdentityRepository;
+		this.firebaseWithdrawalCredentialVerifier = firebaseWithdrawalCredentialVerifier;
+		this.lifecycleRepository = lifecycleRepository;
+	}
+
+	public UserWithdrawalService(
+			CurrentUserProvider currentUserProvider,
+			UserRepository userRepository,
+			RefreshSessionRepository refreshSessionRepository,
+			RefreshTokenHasher refreshTokenHasher,
+			PasswordEncoder passwordEncoder,
+			UserWithdrawalTransactionService transactionService,
+			Clock clock
+	) {
+		this(currentUserProvider, userRepository, refreshSessionRepository, refreshTokenHasher,
+				passwordEncoder, transactionService, clock, null, null, null);
+	}
 
 	public WithdrawResponse withdraw(WithdrawRequest request) {
 		String userId = currentUserProvider.getCurrentUserId();
 		User user = findUser(userId);
 		if (user.getStatus() == UserStatus.WITHDRAWN) {
-			WithdrawResponse response = WithdrawResponse.from(user);
+			WithdrawResponse response = existingLifecycleResponse(user);
 			logWithdrawalCompleted(user, response, "already_withdrawn", 0, 0);
 			return response;
 		}
 
 		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
-		for (int attempt = 1; attempt <= MAX_WITHDRAWAL_ATTEMPTS; attempt++) {
-			Instant withdrawnAt = clock.instant();
+		String eventId = java.util.UUID.randomUUID().toString();
+		int maxAttempts = captureEnabled ? 3 : MAX_WITHDRAWAL_ATTEMPTS;
+		long attemptBudgetStart = System.nanoTime();
+		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+			Instant withdrawnAt = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
 			validateCredentialSession(tokenHash, userId, withdrawnAt);
-			validateProviderCredential(user, request.password());
+			FirebaseWithdrawalTarget firebaseTarget = validateProviderCredential(user, request);
 
 			try {
-				WithdrawalTransactionResult result = transactionService.withdraw(
-						user,
-						tokenHash,
-						withdrawnAt
-				);
+				WithdrawalTransactionResult result = captureEnabled
+						? transactionService.withdrawWithEvent(user, tokenHash, withdrawnAt, firebaseTarget, eventId)
+						: lifecycleRepository == null
+						? transactionService.withdraw(user, tokenHash, withdrawnAt)
+						: transactionService.withdraw(
+								user, tokenHash, withdrawnAt, firebaseTarget
+						);
 				logWithdrawalCompleted(
 						user,
 						result.response(),
@@ -68,14 +125,24 @@ public class UserWithdrawalService {
 						attempt
 				);
 				return result.response();
+			} catch (DuplicateKeyException exception) {
+				return resolveConcurrentCompletion(userId, user, attempt);
+			} catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException exception) {
+				// Unknown commit is not rollback. Never issue a second event on this path.
+				if (captureEnabled && attempt < maxAttempts && transientOnly(exception)
+						&& System.nanoTime() - attemptBudgetStart < java.time.Duration.ofSeconds(30).toNanos()) {
+					user = findUser(userId);
+					continue;
+				}
+				throw new UserException(UserErrorStatus.WITHDRAWAL_CAPTURE_UNAVAILABLE);
 			} catch (UserException exception) {
 				if (exception.getErrorCode() != UserErrorStatus.WITHDRAWAL_CONFLICT) {
 					throw exception;
 				}
 				User latestUser = findUser(userId);
 				if (latestUser.getStatus() == UserStatus.WITHDRAWN) {
+					WithdrawResponse response = existingLifecycleResponse(latestUser);
 					logWithdrawalConflict(userId, "concurrent_completion_detected", attempt);
-					WithdrawResponse response = WithdrawResponse.from(latestUser);
 					logWithdrawalCompleted(
 							latestUser,
 							response,
@@ -85,7 +152,7 @@ public class UserWithdrawalService {
 					);
 					return response;
 				}
-				if (attempt == MAX_WITHDRAWAL_ATTEMPTS) {
+				if (attempt == maxAttempts) {
 					logWithdrawalConflict(userId, "rejected", attempt);
 					throw exception;
 				}
@@ -94,6 +161,32 @@ public class UserWithdrawalService {
 			}
 		}
 		throw new IllegalStateException("Withdrawal attempt limit must be positive.");
+	}
+
+	private WithdrawResponse resolveConcurrentCompletion(
+			String userId,
+			User originalUser,
+			int attempt
+	) {
+		User latestUser = findUser(userId);
+		if (latestUser.getStatus() != UserStatus.WITHDRAWN) {
+			throw new UserException(UserErrorStatus.WITHDRAWAL_CONFLICT);
+		}
+		WithdrawResponse response = existingLifecycleResponse(latestUser);
+		logWithdrawalConflict(userId, "concurrent_lifecycle_completion", attempt);
+		logWithdrawalCompleted(originalUser, response, "concurrent_idempotent", 0, attempt);
+		return response;
+	}
+
+	private static boolean transientOnly(Throwable failure) {
+		boolean transientError = false;
+		for (int depth = 0; failure != null && depth < 12; depth++, failure = failure.getCause()) {
+			if (failure instanceof com.mongodb.MongoException mongo) {
+				if (mongo.hasErrorLabel(com.mongodb.MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)) return false;
+				transientError |= mongo.hasErrorLabel(com.mongodb.MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL);
+			}
+		}
+		return transientError;
 	}
 
 	private void logWithdrawalCompleted(
@@ -106,9 +199,7 @@ public class UserWithdrawalService {
 		log.atInfo()
 				.addKeyValue("event", "user.withdrawal.completed")
 				.addKeyValue("outcome", outcome)
-				.addKeyValue("userId", user.getUserId())
-				.addKeyValue("provider", user.getProvider())
-				.addKeyValue("withdrawnAt", response.withdrawnAt())
+				.addKeyValue("accountType", user.getAccountType())
 				.addKeyValue("revokedSessionCount", revokedSessionCount)
 				.addKeyValue("attempt", attempt)
 				.log("회원 탈퇴 처리가 완료되었습니다");
@@ -118,7 +209,6 @@ public class UserWithdrawalService {
 		log.atWarn()
 				.addKeyValue("event", "user.withdrawal.conflict")
 				.addKeyValue("outcome", outcome)
-				.addKeyValue("userId", userId)
 				.addKeyValue("attempt", attempt)
 				.addKeyValue("errorCode", UserErrorStatus.WITHDRAWAL_CONFLICT.getCode())
 				.log("회원 탈퇴 처리 중 충돌이 발생했습니다");
@@ -141,22 +231,66 @@ public class UserWithdrawalService {
 				|| session.isExpiredAt(currentTime)) {
 			throw invalidCredentials();
 		}
+		if (sessionSecurity != null) sessionSecurity.transaction(() -> { sessionSecurity.checkAndTouch(session, false); return null; });
 	}
 
-	private void validateProviderCredential(User user, String password) {
-		if (user.getProvider() == UserProvider.GUEST) {
-			return;
+	private FirebaseWithdrawalTarget validateProviderCredential(
+			User user,
+			WithdrawRequest request
+	) {
+		boolean hasPassword = request.password() != null && !request.password().isBlank();
+		boolean hasFirebaseProof = request.firebaseIdToken() != null
+				&& !request.firebaseIdToken().isBlank();
+		if (user.isGuest()) {
+			if (hasPassword || hasFirebaseProof) {
+				throw new AuthException(AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH);
+			}
+			return null;
 		}
-		if (user.getProvider() != UserProvider.LOCAL) {
+		FirebaseIdentity firebaseIdentity = firebaseIdentityRepository == null
+				? null
+				: firebaseIdentityRepository.findByUserId(user.getUserId()).orElse(null);
+		boolean hasLocalCredential = user.hasLocalCredential();
+		if (firebaseIdentityRepository == null && !hasLocalCredential) {
 			throw invalidCredentials();
 		}
-		if (password == null || password.isBlank()) {
+		if (!user.isMember() || (firebaseIdentity != null && hasLocalCredential)
+				|| (firebaseIdentity == null && !hasLocalCredential)) {
+			throw new AuthException(AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH);
+		}
+		if (firebaseIdentity != null) {
+			if (hasPassword) {
+				throw new AuthException(AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH);
+			}
+			if (!hasFirebaseProof) {
+				throw new AuthException(AuthErrorStatus.WITHDRAWAL_FIREBASE_PROOF_REQUIRED);
+			}
+			return firebaseWithdrawalCredentialVerifier.verify(
+					user.getUserId(), firebaseIdentity, request.firebaseIdToken()
+			);
+		}
+		if (hasFirebaseProof) {
+			throw new AuthException(AuthErrorStatus.WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH);
+		}
+		if (!hasPassword) {
 			throw new UserException(UserErrorStatus.WITHDRAWAL_PASSWORD_REQUIRED);
 		}
 		if (user.getPasswordHash() == null
-				|| !passwordEncoder.matches(password, user.getPasswordHash())) {
+				|| !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 			throw invalidCredentials();
 		}
+		return null;
+	}
+
+	private WithdrawResponse existingLifecycleResponse(User user) {
+		if (lifecycleRepository == null) {
+			return WithdrawResponse.from(user);
+		}
+		return lifecycleRepository.findByUserId(user.getUserId())
+				.map(lifecycle -> WithdrawResponse.from(user, lifecycle.getStatus()))
+				.orElseThrow(() -> new UserException(
+						UserErrorStatus.WITHDRAWAL_LIFECYCLE_CONFLICT
+				));
 	}
 
 	private AuthException invalidCredentials() {

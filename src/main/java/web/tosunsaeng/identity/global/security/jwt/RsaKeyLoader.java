@@ -38,6 +38,10 @@ public class RsaKeyLoader {
 		return new RsaKeyMaterial(privateKey, publicKey);
 	}
 
+	public RSAPublicKey loadPublicKey(String publicKeyLocation) {
+		return loadPublicKey(resourceLoader.getResource(publicKeyLocation));
+	}
+
 	RSAPrivateKey loadPrivateKey(Resource resource) {
 		byte[] encoded = null;
 		try {

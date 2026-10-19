@@ -1,5 +1,4235 @@
 # Codex Current State
 
+<!-- codex-turn:01a15253-8e72-7aa2-8ea9-c066666565f0 -->
+
+- 2026-10-19: 사용자 한정 예외 승인으로 TMI-205 운영 Actions/phone-only5분 후보 커밋. main 이력과 통합하되 양쪽 과거 기록 보존. 전체2173개/실패0/skip34. 실제 배포는 아직 미실행, PR/main 반영 후 검증 예정. 기존 env/secrets/capture 보호 유지.
+
+## 2026-10-13 — TMI-203 테스트 환경 조회와 배포 구분
+
+<!-- codex-turn:01a1339c-b25e-7cd2-8975-f524e4fd9abf -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음 단계로 제안한 것은 기존 테스트 서버의 버전·설정 읽기 확인이며 즉시 배포가 아님을 설명했다. 변경 코드의 실제 서버 연동 검증에는 해당 코드 배포가 필요하지만 커밋/push는 사용자 수행, 배포·설정 변경은 별도 승인 범위다.
+- 실제 테스트 서버 조회·배포·기능 활성화는 이번에 수행하지 않았다. 설명·기록만 갱신.
+
+## 2026-10-13 — TMI-203 구매 준비 연결 후 다음 작업
+
+<!-- codex-turn:01a1339b-b52c-7311-a661-50f077a61ae7 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음 권장 작업은 테스트 환경의 배포 버전·양방향 workload JWT/ALB TLS·capture/source/control 준비 상태를 읽기 확인하고 Billing 공동 연동을 준비하는 것이다. 탈퇴 push와 snapshot/feed 복구, 인증 오류·중복·응답 유실·source 교체 차단을 검증한다.
+- 로컬 구매 준비 연결 완료와 전체 프로젝트/실환경 검증 완료를 구분한다. 환경 설정 변경·이관·활성화·외부 메시지는 이번 안내로 실행하지 않는다. 기록만 갱신, Gradle 미실행.
+
+## 2026-10-13 — TMI-203 원천과 DB 구분 안내
+
+<!-- codex-turn:01a1339a-467f-7942-a4c8-640f454002ad -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 원천은 DB 자체가 아니라 DB에 저장된 탈퇴 기록 스트림이며 streamId는 그 기록 흐름의 식별자라고 설명했다. 일반 재시작·개별 탈퇴마다 교체하지 않고 복원 시 새 스트림 설치는 명시 운영 절차다.
+- 설명·기록만 수행. 코드/설정/Jira/배포 변경 없음, Gradle 미실행.
+
+## 2026-10-13 — TMI-203 구매 source 설정 의미 설명
+
+<!-- codex-turn:01a13399-15a7-7e03-b2d7-4bccb56dd7a7 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- AUTH_PURCHASE_SOURCE_STREAM_ID는 사용자/상품 ID가 아니라 구매 활성화 대상으로 지정한 탈퇴 기록 스트림 ID임을 설명했다. 정상 재시작·개별 탈퇴마다 변경하지 않으며 복원으로 source를 교체할 때 자동 구매 재개를 막는 보조 장치다.
+- 일치는 필요조건이지 운영 검증 완료 증거가 아니다. 동일 ID 복원 탐지/기존 토큰 즉시 무효화를 보장하지 않는다. 코드·설정 변경 없이 설명/기록만 수행.
+
+## 2026-10-13 — TMI-203 구매 준비 source binding 연결 완료(로컬)
+
+<!-- codex-turn:01a13393-8622-7853-9aa0-bc912fc39560 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-200·202.
+- [구현 결과](../contracts/TMI-203-purchase-readiness-implementation.md): SourceBoundPurchaseReadiness와 AUTH_PURCHASE_SOURCE_STREAM_ID(기본 빈값) 추가. 검증된 단일 ACTIVE source를 같은 조회 결과로 비교, 누락/불일치/중복/DB오류 fail-closed. scope OFF purchase replay 보호 유지.
+- RuntimeEvidence/PurchaseActivationEvidence 제거. 이관·구writer drain·시간 동기화·판매 준비는 일반 배포/복원 체크리스트 책임으로 유지한다. 사용자별 control/fence/TTL/unknown commit runtime은 변경하지 않았다.
+- 로컬 Mongo 포함 clean test: 2137개/통과2131/실패0/오류0/skip6(support). 임시 합성 DB/이번 컨테이너 정리, diff검사 통과. 기존 AppVersionController 등 dirty 보존.
+- 실제 운영 이관/설정/구매 ON/Jira 쓰기/배포 없음. 다음은 Billing 공동 연동 및 운영 환경 확인이다. 동일source 복원·진행 발급과 관리자source교체의 원자 차단을 binding만으로 보장하지 않으며 복원 격리가 필요하다.
+
+## 2026-10-13 — TMI-203 다음 작업 안내
+
+<!-- codex-turn:01a1338d-29c1-7233-bd2b-8d44c26f89d3 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 발신 시간 증명 제거는 로컬 완료. 다음 개발 권장 순서는 구매 준비 조건 분리 설계의 범위 확정 후 구현이다. 이관·구writer·시간 동기화는 운영 확인으로 남기고 DB/config·개별 사용자 발급 보호를 유지하는 후보이며 아직 구현 승인으로 간주하지 않는다.
+- 이후 실제 Mongo 및 HTTP/TLS·Billing 공동 연동 검증, 환경 설정 확인 후 별도 활성화. 이번은 상태/설계 문서 확인과 안내만 수행, 코드/Jira/배포 변경·Gradle 재실행 없음.
+
+## 2026-10-13 — TMI-203 탈퇴 발신 시간 증명 제거 완료(로컬)
+
+<!-- codex-turn:01a13388-ab7f-7963-9d81-af53edda3348 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-202·204.
+- [구현 결과](../contracts/TMI-203-publisher-clock-simplification-implementation.md): 발신 구성/publisher/retry의 RuntimeEvidence·clockTrusted 요구 제거. 구매 증명 사용처는 유지, 상수 true adapter 없음.
+- 별도 증명 없는 ON, JWT 설정 오류, exact204/401/403/Retry-After/응답 유실·lease 및 legacy BLOCKED_CLOCK 선택 재개 회귀. clean test 2125개 중 2096통과/실패0/오류0/skip29(Mongo23/support6), diff검사 통과.
+- 기존 blocked 자료 자동 재개 없음. wire/schema/hash/index/보존·LC/user 인증 불변. 배포 전 시간 동기화/ALB TLS/키/공동 연동 확인 필요. 구매 준비 설계는 별도 미구현. Jira 쓰기/commit/push/배포 없음.
+- 최종 검사에서 AppVersionController.java의 별도 병행 변경을 발견했다. 이번 편집 대상이 아니므로 보존했으며 해당 변경까지 테스트됐다고 주장하지 않는다.
+
+## 2026-10-13 — TMI-203 추가 사용자 조치와 남은 구현 구분
+
+<!-- codex-turn:01a13387-f1a8-7dc0-93a5-866664210493 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 이번 시간 운영 전제 합의에 사용자 추가 결정·설정은 당장 필요 없지만, Identity 발신의 별도 시간 증명 의존성 제거와 회귀 테스트는 남아 있다고 안내했다. 구현 완료 또는 배포 승인으로 해석하지 않는다.
+- 구매 활성화 보호와 기존 BLOCKED_CLOCK 호환·선택 재개는 유지한다. 코드/Jira/배포 변경 없음. 안내·기록만 수행하여 Gradle 미실행, git diff --check로 문서 형식 확인.
+
+## 2026-10-13 — TMI-203 발신 시간 운영 전제 Billing 수락 회신
+
+<!-- codex-turn:01a13384-c718-7351-8967-51c50732a949 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-202·204.
+- 사용자 전달 Billing 회신은 인계의 좁은 시간증명 제거 범위와 일치한다. Billing의 해당의존성 부재/공동계약개정/1039테스트통과는 상대보고이며 독립실행하지 않았다.
+- Identity발신코드에는 아직 clockTrusted/RuntimeEvidence 요구가 있음을 정적 재확인. 다음은 발신만 제거·Retry-After 인자 정합화·legacy BLOCKED_CLOCK 호환 유지·변경후회귀다. 구매 보호/설계는 별도이며 push/pull 재시도정책을 합치지 않는다.
+- 인계문서에 수신상태 추가, 코드/Jira/배포/데이터변경 없음. Gradle미실행·diff검사.
+
+## 2026-10-13 — TMI-203 구매 준비 조건 분리 설계
+
+<!-- codex-turn:01a13372-9ff2-7053-9f86-96680a4ad8ca -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-200·202.
+- [분리·연결 설계안](../contracts/TMI-203-purchase-readiness-separation-plan.md) 작성. DB/config·사용자별fence는 자동검사, 전체이관/구writer/시간/판매준비는 운영절차로 구분하는 권장안이다.
+- 별도 승인저장소 대신 활성화대상source 설정1개를 제안한다(미구현 후보). source교체를 자동승인하지 않으며 설정이 운영증명을 대신한다는 주장은 하지 않는다.
+- 구매 준비보호의 책임변경은 TMI-200 기존계약과 정합화 후 구현해야 한다. 이번 코드/Jira/환경변경 없음, Gradle 미실행·diff검사. 기존증명 제거·실제구매ON은 미수행.
+
+## 2026-10-13 — TMI-203 구매 활성화 조건 조사
+
+<!-- codex-turn:01a1336c-2436-7ff1-9b8a-e505eac9d121 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-200·202.
+- [구매 활성화 조사](../contracts/TMI-203-purchase-activation-review-2026-10-13.md): control/fence/session/scope·TTL최대30분·ACTIVE MEMBER/control일치 구현 확인. RuntimeEvidence/PurchaseActivationEvidence production 제공자는 미발견, 기본경로는scope ON시기동차단.
+- CaptureReadiness는 구매에 자동연결되지 않음. 실제 ECS/DB/이관/운영값 미조회. 구매권한 발급과 실제판매 구분 유지.
+- 대상 기존회귀38개 통과/실패0/skip0. 전체/실DB 테스트 아님. 코드/설정/Jira/배포 변경 없음. 다음은 준비조건의 DB검사/운영전제 분리 설계.
+
+## 2026-10-13 — TMI-203 Billing 인계 외 후속 작업
+
+<!-- codex-turn:01a1336a-aea2-7e00-a73f-2651bffb0225 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 우선 독립 작업은 구매 활성화 조건 조사다. 실제 withdrawalPurchaseReadiness는 RuntimeEvidence와 PurchaseActivationEvidence 및 ACTIVE source를 요구하므로 공급자/조건별 필요성과 미연결을 확인해야 한다. 구매를 켜거나 보호를 제거하는 요청으로 해석하지 않는다.
+- 이후 전체 HTTP/TLS 기동·기존 검증에서 빠진 장애/경합·실행계획·외부 경보/운영 체크리스트 준비. Billing 공동검증/판매활성화와 독립 가능한 범위를 구분한다.
+- 이번 상태 안내만 수행, 코드/Jira/배포 변경·Gradle 재실행 없음.
+
+## 2026-10-13 — TMI-203 Billing 발신 시간 단순화 인계
+
+<!-- codex-turn:01a13367-d37b-7043-b239-0014c31c16fd -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-202·Billing204.
+- 사용자 방향 수락 및 인계서 작성 요청으로 [Billing 인계서](../contracts/TMI-203-204-publisher-clock-simplification-Billing-handoff-2026-10-13.md) 작성. 발신 clock attestation 요구는 인프라 운영 전제로 바꾸되 JWT/Retry-After/lease/구매 보호 유지하는 공동 정합화 요청이다.
+- 현행 발신 코드는 아직 변경 전. 기존 BLOCKED_CLOCK 자료 호환/명시 재개 필요, 전역reset 금지. Billing 수락·배포/활성화 완료 아님.
+- 문서/기록만 변경, Gradle 미실행·diff 검사. 외부 발송/Jira/코드/배포 변경 없음.
+
+## 2026-10-13 — TMI-203 발신 시간 증명 의미 설명
+
+<!-- codex-turn:01a13366-b50b-7232-9e38-b5d57beea829 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 발신 RuntimeEvidence bean 부재는 ON 기동 실패, clockTrusted=false는 청구된 작업의 BLOCKED_CLOCK 및 HTTP 미전송이다. 실제 시간 오차 탐지와 증명 제공자 부재를 구분했다.
+- 발신도 인프라 시간 전제로 단순화하는 방향을 권장하되 아직 변경 승인/구현 아님. JWT시간검증·Retry-After·구매보호는 별도 유지 대상.
+- 설명/기록만 수정, Gradle 재실행·코드/Jira/배포 변경 없음.
+
+## 2026-10-13 — TMI-203 다음 확인 범위 구분
+
+<!-- codex-turn:01a13365-2a31-7433-a844-b8503710dbed -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 구매 활성화 조건 확인은 다음 독립 조사로 진행 가능하다. 실제 구매 활성화 승인은 아니며 발신 시간 정책의 미결정/production 변경 미완료도 그대로 유지한다.
+- 이번은 순서 안내만 수행. 코드/정책/Jira/배포 변경 및 테스트 재실행 없음.
+
+## 2026-10-13 — TMI-203 Billing 발신 구성 회귀·정책 경계
+
+<!-- codex-turn:01a13361-8d5b-7a52-a8e9-c659e773f662 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 연계 TMI-202도 공식 조회.
+- 신규 발신구성4테스트 추가. OFF/no dependencies, ON clock근거없음 차단, JWT정상 기동 및 구매/capture승인 독립, 잘못된origin/audience 차단 확인.
+- 전체 clean test2120/통과2091/실패0/오류0/skip29(Mongo23/support6). 이번 실제Mongo/외부HTTP 실행 없음.
+- 기존202의 CLOCK_UNTRUSTED/Retry-After 정책과 정리 최소안 범위 차이 확인. production 의존성 제거는 미완료이며 발신도 인프라시간 전제로 바꿀지 사용자 결정 필요. true 우회·구매보호 제거 없음.
+- [검증·결정 사항](../contracts/TMI-203-publisher-configuration-check.md). 기존dirty보존, 예상밖변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 로컬 readiness 이후 다음 작업
+
+<!-- codex-turn:01a13360-aa9a-73c0-8b65-4d598abeb0cc -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음은 Billing 탈퇴 발신과 구매 활성화에 남은 RuntimeEvidence/PurchaseActivationEvidence 의존성을 분리 점검하는 것이다. 발신 설정·기동 연결부터 진행하고 구매 보호는 무조건 허용으로 바꾸지 않는다.
+- 이후 실제 HTTP/TLS·JWT 양방향 연동과 탈퇴push→feed/snapshot 복구 검증, 운영 경보/복원 점검 및 별도 승인 활성화. 기존 capture/recovery/정리 단순화 작업은 반복하지 않는다.
+- 이번은 상태 안내·기록만 변경. 코드/Jira/배포 변경 및 Gradle 재실행 없음.
+
+## 2026-10-13 — TMI-203 로컬 준비 조건 분리·결합 기동 검증
+
+<!-- codex-turn:01a13317-7c63-74a1-8c46-a2291dad356f -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 재조회 후 후속 구현.
+- CaptureReadiness로 capture/snapshot/feed의 외부RuntimeEvidence 의존성을 DB/config 검사로 분리했다. 단일ACTIVE/cutover/순번/환경 검사, 기동index검사 유지. 구매 증명은 없으면false, publisher 기존RuntimeEvidence는 유지했다.
+- capture/recovery/source jobs 결합 context 테스트 성공(외부/index Mock), 실제Mongo source폐쇄/교체 검증. 전체 clean test2116/통과2110/실패0/오류0/support skip6, 실제Mongo23개 포함. 임시컨테이너 정리 및 diff검사 완료.
+- [파일·범위·남은 경계](../contracts/TMI-203-local-readiness-implementation.md). 전체application HTTP/TLS/운영기동 완료가 아니며 publisher/구매 운영연결·Billing공동검증·실경보 미완료. 외부API/보존/인증 불변, 배포/활성화 없음.
+- 기존dirty보존, 이번범위 외 예상밖변경 없음. Jira쓰기/commit/push 없음.
+
+## 2026-10-13 — TMI-203 최소 정리 구현 이후 다음 작업
+
+<!-- codex-turn:01a13315-ae3b-7e32-b871-3c5e9c8387ee -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음 우선순위는 capture·snapshot/feed·구매의 공용 준비 조건 소비처를 구분하고 실제 전체 구성의 ON/OFF 기동 검증으로 남은 연결 공백을 구체화하는 것이다. 별도 승인/운영증명 시스템을 다시 추가하는 작업으로 확대하지 않는다.
+- 이후 Billing 공동 연동·운영 설정/경보 확인·별도 승인 활성화. 이번은 상태 안내이며 코드/Jira/배포 변경 없음, Gradle 재실행 없음.
+
+## 2026-10-13 — TMI-203 최소 정리 구성 구현
+
+<!-- codex-turn:01a13310-bc05-7ee3-8547-a0fb20a3994e -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 재조회 후 사용자 요청 범위 구현.
+- 정리 jobs의 Approval 및 RuntimeEvidence 주입 제거, 로컬 config/scope/보존 검사로 연결. index/migration preflight·lease/CAS/원자성/참조 보호 불변. 기본OFF 유지.
+- capture·snapshot/feed·구매의 공용 runtime 의존성은 변경하지 않았다. 전체 application 운영 연결 완료가 아니라 정리 전용 구성 단순화 완료다.
+- 기본 clean test 및 실제 로컬 Mongo 포함 clean test 성공: 전체2110/통과2104/실패0/오류0/skip6(support). 임시 DB/컨테이너 정리 완료. diff 검사 통과.
+- [변경 파일·보장 차이·잔여 작업](../contracts/TMI-203-minimal-cleanup-implementation.md). 기존 dirty 보존·이번 범위 외 예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 최소 정리안 Jira 반영 완료
+
+<!-- codex-turn:01a1330e-0a91-7122-9cdf-f871e8351a80 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자 미리보기 승인으로 TMI-203 설명의 정리 범위 교체·완료기준8 추가·운영 최소화 절 추가 완료. 공식 MCP 재조회에서 설명 일치·제목/상태 불변 확인. 댓글 없음.
+- 계획/수정안 문서에 원격 반영 상태 갱신. 코드/배포/활성화 변경 없음. Gradle 미실행, git diff --check 확인.
+- 다음: 최소안 코드 정합화·공용 readiness 소비처 구분 및 회귀. 실제 시간동기화/복원 운영전제·공동검증 미완료.
+
+## 2026-10-13 — TMI-203 최소 정리 계획 개정·Jira 수정안
+
+<!-- codex-turn:01a13307-05c4-7b73-9636-779beb2130c4 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 현행 계획 §5.6.1/§5.8 및 요약을 사용자 수락 최소안으로 개정했다. 승인/갱신/외부증명 시스템 제외, DB 불변식/보존/lease/원자성/참조 보호 유지. 시간/구writer는 인프라·운영 전제로 명시했다.
+- TMI-203 공식 조회 완료. [Jira 설명 수정안](../contracts/TMI-203-minimal-cleanup-Jira-update-draft.md)에 범위 항목 교체·완료 기준8 추가·운영 최소화 절 추가를 제시했다. 미리보기 승인 대기, 원격 수정/댓글/상태 변경 없음.
+- 코드 변경·테스트 재실행 없음. 문서 diff 검사. 공용 RuntimeEvidence 소비처 분리/정합화는 후속 구현이며 배포/활성화하지 않았다.
+
+## 2026-10-13 — TMI-203 최소 정리안 사용자 수락
+
+<!-- codex-turn:01a13306-0d79-7382-9e63-764ebb44845c -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자가 최소 정리 방향을 수락했다. 120일·유효lease·원자적 삭제/가용성 기록·충돌 rollback·참조 보호 유지, 별도 승인/갱신/운영증명 시스템 제외. 시간 동기화와 구writer 종료는 인프라/배포·복원 운영 책임으로 둔다.
+- 코드 변경·배포·활성화 승인으로 확대하지 않았다. 기존 runtime 연결 공백은 그대로이며 후속 구현 시 capture/복구의 공용 readiness 영향을 분리해야 한다. 계획/공동계약/Jira 정합화 미수행.
+- 기록만 수정, Gradle 미실행. 실제 운영 시간 신뢰/복원 검증 완료를 의미하지 않는다.
+
+## 2026-10-13 — TMI-203 최소 정리 구조 단순화 방향
+
+<!-- codex-turn:01a13304-6907-73a0-95d9-94f71eb29ff1 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자 추가 단순화 요청: 별도 승인 저장소·갱신·외부 운영증명 공급 체계를 기본 요구로 삼지 않는 최소안을 제시한다. 보존기간/유효lease/source CAS/삭제증거 원자성/참조 검사는 유지한다.
+- 시간은 인프라 동기화 전제와 운영 장애 대응으로 맡기는 대안이며 앱의 절대시각 오류 자동 차단 보장이 줄어든다. 실제 환경 지원은 미확인. 정상 시간/모든writer 종료를 자동 증명한다고 주장하지 않는다.
+- production/계약/Jira 변경 없음. 공용 RuntimeEvidence는 capture/복구에도 영향이 있어 정리 단순화를 이유로 일괄 삭제하지 않는다. 구현 전 영향 구분·계약 정합화 필요.
+
+## 2026-10-13 — TMI-203 운영 승인 구조 필요성 재평가
+
+<!-- codex-turn:01a13301-aaa1-7932-8377-48c42f4b93f4 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 별도 만료/철회 승인 저장소는 미확정 제안이며 필수 계약으로 취급하지 않는다. 최초 활성화·관련 배포 완료 후·복원 시 체크리스트와 정리OFF 통제로 대체 가능한 운영 설계를 우선 권장한다.
+- 배포 전 확인만으로 충분하지 않다. 구task/진행writer 종료는 배포 후 확인하고, 실행 중 보존/lease/CAS/원자성 및 시간 신뢰 보호는 유지해야 한다. 이를 bool 상시true로 우회하지 않는다.
+- 이번은 설명/분석만, 코드/계약/배포 변경 없음. 기존 Approval/RuntimeEvidence 연결 공백이 이번 설명으로 해소된 것은 아니다.
+
+## 2026-10-13 — TMI-203 운영 확인 체크리스트 설명
+
+<!-- codex-turn:01a132fe-a590-75e1-ae22-20455f0f8b9d -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 시간은 신뢰 시간원 동기화·오차·관측 신선도를 수집해야 하며 수동 날짜 확인은 불충분하다. ECS에서는 구 task 종료 및 별도 writer/진행 작업·DB 복원 경계를 확인한다. ALB 제외만으로 writer 종료를 증명하지 않는다.
+- capture의 ACTIVE stream 갱신과30초 시간 검사 코드를 확인했다. afterCommit 검사가 실패해도 이미 commit된 사실을 취소하지 못하며 이 검사만으로 시계 신뢰/모든 구writer 종료를 증명하지 않는다.
+- 기록만 변경, 테스트 재실행/외부 운영 조회/코드/배포 변경 없음.
+
+## 2026-10-13 — TMI-203 정리 안전 조건 설명
+
+<!-- codex-turn:01a132fc-256f-76b3-9f9b-4173f3704fea -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 안전은 Billing 전체 수신 완료가 아니라 보존기간·유효lease·source경계·원자적 가용성 증거를 유지하는 정리를 의미한다. consumer ACK는 삭제 전제 아님; 만료 원본의 무한 복구를 보장하지 않는다.
+- 코드 조건과 운영 미구현 근거(clock/capture/old-writer 종료)를 구분해 안내. 기록2파일 외 변경 없음, Gradle 미실행.
+
+## 2026-10-13 — TMI-203 운영 근거 선택지 비교
+
+<!-- codex-turn:01a132f8-67b6-7aa3-80b3-4846bc482ac6 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 수동 점검 후 제한 실행, 배포/복원 확인+런타임 자동 검사 혼합, 완전 자동 증거 수집을 비교했다. 초기 규모에서는 혼합 방식을 권장하되 사용자 결정 전 구현하지 않는다.
+- 정리OFF는 임시 보류일 뿐 보존기간 무기한 연장 승인이 아니다. cleanup 승인과 공용 RuntimeEvidence를 구분해야 하며 정리 승인 만료를 정상 사용자 로그인/구매 전체 중단과 자동 결합하지 않는다.
+- 코드/정책/배포/Jira 변경 없음. 문서 기록만 수정, Gradle 미실행.
+
+## 2026-10-13 — TMI-203 운영 근거 연결 선행 선택
+
+<!-- codex-turn:01a132f2-de13-7212-b54b-9f22fc7bdb64 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 운영 증거 연결 요청으로 해석해 production의 RuntimeEvidence/Approval 사용처와 배포 관련 경로를 검색했다. 실제 증거 제공자를 확인하지 못했다.
+- 권장 검토안: 배포 확인 결과는 환경/stream에 묶인 만료·철회 가능한 운영 승인 기록으로 관리하고, 시계는 별도 최근 관측 근거로 확인한다. 승인 기록 자체가 writer 종료나 시계 정상의 증명은 아니며 수집/검증 절차가 필요하다. 신규 운영 구조는 아직 채택·구현하지 않았다.
+- 단순 true 우회 금지·정리OFF 유지. 코드/외부계약/배포 변경 없음. 기록만 수정, Gradle 미실행.
+
+## 2026-10-13 — TMI-203 구현 완료 여부 재확인
+
+<!-- codex-turn:01a132f1-8a05-7710-b3ae-1ebea635f5b0 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 핵심 recovery/JWT/정리 알고리즘은 로컬 구현됐지만 운영 Approval/RuntimeEvidence 제공자 구현·연결은 미완료다. 배포만 남았다고 보고하지 않는다.
+- 실제 경보/설정·Billing 공동 연동/복원 검증 후 별도 활성화가 필요하다. 직전2102통과/6skip 결과 유지, 이번은 상태 확인으로 테스트 재실행 없음.
+- 이번 변경은 기록2파일만, 코드/외부계약/배포/Jira 변경 없음.
+
+## 2026-10-13 — TMI-203 원천 정리 실제 로컬 Mongo 회귀
+
+<!-- codex-turn:01a132ec-216c-79c1-b950-9617ee9b22ec -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 조회 후 신규4개 실DB 회귀 추가, 기존18개 replica-set 테스트도 실행했다.
+- 전체2108/통과2102/실패0/오류0/support skip6. 최초 신규 fixture 초기 version 불일치2건 수정 뒤 clean test 재실행 성공. 임시 로컬 Mongo만 사용·정리했다.
+- 운영 Approval/RuntimeEvidence 제공자는 없어 실제 연결 미완료. 무조건 허용 구현을 넣지 않았고 기본OFF 유지. 증거 원천/신선도/철회/복원 경계 결정이 필요하다.
+- [검증 범위와 필요한 운영 입력](../contracts/TMI-203-source-maintenance-local-verification.md). unknown commit 주입·delivery claim 경합·query plan·실제 복원/Billing 공동 검증은 남아 있다.
+- 이번 변경: 테스트1파일·검증문서·기록2파일. production/API/보존/인증 변경 없음, 기존 dirty 보존·예상 밖 변경 없음. Jira쓰기/commit/push/배포 없음.
+
+## 2026-10-13 — TMI-203 다음 작업 안내
+
+<!-- codex-turn:01a132e9-5423-7ee0-b208-e5333170962f -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음 우선순위는 실제 운영 Approval/runtime evidence 연결과 로컬 Mongo replica-set 정리 안전성 검증이다. 단순 ON 전환 또는 배포만 남은 상태가 아니다.
+- 이후 Billing 공동 JWT/복구 검증, 실제 구설정 사용처 확인·키/ALB/TLS/경보 준비, staging 검증 뒤 별도 승인으로 활성화한다.
+- 이번 상태 안내는 기록 두 파일만 변경했다. Gradle 재실행 없음; 직전 결과 2080통과/24skip/실패0. 코드·외부 계약·Jira·배포 변경 없음.
+
+## 2026-10-13 — TMI-203 원천 정리 스케줄·폐기 metadata 구현
+
+<!-- codex-turn:01a132e1-7bb6-78c3-ad33-25c7c2642a84 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 재조회 후 사용자 요청 범위로 로컬 구현했다.
+- source expiry20건/5초·stream1개/5초 순회와 기존 range sweep, closedAt+120일 폐기 metadata 정리100range/transaction 연결. 실제 DB 삭제/배포 없음. 기본 source-jobs-enabled=false.
+- Approval 명시 구현·cleanup/capture/clock 증명 및 index/migration 검증 없으면 ON 기동/실행 차단. 권한의 실제 운영 증명 구현은 제공되지 않았으며 후속 배포 연결 필요. snapshot 참조/남은journal/대체ACTIVE 부재/보존기간 미경과 시 삭제하지 않는다.
+- 원본 cleanup 및 metadata transaction에 SNAPSHOT/MAJORITY/primary·30초 상한 적용. 신규15테스트 포함 전체2104/통과2080/skip24/실패0/오류0. 기존body fixture8개hash일치. 실제 replica-set opt-in은 이번 미실행.
+- [변경 파일·알고리즘·설정·한계](../contracts/TMI-203-source-maintenance-implementation.md). 다음은 운영 Approval/clock·writer bounds 연결, 실제 Mongo 경합·query plan, 외부 경보/키·ALB/TLS/Billing 복원 검증. 전체 운영 준비 완료로 보지 않는다.
+- 기존 dirty 보존, 예상 밖 변경 없음. 코드외 실제 데이터/인프라/Jira쓰기/commit/push/배포 변경 없음.
+
+## 2026-10-13 — TMI-203 완료 범위 확인
+
+<!-- codex-turn:01a132e0-76eb-7912-821b-1c8ee7b7f94b -->
+
+- 현재 Jira: TMI-203. SigV4 제거/JWT 단일화 로컬 구현과 회귀는 완료했지만 TMI-203 전체 완료는 아니다.
+- 남은 구현·운영 연결: source cleanup/sweep 스케줄·권한 연결, 폐기 source metadata 정리. 실제 경보 수신, 배포 설정/키/ALB·TLS, Billing 공동 연동·복원 검증도 남아 있다.
+- 이번에는 상태 기록/문서만 확인했다. 코드/배포/Jira 변경 및 테스트 재실행 없음. 직전 전체 테스트는2065통과/24skip/실패0이다.
+
+## 2026-10-13 — TMI-203 SigV4 제거·JWT 단일화 구현
+
+<!-- codex-turn:01a132da-0258-7e63-bbfd-96c4040a8a8b -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 사용자 후속 수정 요청에 따라 로컬 구현, 공식 Jira 재조회. 원격 설명/상태/댓글 변경 없음.
+- SigV4 transport/전용 credential bean/선택 분기·region 요구 및 AWS SDK 명시3의존성 제거. 공통 결과/예외/Retry-After를 BillingJsonTransport로 분리했다. 기존 publisher ON/OFF로 JWT factory를 생성하며 활성 목적 audience만 요구한다.
+- 구 JWT 선택 플래그와3개region 설정은 빈 값/false 포함 잔존 시 기동 오류. main/test YAML 기본 선언 제거. 모든 Billing 발신 OFF면 signing key·client 없이 기동, LC-only도 영향 없음. 기존 source capture/미처리 기록 불변.
+- 최종 `env -u SENTRY_AUTH_TOKEN ./gradlew clean test`: 총2089/통과2065/skip24/실패0/오류0. 기존 recovery-r1/scalar-end-1 body8개hash 일치, source의 AWS SDK/SigV4 구현 참조 없음. git diff --check 확인.
+- [삭제 파일·설정 이행·위험·테스트](../contracts/TMI-203-SigV4-removal-implementation-2026-10-13.md). SigV4 클래스/테스트는 Git 이력으로 복구 가능. 기존 dirty 보존, 예상 밖 변경 없음.
+- 배포 전 필수: 실제 구인증 활성 사용처 확인, 제거된4설정 삭제, 필요한 JWT/환경/ALB/TLS 준비, Billing 공동검증. source sweep/cleanup·폐기metadata·실경보/복원 등 기존 미완료 범위는 별도다. 배포/인프라/키/commit/push 변경 없음.
+
+## 2026-10-13 — TMI-203 Billing SigV4 제거 회신 검토
+
+<!-- codex-turn:01a132d8-79b6-7293-8f88-51096e379aa0 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 사용자 제공 Billing 회신을 검토했다. Identity–Billing JWT 단일화·LC 인증 유지·구설정 잔존 오류·기능 OFF 차단 방향은 인계와 일치한다.
+- Billing의 guard/SDK 사용처/실배포 상태는 상대 보고이며 독립 검증하지 않았다. Identity RecoveryHttpConfiguration은 OFF에도 복구 prefix를 denyAll로 예약하는 것을 정적 확인했다. Billing receiver OFF 차단 보완을 Identity의 동일 결함으로 단정하지 않는다.
+- Identity 후속 구현 기준: 공통 transport 결과/예외 분리, SigV4/전용 credential·불필요 의존성 제거, 구 인증 선택 설정 명시 거절, 활성 publisher 기준 JWT 설정 요구. 기존 application.yml 기본 선택 선언부터 제거해 자체 기본값이 잔존 설정으로 오탐되지 않도록 한다.
+- 신규 fixture16종은 원문 JSON 숫자 token을 보존해 Billing 실제 verifier로 검증해야 한다. 읽기/비교만으로 공동 수락 완료를 주장하지 않는다.
+- 이번 코드/계약/배포/Jira 변경 없음. 코드 정적 확인·기록/diff 검사, Gradle 미실행. 다음: 별도 구현 요청에 따라 제거 및 회귀, 실배포 사용처·전환 확인 후 활성화.
+
+## 2026-10-13 — TMI-203 SigV4 제거 Billing 인계서 작성
+
+<!-- codex-turn:01a132d5-0c3f-7013-982b-94d958fdf569 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- [Billing 인계서](../contracts/TMI-203-204-SigV4-removal-Billing-handoff-2026-10-13.md) 작성. JWT 단일화·공통 타입 분리·인증 선택 플래그 제거와 publisher ON/OFF 보존, 양측 실제 사용처·안전한 전환 순서·회신 항목을 정리했다.
+- 코드 삭제/배포/외부 전송/Jira 변경 없음. 기존 body·재시도·복구·LC/userJWT 계약 유지. 이전 테스트 결과와 이번 문서 정적 검사를 구분했다.
+- 다음: Billing 회신 및 활성 사용처 확인, 제거 구현과 회귀 검증. 실제 환경/키/ALB·TLS 및 공동 검증은 여전히 필요하다.
+
+## 2026-10-13 — TMI-203 SigV4 제거 방향 검토
+
+<!-- codex-turn:01a132d2-fddb-7471-85e1-9382a456f84d -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 사용자 의견에 대해 코드 참조를 조사했다. 이번에는 삭제 구현하지 않았다.
+- Identity–Billing을 JWT 단일 방식으로 정리하는 방향을 권장한다. 현재 JWT OFF는 발송 OFF가 아니라 기존 SigV4 선택이므로 방식 선택 플래그와 publisher 활성 플래그를 구분해야 한다.
+- 제거 시 SigV4 transport/AWS credential bean/관련 명시 의존성·region 요구를 정리하고, JWT에서도 사용하는 결과·예외·Retry-After를 공통 transport로 이동한다. publisher OFF는 키 없이 기동, ON은 JWT 설정 누락 시 기동 실패로 설계한다.
+- 실제 활성 SigV4 sender/Billing receiver·배포 설정은 미확인. 제거 코드 배포 전 사용 여부와 전환 순서 확인 필요. 기존 본문/재시도·LC/userJWT 유지. 코드/배포/Jira 변경 없음, 정적 검색 및 diff 검사만 수행.
+
+## 2026-10-12 — TMI-203 ALB workload JWT 수신·발신 로컬 구현
+
+<!-- codex-turn:01a12f5b-79b8-7c72-933c-ffd2654f4848 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery. 사용자가 Billing 규격 수락을 전달하고 구현을 요청했다. 공식 Jira 재조회, 원격 쓰기는 하지 않았다.
+- 복구 JWT 검증/401·403 구분, 실제 connector 포트 격리·별도 HTTPS connector, Billing 이벤트4종의 전용 JWT 발신 및 명시적 OFF 설정을 구현했다. IAM payload 검증 인터페이스는 JWT caller 검증으로 변경하고 본문 서명 보장을 주장하지 않는다.
+- 기존 SigV4 구현/기본 선택, publisher 활성 플래그·본문·traceparent·exact204/재시도·user/LC 계약 유지. JWT 실행 실패의 자동 fallback 없음. 키·환경 문자열·포트는 배포 입력이며 미주입 상태에서는 ON 기동 실패.
+- 최종 `env -u SENTRY_AUTH_TOKEN ./gradlew clean test`: 총2073개, 2049통과/24 opt-in skip/실패·오류0. 신규41개. 실제 Atlas/OAuth/AWS/Billing 호출 없음. 기존 recovery-r1/scalar-end-1 manifest8개 hash 일치, git diff --check 확인.
+- [변경 파일·설정표·배포 gate](../contracts/TMI-203-workload-jwt-implementation.md). 신규 workload-jwt-r1 합성 fixture16종의 Billing 동기화/실행은 별도 확인 필요.
+- 남은 작업: 실제 환경/issuer/audience·ALB/SG/포트/TLS/health check·전용 키 구성, 정상/긴급 키 교체·양방향 인증/응답유실/복원 공동검증 후 승인 활성화. source cleanup/sweep 운영 연결/폐기metadata/실경보 등 기존 별도 미완료 항목 유지.
+- 기존 dirty 보존, 이번 예상 밖 변경 없음. Jira 상태/댓글 변경·commit/push·배포·AWS 설정·실제 키 생성/주입 없음. Jira 댓글 초안은 구현 문서에만 작성했다.
+
+## 2026-10-12 — TMI-203 인증 exact 후속 수정안
+
+<!-- codex-turn:01a12f57-8b2f-7250-8188-6f8aae0cd530 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자 후속 수정 요청으로 공식 Jira를 다시 읽고 [인증 exact 후보](../contracts/TMI-203-204-workload-jwt-exact-candidate.md)를 작성해 계획에 연결했다. 시간 경계·키·헤더·route·오류 우선순위·테스트를 구체화했다.
+- 공동 규격 수락 후 코드 전환이라는 Jira 순서를 유지한다. 실제 환경/issuer/audience/port/TLS와 상대 수락은 미완료이며 임의 확정하지 않았다.
+- 문서/기록만 변경, 링크 및 diff 정적 검사. Gradle 미실행(코드 변경 없음). Jira 조회만 수행, 상태/댓글/외부설정 변경 없음. 기존 dirty 및 body fixture/hash 보존.
+- 다음: Billing 기술 검토와 환경/네트워크 확인 후 인증 규격 동결, receiver/sender OFF 구현. 이번 수정은 인증 구현 완료가 아니다.
+
+## 2026-10-12 — TMI-203 Jira 설명 반영 완료
+
+<!-- codex-turn:01a12f52-b062-7d33-ac92-7d57c7747400 -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 제시한수정안에대한사용자의후속승인으로공식MCP에서최신본문재조회후설명만갱신했다.
+- ALB/전용JWT·connector/publicJWK방향,4이벤트/복구API영향,미확정환경·포트·TLS gate와인증회귀완료조건반영. 재조회결과마크다운표기차이정규화후승인안일치.
+- 제목/상태(해야 할 일)유지. 댓글/담당자/상위이슈/다른이슈변경없음. 계획/수정안문서의승인대기표기를최신화했다. 코드/배포/AWS변경없음. 다음: 인증exact공동확정후OFF구현.
+
+## 2026-10-12 — TMI-203 ALB/JWT 계획 개정·Jira 승인 대기
+
+<!-- codex-turn:01a12f4e-ce5b-72e3-a49d-fea11326f71f -->
+
+- 사용자 요청으로 현행 계획 §5.2.1에 ALB/전용connector·chain/배포형public JWK 방향과 양방향4이벤트·4복구route 영향을 반영했다. 환경/port/TLS/시간·오류exact는 공동확정사항이다.
+- 공식TMI-203을조회했고 [Jira 설명 수정안](../contracts/TMI-203-ALB-JWT-Jira-update-draft.md)을작성했다. 저장소규칙에따라표시한변경안승인후원격반영예정. 제목/상태/댓글/다른이슈변경없음.
+- 코드/공유fixture/hash/AWS/배포변경없음. 문서정적/diff검사,Gradle미실행. 다음: Jira수정안승인후최신본문재조회·설명만갱신,인증exact공동확정.
+
+## 2026-10-12 — Billing JWT 회신 검토
+
+<!-- codex-turn:01a12f47-00b8-7751-8080-c8576c589e4f -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. [검토 문서](../contracts/TMI-203-ALB-JWT-Billing-response-review-2026-10-12.md) 작성.
+- ALB/전용connector·chain/배포형public JWK초기안은타당. 누락trial/events를Identity코드에서확인. 실제test/staging신뢰환경매핑,Identity포트격리범위,body서명없는Bearer보장수락과시간/오류exact보완필요.
+- Billing permitAll/848개결과는상대보고,운영설정미검증. 현재Identity포트격리/JWT검증전환은미구현. 문서검토를exact동결/구현승인으로취급하지않음.
+- 문서3파일만변경. 정적링크/diff검사,Gradle미실행. 코드/AWS/Jira/공유fixture/hash/배포변경없음. 다음은공동규격보완후범위한정계약개정.
+
+## 2026-10-12 — Billing ALB·workload JWT 전환 인계
+
+<!-- codex-turn:01a12f3f-127a-7d92-aabc-b6f465566dff -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 사용자가 기존ALB+서버전용JWT 방향을 채택하고 Billing 인계서 작성을 요청했다.
+- [신규 인계서](../contracts/TMI-203-204-ALB-workload-JWT-handoff-2026-10-12.md): 승인방향/미확정issuer·audience·TTL·키운영/양방향영향/보존되는데이터계약/회신·테스트·활성화순서를분리했다. TTL60초/skew30초 등은공동검토제안이며확정아님.
+- Bearer JWT는SigV4요청본문서명과동일하지않음을명시. 실제Billing배포·origin미확인,publicALB/directtask접근제한검토필요. 실제인증코드/기존공유fixture/hash변경없음.
+- 이번문서3파일만변경. 코드정적근거·링크/diff검사,Gradle미실행. Jira쓰기·외부전송·AWS설정·배포·commit/push없음. 다음은Billing회신후인증exact공동개정.
+
+## ALB 재사용 대안 검토
+
+<!-- codex-turn:01a12f3c-1075-73a0-987a-e78f3cdcad29 -->
+
+- 기존 ALB 재사용은 가능하다. ALB 라우팅과 서버 인증은 별개이며 일반 ALB가 Lattice SigV4 검증을 대신하지 않는다. 기존 LC 전용 workload JWT 패턴을 Billing 양방향에 별도 설계하는 대안을 권장하되 아직 계약 변경/구현 승인은 아니다.
+- 현재 WorkloadIdentityPurpose는 LC 탈퇴/병합 audience만 제공한다. Billing 대상과 Billing→Identity 복구 호출의 발급 주체·키·검증·환경/route 권한을 별도 합의해야 한다. 기존 LC 토큰/사용자 JWT를 그대로 허용하지 않는다.
+
+## 2026-10-12 — 기존 Identity Lattice 연결 실설정 확인
+
+<!-- codex-turn:01a12f39-e357-7fe1-9a1f-433e1ee16470 -->
+
+- 서울 ECS tosunsaeng-staging-cluster의 identity-test-service(revision42)와 identity-service(revision23) 구성/네트워킹 화면을 읽기 전용 확인했다. 두 서비스 모두 VPC Lattice 미구성, tosunsaeng-staging-alb(Application Load Balancer) 연결을 명시한다.
+- 확인된 현재 Identity ECS 수신 구성은 ALB 기반이며 ECS Lattice 연결은 없다. 계정 전체 Lattice 부재/과거 사용 이력/별도 수동 경로/다른 서비스의 사용 여부까지 증명한 것은 아니다. ListServices SCP 거부는 계속 별도 제약이다.
+- 기존 Billing 서명 코드 존재와 default OFF 설정은 정적 사실이며 실제 활성화 증거가 아니다. 이번 코드/설정/배포 변경 없음.
+
+## Lattice 사용 이력 설명
+
+<!-- codex-turn:01a12f38-ca07-78d1-bb52-64b101ea5ef0 -->
+
+- 기존 Billing 전송 코드의 signing name은 `vpc-lattice-svcs`다. 이는 Lattice 대상 서명 구현의 근거일 뿐 배포·실제 사용의 증거는 아니다. 기존 로그인/LC가 Lattice를 사용했다고 확인한 바 없으며, AWS 구성은 SCP 조회 거부로 미확인이다.
+
+## 2026-10-12 — 다음 진행 안내
+
+<!-- codex-turn:01a12f36-7198-76a3-afa4-f80c15324171 -->
+
+- TMI-203: 조직 관리자/계정 제공 담당자에게 서울 리전 Lattice 조회 SCP 거부와 서비스 사용 가능 여부를 확인하는 것이 다음 외부 선행 작업이다. 개별 IAM Allow만 추가하거나 루트로 우회하는 방안은 권장하지 않는다.
+- 허용 가능하면 최소 조회/필요 서비스 권한과 기존 구성 확인 후 승인된 변경을 진행한다. 허용 불가이면 조직이 허용하는 서비스 간 인증 대안을 Billing과 합의한 후 계약/구현을 변경한다. 현재 복구 기능은 OFF 유지.
+- 이번에는 안내 및 기록만 변경했다. AWS 재조회·코드 구현·Gradle 실행·배포 없음.
+
+## 2026-10-12 — TMI-203 runtime·snapshot jobs 및 AWS 조회
+
+<!-- codex-turn:01a12f30-932b-7be1-a23d-4042b14d5ff2 -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 범위 재조회.
+- 전용 cursor key 파싱·capture/clock·index/이관 preflight를 runtime에 연결. snapshot 생성/만료 정리 전용2thread scheduler와실패/적체메트릭추가. 모두기본OFF,source journal삭제권한/스케줄은별개.
+- 최종전체2032개/2008통과/24opt-in skip/실패오류0. 신규12개. 실제Mongo/AWS인증연동검증아님.
+- 사용자요청AWS읽기조회: 로컬CLI자격증명없음. 기존Chrome AWS서울콘솔의Lattice ListServices가조직SCP explicit deny. 구성유무미확인이며조직관리자확인필요;정책우회/변경없음.
+- [상세결과·설정·한계](../contracts/TMI-203-runtime-jobs-and-ingress-check.md). 남음: 실제ingress검증기,source cleanup/sweep운영연결·폐기metadata정리,실제경보수신,Billing공동복원/운영검증. 전체완료/배포아님.
+- 기존계약/fixture/hash/dirty보존·예상밖변경없음. 외부쓰기/Secret주입/Jira변경/commit/push없음.
+
+## 완료 여부 확인 — TMI-203
+
+<!-- codex-turn:01a12f2f-2a5a-7e60-81f6-a5a465deb6fd -->
+
+- 구현 전체 완료 아님. 핵심 저장/조회/HTTP adapter는 구현됐지만 실제 IAM 검증기, runtime Mongo/key/index 연결, 자동 실행 스케줄·보존 적체 경보는 코드·구성 작업이 남아 있다. 단순 배포만 남은 상태가 아니다.
+- 이번 상태 확인은 최신 기록 정적 확인이며 테스트 재실행·제품 코드·외부 상태 변경 없음. 이후 Billing 공동 연동/복원 검증을 거쳐 활성화 여부를 판단한다.
+
+## 2026-10-12 — TMI-203 strict HTTP·인증 경계 구현
+
+<!-- codex-turn:01a12f28-5625-72f1-a145-db4af345e22e -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 범위·완료조건 재조회.
+- RecoveryHttpFilter/Configuration/IngressVerifier 및 테스트 추가. 기존 네POST 경로를 service에 연결,항상별도보안chain으로사용자JWT격리,기본OFF403. http-enabled=true는명시검증기·서비스bean없으면기동실패.
+- strict raw16KiB/header/UTF8/JSON/응답상한,no-store,인증/서명검증후서비스호출. 실제IAM검증기는미구현이고인터페이스·테스트mock만존재. 운영활성화하지않음.
+- 최신 env -u SENTRY_AUTH_TOKEN ./gradlew clean test: 전체2020개/1996통과/24opt-in skip/실패오류0. 신규20개통과. 이번로컬Mongo18개및기존support6개는환경플래그OFF로skip,이전실Mongo결과를이번결과로재사용하지않음.
+- [변경 파일·결과·한계](../contracts/TMI-203-http-ingress-implementation.md). 남음: 실제신뢰ingress/IAM·runtime Mongo/key/index wiring,스케줄/보존경보,Billing공동복원. 전체203완료아님.
+- 기존external exact/fixture/hash/LC/JWT/202push/보존불변. 기존dirty보존·예상밖변경없음. 운영DB/IAM변경·배포/Jira쓰기/commit/push없음.
+
+## 2026-10-12 — TMI-203 source sweep·index preflight
+
+<!-- codex-turn:01a12f1b-1e2f-7672-8393-98632307c25f -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 공식 Jira 완료 조건 조회 후 후속 구현.
+- MongoSourceSweep의 최대99+carry 정리, version/진행/증거 transaction, missing carry 안전 리셋, known-abort만 재시도. RecoveryIndexes의 수락16개+정상_id_·명시이관 검증 구현. 자동 DDL/bean/스케줄 없음.
+- 최신 전체2000개/1994통과/기존6skip/실패오류0. 신규14개(단위12+실로컬Mongo2). 이전 snapshot/Mongo 회귀도 재실행. 임시합성DB/이번컨테이너 정리.
+- [상세 결과 및 변경 파일](../contracts/TMI-203-source-sweep-implementation.md). 다음: strict HTTP/실제IAM·신뢰ingress, runtime wiring/스케줄·보존적체경보,공동복원검증. 전체203 완료 아님.
+- 외부exact/fixture/hash/JWT/LC/202push/보존 불변. 기존dirty보존·예상밖변경없음. Jira쓰기/commit/push/운영DDL/배포 없음.
+
+## 2026-10-12 — TMI-203 snapshot durable lifecycle·빌더·정리 구현
+
+<!-- codex-turn:01a12f08-b6de-7c22-a137-4ab03fda2d4d -->
+
+- 현재 턴 식별자를 WORKLOG 끝에도 보완했다. 식별자 보완 시 제품 코드 변경이나 테스트 결과 변경은 없다.
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 구현 전 공식 Jira 설명/완료 조건 조회.
+- 신규 MongoSnapshotStore/SnapshotBuilder/RecoverySnapshotService 및 테스트3개. 기존 MongoRecoveryReader 시작T/H/knownRanges callback·실패분류와 RecoveryCursor keyset/TTL연속성을 보완했다.
+- 멱등create·owner격리·1회lease·20행transaction·저장digest재검증·source/run CAS READY·실패/재시작차단·7일자료/120일operation bounded정리까지실제저장계층구현. Bean/controller/scheduler자동등록없음.
+- 최종 전체1986개/1980통과/기존6skip/실패오류0. 신규26개(단위13+실로컬Mongo13)포함. 기존실Mongo3개도재실행. 운영Mongo/IAM/Billing복원전체검증아님.
+- [상세 결과](../contracts/TMI-203-snapshot-lifecycle-implementation.md). 남은작업: source sweep/unknowncommit/indexpreflight,strictHTTP/IAM·scheduler/보존적체경보,공동복원/운영검증. 물리7일보존상한준수는스케줄연결·운영검증필요.
+- 공유recovery-r1/scalar-end-1 shape/hash·기존199/202push/LC/token/보존불변. 기존dirty보존·예상밖변경없음. 임시합성DB/컨테이너정리,운영DB/Jira쓰기/배포/commit/push없음.
+
+## 2026-10-12 — TMI-203 실제 Mongo 조회·cursor·expiry evidence 부분 구현
+
+<!-- codex-turn:01a12efa-8661-74f3-b426-32df35ecc9a6 -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery. 구현 전 공식 Jira 설명/완료 조건 조회.
+- 신규 RecoveryCursor/MongoRecoveryReader/MongoSourceExpiryEvidence/RecoveryFeedService 및 테스트. 원본 삭제 건수 불일치 rollback 추가. Bean/HTTProute/기능 활성화 없음.
+- 전용 HMAC/1시간TTL·owner/stream/run 범위, 동일 Mongo snapshot session의 T/H/목록·feed,source CAS+range 증거와원본삭제의동일transaction 경계를 구현했다.
+- 최종 전체1960개/1954통과/기존6skip/실패0. 신규37개중실제localhost Mongo replica set3개포함(늦은commit/3page T/H,증거·삭제rollback,101번째range). 운영DB/IAM/복원전체검증은아니다.
+- [상세 결과 및 남은 구현](../contracts/TMI-203-mongo-cursor-implementation.md): durable snapshot run/idempotency/worker/READY/retention,source sweep/unknowncommit/indexpreflight,HTTP/IAM인증·공동복원검증은아직남음. 전체203완료로표시하지않는다.
+- 공유exact/fixture/hash/199/202push/LC/token/보존불변. 기존dirty보존·예상밖변경없음. 합성DB/이번임시컨테이너정리,운영DB/Jira쓰기/배포/commit/push없음.
+
+## 2026-10-12 — TMI-203 Billing 복구 단순화 및 snapshot 포함 범위 확인
+
+<!-- codex-turn:01a12ef7-2e25-7ef0-90b4-4a48c92f0167 -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자 전달 Billing 방향: push/연속 feed, 원천 소실 시 snapshot 적용 후 H 이후 재개, 과거 불완전 최소 기록 유지·상세 누락 누적 축소. 외부 API/Identity source range/보존 변경 요청이 아니다.
+- 현행 exact §5.4의 snapshot은 동일 T에서 존재하는 WITHDRAWN User 전체이며 journal 120일과 별개다. User tombstone이 T 이전 물리 삭제/복원 소실되면 해당 사실의 복구를 보장하지 못한다. snapshot에 없음은 ACTIVE/과거 COMPLETE/삭제 안전 근거가 아니다.
+- 현재 탈퇴 transaction은 User를 tombstone으로 전환하며 identity release는 Firebase/social 연결을 지운다. 검색 범위에서 User 물리 삭제·TTL 경로는 확인되지 않았지만 무기한 보존 정책 또는 운영 데이터 완전성을 뜻하지 않는다. 실제 snapshot Mongo builder는 미구현이다.
+- 이번 변경은 기록2파일뿐. 코드/계약/API/Jira/배포 변경 없음. 정적 검토 및 diff 검사,Gradle 미실행. 다음 구현·배포 전 tombstone 보존 정책과 복원 후 복구 범위를 확인한다.
+
+## 2026-10-12 — TMI-203 scalar-end-1 Billing 수락 확인
+
+<!-- codex-turn:01a12ee9-46e2-7981-bd56-dc9562b647ca -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 사용자 전달 Billing 보고가 recovery-r1/scalar-end-1 공유 wire/schema/fixture 보완본을 기술 수락했다. 문자열 종료 미결 항목은 해소됐으며 아래 과거 ‘재검증 대기’ 기록을 현재 상태로 해석하지 않는다.
+- 로컬 입력8개hash 및 상대가 제시한schema/scalar hash 일치 확인. Billing724개/fixture331개 성공은 상대 보고이고 이번Identity 재실행 결과가 아니다.
+- 다음은 현행exact 기준 sourceDB/CAS·고정T/snapshot/feed/cursor/auth 연결 구현이다. Phase0 전체종료·Billing local저장설계·실Mongo/IAM/복원·판매/삭제 활성화 승인으로 확대하지 않는다. 공동본문 정합성과 실제연동 gate 유지.
+- 이번은 기록2파일·hash/diff검사만,Gradle미실행. 공유파일/제품/DB/Jira/배포변경없음,기존dirty변경보존.
+
+<!-- codex-turn:01a12ee0-8a1f-7121-aad9-882008402a7e -->
+
+- 현재 턴 기록 확인: TMI-203 scalar-end-1 schema8종 보완·신규364개 회귀 완료. 전체1917통과/6skip/실패0, Billing 수정본 재검증 대기. 아래 최신 항목과 WORKLOG 끝에 상세 결과를 기록했다.
+
+## 2026-10-12 — TMI-203 scalar-end-1 보완 완료
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 공유schema8개pattern의끝개행문제를보완하고scalar264개공통실패입력·hash갱신. 기존strictdecoder유지/runtime코드미변경.
+- 전체1923개중1917통과/6skip/실패0. 신규364개회귀통과,Node regex정상8/실패264검사통과. [Billing 보완 인계](../contracts/TMI-203-recovery-r1-scalar-end-correction.md)에파일/hash/재검증방법정리.
+- 다음은Billing수정본독립재검증·공동확인이다. productionAPI/DBadapter·실Mongo/IAM/복원은기존미완료상태유지. DB/Jira/배포/commit/push없음,기존dirty변경보존.
+
+## 2026-10-12 — TMI-203 recovery-r1 schema 개행 진단
+
+<!-- codex-turn:01a12ede-5122-7fe0-8b40-58a93c34ea66 -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Billing 독립 검증 보고를대조했고Java regex find에서공유schema8개pattern의끝LF허용을재현했다. Java전체일치decoder는거절;현재production취약점확인아님. 상대451개성공을Identity실행결과로사용하지않음.
+- 다음수정은절대끝검사·개행음성fixture·hash갱신·양측validator회귀다. 메모리상(?![\s\S])후보는검사했으나공유schema/코드아직미변경. 이번은기록2파일·진단만,Gradle/실인프라미실행.
+- 공동동결과productionadapter/IAM/Mongo/복원검증은여전히남아있다. Jira/DB/배포/commit/push없음.
+
+<!-- codex-turn:01a12eca-e4d6-7fd0-861b-d568f6aaa9a6 -->
+
+- 현재 턴 기록 보완: TMI-203 recovery-r1 명세·공통 fixture·내부 codec/범위 계획 구현 및 전체 테스트 검증 완료.1553통과/6skip/실패0. 공동수락/실Mongo·HTTP연결은아직남아있다. 상세는아래최신항목과WORKLOG끝에기록했다.
+
+## 2026-10-12 — TMI-203 recovery-r1 명세·공통 검증 단계 구현
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- [새 exact](../contracts/TMI-203-recovery-r1-exact.md),recovery-r1 schema/fixture/hash/index16개 선언 작성. strictcodec·고정오류·멱등상태규칙·page20점조회·same-key우선선택·sweepcursor/carry계산을내부코드로추가했다.
+- 최종 clean test 성공:1559개중1553통과/6skip/실패0. 신규67개와기존199fixture/hash검사통과. JSONSchema validator는test-only이며실업무인프라미호출.
+- 공동수락대기: Billing이동일revision을독립검증/수락해야한다. controller/Mongoadapter·고정Tbuilder/signedcursor/IAM·스케줄·실제원자정리미구현,API활성화없음. 다음은공동확인후production연결과실Mongo/복원검증.
+- 기존dirty변경보존,예상밖변경·Jira쓰기/댓글·DB/DDL/배포/commit/push없음. 상세변경파일/검증은WORKLOG마지막항목.
+
+<!-- codex-turn:01a12ec9-c387-7581-8d6b-b83ca17a1b51 -->
+
+- 현재 턴 기록 보완: TMI-203 후속 구현 순서 안내 완료. 다음은 exact/schema/index·공통 fixture 작성,공동 확인 후 adapter 구현이다. 이번 턴 제품 코드 변경 없음; 기록 정적 검사만 수행했다.
+
+## 2026-10-12 — TMI-203 다음 구현 순서 확인
+
+<!-- codex-turn:01a12ec7-f63c-7221-a4a5-35d9e5db544d -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 다음 작업은 새 exact/schema/index·공통 fixture 작성과 내부 검증,공동 확인 후 DB/HTTP adapter 구현이다. 추가 제품 정책 선택은 없고 실제 활성화는 별도다.
+- 이번에는 순서 설명과 기록2파일만 갱신. 코드/DB/Jira/배포 미변경,Gradle 미실행·diff 검사. 기존 내부 코어와 남은 Mongo/IAM/복원 검증 상태 유지.
+
+## 2026-10-12 — TMI-203 Billing 후속 회신 검토
+
+<!-- codex-turn:01a12ec7-f63c-7221-a4a5-35d9e5db544d -->
+
+- 현재 Jira: TMI-203 / feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- Billing §7은range/index/version·FAILED409·429처리방향의채택권장이다. 공동exact동결완료아님,현행v1유지.
+- 다음실작업은새exact/schema/message/index명·fixture작성. 정규화100개제한을feed완전조회제한으로사용하지않고,선택밖동일from/unique충돌시bounded선택조정으로수렴시키는계약·101개이상경합테스트를포함한다. 공동fixture확인뒤production adapter/controller구현.
+- 이번변경은기록2파일,첨부/소스정적검토·diff검사만. Gradle미재실행,기존내부코어보존. API/DB/배포/Jira변경없음. 이전테스트통과는실Mongo/복원/IAM검증을대신하지않는다.
+
+## 2026-10-12 — TMI-203 내부 코어 구현, 전체 구현 미완료
+
+<!-- codex-turn:01a12ebb-824d-7b11-928a-b54ee5951f32 -->
+
+- 현재 Jira: TMI-203 / 브랜치: feat/TMI-203-withdrawal-snapshot-feed-recovery.
+- 구현: bounded range 정규화·feed 페이지 검증·snapshot streaming digest 및17개 테스트. cleanup Evidence 주석을 source 단독 책임으로 변경. HTTP/DB recovery adapter·고정T builder·cursor·cleanup 영속화는 아직 없다. runtime Bean/설정/DB/배포 불변.
+- 검증: 최종 clean test 성공,1492개 중1486통과/6skip/실패0. 새17개 통과 및2000개 range 조합 불변성 검사. 기존199 golden/hash 보존. 실제 Mongo replica-set/IAM/Billing 연동 미검증.
+- 이유/다음: 공식 Jira와 Billing 최신 계획의 공동 exact 선행 조건 유지. [구현 범위·남은 기술안](../contracts/TMI-203-core-implementation-and-freeze-gates.md)을 Billing과 확정한 뒤 production adapter 구현. 현재 코드만으로API 사용/삭제/활성화 불가,완료로 보고하지 않음.
+- 기존 dirty 문서 보존,예상밖변경·Jira쓰기/댓글/상태변경·commit/push 없음. 상세 테스트/수정 기록은 WORKLOG 마지막 항목.
+
+## 2026-10-12 — TMI-203 구현 전 요약 설명
+
+<!-- codex-turn:01a12eb9-61fa-75e0-9110-a41ac79bd433 -->
+
+- 현재 Jira: TMI-203 / develop. 큰범위/Jira개정완료와세부exact/schema/fixture미완료를구분했다. 다음구현요청시선행정합성확정·Mongo가능성검증부터진행.
+- snapshot/feed·floor/range 원자정리와Billing local진행/epoch,기존push유지설명. 기록2파일·diff검사만,Gradle/제품/DB/Jira/배포변경없음. 실제활성화별도승인.
+
+## 2026-10-12 — TMI-203 Jira 개정 완료
+
+<!-- codex-turn:01a12eb7-3fe9-7290-9c5e-aec4bb30472f -->
+
+- 현재 Jira: TMI-203 / develop. 사용자 승인으로 제목·설명만 새 source snapshot/feed·가용성 범위로 개정했다. 원격ACK/generation 제외,v1·floor+range·Billing local책임·완료조건 반영.
+- 공식재조회로 상태 해야 할 일·상위TMI-137·담당자 보존 확인. 댓글/다른이슈/상태변경 없음. 기록2파일·diff검사,Gradle미실행(제품미변경).
+- 다음은range schema/index·exact/fixture·운영값 정리와별도 구현요청. 이슈개정으로구현/배포/판매/삭제승인 간주하지 않음. 기존변경보존,예상밖변경·DB/배포/commit/push 없음.
+
+## 2026-10-12 — TMI-203 Jira 개정 승인 전 확인
+
+<!-- codex-turn:01a12eb4-cbcb-72a0-8a0e-24d672ec1d05 -->
+
+- 현재 Jira: TMI-203 / develop. 공식조회에서 remote ACK/checkpoint/generation 구범위가남음을확인,제목/설명 개정안제시. 질문만으로쓰기승인으로간주하지않음.
+- 수정예정범위: snapshot/feed/source 가용성,v1·floor+range·Billing local책임·새완료조건. 상태/담당/상위/댓글미변경. exact/fixture정리와구현승인은별도.
+- 기록2파일·diff검사,Gradle미실행. 다음은사용자승인 후203제목/설명수정,Billing204는상대담당. Jira쓰기/DB/배포/제품변경없음.
+
+## 2026-10-12 — Billing204 운영값 검토
+
+<!-- codex-turn:01a12eb1-dab1-78d0-bfe1-628e6882e80e -->
+
+- 현재 Jira: TMI-203(연계204) / develop. Billing의5초/빈scan30초·20실패후5분probe·snapshot추가2run 등 초기안 검토. 방향은타당하나 실부하/설정검증 결과아님.
+- 보완:7일 이내 snapshot/staging정리와기한후위반경보 구분,Retry-After예정pause와worker heartbeat/장애경보구분.202정책불변,수치공동동결/배포아님.
+- 기록2파일만변경·diff검사,Gradle/실인프라미수행. 다음은Identity range세부/schema/index·오류429/FAILED page 등정리와공동명세검증. 제품/계약/Jira/DB/배포변경없음.
+
+## 2026-10-12 — Billing 통합 인계·source range 채택
+
+<!-- codex-turn:01a12eac-4590-7ba1-b6e1-e7a1bb1dadc7 -->
+
+- 현재 Jira: TMI-203(연계204) / develop. [통합 인계](../contracts/TMI-203-Billing-consolidated-handoff-2026-10-12.md)에 사용자 채택 replayFloor+별도중간range,기존예정v1 최초구현,Billing204 운영값요청을 정리했다.
+- 현행계획에채택방향반영,기존v2후보는주소/예상index 과거후보안내추가. local authority·원자성·보존·복원보호유지,range schema/index·최종exact는후속동결.
+- 문서5파일만변경·링크/diff검사. Gradle/실인프라미실행,코드/DB/Billing문서/Jira/배포/메시지전송없음. 다음은Identity세부저장명세와Billing재시도/경보값회신,예상밖변경없음.
+
+## 2026-10-12 — TMI-203 소실 구간 저장 권장안
+
+<!-- codex-turn:01a12eaa-8208-7fa3-ba74-148b7f1c70f7 -->
+
+- 현재 Jira: TMI-203(연계204) / develop. 기존 replayFloor+별도 중간range 문서,인접병합·prefix편입 정리를 권장 설명. 한 문서 무한배열·정상구간까지삭제범위확대 금지,원천삭제와증거 원자저장 유지.
+- 설명/기록2파일만 변경·diff검사,계획/코드/fixture 변경 없음. 다음은 채택 시새collection/index·경합/보존테스트 명세화. 예상10index 수는미확정,Gradle/실DB/Jira/배포 미수행.
+
+## 2026-10-12 — 미구현 API의 v2 필수 전제 정정
+
+<!-- codex-turn:01a12ea9-7c00-7403-bd7b-974aab435c69 -->
+
+- 현재 Jira: TMI-203(연계204) / develop. 사용자 미구현 전제에서 신규 복구 API는 기존 예정 v1으로 최초 구현 가능하며 v2 URL 분리 필수 아님을 설명. 계약 문서 revision·구fixture 보존은 별도.
+- 기록2파일만 변경·diff 검사,후보/계획/코드 미변경. 다음 명세 개정 시 v2 후보를 이 방향과 맞춰 수정.3번 운영값은 사용자 Billing 요청 예정. Gradle/실배포 조회/Jira/DB 변경 없음.
+
+## 2026-10-12 — TMI-203 확정 항목 설명
+
+<!-- codex-turn:01a12ea7-719d-7b32-ae8d-84d4fbe47aff -->
+
+- 현재 Jira: TMI-203(연계204) / develop. source interval저장,새API/오류/index 후보수락,204 운영초기값이남은기술항목이며 schema/fixture·배포/Mongo/IAM은후속검증임을구분했다.
+- 큰설계/보존/제품정책 추가변경없음.기록2파일·diff검사만,Gradle미실행.다음은개발측세부안정리·공동수락과검증,DB/Jira/배포변경없음.
+
+## 2026-10-12 — Billing 회신 재확인
+
+<!-- codex-turn:01a12ea6-9130-7151-9745-5da558a346df -->
+
+- 현재 Jira: TMI-203(연계204) / develop. 새 첨부는 직전 Billing 검토 회신과 동일함을 byte 비교로 확인했다. 새 v2 후보의 최종 수락과 구분하며 추가 설계 반복 없음.
+- 기록2파일만 갱신·diff 검사,제품/계약/배포/Jira 변경 없음. 다음은 현 exact 후보의 잔여 항목/fixture·호환 조건 정리와 공동 수락. Gradle 미실행(설명 작업).
+
+## 2026-10-12 — Billing 보완 회신·새 exact 후보
+
+<!-- codex-turn:01a12ea2-1379-7340-90de-c32d24b485bf -->
+
+- 현재 Jira: TMI-203(연계204) / develop. [recovery-v2 exact 후보](../contracts/TMI-203-recovery-v2-exact-candidate.md) 작성. Billing의503 details 생략·page hole전체오류·멱등보존 보완 반영,route/index/DTO/error 경계 제안.
+- 후보이지 공동 동결 아님. 실제배포/source interval 저장/429·message·최종fixture 미결,기존199·공동본문·계획/코드 미변경. push/schema1/local fence/보존 유지.
+- 문서3파일만 변경·링크/JSON/diff 검사,Gradle·실인프라 미실행. 다음은Billing 수락과잔여규격 동결 후활성문서/fixture 개정. 기존기록 보존,예상 밖 변경 및DB/Jira/배포 없음.
+
+## 2026-10-12 — Billing 인계·exact 미결 회신
+
+<!-- codex-turn:01a12e9a-d4ed-7c20-81c5-6fa5272cd3f8 -->
+
+- 현재 Jira: TMI-203(연계204) / develop. [Billing 인계서](../contracts/TMI-203-to-Billing-TMI-204-simplified-recovery-handoff.md)와 수신한 개정 지침에 대한 [exact 후보 회신](../contracts/TMI-203-single-authority-exact-amendment-response.md) 작성.
+- 명시 stream 생성body/멱등binding,bounded availability/410,마지막 cursor 의미,versioned 전환,index/fixture·H와원event 적용범위 분리 제안. 전부 공동 수락 대상,새 exact 동결이나 코드 변경 아님.
+- 문서5파일 변경·링크/JSON/diff 검사,Gradle·실인프라 미실행. 로컬203 route 검색상 미발견이나 실제 배포 부재는 확인하지 않음. Billing 계획 개정은 확인,공동 원문/Billing/199 fixture 미변경.
+- 다음: 배포/client 증거·새 exact 동결 후 관련 활성 본문/fixture 정합성 개정. 기록/기존 변경 보존,예상 밖 변경 및 DB/Jira/배포/메시지 전송 없음.
+
+## 2026-10-12 — TMI-203 현행 단순화 계획 반영
+
+<!-- codex-turn:01a12e93-8f69-7ad2-a365-027e1c460b5f -->
+
+- 현재 Jira: TMI-203(연계204) / develop. 사용자 승인으로 [현행 계획](../contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md)을 Billing local checkpoint/epoch authority 구조로 개정했다. 아래 후보 검토 이력과 구분한다.
+- Identity remote API3개/상태3종 제외·source API4개·T/H snapshot/digest/H2 유지.202 cleanup Evidence는 source availability 책임으로 개정 예정. Billing local fence/restore 격리 필수,단순 lag·실제 GAP·판매/삭제 조건 분리.
+- 문서5파일만 변경,이전 상세 계획은 [보관본](../contracts/TMI-203-withdrawal-recovery-plan-before-simplification.md)에 보존. 링크/diff 검사,Gradle 미실행. 기존 동시 기록 보존,예상 밖 변경 없음.
+- 다음: 양측 exact API/DTO/index/fixture와 구client 전환 동결 후 구현. 현재 공동 계약/Billing/Jira·제품 코드·DB·배포·판매/삭제는 미변경. Jira 초안은 계획 §6.4,미등록.
+
+## 2026-10-12 — TMI-203·204 단순화 검토 회신
+
+<!-- codex-turn:01a12e8c-3455-79a2-9c0d-6d5bb5fc1b20 -->
+
+- 현재 Jira: TMI-203(연계204) / develop. [공동 검토 회신](../contracts/TMI-203-204-recovery-simplification-review.md) 작성, 기존 exact/203 계획을 대체하지 않음.
+- 권장안: Billing local checkpoint/epoch가 진행 authority, Identity remote ACK/generation 제거 후보. T/H snapshot·digest·H2 cursor·source availability·Billing local fencing 유지. 정상 지연/실제 GAP/restore와 판매/삭제 조건 분리.
+- 확인: 공식 Jira 읽기·I2 cleanup/record/config와 Billing204 계획 정적 검토. 문서3파일 변경, 링크/diff 검사, Gradle/실인프라 검증 미실행. 기존 사용자 변경·동시 기록 보존, 예상 밖 변경 없음.
+- 다음: Billing의 책임 이동/restore 격리 수락 후 exact API/DTO/index/fixture와205 gate 공동 개정. 구현·Jira 쓰기·DB·배포·판매/삭제 활성화 없음. 원격 상태 제거만 하고 로컬 fence를 빼는 안은 불가.
+
+## 2026-10-12 — 정리 후 동일 Sentry 오류 확인
+
+- Azure정리 완료 결과파일 저장mtime는10월7일23:23:50 KST(completed/deleted4721/after0). 실제 마지막삭제 정확시각과 구분.
+- 새조회한3그룹 Latest는 신규Guest23:10:41/reissue23:16:44/Guest복구23:17:35 KST, 모두10월7일. 결과저장시각 이후 동일3그룹 이벤트 없음. 모든오류없음·현재정상·정리인과는 미확정.
+- 신규 Jira 없음, 읽기조회/기록만 수행. 제품/DB/설정/배포 변경 없음. 다음은 Mongo원인코드와 실제쓰기성공 로그 대조.
+
+
+
+## 2026-10-12 — 10월7일 이력·테스트 Sentry 수집 설명
+
+- 당시 기록에 Atlas99.7% 용량·21:17 뉴스레터Mongo오류·테스트 recovery/탈퇴flag 배포·azure_results 백업후삭제 존재. Identity DB쓰기오류와 공통DB 문제 가능성은 있으나 작업 인과/정확한원인 미확정.
+- 테스트도 같은 Sentry 프로젝트 DSN이면 해당 프로젝트로 수집되고 alert조건이 맞으면 메일 발송. 이번staging은SENTRY_ENVIRONMENT 설정 태그이며 특정ECS 서비스나prod 미발생을 단독 증명하지 않는다.
+- 코드/기록 정적 확인만, 외부설정/제품/DB/배포 변경 없음. 신규 Jira 없음. 다음은 Mongo원인코드 및 환경별수집/alert설정 확인.
+
+
+
+## 2026-10-12 — Guest 신규 저장 오류 시간 확인
+
+- Identity-3 Sentry73events는100%staging 태그. 한국시간10월7일22:37:16~23:10:41 약33분25초에 발생. 토큰 재발급 오류 구간과 겹친다. 특정 ECS 서비스/revision·공통 원인은 미확정.
+- 읽기 전용 조회 및 기록만 수행. 제품/설정/DB/배포 변경 없음, 신규 Jira 없음.
+
+
+
+## 2026-10-12 — Identity-2 최대 발생 시간 확인
+
+- Sentry7일 그래프: KST10월7일21:00~23:00에591/623건(94.9%), 다음2시간 버킷32건. 실제 First/Latest는10월7일21:23:42~23:16:44 KST. 분단위 최다 시각/고유 사용자 수는 미확인.
+- 조회·양 저장소 기록만 갱신, 제품/배포/DB/Sentry issue상태 변경 없음. 신규 Jira 없음. 다음은 해당 구간 원인 로그 대조.
+
+
+
+## 2026-10-12 — TMI-203 이해 확인
+
+<!-- codex-turn:01a12e80-5ca8-7aa1-a54a-ff02d6f2679c -->
+
+- 현재 설명 Jira: TMI-203 / develop. snapshot은 T/H까지 상태, feed는 이후 고정 H2까지 사건, ACK는 Billing의 별도 적용 보고임을 확인했다.
+- 삭제 시 개인정보를 다시 남기지 않고 재전송 불가 범위와 최소 적용 증거를 구분한다. 사전 검증은 유지하며 최초 출시 이전 전체 legacy COMPLETE 증명만 제외한다.
+- 기록2파일만 변경·diff 검사, Gradle 미실행. 코드/계획/설정/Jira 변경 없음. 다음은 요청 시 구현·공동 검증, 동시 조사 기록 보존.
+
+## 2026-10-12 — Sentry Identity DB 쓰기 오류 조사
+
+- 제공 링크7778941899는 Identity staging POST /api/v1/auth/guest의 기존 Guest 세션 복구 findAndModify 실패/500,11events. 같은 프로젝트에 신규 Guest 저장7778858472(73),Refresh 세션 회전 저장7778713685(623)도 확인. 모두 MongoCommandException 체인/first-last seen5days ago, 대표10월7일 이벤트. 두 번째 메일 링크 미제공으로 해당 그룹 미확정.
+- 원문 message/code는 Sentry sanitizer에서 제거돼 정확한 DB 원인 미확정. 과거10월7일 Atlas99.7% 용량 기록은 후보일 뿐 현재 용량·이번 원인·복구 증거 아님. staging 태그만으로 특정 ECS revision이나 prod 영향 확정 불가.
+- 코드/과거 git 스택 대조 및 diff check만 수행, 제품 테스트 불필요. 기록만 변경, DB/AWS/Sentry/배포/issue상태/commit/push/Jira 변경 없음. 신규 Jira 없음, 기존 변경 보존. 다음은 두 번째 메일 링크 및 CloudWatch Mongo 원인 code 확인.
+
+
+
+## 2026-10-12 — TMI-203 상세 설명
+
+<!-- codex-turn:01a12e77-fb41-7a60-b762-c6e77a63c6d3 -->
+
+- 현재 Jira: TMI-203 / develop. 최신 계획의 snapshot(T/H)·feed(H2)·ACK·generation·보존·내부 인증 및 개발 순서를 사용자 관점으로 설명했다.
+- 최초 출시 legacy COMPLETE 증명 제외 승인은 유지. 기존 탈퇴 자료와 기준점 이후 복구 안전성은 생략하지 않으며 Billing 적용/old-worker 차단은 상대 작업과 공동 검증 대상이다.
+- 기록2파일만 변경·diff 검사. 계획/코드/DB/배포/Jira 변경 없음, Gradle 미실행(설명 작업). 다음은 구현 요청 후 고정 Mongo snapshot 실현 가능성 검증부터 진행. 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 최초 출시 범위 변경 승인 반영
+
+<!-- codex-turn:01a12e73-05d9-7420-9e44-7c808058764c -->
+
+- 현재 Jira: TMI-203 / develop. 사용자 확인으로 기존 Billing 구매 계정·purchaseAccountRefId 발급·실제 거래 없음이 최초 출시 전제다. 앞선 단순화 미확정 설명을 대체한다.
+- [계획 §3.1](../contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md#31-승인된-최초-결제-출시-범위-변경--2026-10-12)에 legacy COMPLETE 증명을 최초 출시 필수 조건에서 제외하는 승인을 반영했다. PARTIAL/UNKNOWN 유지, 기존 snapshot 자료 포함, 기준점 이후 연속성/복원 검증과 exact API는 유지한다.
+- 계획·기록3파일만 변경. diff/로컬 링크 검사, Gradle 미실행(문서 작업). 다음은 구현 시 양 서버 gate 정합성 반영·출시 시 실제 기준점 기록. Billing 원문/Jira/코드/DB/배포/판매 활성화 변경 없음. 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-203 초기 결제 이력 부재 설명
+
+<!-- codex-turn:01a12e70-86e9-73f0-8754-017988588a55 -->
+
+- 현재 Jira: TMI-203 / develop. 사용자는 과거 결제 사례가 없다고 설명했다(외부 조회로 검증하지 않음).
+- snapshot은 탈퇴 사실이며 과거 결제 이관과 다르다. 최초 Billing 상태와 외부 거래·토큰 경계를 확인하면 초기 기준점 단순화 검토 가능. 출시 후 누락/복원 대응 필요와 현 계약은 유지한다.
+- 기록2파일만 변경·diff 검사, Gradle 미실행. 계획 축소/구현/배포/Jira 변경 없음. 다음은 필요 시 초기 상태 확인 및 양측 초기화 계약 검토.
+
+## 2026-10-12 — TMI-203 복구 API 구현 계획 작성
+
+<!-- codex-turn:01a12e66-aa3a-7941-bd1b-9d1142eb5cc0 -->
+
+- 현재 진행 Jira: TMI-203 / 조사 브랜치 develop. [구현 계획](../contracts/TMI-203-withdrawal-recovery-snapshot-feed-plan.md). 아래 내용은 이전 작업의 이력이며 현재 계획 작업과 구분한다.
+- 공식 이슈·공동 계약·exact wire/index·I2 cleanup/security 확장 경계를 확인했다. 고정 T/H Mongo spike → 세대/내부 인증 → snapshot → feed/checkpoint/보존 증거 연결의 개발 단위와 테스트·OFF rollout을 정리했다.
+- 문서3파일만 변경. 로컬 링크·diff 정적 검증, Gradle 미실행(제품 변경 없음). 실제 Mongo history/세대 경합·Lattice ingress·운영 증거 adapter는 미검증이며 I2 잔여 항목을 완료로 취급하지 않는다.
+- 다음: 구현 요청 후 TMI-203 브랜치에서 가능성 검증부터 진행. DB/index 실행·배포·판매·cleanup ON·commit/push·Jira 쓰기 없음. Jira 댓글 초안은 계획 §6.5. 예상 밖 변경 없음.
+
+## 2026-10-12 — TMI-202 구현 턴 기록 보완
+
+<!-- codex-turn:01a12e50-1677-7d03-a80b-db06811a31a8 -->
+
+- 현재 Jira: TMI-202. 정확한 구현 턴 식별자를 WORKLOG 파일 끝에 보완했다. 아래 OFF 구현·1,475건 테스트 결과 및 미완료 운영 gate는 유지한다.
+- 기록2파일만 변경, 제품 구현 추가 변경 없음. diff/파일 끝 marker 검사, Gradle 재실행 없음. 운영 연동/실제 검증 후 별도 활성화 승인 필요, Jira·배포·DB·commit/push 변경 없음.
+
+## 2026-10-12 — TMI-202 OFF 코드 구현·로컬 검증, 운영 연동 미완료
+
+- 현재 Jira: TMI-202. 브랜치 feat/TMI-202-withdrawal-journal-billing-delivery. [구현 결과](../contracts/TMI-202-implementation-result.md).
+- 탈퇴 transaction에 journal/counter/Billing delivery, 동일 event/commit 재시도, Billing SigV4/204-only/20회 dispatch·lease CAS·Retry-After, 권한 재개·7개 index/cutover·I3 cleanup evidence 기반과 관측 지표 추가. LC 계약 유지.503 WITHDRAWAL_CAPTURE_UNAVAILABLE 명세 추가.
+- 최종 clean test 성공: 1,475건 중1,469통과/6skip, 실패0/오류0. 신규 suite68건+기존 탈퇴3건 추가. 문서 링크/diff 검사 통과. 실제 외부 인프라 실험 아님.
+- 기능 기본OFF. 운영 RuntimeEvidence/구매 공동 gate·관리 권한/감사 실행기·I3 expiry 증거 adapter는 미완료. 실제 다중노드 Mongo/failover/unknown commit 및 IAM/cutover/clock/보존/경보 검증이 남으므로 전체 완료·ON 가능·Jira Done 아님.
+- 비-test 시작 시 DB stream marker를 읽어 capture OFF rollback 거절. scheduler 시작 전 guard 검사, startup DDL 없음. 기존 capture 미지원 구버전 차단은 인프라 조치 필요.
+- 다음: 위 연동과 승인된 격리/공동 staging 검증. DB 이관·전송/삭제 활성화·배포·commit/push·Jira 쓰기 없음. 기존 다른 작업 기록 보존, 이번 예상 밖 제품 변경 없음. Jira 초안은 결과 문서 §6.4.
+
+## 2026-10-12 — TMI-202 추가 주의사항 안내
+
+<!-- codex-turn:01a12e4e-e68f-7533-8eb0-35378f274035 -->
+
+- 현재 설명 Jira: TMI-202. 브랜치 feat/TMI-202-withdrawal-journal-billing-delivery 확인·유지.
+- 추가 정책 선택 없음. 탈퇴 전달 지연/기존 토큰·진행 결제 한계, 결과 불명 안내, 경보 담당과 권한 재개, capture 유지 rollback, I3/공동 검증 후 개별 활성화를 안내.
+- 설명 기록2파일만 변경, 제품/계획/외부 설정 변경 없음. diff 검사, Gradle 미실행. 다음: 구현 요청 후 계획대로 진행, 실제 운영 적용 별도 승인. 다른 작업 기록 보존.
+
+## 2026-10-12 — 충돌 해결 merge commit 원격 게시 완료
+
+- 별도 브랜치 codex/resolve-develop-main의 merge commit e698b140 생성·원격 push 성공. 부모는 develop 251b4fdf와 main 7f2188df이며 두 브랜치가 모두 ancestor임을 확인했다.
+- 8개 충돌 해결, 최종 변경6파일, clean test 1,404건 중1,398통과/6skipped·실패0. 추가 기록 갱신은 제품 변경 없음.
+- develop/main 원격 반영·PR 생성·배포 없음. 사용자 승인 범위의 별도 브랜치만 게시했다. 후속 develop 반영 시 main ancestry를 보존하는 merge 방식 필요; squash/rebase는 이번 이력 연결을 잃을 수 있다. 원래 TMI-202 작업은 보존.
+
+## 2026-10-12 — 충돌 해결 브랜치 커밋·푸시 한정 승인
+
+- 사용자가 이번 충돌 해결 브랜치의 commit/push만 추가 허용했다. 아래의 커밋 직전 상태에서 main 부모 이력을 보존하는 merge commit과 별도 브랜치 원격 게시를 진행한다.
+- develop/main 반영 및 배포는 범위 밖. 배포 workflow의 push 대상은 main/develop으로 확인. 테스트 성공 결과 및 변경6파일 범위 유지, TMI-202 변경 미포함.
+
+## 2026-10-12 — develop/main 충돌 해결 브랜치 준비 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- codex/resolve-develop-main, 별도 작업 폴더 /Users/msde76/.codex/worktrees/resolve-develop-main/identity. develop 251b4fdf에 main 7f2188df --no-commit 통합, 충돌8항목 해결. 원래 develop의 TMI-202 변경 보존.
+- 최신 Guest 복구·병합 차단·epoch/fence·기본OFF 설정 유지. 중복 구버전 Service/Tests/구 package 참조 제거, 로그 해시 비노출/중복 토큰 발급 금지 테스트 보강. 외부 계약/운영 설정 변경 없음.
+- clean test 성공: 1,404건 중1,398통과/6skipped/실패0, 179 suites. 과거 WORKLOG 보존, diff·marker·unmerged 검사. 제품/문서 최종6파일 변경, 예상 밖 수정 없음.
+- 커밋 직전 staging/MERGE_HEAD 유지. commit/push/develop·main 반영/배포 없음. GitHub에는 아직 미반영이며 사용자 merge commit과 push 후 PR gate 확인 필요. main ancestry를 보존해야 하므로 squash/rebase 반영 주의. 실환경 검증/배포 별도.
+
+## 2026-10-12 — TMI-202 사용자 질문 설명
+
+<!-- codex-turn:01a12e44-a47c-7c50-b430-46732d07b0ae -->
+
+- 현재 설명 작업 Jira: TMI-202 / develop. 저장 실패와 commit 불명, stream별 전체 순번/이벤트별 전송 상태, 개인정보 포함 최소 원천120일, LC 기존 JWT와 Billing SigV4 역할, 실패 분류·재시작·권한 재개를 구분해 안내.
+- Billing15일은 미구매 연결정보 조건부 삭제이며 전체 결제 기록 삭제가 아님. 한 운영 출시에서 순차 적용은 가능하지만 prod 준비/I3/공동 검증 전 동시 ON 불가.3단위 개발은3회 운영 배포를 요구하지 않음.
+- 계획/제품 변경 없음, 설명 기록2파일만 보완. 계획 관련 절·diff 확인, Gradle 미실행. 동시 작업 기록 보존. 실제 구현/운영 설정 확인·수동 재개 도구 구현 및 활성화 승인은 별도.
+
+## 2026-10-12 — 충돌 해결 merge commit 원격 게시 완료
+
+- 별도 브랜치 codex/resolve-develop-main의 merge commit e698b140 생성·원격 push 성공. 부모는 develop 251b4fdf와 main 7f2188df이며 두 브랜치가 모두 ancestor임을 확인했다.
+- 8개 충돌 해결, 최종 변경6파일, clean test 1,404건 중1,398통과/6skipped·실패0. 추가 기록 갱신은 제품 변경 없음.
+- develop/main 원격 반영·PR 생성·배포 없음. 사용자 승인 범위의 별도 브랜치만 게시했다. 후속 develop 반영 시 main ancestry를 보존하는 merge 방식 필요; squash/rebase는 이번 이력 연결을 잃을 수 있다. 원래 TMI-202 작업은 보존.
+
+## 2026-10-12 — develop/main 충돌 해결 브랜치 준비 완료
+
+<!-- codex-turn:01a12df3-1688-71d2-98fd-5ceeea530482 -->
+
+- codex/resolve-develop-main, 별도 작업 폴더 /Users/msde76/.codex/worktrees/resolve-develop-main/identity. develop 251b4fdf에 main 7f2188df --no-commit 통합, 충돌8항목 해결. 원래 develop의 TMI-202 변경 보존.
+- 최신 Guest 복구·병합 차단·epoch/fence·기본OFF 설정 유지. 중복 구버전 Service/Tests/구 package 참조 제거, 로그 해시 비노출/중복 토큰 발급 금지 테스트 보강. 외부 계약/운영 설정 변경 없음.
+- clean test 성공: 1,404건 중1,398통과/6skipped/실패0, 179 suites. 과거 WORKLOG 보존, diff·marker·unmerged 검사. 제품/문서 최종6파일 변경, 예상 밖 수정 없음.
+- 커밋 직전 staging/MERGE_HEAD 유지. commit/push/develop·main 반영/배포 없음. GitHub에는 아직 미반영이며 사용자 merge commit과 push 후 PR gate 확인 필요. main ancestry를 보존해야 하므로 squash/rebase 반영 주의. 실환경 검증/배포 별도.
+
+## 2026-10-12 — TMI-202 계획 상세 설명
+
+<!-- codex-turn:01a12df2-1789-76b1-ac01-2847636e30b4 -->
+
+- 현재 계획 작업 Jira: TMI-202 / develop. 계획서를 재독하고 탈퇴 원자 저장·LC/Billing 독립 전송·실패 재개·120일 보존 및 I3 누락 복구 경계를 설명했다.
+- 기존 코드에 추가할 지점과 신규3개 collection, 저장 장애/전송 장애 차이,20회 자동 재시도 이후 권한 재개, 단계 활성화·관련 writer barrier 구분 안내. 추가 제품 정책 결정 없음.
+- 설명/기록2파일만 변경. 계획·구현·Jira·외부 설정 변경 없음, Gradle 미실행(제품 변경 없음), diff 정적 검사. 기존/동시 기록 보존.
+- 다음: 구현 요청 시 계획 A부터. 실제 Mongo failover/응답유실·IAM·cutover/clock·I3 연동을 확인한 뒤 개별 활성화 승인. 이번 설명은 테스트·배포 완료가 아님.
+
+## 2026-10-12 — 병합 충돌 정리 시점 권고
+
+<!-- codex-turn:01a12df1-e781-7f81-8c97-5881261c5ac4 -->
+
+- 이번 권고 턴 식별 기록 보완 완료. 충돌 해결 실행 없이 아래 권고 유지.
+
+- develop→main 충돌은 추가 변경이 쌓이기 전에 별도 통합 브랜치에서 해결·검증하는 방향 권고. 사용자 질문은 방향 확인이며 실행 승인으로 해석하지 않음.
+- main 반영/운영 배포와 충돌 해결은 분리. 동시 TMI-202 작업·기존 문서 보존, 제품/브랜치 변경 없음. 기록2파일 및 diff 검사만 수행.
+
+## 2026-10-12 — TMI-202 구현 계획 작성
+
+<!-- codex-turn:01a12dee-164d-7e12-a52a-25369d3b80d8 -->
+
+- 현재 계획 작업 Jira: TMI-202. 조사 브랜치 develop 유지. [구현 계획](../contracts/TMI-202-withdrawal-capture-billing-delivery-plan.md) 작성. 다른 작업의 병합 진단 및 이전 구현 기록은 아래 보존한다.
+- 공식 Jira 완료 조건·공동 계약·현재 탈퇴/control/SigV4 transport 대조. 원천 원자 capture → Billing 전송/재개 → 보존·운영 준비3단위, exact retry/status/lease·20회 budget·120일/I3 증거 경계 명시.
+- 이번 변경은 계획서·WORKLOG·CURRENT_STATE3파일만. 문서 링크/diff 정적 검증, 제품 변경 없어 Gradle 미실행. 코드 구현·DB/IAM·배포·Jira 변경·commit/push 없음.
+- 다음: 구현 요청 후 TMI-202 브랜치 준비, 원천/counter/journal/delivery와7개 index부터 구현. 실제 다중노드 Mongo·cutover/restore·IAM·I3 cleanup 연동 검증은 별도 gate. 구매/전송/cleanup 활성화 승인으로 해석하지 않는다.
+- 작업 중 추가된 다른 작업의 병합 진단 기록을 보존했다. 이번 범위 밖 제품 수정 없음. Jira 댓글 초안은 계획서 §6.4, 미등록.
+
+## 2026-10-12 — 충돌 해결 방식 설명
+
+<!-- codex-turn:01a12df0-7e8d-7f10-8f13-d009dd5d91ba -->
+
+- 이번 설명 턴 식별 기록 보완 완료. 실제 충돌 해결·제품 변경 없이 아래 조사 결과 유지.
+
+- 현재 체크아웃 develop. 실제 해결은 미수행. develop의 registration/application/GuestRecoveryTransactionService에 기존 복구와 추가 병합 계정 차단·accountType·session epoch 보호가 이미 존재하며 guest-recovery 설정도 존재함을 확인.
+- 별도 codex 통합 브랜치에서 main 이력을 합치되 최신 registration 구현을 보존하고, Git이 제안한 session 경로에 중복 복구 Service/테스트가 생기지 않도록 정리하는 방향. 컨트롤러·설정·테스트·양쪽 작업 기록을 의미 단위로 통합 후 clean test 필요.
+- 이번 변경은 기록2파일만. 기존 수정 기록과 미추적 TMI-202 계획서 보존. 정적 비교 및 diff 검사, Gradle 미실행. 커밋/푸시/배포 없음; PR/CI 조건은 해결 후 재확인.
+
+## 2026-10-12 — develop → main 자동 병합 불가 원인 진단
+
+<!-- codex-turn:01a12ded-675d-71e3-be6b-58c77d10310b -->
+
+- Identity 원격 main=7f2188df, develop=251b4fdf 확인. 열린 PR 없음; #54는 develop에 병합 완료. 현재 구현 Jira TMI-200 유지, 이번 작업은 병합 진단만 수행.
+- Git merge-tree로 작업 트리 변경 없이 충돌 8항목 재현. main 전용 #45/TMI-134 게스트 복구 핫픽스와 develop 인증 패키지 재구성·복구 구현·설정/테스트 변경이 겹침.
+- 충돌: WORKLOG, AuthController, GuestAuthService, GuestRecoveryTransactionService 위치, application.yml, GuestAuthServiceTests, GuestRecoveryTransactionServiceTests 위치, UserWithdrawalLifecycleTests. 문서만 해결해도 되는 상태는 아님.
+- 해결 방향: 별도 통합 브랜치에서 최신 develop 구조와 기존 Guest 복구 계약을 함께 보존해 main을 통합하고 테스트 후 PR. 일괄 ours/theirs 선택 금지. 이번에는 해결·merge·commit·push·배포 없음.
+- 검증: GitHub PR/원격 SHA 조회, merge-tree(exit 1 충돌), diff 검사. 코드 변경 없어 Gradle 미실행. 브랜치 보호/리뷰 조건은 별도 미검증이며 충돌 해소 후 추가 확인 필요.
+
+## 2026-10-12 — TMI-200 OFF 구현 및 로컬 회귀 완료
+
+<!-- codex-turn:01a12dd8-fe3d-73e0-8d5a-fec93228cd5c -->
+
+- 현재 Jira: TMI-200. 브랜치 feat/TMI-200-purchase-scope-control-fencing. 구현 결과: [TMI-200-implementation-result](../contracts/TMI-200-implementation-result.md). 아래 이전의 미구현 항목은 당시 기록이다.
+- purchase default/explicit 제거, DB ACTIVE MEMBER 승인, 기존 control 확장·보호 필드 유지, 신규 User/control 원자 생성·승격/병합/탈퇴 동기화, 로그인/재발급/replay 공통 transaction 경계, 내부 bounded 이관 서비스 구현.
+- 최종 clean test 성공: 1,404건 중1,398통과/6skipped·실패0. 신규 구매 패키지33건 포함. 실제 Mongo/외부 OAuth 호출 없이 Mock·Spring transaction 검증; git diff --check 통과.
+- 세 purchase 설정 기본OFF. 실제 PurchaseReadiness adapter는 TMI-202에서 연결해야 하며 현재 ON은 거절한다. DB 이관/배포/판매/commit/push/Jira 수정 없음.
+- 외부 변경: AUTH_ISSUANCE_UNRESOLVED503 및 명세 설명. 기존 RS256/claim/reissue 헤더·원 응답/만료409 유지. 가입/병합 commit 후 발급 실패는 rollback 의미 아님.
+- 남은 gate: 실제 replica-set 경합/내구성·기존TTL·구 writer 배제·이관 실행기와 재진단, TMI-202 capture/readiness 및 공동 staging. strict fence OFF rollback 금지; 이미 발급한 purchase의 replay/drain 보호 유지 필요.
+- 기존 dirty 운영/알림/전환 파일 보존. 이번 예상 밖 파일 변경 없음. 전체 변경 목록·미등록 Jira 댓글 초안은 결과 문서 §6. 다음은 TMI-202 경계 연결/통합 검증이며 Jira Done은 PR 병합 확인 후 별도 승인.
+
+## 2026-10-12 — TMI-200 착수 전 사용자 주의사항 안내
+
+- 추가 안내의 현재 턴 식별자를 WORKLOG 끝에 보완했다. 기존 안내 내용과 미구현 상태 유지, 제품 추가 변경 없음.
+- 현재 Jira: TMI-200. 추가 제품 정책 결정은 없으며 구현 완료와 실제 결제 출시를 구분하도록 안내. 기존 계정/로그인 보호, 이미 발급된 토큰의 비즉시 폐기, 이관 실패 시 구매 OFF 유지·capture 호환 rollback, 프론트 오류 계약 공유가 주요 주의사항.
+- 운영 이관 중단 범위·시간 및 최종 활성화는 실측/검증 후 승인. 이번 요청은 설명으로 처리하며 제품 구현·Jira·배포 변경 없음. 기존 기록 보존, 문서 검사만 수행.
+
+## 2026-10-12 — TMI-200 검증 시점·결제 일괄 출시 설명
+
+- 현재 Jira: TMI-200. 구매 권한 검사는 로그인/재발급 등 사용자 토큰 발급 요청의 서버 내부 단계이며, 매 Billing 요청마다 Identity를 호출하는 구조가 아님.
+- 한 번의 승인된 출시 작업 시간에 코드 배포·DB 이관·검증·활성화를 묶는 것은 가능. 단 DB 준비 전에 purchase ON하거나 전부 동시에 적용하는 방식과 구별한다. 안전한 OFF 상태에서 이관·구 writer 배제·capture/Billing 준비를 검증한 후 마지막에 ON.
+- 별도 날짜의 다회 배포가 필수라는 뜻은 아님. 실제 중단 범위/시간·전체 결제 출시 gate는 후속 실측/승인 대상. 설명만 수행, 계획·제품·외부 설정 변경 없음.
+
+## 2026-10-12 — TMI-200 권한·이관·복구 범위 추가 설명
+
+- 현재 Jira: TMI-200. 구매 scope는 설정/일반 호출 값에서 제거 후 서버가 확인한 ACTIVE MEMBER에게만 부여하며 기존 billing:read와 구분한다. control은 기존 문서 확장, 누락 사용자만 검증된 이관으로 생성한다.
+- 데이터 보완은 인덱스 생성과 별개이며 서버 전체 정지를 확정한 계획이 아님. 호환 writer·조건부 이관·재검사 후 필요 시 관련 쓰기만 짧게 제한, 실제 중단 범위/시간은 측정·승인 대상.
+- 기존 durable 재발급 복구를 재사용하되 일반 로그인 전체에 복구 저장소를 새로 만드는 것은 아님. 테스트는 로컬 자동→승인된 격리 Mongo→테스트/staging 순서, 통과가 운영 ON 승인을 대신하지 않음. 설명/기록만, 제품·외부 변경 없음.
+
+## 2026-10-12 — TMI-200 계획 상세 설명
+
+- 정확한 상세 설명 턴 식별자를 WORKLOG 끝에 추가했다. 과거 기록 보존, 제품·계획 추가 변경 없음.
+- 현재 Jira: TMI-200, 브랜치 feat/TMI-200-purchase-scope-control-fencing. 작성한 전용 계획서를 다시 읽고 사용자 관점의 구매 권한/기존 로그인 영향, 공통 control CAS, commit 선후 관계, 이관·replay·I2 분담 및 OFF 활성화 순서 설명.
+- 구매 권한은 유료 사용권/결제 성공이 아니며 기존 token의 즉시 폐기를 보장하지 않음. 응답 유실 복구는 같은 결과 재전달과 새 rotation을 구분하고 무한 재사용/TTL 연장은 금지. 신규 제품 정책 결정 없음.
+- 계획 내용·제품 구현·외부 계약 변경 없음. 기록2파일만 보완, diff 검사; 설명 작업으로 Gradle 미실행. 다음: 구현 요청 후 계획 순서에 따라 진행, 실제 DB 이관·활성화 별도 승인.
+
+## 2026-10-12 — TMI-200 상세 구현 계획 작성
+
+- 계획 작성 턴 식별자를 WORKLOG 끝에 보완했다. 계획 내용과 검증 결과는 유지하며 제품 추가 변경 없음.
+- 현재 Jira: TMI-200. 브랜치 feat/TMI-200-purchase-scope-control-fencing. docs/contracts/TMI-200-purchase-scope-control-fencing-plan.md 작성. 제품 구현은 시작하지 않음.
+- 공식 I1/I2 범위와 현재 issuer/control/reissue·직접 발급9개 경로 및 계정 생성 경로 대조. scope 우회 방지, 공통 CAS/commit, 보호 필드 보존·조건부 이관, Guest 복구 포함, replay/unknown/expiry, I2 같은 transaction capture, OFF 배포·활성화 gate·테스트 matrix 정리.
+- 정적 확인·문서 링크·diff 검사. 문서만 변경하여 Gradle 미실행. 기존 dirty 운영/알림/전환 파일 보존. 다음: 계획 검토 후 구현 요청 시 순서대로 진행. 실제 이관·배포·판매·purchase ON 별도 승인. Jira 댓글 초안은 문서에만 보관.
+
+## 2026-10-12 — TMI-200 전용 계획서 존재 확인
+
+- 현재 검토 Jira: TMI-200. docs의 이슈 키/구매 발급 관련 문서 검색 결과 공동 계약 검토·C0 수락/검증 문서는 있으나 I1 전용 상세 구현 계획서는 확인되지 않음. 기존 billing-public-reader 및 entitlement fanout 계획은 별도 범위다.
+- Jira 범위와 공통 설계는 마련돼 있으며, 실제 변경 파일·발급 경로별 트랜잭션/재시도·control 이관·I2 경계·테스트/단계 배포를 묶은 전용 계획서는 후속 작성 대상. 이번에는 존재 확인만, 제품/외부 변경 없음.
+
+## 2026-10-12 — TMI-200/202 공통 수정 경계 설명
+
+- 현재 검토 Jira: TMI-200. 공통 control은 발급과 탈퇴가 같은 문서를 조건부 쓰기하도록 하고 기존 sessionEpoch/logout/보호 필드를 보존한다. I1은 발급 승인·탈퇴 차단, I2는 동일 탈퇴 트랜잭션의 journal/counter/delivery 추가를 담당하는 구현 분담 설명.
+- 탈퇴 상태/세션 폐기/control 변경과 I2 기록은 한 트랜잭션으로 전부 성공 또는 롤백. Billing HTTP 호출은 commit 후 별도 publisher에서 처리. I2 capture 준비 전 신규 구매 권한 활성화 금지.
+- 사용자 별도 AWS/DB 설정이나 정책 선택은 현재 필요 없음. 구현 전 공통 필드/CAS 순서·함수 경계·테스트를 맞추자는 의미이며 이번 턴 제품 구현/외부 변경 없음. 기존 기록 보존, 문서 diff 검사.
+
+## 2026-10-12 — TMI-200 착수 순서 확인
+
+- 현재 검토 Jira: TMI-200. 공식 조회에서 선행 C0는 완료, I1은 해야 할 일 확인. 다음 Identity 구현 작업은 구매 권한·control 이관·발급/탈퇴 경합이다.
+- 구현 전 I2와 control/탈퇴 트랜잭션 변경 경계를 정하고, 기능 기본 OFF 및 기존 로그인/LC 계약 유지. 실제 이관·활성화는 별도 승인. 이번에는 순서 안내만, 제품 구현·Jira 쓰기·배포 없음.
+- 기존 dirty 작업 보존. 정적 Jira 확인 및 diff 검사, 코드 변경 없어 Gradle 미실행. 다음은 사용자 구현 요청 후 최신 코드/계약에 맞춘 I1 진행.
+
+## 2026-10-11 — 테스트 FCM 실제 발송 활성화·revision24 배포 완료
+
+- 사용자 승인으로 테스트 전용 Secret 저장·원본 일치 확인, 테스트 execution role에 해당 Secret 한정 읽기 권한 추가·IAM 시뮬레이션 allowed 확인. CloudShell 임시 키 파일 제거, 로컬 원본 유지. prod/Identity 권한 불변.
+- test24 실제 발송 true/dry-run false, ECS services_stable·단일 COMPLETED 및 desired/running/pending=1/1/0 확인. 새 태스크 기동 성공·최근 로그 ERROR0, 신규 ALB healthy, 공개 health200/UP. 구 대상은 정상 connection draining 중. 기존 이미지·DB·네트워크·API/tracking·readiness 유지 및 전체 task diff 범위 검증 통과. prod7 불변.
+- 로컬 키 권한600으로 제한, CloudShell 임시 원본 제거 완료. 이번 로컬 변경은 작업 기록뿐이며 Gradle 미실행, diff check 성공. 다음: 테스트 앱 등록·허용·예약 시각 기준 실제 수신 확인. 실제 기기 수신 E2E는 별도이며 임의 테스트 푸시 발송은 수행하지 않음.
+
+## 2026-10-11 — 테스트 FCM 키 확인 완료·AWS 연결 승인 대기
+
+- 사용자 다운로드 JSON이 예상 테스트 전용 FCM 계정인지 원문 비노출 boolean 검증 완료. 키 생성 대기는 해소됨.
+- AWS 서울 테스트 전용 Secret 저장·테스트 실행 역할의 해당 Secret만 읽기·테스트 활성화 배포 범위 확인 요청 중. 아직 키 전송·Secret/IAM 변경·배포 없음; test 발송 OFF, prod 변경 없음. 다음은 승인된 연결과 기동 검증.
+
+## 2026-10-11 — 테스트 FCM 인증키 생성 대기
+
+- 현재 준비 턴의 정확한 WORKLOG 식별 기록을 추가했다. 계정·역할 준비 완료 및 사용자 키 생성 대기 상태는 동일하며 추가 외부 변경 없음.
+
+- 사용자 승인으로 learning-core-test-fcm 계정을 생성하고 Firebase Cloud Messaging API 관리자 역할만 저장 완료. 기존 prod/Identity 계정·권한 변경 없음.
+- Chrome 테스트 계정 JSON 키 생성 창에서 사용자 최종 만들기 클릭 대기. 키/Secret 미생성, test23 실제 푸시 OFF 유지. 다음: 키 발급 후 전용 Secret·최소 읽기 권한 연결 범위 확인, 활성화·배포·기동 검증. 제품 코드 변경 없이 작업 기록만 갱신.
+
+## 2026-10-11 — prod 푸시 상태 안내
+
+- 현재 안내 턴 기록 식별을 WORKLOG에 보완했다. prod 활성화 결과와 test 승인 대기 상태는 동일하며 외부 변경 없음.
+
+- 직전 AWS prod7 조회 기준 notifications api/tracking/sending=true, dry-run=false, FCM 인증 주입 있음: 실제 발송 활성화 상태. 이번 답변은 직전 증거를 사용하며 설정 변경이나 실제 기기 수신 테스트를 수행하지 않았다. test 인증 연결·발송 활성화는 별도 승인 대기 상태를 유지한다.
+
+## 2026-10-11 — 테스트 푸시 알림 활성화 준비
+
+- ECS test23 실행 설정 확인: tracking/api=true, sending=false, dry-run=true. 실제 발송은 OFF이며 FCM 인증 Secret 주입 없음. prod7은 실제 발송 ON 및 전용 FCM Secret 주입 상태.
+- 사용자 활성화 요청을 받았지만 test용 FCM 권한·인증 연결이 먼저 필요하여 적용 범위 승인 대기. 기존 prod 전용 인증을 무단 공유하지 않음. 외부 설정·배포·푸시 발송 변경 없음. 제품 코드 변경 없어 Gradle 미실행; diff check 수행. 다음: 테스트 전용 최소 권한 인증 연결 승인 후 배포·검증.
+
+## 2026-10-11 — 챌린지 재시도 DB 이행·test/prod 배포 완료
+
+<!-- codex-turn:01a12962-b3d9-7f51-a0ab-6eaf10a7797e -->
+
+- LC develop b2b37ff1857c807817235a9891073812538589c2의 동일 이미지로 prod7/test23 배포 완료. 두 환경 구 writer STOPPED 뒤 새4필드 unique 교체 완료. 양 환경 단일 deployment COMPLETED, desired/running/pending=1/1/0, 승인 digest 일치, ALB healthy, 공개 health HTTP200/UP 및 최근 기동 로그 ERROR0 확인. 중단된 서비스 없음. Node26개 이번 턴 재실행 전부 통과.
+- prod orphan6건은 승인된 transaction으로 ops_challenge_retry_orphans_20261011.originalDocument에 원본 보존 후 활성 컬렉션에서 격리(복구 가능). 원인 미확정. 원본 prepare apply 및 재검사 성공; test는 로그인한 Atlas aggregate/UI로 검사·이행했고 원본 CLI 전체 dry-run 미실행.
+- 제품 코드 추가 변경 없음. 이번 변경 파일은 양 저장소 WORKLOG/CURRENT_STATE뿐. 앞선 일반640·Mongo143·Node26 통과 결과 재사용, diff check 성공. 공개 URL/DTO·인증·AI·S3 형식 유지, 구운영·Identity·AI·IAM·Secret·네트워크 불변. 기존 dirty 파일 보존 및 예상 밖 제품 변경 없음.
+- 실제 앱 만료/재시작/제출 E2E와 프론트 분기 보완은 후속. 재시도 생성 뒤 구버전 단순 rollback 금지. Swagger 공유본 생성 없음. 상세 실행 근거·위험·결정은 이번 WORKLOG 항목에 보존.
+
+
+## 2026-10-11 — 챌린지 재시도 commit/push·이미지 준비 완료, DB 사전 검사로 배포 보류
+
+<!-- codex-turn:01a12953-d238-7290-b232-00e14fb49172 -->
+
+- 사용자 이번 작업 한정 commit/push 및 test/prod 인덱스 이행·배포 승인. LC develop b2b37ff1857c807817235a9891073812538589c2의 12개 관련 파일만 commit/push 완료. Identity 제품 코드는 변경하지 않았다.
+- 일반640·전체 Mongo 통합143·Node26 테스트 성공. CloudShell에서 committed archive 이미지 빌드 성공, ECR digest sha256:0b566cc1cd7b73ac87a0be133aa834f84333bb16b1a44db12d36b09bc9958fd0 준비 완료.
+- test DB CloudShell 접속은 MongoServerSelectionError. 저장된 Compass 테스트 연결은 현재 ECS 연결과 다른 오래된 host이며 DNS ENOTFOUND여서 대안으로 사용 불가. 권한·네트워크 확대하지 않음.
+- prod 원본 prepare dry-run은 Orphan Challenge Job or receipt로 실패. 읽기 전용 집계상 grading_jobs/submit_receipts/callback_receipts 각각 missing_attempt2·valid21. 데이터 삭제/격리/검사 우회 없음.
+- 서비스 drain·DDL·task definition 등록/배포는 미실행. LC test22/prod6 및 기존 운영23 유지. 다음: test 접속 경로 확보 및 prod 고아 기록 원인·보존/격리 범위 결정 후 dry-run 재통과→drain→DDL→배포. 프론트 만료 분기 및 실제 앱 E2E 미확인 위험 유지.
+
+## 2026-10-11 — 챌린지 인덱스 변경 설명 및 환경 확인 대기
+
+<!-- codex-turn:01a12950-a920-7f70-9c6f-2633c592aa42 -->
+
+- 현재 unique는 사용자/날짜/문제당 시도1개만 허용한다. 새 unique는 시도 순번까지 포함해 만료 기록을 보존하면서 후속 시도를 저장한다. 기록 삭제 없이 새 인덱스 검증 후 기존 인덱스만 제거하는 준비 스크립트 확인.
+- 대상 test/prod 미지정으로 실제 DB 변경 없음. 구 코드와 새 인덱스 혼용을 피하도록 writer drain과 신규 배포를 함께 계획해야 한다. 사용자에게 대상 환경 및 해당 작업 범위를 확인한다. 제품 코드 변경 없음.
+
+## 2026-10-11 — 서버 선배포 가능 조건 설명
+
+<!-- codex-turn:01a1294f-6a66-7240-a0da-5d3f8873da81 -->
+
+- 프론트 만료 분기 불일치 자체는 확인된 서버500/앱 crash 원인이 아니라 결과 없는 화면으로 잘못 이동하는 흐름 문제다. 결과 question=null은 프론트에서 not-attempted 처리된다. 다음 문제를 누르면 서버409 PREVIOUS_QUESTION_INCOMPLETE로 진행도 복귀 가능하며 기존 경로는 로컬 녹음을 정리한다. 실제 출시 앱 E2E는 미검증이므로 무오류 보장 불가.
+- 이 UX를 수용한다면 프론트보다 서버를 먼저 배포할 수 있지만 모든 Challenge writer drain 및 인덱스 이행은 필수. 구 인덱스가 남으면 신규 코드 기동을 거절하므로 이미지 교체만 해서는 안 된다. 이번 요청은 설명/판단이며 DB 변경·배포는 실행하지 않았다.
+
+## 2026-10-11 — 프론트 챌린지 만료 호환성 확인: 수정 필요
+
+<!-- codex-turn:01a1294b-6a42-73d1-a76a-edd3a45ece98 -->
+
+- GitHub Too-Much-I/app-front-end main c105e0357a2d78126d6d2b225430ddf57567a0d8 고정 코드 읽기 확인. 실제 스토어 빌드와 동일 여부는 미확인.
+- challenge-error-codes.ts52~55는 attemptExpired를 alreadyAttempted와 같은 terminal로 분류. use-challenge-submission.ts159~164에서 onSubmitted(null)→TenSecondChallengeScreen.goToResult로 이동하며 녹음 삭제 및 다음 문제 번호 전달. 새 서버의 question=null과 충돌해 미제출 결과 화면에 진입한다.
+- 최소 수정안: EXPIRED를 terminal 분류에서 빼고 isProgressRefreshRequired에 포함해 기존 cache invalidate→abortToStage 경로로 처리. 이후 재진입 시 useChallengeAttempt가 생성 API 호출, mapChallengeAttempt가 새 ID/deadline을 보존하므로 새 요청 형식은 불필요. stage는 서버 attemptStatus/nextQuestionNumber를 따르는 구조다.
+- 방어 보완 제안: 결과가 not-attempted일 때 다음 문제 버튼 숨김/진행도 복귀, 옛 not_requested=completed 설명 정리. 확인만 수행, 프론트 코드/외부 상태/배포 변경 없음. 정적 분석이며 앱 E2E 미실행. Identity 기록2파일만 변경, 기존 변경 보존 및 예상 밖 변경 없음.
+
+## 2026-10-11 — 프론트 만료 처리 확인의 의미 설명
+
+<!-- codex-turn:01a1294a-88be-7310-8085-cf473ce50a8c -->
+
+- 프론트 코드를 확인했다는 의미가 아니라 배포 전 호환성 확인 항목임을 명확히 설명. 앱이 옛 만료 ID로 계속 제출하지 않고 같은 날 재시작 API에서 받은 새 ID/deadline/업로드 URL을 사용해야 한다. 새 제출은 새 멱등키를 사용한다.
+- 만료만으로 결과 화면/완료 표시/다음 문제를 열지 않고 서버 진행도를 따르는지 확인 필요. 이미 해당 흐름을 지원하면 별도 프론트 수정이 불필요할 수 있다. 프론트 실제 구현 미확인, 제품/배포 변경 없음.
+
+## 2026-10-11 — Learning Core 미제출 챌린지 재시도 구현 완료, 미배포
+
+<!-- codex-turn:01a12941-a291-7301-af5b-bdba20d002fc -->
+
+- 사용자 승인에 따라 인접 app-back-end-learning-core/develop에서 미제출 만료의 같은 날 새 attemptId·새 1시간, 완료/답안 공개/다음 문제 해제 제외 구현. Identity 제품 코드는 변경하지 않았다.
+- LC 제품5파일, 테스트3파일, prepare/Node 테스트, 프론트 계약·이행 문서·작업 기록 변경. 기존 사용자 변경 및 .DS_Store 보존, 예상 밖 변경 없음.
+- 전체 일반640개, 챌린지 Mongo 통합38개, Node10개 및 diff check 성공. 로컬 Docker API 설정만1.44로 지정해 통합 테스트 실행. 전체 타 도메인 Mongo suite/실제 앱 E2E 미실행.
+- 다음: 프론트 확인 및 공유 DB의 Challenge writer drain→명시적 index 이행→신버전 배포가 필요. 실제 DB/배포/commit/push 없음. 기존 시도 보존 및 순번 추가로 구3필드 unique를 교체해야 하며 재시도 데이터 생성 이후 구버전 단순 롤백 금지. 상세: LC docs/codex/CHALLENGE_EXPIRED_RETRY_ROLLOUT.md.
+
+## 2026-10-11 — 챌린지 미제출 만료 재시도 방향 검토
+
+<!-- codex-turn:01a12940-5f03-7ce2-8f20-09f84a753b26 -->
+
+- develop, 분석만 수행. 미제출 EXPIRED는 문제 완료가 아니라 개별 시도 종료로 보고 같은 KST 날짜에 사용자 재시작 요청 시 새 attemptId·1시간 deadline을 발급하는 방향 제안. 제출 접수된 문제 재응시는 계속 차단하고 만료 ID는 계속 거절한다.
+- 현재 owner/date/question unique index와 단일 attempt 조회가 있어 ID 발급만 바꾸는 수정은 불충분. 현재 시도 선택·동시 재발급·중복 제출 방지·집계와 진행 응답을 함께 설계해야 한다. 만료만으로 참고 답안 공개/다음 문제 해제하는 기존 정책도 검토 필요하며 아직 변경 승인·구현 없음.
+- 기록 두 파일만 변경, 외부 계약/DB/배포 유지. 소스 확인·diff check, 분석이라 테스트 미실행. 기존 변경 보존 및 예상 밖 변경 없음. 다음: 정책 승인 후 Learning Core에서 구현·인덱스 이행 계획 및 회귀 테스트 준비.
+
+## 2026-10-11 — 챌린지 풀이 수 집계 기준 추가 확인
+
+<!-- codex-turn:01a12932-b8a7-7d10-9268-df5d232a5623 -->
+
+- develop, 분석만 수행. ChallengeService.solved는 내부 SUBMITTED만 집계하며 submit이 음성 검증·deadline 확인 후 상태와 Job·접수 기록을 저장하는 시점부터 인정한다. 업로드만 완료하거나 미제출 만료된 경우 제외하며 AI 채점 완료·정답 여부는 집계 조건이 아니다.
+- 변경 파일은 CURRENT_STATE/WORKLOG 두 기록뿐, 제품 코드·외부 계약·배포 불변. 코드 조회 및 diff check, 분석 작업이라 테스트 실행 생략. 기존 변경 보존, 예상 밖 변경 없음. 운영/프론트 표시 미검증; 다음 필요 작업은 프론트 집계 필드 확인.
+
+## 2026-10-11 — 10초 챌린지 미제출 1시간 만료 집계 확인
+
+<!-- codex-turn:01a12930-03e2-7a41-9e97-6e97b77123a8 -->
+
+- develop에서 분석만 수행. Learning Core ChallengeService/Models/Store/Views 및 만료 통합 테스트 소스 확인: 생성 후 3600초 미제출은 EXPIRED이며 solvedQuestionCount·participated·streak의 실제 제출 집계에 포함되지 않는다.
+- 종료 상태로는 취급되어 다음 문제·참고 답안 접근 가능, 같은 문제 재시작 불가. 공개 진행 상태 submitted 및 종료 목록에는 만료도 포함되므로 실제 풀이 수와 구분해야 한다.
+- 변경 파일은 Identity 작업 기록 두 개뿐. 제품 코드·API·배포 불변, 기존 변경 보존. 분석 작업이므로 테스트 실행 생략; 소스 검토 및 diff check 수행. 운영 배포 동작/프론트 표시 미검증. 다음: 필요 시 프론트의 풀이 수 집계 필드 확인.
+
+## 2026-10-11 — 오류 분리 및 prod 앱 버전2.0.1 배포 완료
+
+<!-- codex-turn:01a128b7-68c2-7972-8572-7b1406fa43dc -->
+
+- 사용자 명시적 규칙 예외 재승인 후 코드·테스트6파일만 ad207e368bb65217386dc10d22cac6899cc8bb5b 커밋·develop push 완료. 이전 자동 검토 거절은 우회하지 않고 추가 승인을 받아 재실행. CI38104161863 success. 기존 dirty 문서/인프라 미커밋 보존.
+- prod9 기준 이미지/SENTRY_RELEASE 및 Android·iOS minimum/latest 네 값2.0.0→2.0.1만 변경하여 prod10 배포. 나머지 컨테이너 설정 exact 일치 확인. 이미지 digest a837879afcc3e8c99d51a05a90f7564a2b180991e3df557a1f2f2adcd000626c 실행 확인. 11:20:06 KST 단일 COMPLETED/running1/pending0, 새 target healthy, 시작 로그 Started1/ERROR0, health200 UP.
+- 공개 Android/iOS 버전 API 모두 HTTP200·minimumVersion/latestVersion2.0.1 확인. 이전 target draining만 잔존. 세션 거절 정책/JWT/Secret/DB/권한/네트워크 불변, Guest INVALID_REFRESH_TOKEN/Member SESSION_LOGGED_OUT 분리 코드 반영. 실제 계정 재발급·앱 흐름 E2E는 미실행. 증거 /private/tmp/identity-prod-201-completed-2026-10-11.png. 다음:2.0.1 앱의 강제 업데이트/회원 재로그인/Guest 복구 확인. 아래 승인 대기·미배포 기록은 이전 이력.
+
+## 2026-10-11 — 오류 분리 prod 배포 및 2.0.1 버전 변경 승인 대기
+
+<!-- codex-turn:01a128b5-7b16-7601-9dd3-2250e93e4f03 -->
+
+- 사용자 이번 작업 한정 커밋·푸시·배포 요청 및 Android/iOS minimumVersion/latestVersion 모두2.0.1 선택 확인. 다만 자동 안전 검토가 AGENTS.md commit/push 금지와 충돌한다고 명령 실행 전 거절. 우회하지 않고 해당 규칙의 이번 작업 한정 예외를 명시해 재확인 요청했다.
+- 읽기 전용 조회: prod9 COMPLETED/running1, 네 APP_*_VERSION 환경값 모두2.0.0, 공개 양 플랫폼 버전 API도 minimum/latest2.0.0 HTTP200. JSON 버전 override 출력 없음. 외부 변경·git add/commit/push 실행 없음.
+- 다음: 명시적인 규칙 예외 재승인 후 오류 분리 코드/테스트6파일만 커밋·푸시하고 새 이미지와 prod 버전4값2.0.1 적용. 기존 설정 보존 및 배포 완료/공개 버전 확인 필요. 이번 대기 중에는 버전만 별도 선배포하지 않는다.
+
+## 2026-10-11 — 2.0.1 이후 Guest/Member 재발급 오류 분리·미배포
+
+<!-- codex-turn:01a128b2-bb69-78b2-93e3-a56bf83bf8f6 -->
+
+- 사용자 2.0.1 배포 안내에 따라 `/api/v1/auth/reissue`의 SESSION_LOGGED_OUT 변환을 서버에서 현재 ACTIVE GUEST로 확인한 경우로 한정. Guest는401 INVALID_REFRESH_TOKEN, Member는401 SESSION_LOGGED_OUT. 계정/세션 부재·유형 미확인·조회 실패·비활성 Guest는 원래 오류 유지. 버전 헤더에 따른 분기는 추가하지 않음.
+- 재발급 실패 후 서버 세션 해시 및 현재 사용자 조회로 구분하며 성공/다른 오류에는 추가 조회 없음. 기존 recovery/legacy 차단·트랜잭션·내부 진단 불변, 폐기 세션 재발급 없음. Swagger 설명/예시와 테스트 수정, 공유본 생성 없음.
+- 변경 파일: TokenReissueService.java, AuthController.java, IdentityOpenApiExamples.java, ReissueErrorCompatibilityTests.java, ReissueRecoveryServiceTests.java, OpenApiSharingTests.java 및 CURRENT_STATE/WORKLOG. 전체 ./gradlew clean test23초 성공, diff check 성공. 기존 사용자 변경 보존, 예상 밖 변경 없음.
+- 미커밋·미배포. 이전 작업 한정 commit/push 승인은 확대하지 않음. 다음: 사용자 커밋·푸시/배포 승인 및 앱 확인. 구버전 Member 클라이언트도 배포 후 SESSION_LOGGED_OUT을 받으므로 지원 버전 정책 확인 필요. 배포 전후 Guest/Member 실제 앱 복구·로그인 확인 필요.
+
+## 2026-10-10 — 심사용 계정 완전 삭제 실행 및 잔여 범위
+
+<!-- codex-turn:01a12626-3b8b-7c52-b071-f2c233cfd850 -->
+
+- 사용자가 계정과 학습 기록의 비가역 삭제를 승인. Firebase 대상 사용자2개 삭제 후 각 번호 검색 결과 없음 확인. SMS 테스트 설정과 Google/Apple 원본 계정은 변경하지 않음.
+- prod Identity·Learning Core에서 정확한 두 소유자를 확인하고 다른 소유자 참조0건 검사 후 단일 Mongo transaction으로 관련16개 컬렉션의 문서29개 삭제·commit 확인. 사용자/전화번호 점유/세션/가입 진행/학습 aggregate 및 관련 작업·receipt 포함. 동일 식별자와 전화번호 fingerprint 재조회 잔여0건. 확인된 challenge 음성 객체1개 삭제 후 prefix0건, exam prefix는 원래0건.
+- test 직접 DB 연결 실패 후 사용자가 연 Atlas Data Explorer로 확인. 해당 Firebase UID2개에 대한 firebase_identities 및 firebase_enrollment_attempts 모두0건. 다른 사용자의 기존1건은 보존. test 전체 DB의 고아 학습 기록 유무를 전수 검증한 것은 아님.
+- 미완료/위험: Redis 네트워크 연결 timeout으로 prod exam 상태 캐시 존재/삭제 미확인. 과거 백업·로그와 비동기 지연 쓰기까지 소거를 보장하지 않음. 완전 삭제 완료로 보고하지 않음. 별도 접근 허용이나 보안 설정 변경은 하지 않음.
+- 제품 코드/배포/commit/push/Jira 변경 없음. 운영 삭제 작업으로 Gradle 생략, 실제 삭제 결과와 재조회로 검증. 문서2개만 갱신, 기존 작업 변경 보존. 증거: /private/tmp/review-account-test-absence.png. 다음: Redis 접근 가능한 환경에서 정확한 잔여 키 확인 및 필요 시 삭제, test 고아 데이터 추가 검증.
+
+## 2026-10-10 — 사용자 지시 변경: 번호 연결 해제 대신 계정 삭제
+
+- 번호 연결만 해제하는 승인 이후 사용자가 계정 자체 삭제로 요청 변경. 연결 해제는 실행하지 않았고 외부 데이터 변경 없음.
+- 지정된 심사용 번호에 연결된 서비스 계정 및 Firebase 사용자 삭제가 대상. test/prod 범위 유지, SMS 테스트 설정 보존. 기존 학습 기록 보존 요청도 철회하는지 및 비가역 삭제 범위를 확인한 뒤 실행해야 함. 테스트 DB 대상 조회는 여전히 미완료.
+
+## 2026-10-10 — 심사용 번호 양 환경 정리: prod 연결 확인, 해제 승인 대기
+
+<!-- codex-turn:01a12623-2b9f-7d83-8ab9-f85aee8bbc47 -->
+
+- 사용자가 test/prod 양 환경을 지정. Firebase 사용자 화면에서 지정한 두 번호가 각각 Apple/Google 사용자에 연결됨을 확인. prod DB에서 대응 FirebaseIdentity별 ACTIVE 사용자 및 ACTIVE PhoneIdentity 각1건 확인. 번호/UID/이메일 원문은 기록하지 않음.
+- 실제 계정/학습 기록을 유지하고 Firebase 전화번호 연결 및 Identity 점유를 해제하는 범위와 계정 찾기 영향에 대해 승인 요청. 아직 삭제/해제 없음. 테스트 DB 저장 연결은 연결 시도 중이며 데이터 확인 미완료.
+
+## 2026-10-10 — 심사용 전화번호 정리 요청: 삭제 범위 확인 대기
+
+<!-- codex-turn:01a12621-faca-76f2-875b-b2a54fad5dec -->
+
+- 사용자가 지정한 심사용 번호2개의 신규 가입 재사용 요청. 로컬 PhoneIdentity/PhoneFingerprintAlias 구조 확인: 원문이 아닌 fingerprint 연결이므로 단순 원문 삭제로 처리하지 않음.
+- prod 대상 여부와 기존 계정/학습 기록 보존 의도를 먼저 확인. Firebase SMS 테스트 번호 설정 삭제와 실제 사용자 전화번호 연결 해제를 구분. 외부 조회/삭제·코드 변경·배포 없음.
+
+## 2026-10-10 — 재발급 오류 호환 커밋·푸시 및 prod 배포 완료
+
+<!-- codex-turn:01a1261a-ef11-77e1-8f5b-7520e3ac0e6c -->
+
+- 이번 작업 한정 사용자 예외 승인으로 코드/테스트6파일만 45e9837bcc4946b51f29bfe7754788a00f6ab12c 커밋·develop push 완료. 기존 문서/인프라 변경 제외. CI38057759508 최종 success.
+- 사용자 요청에 따라 별도 테스트 서버 기능 검증은 생략. 기존 develop workflow의 test 자동 배포는 그대로 실행되며, 완료를 기다리지 않고 prod8을 복제한 prod9 배포. 이미지 digest b78503d49f20f41c87cdeba3180581591a6e554e2424844e0226f7385fe5e499 및 SENTRY_RELEASE만 변경했고 나머지 container 설정 exact 일치 확인. 23:08:50 KST prod9 단일 ECS COMPLETED/running1/pending0, 해당 digest로 RUNNING, 새 target healthy, Started1/ERROR0, 공개 health200 UP. 이전 target draining은 잔존하나 이전 deployment 정리 완료.
+- 실제 사용자 Refresh로 오류를 재현하지 않았고 prod API 명세 조회는 HTTPError로 확인 불가하여 설정을 열거나 우회하지 않음. 배포된 이미지와 기동만 검증. 다음은 앱에서 재시도하여 INVALID_REFRESH_TOKEN 처리 확인. 증거 /private/tmp/identity-reissue-compat-prod-2026-10-10.png. 아래 미배포 기록은 구현 단계 이력.
+
+## 2026-10-10 — 재발급 SESSION_LOGGED_OUT 임시 응답 호환 구현·미배포
+
+<!-- codex-turn:01a12616-c580-71a1-b6fe-c2a70db38c70 -->
+
+- 사용자 추가 지시에 따라 Guest 한정 초안을 대체하고 GUEST/MEMBER 구분 없이 `/api/v1/auth/reissue`의 SESSION_LOGGED_OUT을 401 INVALID_REFRESH_TOKEN으로 변환. TokenReissueService 두 진입점에 응답 변환만 추가, recovery/legacy 경로 공통 적용. 내부 SESSION_LOGGED_OUT enum/진단 원인은 유지하고 호환 로그에 원래 코드·응답 코드·reason만 기록한다. 별도 DB 조회나 세션 발급/폐기 완화 없음.
+- 만료·재사용·탈퇴·병합 등 다른 오류 및 다른 API는 불변. Swagger 명세·예시와 회귀 테스트 수정, 공유본 생성 없음. 클라이언트가 기존 INVALID_REFRESH_TOKEN 처리로 복구/로그인을 이어가는지 실제 앱에서 확인 필요하며 앱 복구 성공을 보장하는 변경은 아니다.
+- 변경 파일: TokenReissueService.java, AuthController.java, IdentityOpenApiExamples.java, ReissueErrorCompatibilityTests.java, ReissueRecoveryServiceTests.java, OpenApiSharingTests.java, CURRENT_STATE.md, WORKLOG.md. 기존 사용자 문서/인프라 변경 보존. 현재 코드 미커밋·미배포. 진단 로그 배포 완료 기록은 아래 별도 작업 이력.
+- 테스트: 실제 폐기 세션 회귀 검증까지 포함한 최종 ./gradlew clean test22초 BUILD SUCCESSFUL, git diff --check 성공. 다음: 사용자 커밋·푸시/배포 및 실제 앱 확인. 핫픽스 심사 통과만이 아니라 해당 클라이언트 보급·최소 버전 정책 확인 후 임시 wrapper/로그/Swagger 변경을 제거한다. 자동 만료 없음.
+
+## 2026-10-10 — 재발급 진단 로그 커밋·푸시 및 prod 배포 완료
+
+<!-- codex-turn:01a1260d-bd62-7362-89b5-cc942d5a3848 -->
+
+- 사용자 이번 작업 예외 승인으로 진단 코드/테스트5파일만 71e6cc27a51e23f4cc27629c22e11db3f1de62d6 커밋·develop push 완료. 기존 문서/인프라 변경 제외. CI38056862105 성공, test37 자동 배포 완료.
+- prod7을 복제하여 이미지 bdf3cc1d0b3f5fdd22c15c749abe21297a2824a1f0d694dd38de8919b1bc2589와 SENTRY_RELEASE만 바꾼 prod8 배포. 두 서비스 단일 COMPLETED/running1/pending0, 신규 타깃 healthy, 이전 타깃 draining. prod health200 UP, 신규 기동 Started1/ERROR0.
+- Guest 복구·병합 ON 등 환경변수/Secret/역할/네트워크 보존. 인증 정책/API 응답 불변. 다음: 앱에서 실패 재현 후 auth.refresh.session_rejected의 reason/accountType/revocationReason 확인. 로그 배포 자체가 차단을 해제한 것은 아님.
+
+## 2026-10-10 — Guest 로그아웃 UI와 서버 세션 오류의 독립성
+
+<!-- codex-turn:01a12610-ced7-7dd3-a94a-fe38394b5eeb -->
+
+- Guest 로그아웃 UI가 없더라도 ReissueRecoveryService의 재사용 감지에 따른 세션 폐기 및 폐기된 세션 거절은 Guest에도 적용됨을 재확인. 일반 보호 API의 Access 인증 실패와 /auth/reissue의 Refresh 오류는 별개다. Guest가 COMMON_UNAUTHORIZED만 받는다는 계약은 현재 구현에 없다. 최신 실제 실패 원인은 이 사실만으로 확정하지 않는다.
+- 분석/기록만 변경, 제품·배포·DB 불변. 다음: 프론트 Guest 복구 분기 합의 및 진단 로그 배포 후 원인 식별. 문서 작업으로 테스트 생략, diff check 수행.
+
+## 2026-10-10 — 인증 실패와 Guest 복구 UX 구분
+
+<!-- codex-turn:01a1260e-cbf8-7fe1-890f-762ca8e1f7e5 -->
+
+- 코드 확인: COMMON_UNAUTHORIZED는 인증 실패 공통 응답으로 만료 전용이 아니며, SESSION_LOGGED_OUT은 Refresh 세션 폐기·epoch 불일치·응답 복구 취소 등을 의미한다. Guest에도 적용되며 Guest 계정/학습 기록 삭제를 의미하지 않는다. 만료 시각 이전에도 서버 폐기로 재발급이 거절될 수 있다.
+- 권장 UX: Access 만료/인증 실패 시 정상 Refresh 재발급을 우선한다. SESSION_LOGGED_OUT이면 같은 Refresh 재시도를 중단하되, MEMBER 재로그인과 기존 GUEST의 동일 installationId 기반 /auth/guest 복구를 구분한다. COMMON_UNAUTHORIZED만을 Guest 복구 트리거로 쓰거나 모든401에서 Guest를 새로 만들지 않는다. 현재 프론트 구현은 이번에 확인하지 않았다.
+- 분석만 수행, 제품/배포/DB 변경 없음. 진단 로그 미배포 상태 유지. 기록2파일만 변경하고 기존 변경 보존. 다음: 프론트 오류 분기 계약 합의 및 실제 실패 분기 진단. 문서만 변경해 테스트 재실행 생략, diff check 수행.
+
+## 2026-10-10 — 진단 로그 prod 배포 요청: 커밋·푸시 전 상태
+
+- HEAD는 기존 Guest 복구 커밋 2d0cbd5e이며 진단 로그 코드5개 파일은 로컬 미커밋 상태. 신규 이미지 배포로 진행하기 전에 커밋·푸시 필요.
+- 저장소 규칙의 직접 commit/push 금지 및 이전 작업 한정 예외를 유지. 이번 작업에도 예외를 적용할지 사용자 확인 필요. prod 재배포/설정 변경 없음.
+
+## 2026-10-10 — SESSION_LOGGED_OUT 진단 로그 구현 완료·미배포
+
+<!-- codex-turn:01a1260a-e39e-7351-b41d-bd386babbc78 -->
+
+- 현재 운영 재발급 복구 경로에 auth.refresh.session_rejected INFO 로그 추가. reason/accountType/revocationReason/authenticationSource 및 기존 MDC requestId로 구분. 토큰·해시·사용자/세션 ID 미기록.
+- enum 사유: EPOCH_MISMATCH, LEGACY_AUTH_BOUNDARY, AUTH_EPOCH_MISMATCH, FIREBASE_REVOCATION_BOUNDARY, RECOVERY_CANCELLED, SOURCE_REVOKED, CHILD_REVOKED, CHILD_EXPIRED, UNKNOWN. HTTP 오류 및 인증 거절 정책 불변.
+- 전체 ./gradlew clean test 최종 성공. 분기별 로그5개/진단 조회 실패 보존1개 테스트 추가. 커밋·푸시·배포 미수행. 배포 후 같은 오류 재현 시 requestId로 진단 이벤트와 요청 로그 대조 필요.
+
+## 2026-10-10 — Guest의 SESSION_LOGGED_OUT 적용 조건 확인
+
+<!-- codex-turn:01a12609-1e96-7b41-8653-ac07e4b90e85 -->
+
+- 현재 ReissueRecoveryService의 세션 폐기/복구 취소 및 UserSessionControl의 epoch 검증은 Guest에도 적용된다. SESSION_LOGGED_OUT은 멤버 전용 오류나 수동 로그아웃만을 의미하지 않는다.
+- 재사용 감지로 이미 폐기된 Guest 토큰의 후속 요청에서도 발생 가능. 해당 오류만으로 Guest 여부 또는 특정 실패 원인은 판별 불가. 코드/설정/DB 변경 없음.
+
+## 2026-10-10 — 긴급 복구 경로 정리
+
+<!-- codex-turn:01a12605-c587-7aa3-b3a8-7b5c27d46812 -->
+
+- 추가 원인 조사 대신 이미 배포된 /auth/guest 복구 경로를 긴급 해결 수단으로 안내. 기존 Guest임이 확인되고 동일 installationId가 보존된 경우에 한정하며, 필수 동의/정책 버전 검증과 성공 응답 토큰 교체가 필요하다.
+- GuestAuthRequest/GuestAuthService를 재확인. 현재 저장소에는 프론트 호출 변경을 수행하지 않음. /reissue 폐기 허용, DB 수정, 배포 없음. 실제 앱 복구 성공은 미확인.
+
+## 2026-10-10 — 최신 reissue 실패 식별 및 DB 읽기 전용 대조
+
+<!-- codex-turn:01a12602-ccff-73c0-a123-9fa741f10e18 -->
+
+- 최신 실패는 KST22:31:23 /auth/reissue401 SESSION_LOGGED_OUT. 요청 자체는 서버에서 찾았으며 사용자에게 요청 식별자를 다시 요구할 필요 없음.
+- 동일 requestId의 추가 내부 로그 0건. 현재 요청 로그에는 세션 연결/거절 분기 정보가 없어 정확한 세션과 DB 대조 불가.
+- prod DB 익명 집계에서 ACTIVE GUEST의 REUSE_DETECTED 세션 1건(10/09 KST21:02:16 폐기), ACTIVE MEMBER의 epoch 불일치 등 복수 후보 존재. 해당 Guest 세션이 최신 실패의 원인이라는 연결 증거는 없음.
+- 설정·데이터·제품 코드 변경 없음. 다음은 원문 토큰 없이 거절 분기/계정 유형을 구분하는 진단 보강 후 재현; 일괄 허용하지 않음.
+
+## 2026-10-10 — /reissue Guest 복구 확대 검토: 실패 원인 식별 필요
+
+<!-- codex-turn:01a12600-b52d-7c61-9b63-5fb02ea171f4 -->
+
+- develop에서 ReissueRecoveryService, SessionSecurityService, UserSessionControl 및 RevocationReason 검토. 기존 인증 증거가 null이라는 이유만으로 구버전 Guest를 거절하지는 않으며, epoch 불일치·실제 폐기·응답 복구 취소 등 여러 이유가 SESSION_LOGGED_OUT으로 합쳐진다.
+- /reissue 요청에는 refreshToken만 존재하고 installationId는 없다. ACTIVE Guest 여부만 검사해 모든 실패를 복구하면 명시 로그아웃/재사용 차단을 무효화할 수 있다. 업데이트 대상임을 구분하는 migration 전용 폐기 사유는 현재 enum에 없다.
+- 변경은 기록 두 파일뿐. 제품 변경 보류: 실패 요청의 X-Request-ID/정확한 시각으로 내부 거절 분기 및 세션 폐기 이유를 먼저 확인해야 한정된 호환 수정 범위를 결정할 수 있다. 토큰 원문을 공유받지 않는다.
+
+## 2026-10-10 — 배포 후 차단 재조사: reissue 거절 지속, Guest 복구 호출 없음
+
+<!-- codex-turn:01a125fd-f4dc-7ec1-afbb-7642e8068633 -->
+
+- prod7 COMPLETED/running1, GUEST_RECOVERY_ENABLED/GUEST_MERGE_ENABLED=true 재확인. 설정·코드·DB 변경 없이 읽기 전용 조사.
+- KST22:19:00~22:27:58 요청 로그: reissue SESSION_LOGGED_OUT401 7건(22:24:13~22:27:40), reissue200 1건. /auth/guest 호출 및 복구 성공 이벤트 없음. 앱의 복구 fallback 미호출 가능성이 있으나 실패 계정 유형/개별 사유는 미확정.
+- guest/prepare200 1건, guest/merge200 1건(22:25:50), 병합 진행 조회200 2건. USER_MERGED/LEARNING_CORE delivery PUBLISHED 확인. 진행 조회의200만으로 모든 이전 완료를 단정하지 않음.
+- 다음: 실패 기기의 Guest 여부·동일 installationId 보존 및 /auth/guest 호출 연결 확인. 멤버는 재로그인, 폐기 토큰 /reissue 허용으로 변경하지 않음. 코드 변경 없어 테스트 미실행, 기록만 갱신.
+
+## 2026-10-10 — Guest 복구 develop 이식 / test·prod 병렬 배포 완료
+
+<!-- codex-turn:01a125e8-8505-7ca1-bc04-000796f557df -->
+
+- 현재 배포 작업 식별 기록 보완 완료. 아래 결과는 직전 확인 시점 기준이며 이번 보완에서 추가 배포나 설정 변경은 수행하지 않았다.
+
+- 기존 main 한시적 복구를 SNS 계정 유형·병합·현재 session epoch에 맞게 이식. clean test/CI38054962022 성공. 사용자 예외 승인으로 2d0cbd5e commit/push 완료, 기존 사용자 변경 제외.
+- test36/prod7 병렬 배포 완료(단일 COMPLETED/running1/pending0, 신규 target healthy, 이전 target draining). 동일 a7b2de3a 이미지. prod 복구·병합·LC owner-event capture/publisher/progress ON, LEARNING_CORE_ONLY/Billing OFF. test 환경 설정 유지.
+- prod 버전 네 값2.0.0 유지·GET200, health200/UP, 기동 ERROR0. 추가 검증 중단 요청에 따라 실기기 E2E/DB 추가 조사 없음. 기존 운영 issuer 주소와 prod JWKS동일 확인 후 기존 인증 설정 유지. 최종 증거 /private/tmp/identity-guest-recovery-prod-2026-10-10.png.
+- 기존 기록/infra/다른 작업 변경은 커밋에서 제외. /reissue 폐기 검증 유지, 앱 fallback 및 실기기 E2E 미확인.
+
+## 2026-10-10 — prod 4xx/503 조회: 버전 설정 누락·병합 비활성 확인
+
+<!-- codex-turn:01a125e4-8ac0-76d2-92c0-46370f44f547 -->
+
+- KST20:59:04~21:59:04 Identity 요청 로그: APP_VERSION_UNAVAILABLE503 21건, FIREBASE_UNAVAILABLE503(guest/merge)3건, SESSION_LOGGED_OUT401 12건, COMMON_UNAUTHORIZED401 1건, INVALID_REISSUE_REQUEST_ID400 1건, INVALID_REFRESH_TOKEN401 1건.
+- prod5 실제 환경: Android/iOS latest/minimum 네 값 모두 빈 문자열, FIREBASE_AUTH_ENABLED=true, GUEST_MERGE_ENABLED=false. 코드와 대조해 두503의 설정 원인 확인. 설정 변경/재배포 없음.
+- 같은 시간 ALB Identity4xx14/5xx23, 로그4xx15/5xx24로 차이 있음(지표 집계 구간/수집 차이 가능, 동일 수치로 간주하지 않음). LC 오류 지표 datapoint 없음, 최근 로그 ERROR/WARN/Exception 없음. ECS 양 서비스1실행/0보류. ALB 자체 오류·AI 별도 미조사. 다음은 버전 값 및 병합 활성화 조건 승인 후 수정 여부 결정.
+
+## 2026-10-10 — Azure 결과 백업 및 일치 원본 삭제 완료
+
+<!-- codex-turn:01a1253d-7e9f-7b42-b862-6ef5517286b3 -->
+
+- 삭제 실행 작업 식별 기록 보완 완료. 아래 잔여12건은 삭제 후 관측 시점의 값이며 이후 쓰기에 따라 증가할 수 있다. 추가 DB 삭제는 수행하지 않았다.
+
+<!-- codex-turn:01a1253a-b864-7b11-9be6-228b3e8717f9 -->
+
+- 이전과 동일한 앱 DB to-teacher-app.azure_results를 Compass 저장 연결로 조회하고 전체 Canonical Extended JSON 백업 완료. Documents/to-teacher-app.azure_results.2026-10-10.backup.canonical.json, 2341건, 420183817바이트.
+- 전체 증분 파싱 성공: 고유 ID2341, raw_data2341. SHA-256 8f752fb5bad21f1d039b574f4b4b51484a68913afa0ec7f9355e4581f8723518. 실제 복원 테스트 미실행.
+- 사용자 최종 승인 후 전체 문서 동일성 조건으로 백업2341건 전부 삭제 완료. 삭제 시작2345건, 완료 시11건, 후속 통계12건(동시 신규 쓰기 보존). 인덱스 불변. 컬렉션/다른 DB 보존.
+- 후속 collStats 논리 데이터532800바이트, storage30674944바이트, index180224바이트. 물리 할당량은 논리 삭제량과 다르며 Atlas 전체 지표 감소 미확인. 복구는 보존한 백업 재가져오기가 필요하다.
+
+## 2026-10-09 — prod 실제 알림 발송 활성화 상태 확인
+
+<!-- codex-turn:01a1205e-2deb-73d2-938c-507f30d5a390 -->
+
+- 사용자 범위는 prod만. AWS live 조회 결과 LC prod6의 Spring JSON에서 sending-enabled=true, dry-run=false, api-enabled=true, tracking-enabled=true 및 FCM credential Secret 연결 존재 확인. 이미 활성화되어 설정 변경·재배포 없이 유지했다. 테스트 서버 불변.
+- 서비스 COMPLETED, running1/pending0 및 콘솔 정상 타깃1 확인. 코드상 발송 시간은 매일 21:00 이상 21:15 미만 KST이며 대상 조건을 만족해야 발송된다. 실기기 수신·DB pause 상태는 이번 확인 범위 밖이다.
+- 코드/API 계약 변경 없음. 기록만 갱신, Gradle 미실행(운영 설정 읽기만 수행), diff check 수행. 다음 확인은 대상 기기의 발송 시간대 수신 여부이며 수동 알림 발송 없음.
+
+## 2026-10-09 — AI Learning·Identity test/prod 배포 완료
+
+- AI commit4f4d0b2의 API/Worker 동일 digest a5f8fbb3으로 test3·prod2 병렬 배포 완료. Identity commit4842d6c2의 검증 이미지 c8871b41로 prod5 배포, 이미 동일본인 test35 유지.
+- 네 서비스 단일 COMPLETED/1실행·0보류/ALB단일healthy, 이전 타깃 정리 완료. 실제 앱 컨테이너 digest/startup/RUNNING 확인, 조회한 기동로그 ERROR0. Identity test/prod GET health200/UP.
+- AI 로컬180/CloudShell180 테스트 및 topology Node4개, 양 저장소 diff check 통과. LC test22/prod6·시험AI·웹POC·환경별 Secret/flag/IAM/네트워크/DB 불변; 이번 코드 수정/commit/push 없음. 신규 Jira 없음, 기존/동시 변경 보존.
+- 변경 파일은 양 저장소 기록 및 Identity topology revision/image metadata. 실제 채점·Apple CLEANED E2E는 별도; 상태를 바꾸는 POST probe는 실행하지 않았다. 증거 /private/tmp/ai-identity-deployment-2026-10-09.png.
+
+
+
+## 2026-10-09 — 피드백/교정 목록 수정 test·prod 병렬 배포 완료
+
+<!-- codex-turn:01a11faf-382a-7731-9598-19fbb6fdd1ae -->
+
+- 사용자 푸시 dbe4b81 확인. push37902484709는 실제 배포 job skipped라 기존 workflow_dispatch37902563372 시작. 공통 테스트·이미지 빌드 후 test 완료를 기다리지 않고 prod 배포도 시작한다.
+- CI37902563372 전체 성공. test22/prod6 모두 단일 COMPLETED, desired/running/pending1/1/0, ALB 단일 healthy, 공개health200/UP 및 기동 ERROR0. 같은 digest fe0015a2 사용, image-only 변경 확인. 이전 배포/타깃 정리 완료.
+- 변경은 양 저장소 기록과 topology LC revision/image metadata. topology Node4개/양 저장소 diff check 통과. Secret/환경변수/AI/Identity/구운영 유지, commit/push 없음. 실제 AI·앱 E2E 및 과거 누락 목록 복원은 미수행. 앱 새 결과 확인 필요. 예상 밖 이번 변경 없음.
+
+## 2026-10-09 — 프론트 피드백 없음 조건 안내
+
+- feedback 객체가 존재해도 세 하위 값 모두 null이면 내용 없음이다. 프론트가 feedback===null 비교를 사용하는 경우 해당 조건 보완 필요; 실제 프론트 코드 사용 여부는 이번에 확인하지 않았다. 빈 배열 []는 AI가 교정 없음으로 보낸 값으로 null과 구분한다. 이번 작업은 설명/기록만 수행했다.
+
+## 2026-10-09 — 피드백 null 객체·교정 목록 저장 수정 완료/미배포
+
+<!-- codex-turn:01a11fa9-b30f-73f0-82e2-8a6c3b59e868 -->
+
+- aiResult가 존재하면 feedback는 항상 summary/correctedAnswer/correctionItems 객체이며 내용 없을 때 세 값 null. 결과 자체가 없는 aiResult=null은 유지한다.
+- AI legacy+correctionItems 입력도 검증 후 detailedFeedback에 저장해 재조회/응답에 보존한다. 기존 상세 형식과 목록 없는 legacy 호환 유지. 기존 완료 job의 유실 목록 자동 복원은 하지 않는다.
+- LC clean test640개·Mongo통합138개 성공, 양 저장소 diff check 성공. 테스트는 로컬 격리 Mongo만 사용, 운영 DB/실제 AI 조회·쓰기 없음.
+- 제품2개/테스트4개/계약2개와 양 저장소 작업 기록 수정. 기존/동시 변경 보존, 예상 밖 이번 변경 없음. commit/push/배포 미실행.
+- 배포 전: 프론트 feedback==null 판정 수정, LC reader 먼저 배포 후 AI 신규 job 검증. 이미 무시됐던 확장 목록의 기존 job 재전송은 digest 충돌 가능. 실제 AI E2E는 별도.
+
+
+## 2026-10-09 — 제공한 AI 상세 콜백과 null 조회 응답 비교
+
+- 사용자 정정: AI JSON은 동일 요청의 실수신 자료가 아니라 형식 예시다. 따라서 문장 차이는 장애 근거가 아니며 실제 null 결과의 콜백을 확인해야 한다. 제시 상세 형식은 지원되므로 그 형식 자체 때문에 저장이 빠진다고 설명하지 않는다.
+
+- 새로 제공한 summary/correctedAnswer/correctionItems 콜백은 현재 LC 상세 형식 파서가 지원한다. 앞서 확인한 AI 저장소의 legacy+correctionItems 형식과 다르므로 이전 목록 누락 설명만으로 이번 null 응답을 설명할 수 없다.
+- 프론트 결과는 일찍 기상하는 문항, AI 예시는 신발 문장으로 같은 attempt인지 미확정. 현재 completed+aiResult 두 null 조합은 no_speech 저장 경로와 일치하나 실제 DB/수신 로그 증거 없이 원인을 확정하지 않는다.
+- 동일 attempt의 callback 목적지·HTTP 결과·적용 여부 확인 필요. 오래된 generation/이미 terminal 결과는 정상 응답이어도 무시될 수 있다. 코드/배포/DB 변경 없이 소스 분석만 수행.
+
+## 2026-10-09 — correctionItems null과 부모 객체 null 구분
+
+- 현재 결과 DTO는 feedback 객체가 있으면 correctionItems=null도 명시적으로 직렬화한다. 반면 feedback=null 또는 aiResult=null이면 그 아래 correctionItems 키가 따로 나오지 않는다. 앞선 목록 null 설명은 feedback 객체 존재 조건이 생략돼 보완했다.
+- LC ChallengeExactResponseTest 재실행 성공. 개별 사용자 요청 URL/원본 HTTP 응답은 미확인이라 실제 누락 원인은 확정하지 않는다. 다른 endpoint/호스트/클라이언트 변환 여부 확인에는 실제 요청·응답 필요. 코드/DB/배포 수정 없음.
+
+## 2026-10-09 — 챌린지 교정 목록 저장 누락 코드 경로 확인
+
+<!-- codex-turn:01a11fa5-71a9-7593-a794-5286b4ca0784 -->
+
+- DB 저장 코드 자체는 존재한다. 다만 현재 AI의 meaning/grammar/pronunciation+correctionItems 형식은 LC legacy 분기로 들어가 목록을 Result에 담지 않는다. 그 Result가 저장되고 프론트 변환에서 correctionItems=null이 된다. 상세 형식 전용 파싱·저장 경로와 구분한다.
+- 실제 DB 조회는 CloudShell 임시 진단 드라이버 준비 후 사용자 질문으로 중단해 미실행. 저장 정상 여부를 실제 DB로 확인한 것은 아니다. 이번에는 소스 설명/기록만 수행, 제품·DB·배포 변경 없음. 수정/배포 승인 대기 유지.
+
+## 2026-10-09 — prod 보류 원인 확인/AWS 콘솔 복원
+
+- Chrome 종료로 AWS 콘솔 연결이 끊겨 prod 새버전 배포 시작 전에 보류된 것이며 서버 정지는 아니다. CLI NoCredentials 재확인.
+- 사용자 Chrome 재열기 후 AWS prod 콘솔 연결 복원. 현재 prod4, 1실행/0보류, 배포완료1건, ALB1정상/0비정상. 이번은 원인 확인 요청이므로 prod 배포 재개 없이 읽기/기록만 수행. 신규 Jira 없음.
+
+## 2026-10-09 — 배포 중단 대상 정정/상태 재확인
+
+- Identity 테스트 자동 배포는 취소하지 않았으며 Actions37885862047 completed/success로 14:01 KST 완료했다. commit4842d6c2. 멈춘 대상은 아직 시작하지 않은 prod 새버전 배포다.
+- test/prod 공개 health UP 재확인; prod는 기존 버전이며 새배포 성공 증거 아님. 이번 read-only 상태 확인과 기록만 수행, 제품·배포·설정 변경 없음. 신규 Jira 없음.
+
+## 2026-10-09 — 최신: Apple 변경 commit/push/test 배포 완료/prod 콘솔 연결 대기
+
+- 사용자 이번 한정 승인으로 Apple 변경7개 파일만4842d6c2 commit/push origin develop. 다른 dirty 파일·기록·script는 커밋 제외/보존. 신규 Jira 없음.
+- Actions37885862047 test/build/ECR/ECS/health 성공, test:35 배포 완료. 새 runtime digest sha256:c8871b41035a13b08bcee7fc113680061748436266321a286f85fef162616de8. 공개 test health200/UP.
+- prod4는57192f45 기존 이미지로 정상; 아직 새prod 배포 안 함. CLI credential 없음 및 Chrome 종료로 AWS 콘솔 연결 상실. AWS Chrome 재열기 요청. prod 등록/update·main push·설정/DB/IAM 변경 없음.
+- 다음: exact commit 이미지로 prod4 기반 배포 후 stable/healthy/UP 확인. 실제 Apple 기기CLEANED E2E/Android unsupported/기존 reconciliation은 별도. API·소유권·다른 서비스 불변.
+
+## 2026-10-09 — 챌린지 AI 배포 사전 확인: 수신 계약 불일치로 보류
+
+<!-- codex-turn:01a11efe-f87b-7912-aca1-a7b9736dbdcc -->
+
+- 현재 턴 기록 보완 완료. AI 배포는 시작하지 않았으며 LC 수신 보완·함께 배포 및 이번 작업 commit/push 승인 대기 상태다.
+
+- 사용자 AI 배포 요청을 직전과 같은 test·신규 prod의 챌린지 AI로 해석해 확인했다. app-ai-learning main0be4e4b는 기존 meaning/grammar/pronunciation feedback에 correctionItems를 추가한다. 모의고사 AI 제외.
+- 현재 LC c766d54의 ChallengeCallback.java:36은 meaning이 있으면 기존 Feedback3개 필드만 저장하고 correctionItems를 버린다. ChallengeViews.java의 legacy 변환은 correctionItems=null이므로 AI만 배포해도 새 교정 항목은 앱에 전달되지 않는다. 소스 확인 사실이며 실제 사용자 요청 E2E는 수행하지 않았다.
+- ECR 최신은 test-2391a94/digest cf2ea719, 두 환경 모두 해당 이미지 사용. 신규0be4e4b 이미지/워크플로 없음. 소스를 /private/tmp/challenge-ai-deploy.t9y0pt/source에 격리 조회하고 archive 준비만 했다. build/push/ECS 변경/제품 코드 수정 없음.
+- 다음 결정: LC가 확장된 기존 feedback의 correctionItems를 검증·보존하도록 보완한 뒤 AI와 함께 배포할지 사용자 승인 필요. 이번 요청은 배포이므로 추가 제품 변경/commit/push를 임의로 수행하지 않는다. 기존/동시 변경 보존.
+
+## 2026-10-09 — 최신: 프론트 Apple 철회 전제 변경 완료/미배포
+
+- 앞선 서버 code 필수/최근5분 Apple 재인증/중복 철회 구현은 사용자 요청으로 회수했다. 아래 서버 승인 철회 기록은 과거 작업 이력이며 현재 구현이 아니다.
+- Apple obligation을 CLIENT_MANAGED로 처리해 기존 Firebase 삭제/absence 확인/identity release로 이어간다. 서버 독립 철회 검증 없음. 기존 API·소유권·비Apple 탈퇴 불변, 추가 flag/secret/schema 없음.
+- adapter/enum/테스트2개 및 최신 Apple 계약·stage1/2 문서 반영. 최종 clean test1311개(실행1305/skip6), 실패/오류0. 기존/동시 변경 보존, 예상 밖 제품 변경 없음.
+- iOS 확인 소스는 프론트 수정 불필요. Android Apple unsupported 및 설치 build 실기기 철회→CLEANED/재가입 E2E는 남는다. 기존 보류 건 자동 복구 없음. 사용자 commit/push 및 서버 배포 필요; 이번 외부 설정/배포 없음. 신규 Jira 없음.
+
+## 2026-10-09 — Apple 탈퇴 승인 철회 구현 완료/미배포
+
+- 신규 Jira 없음. 같은 Firebase 계정의 최근5분 Apple 재인증+appleAuthorizationCode를 검증하고 Firebase managed revokeToken을 호출하는 서버 경로를 추가했다. 성공 시각만 내부 탈퇴 Transaction의 lifecycle에 저장해 worker Firebase 삭제를 이어간다. 원문 code/token 저장 없음.
+- 기존 탈퇴 URL/Method/성공 response 및 비Apple 인증 유지, Apple 연결 회원은 새 write-only 입력과 재인증 필수. 실패/timeout이면 내부 탈퇴 미확정, 증거 없는 기존 보류 건은 자동 해제하지 않는다.
+- 최종 clean test1321개(실행1315/skip6), 실패·오류0 및 diff check 성공. API 명세·모바일/배포 계약은 docs/contracts/apple-withdrawal-token-revocation.md에 정리했다.
+- 신규 flag 기본OFF. 실제 Firebase 프로젝트 API key·Apple OAuth code flow/redirect 설정, 모바일 code 전달 및 최종CLEANED E2E가 남는다. 이번 commit/push/배포·AWS/DB 변경 없음, 기존/동시 작업 보존. LC 변경은 기록뿐이다.
+
+## 2026-10-09 — LC test·prod 병렬 배포 완료
+
+<!-- codex-turn:01a11ee8-645f-7d21-95ba-7593899095a6 -->
+
+- 사용자 승인: test·신규 prod 병렬 배포, 이번 테스트 보완에 한해 commit/push 예외 허용. 기존 설정·Secret·구운영·Identity·AI는 변경하지 않는다.
+- 055d491 수동 CI37883824730은 통합 테스트의 삭제된 submittedAt 참조 때문에 이미지 빌드 전 실패. LC 통합 테스트1개를 새 응답 계약에 맞춰 수정하고 c766d54로 develop에 푸시했다. 기존 사용자 문서/.DS_Store는 커밋에서 제외했다.
+- clean test632개 및 통합 테스트 컴파일 성공. 로컬 Docker API1.32 불일치로 통합 테스트 초기화 실패 후 이번 명령에만 api.version=1.44 적용해 Mongo 통합136개 통과. CI37884298904 전체 성공.
+- test21·prod5 모두 단일 PRIMARY/COMPLETED, desired/running/pending1/1/0, ALB 단일 healthy, 공개 health200/UP. 동일 c766d54 digest43c9284e 사용, 기존 definition과 image만 다름을 검증했다. 이전 target/배포 정리 완료.
+- 변경: LC 통합 테스트1개, 양 저장소 작업 기록, 운영 topology revision/image metadata. topology Node4개 및 양 저장소 diff check 통과. 기존/동시 사용자 변경은 보존, 예상 밖 이번 변경 없음. 기록은 로컬이며 추가 commit/push하지 않는다.
+- 다음: 앱에서 새 챌린지 응답 구조/값 없음 null 확인. 실제 AI·프론트 E2E는 미검증. 완료 화면 /private/tmp/learning-core-parallel-deploy-2026-10-09.png.
+
+## 2026-10-09 — LC 챌린지 상세 응답 정확 일치 수정 완료
+
+<!-- codex-turn:01a11eda-63e6-7ab0-906d-f0b0a4b46f0d -->
+
+- 현재 작업 식별자로 기록 보완 완료. 구현 및 632개 테스트 통과 상태는 그대로이며, 아직 커밋·푸시·배포하지 않았다.
+
+<!-- codex-turn:01a11ed8-b6ad-7280-90d8-1cf456d9f6a8 -->
+
+- 사용자 요청으로 LC 결과 조회의 추가 필드6개 제거, question 참고 답안/aiResult transcript와 feedback만 유지. 값 없음은 명시적 null, legacy correctionItems=null 및 명시적 교정 없음 [] 구분.
+- LC ChallengeViews·테스트3개·계약2개·기록 수정, clean test632개 성공. AI 콜백/DB/다른 API 불변. Identity는 기록만 수정. 커밋/푸시/배포 미실행, 제거 필드 프론트 의존 및 실제 AI E2E 별도 확인.
+
+## 2026-10-09 — 챌린지 null 피드백 응답 분석
+
+<!-- codex-turn:01a11ed8-b6ad-7280-90d8-1cf456d9f6a8 -->
+
+- 사용자 응답은 소스상 no_speech 결과와 일치: AI 생성 필드는 null, 참고 답안은 snapshot 유지, gradingStatus는 completed. 해당 운영 요청의 콜백/음성을 직접 확인한 것은 아니므로 실제 무발화 원인은 미확정.
+- 앞선 변경은 feedback 구조 교체이며 difficulty/시각/aiResult 참고답안·verdict·상위 correctedAnswer는 의도적으로 유지했다. 사용자 최소 예시와 필드가 완전히 동일한 응답은 아님. 제품 코드·배포 수정 없음.
+
+## 2026-10-08 — 챌린지 변경 prod 배포 완료
+
+<!-- codex-turn:01a11be9-3025-7f81-9f73-93c4dd110b81 -->
+
+- 사용자 prod 반영 승인. 1da0d09의 최초 push run37792474911은 deploy skipped. 수동 run37793027295에서 단위/마이그레이션·Mongo 통합·이미지 빌드·test20 배포·health 전부 성공.
+- 신규 LC prod3→4 이미지 교체 접수. image 외 등록 가능한 task 설정 동일성 True 확인, 기존 CHALLENGE_ENABLED=true 유지. 구운영·Identity·AI 설정은 미변경.
+- 최종23:55 KST: prod4 ECS COMPLETED 단일 배포, desired/running/pending1/1/0, ALB healthy 단일 target 및 공개 health200. 새 태스크 목표 digest 실행, 시작 로그53건 중 started1/error0. 환경 설정 불변 비교 및 토폴로지 Node4개·양 저장소 diff --check 통과.
+- 이번 로컬 수정은 배포 기록/토폴로지 metadata뿐이며 제품 코드 추가 수정 없음. AI 신규 callback 실제 E2E는 미검증.
+
+<!-- codex-turn:01a11bdb-28b4-7a41-8e18-41c494d11f60 -->
+
+- 챌린지 상세 교정 서버 수정 완료(2026-10-08, Learning Core develop). 사용자 서버 변경 확인 및 AI도 새 형식 수정 예정 확인 후 feedback.summary/correctedAnswer/correctionItems 수신·저장·응답 구현. Identity 제품 코드는 변경하지 않았다.
+
+- LC ChallengeModels/Callback/Views, 회귀 테스트, 프론트·AI 계약과 전체 콜백 fixture 및 작업 기록 갱신. legacy 저장/콜백·semantic digest 호환, 기존 부가 필드·인증/소유권·no_speech 유지. clean test624개 성공 및 diff --check 확인. AI/프론트 계약 반영·LC 선배포·실연동 E2E 필요. 배포/commit/push/Jira 변경 없음. 기존 사용자 변경 보존.
+
+## 2026-10-08 — 10초 챌린지 프론트 예시와 LC 응답 비교
+
+<!-- codex-turn:01a11bd9-9e29-76b1-af0f-948332729a68 -->
+
+- LC 로컬 ChallengeViews/ChallengeModels/ChallengeCallback 읽기 확인. 전달 예시의 feedback.summary/correctionItems는 현재 DTO에 없음. correctedAnswer는 aiResult 바로 아래, feedback은 meaning/grammar/pronunciation 문자열 구조.
+- 현재 detail에 difficulty/submittedAt/gradedAt, aiResult에 referenceAnswer/verdict 추가 존재. verdict는 correct 또는 needs_improvement이며 무발화 결과는 nullable. results questionNumber 생략 시 Count 응답으로 question 필드 없음.
+- 소스 기준 비교이며 운영 실제 응답 재조회 아님. Identity/LC 제품 코드 및 외부 계약 변경 없음.
+
+## 2026-10-08 — 신규 prod 탈퇴 활성화 적용 완료
+
+<!-- codex-turn:01a11aef-9cb2-7e02-9d12-a9df6720b813 -->
+
+- 최종 확인19:10 KST: Identity revision4 ECS COMPLETED, desired/running/pending=1/1/0, 새 target healthy. 네 탈퇴 플래그ON 및 실제 계약 endpoint 적용 완료. 기존 target은 draining 중이나 이전 ECS deployment 정리 완료. 새 앱 Started, 조회한 시작 로그 ERROR0. 배포 전후 lifecycle/outbox 모두0건이므로 실제 탈퇴·LC 전파 E2E 성공은 아직 입증되지 않았다.
+- 검증: Python40개/Node10개 및 Gradle clean test 성공. 변경 범위는 배포 helper·테스트·설정 명세·기록이며 제품 Java/API/JWT/이미지/기존 서비스는 불변. 추가 IAM 변경 없음. 아래 기록은 배포 중 이력이다. 다음은 앱에서 테스트 계정 탈퇴 재시도; Apple provider obligation 미구현에 따른 Firebase 삭제 보류 가능성은 별도 확인한다.
+
+- 재배포 보완: revision3 시작 시 UserWithdrawn publisher configuration is invalid로 종료. 기존 준비 명세에 잘못 적힌 /internal/v1/events/user-withdrawn을 실제 Identity REQUIRED_PATH 및 LC controller의 /internal/v1/events/withdrawn으로 수정, revision4 배포 요청. 기존 revision2가 계속 서비스하여 기존 API 가용성 유지. helper 및 명세 테스트에 Java 계약 대조 회귀 검증 추가(Python40/Node10 성공). 아래 네 플래그만 변경 기록은 첫 시도이며 최종 변경은 네 플래그+endpoint1개다.
+
+- develop. 사용자 기존 대기 건 포함 승인 후 신규 Identity revision3 등록·배포 요청. 변경은 FIREBASE_WITHDRAWAL_ENABLED / FIREBASE_WITHDRAWAL_CLEANUP_ENABLED / FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED / USER_WITHDRAWN_PUBLISHER_ENABLED 네 값 false→true뿐. 이미지/Secret/DB/JWT/다른 플래그 유지, 기존 서비스 미변경. 게스트 병합·백필OFF 유지.
+- Google Identity 전용 계정 OAuth200 및 testIamPermissions에서 firebaseauth.users.get/update/delete 전부 확인. 추가 IAM 권한 변경 없음. LC revision3의 consumer/deny gate 및 issuer/JWKS/audience/principal 설정 사전 대조 완료. 실제 이벤트 전파 성공은 아직 미검증.
+- CloudShell 임시 pymongo로 운영 Identity DB read-only 집계: user_withdrawal_lifecycles 및 user_withdrawn_outbox 모두0건. 개인정보/키/URI 출력 없음. 실제 계정 탈퇴 요청이나 DB 쓰기 수행하지 않음.
+- 재배포 후 health·새 태스크 로그·상태 집계를 확인 중. Apple provider는 현재 FirebaseSdkWithdrawalCleanupAdapter의 provider obligation에서 별도 해제 미구현으로 삭제가 보류될 수 있음을 사용자에게 알림. 해당 안전장치를 우회하거나 provider 코드를 변경하지 않는다.
+- 변경 파일: scripts/production-withdrawal-task.py, scripts/test_production_withdrawal_task.py, 설정/토폴로지 JSON, CURRENT_STATE/WORKLOG 및 결정 문서. Python39 및 Gradle clean test24초 성공. 기본 계약 불변, 사용자 변경 보존, 예상 밖 변경 없음. 다음: 배포 완료 및 사용자 실제 탈퇴 재시험 결과 확인.
+
+## 2026-10-08 — 신규 prod 탈퇴 활성화 요청, 기존 대기 건 처리 범위 확인
+
+- 사용자가 탈퇴 기능 활성화를 요청했다. 신규 prod는 운영 DB/Firebase를 공유하므로 탈퇴 API 외 cleanup·identity release·user-withdrawn publisher 활성화는 기존 대기 건의 실제 Firebase 삭제/연결 해제/학습 접근 차단을 유발할 수 있다.
+- 현재 외부 설정·배포·DB 변경 없음. 기존 대기 건까지 포함한 범위 승인 후 신규 Identity 설정과 LC 전파 수신 준비를 재조회하여 적용한다. 기존 서비스 자체는 변경하지 않는다.
+
+## 2026-10-08 — 프론트 회원탈퇴 FIREBASE_UNAVAILABLE 503 진단
+
+<!-- codex-turn:01a11aec-86b0-7be3-9b3d-7a9a1c1009b0 -->
+
+- 현재 턴 식별 기록 보완 완료. 진단 결과와 외부 설정 미변경 상태는 아래와 같으며 추가 배포/권한 변경 없음.
+
+- develop, 분석만 수행. 실제 신규 Identity task tosunsaeng-identity-prod:2의 FIREBASE_WITHDRAWAL_ENABLED=false를 재조회 확인. cleanup/identity-release/user-withdrawn publisher도false, Firebase auth 자체는true.
+- [FirebaseWithdrawalCredentialVerifier](../../src/main/java/web/tosunsaeng/identity/domain/user/application/FirebaseWithdrawalCredentialVerifier.java:61)는 enabled=false이면 Firebase 호출 전 FIREBASE_UNAVAILABLE을 던진다. 따라서 신규 prod의 Firebase 회원 탈퇴는 현재 설정만으로503이 발생하며 권한 부족으로 판단할 근거는 아니다. 요청ID 단위 상관분석이나 실제 Google 사용자 삭제 권한 재검증은 하지 않았다.
+- 로그 조회에는 과거 기동 시 phone key ring 오류도 포함됐으나 이미 수정된 이전 실패로, 이번 탈퇴 오류 원인과 구분한다. 외부 권한/플래그/배포/DB 변경 없음. 변경 파일은 CURRENT_STATE와 WORKLOG뿐이며 기존 사용자 변경 보존, 예상 밖 변경 없음.
+- 검증: ECS 등록 환경과 코드 분기 대조, git diff --check. 분석/문서만 변경해 Gradle 재실행 생략. API/JWT/AI examId 계약 유지. 다음은 탈퇴 API·Firebase 정리·연결 해제·LC 전파 활성화 범위 및 공유DB 기존 대기 건 영향 승인 후 설정 변경과 재검증.
+
+## 2026-10-08 — Chrome 재연결, 앱 health 복구·AI 기동 및 FCM 연결
+
+<!-- codex-turn:01a11ad1-d301-7b90-85b9-8771252ee35e -->
+
+- 최종 확인18:49 KST: 네 서비스 모두 ECS COMPLETED, desired/running/pending=1/1/0. Identity2/LC3/AI1/챌린지AI1. 두 공개 health200 및 FCM 발송ON 상태 확인. 아래 교체 대기 관찰은 중간 상태이며 이제 정리 완료. 증거 /private/tmp/production-services-fcm-status.png.
+
+- develop. 신규 앱 healthCheckGracePeriodSeconds가120으로 기존 테스트300과 달랐으며 두 앱은 ELB health 실패로 revision1 자동 롤백 중이었다. 신규 앱만300으로 보완하여 revision2 재배포. Identity COMPLETED/healthy 및 LC revision2 healthy 확인, 공개 health 두 주소200. 기동 후 회복 판정까지 필요한 시간 부족과 관찰 결과가 일치한다. 기존 서비스/SG/ALB/DB/JWT는 변경하지 않았다.
+- AI2개는 prod 전용 큐3종과 신주소 callback을 각 컨테이너에서 assert한 후 desiredCount1. 두 서비스 steady state, 챌린지 target healthy. API/worker 시작 신호와 조회한 최근 로그 ERROR0 확인. 실제 채점·S3·인증 callback E2E는 미검증. 콜백 무인증 GET은401/403으로 도달 확인에 한정한다.
+- 전용 learning-core-prod-fcm 계정에 사용자 행동 직전 승인 후 Firebase Cloud Messaging API 관리자 역할만 저장. 사용자가 JSON 키 발급. 승인된 AWS 전용 Secret tosunsaeng/prod/learning-core/fcm 저장·동일값 대조 및 신규 LC 실행 역할의 해당 Secret GetSecretValue만 추가. Identity 자격증명/사용자 삭제 권한 공유 없음.
+- Google OAuth200 및 FCM validate_only200 확인(실제 발송 없음). CloudShell 임시 인증 JSON은 Secret 검증 후 삭제; Secret으로 보관되어 복구 가능. 로컬 다운로드 파일은 chmod 시 이미 경로에 없어 권한 변경되지 않음. 파일 이동/삭제 여부 미확인, 추가 검색하지 않음.
+- LC revision3: 컨테이너 내부 mktemp 디렉터리/umask077 파일로 자격증명 주입하고 원문 환경변수 unset 후 Java exec. 발송ON/dry-run false, projectId 및 trackingReadyAt=2026-10-08T09:37:07.925145Z 설정. 앱 Started 및 새 target healthy, 공개 health200, ECS 교체 완료 확인. 알림 발송창21:00~21:15 KST, 실기기 수신 미확인. Identity 병합/탈퇴/자동정리/이벤트 발행OFF 유지.
+- 변경: production-zero-services.py/test의 grace300, production-fcm-task.py 및 Mock4개, 설정/토폴로지·결정 문서와 작업 기록. Python35/Node10 및 Gradle clean test25초 성공. 제품 Java/API/JWT/AI examId 계약 유지. 기존 dirty 변경 보존, 예상 밖 변경 없음, commit/push/Swagger 공유본 없음.
+- 남은 위험/다음: 프론트 전용 계정 가입·시험·챌린지·알림 등록/실제 수신 테스트. DNS 일시 조회 실패1회 후 두 주소 정상 재조회; 기기별 DNS 및 AI callback에서 재확인 필요. 운영 DB/Firebase/공개 버킷 공유 위험 유지. 서버 기동 정상과 전체 기능 E2E 완료는 구분한다.
+
+## 2026-10-08 — 프론트 테스트 기동 진행, health 실패 및 FCM 연결 미완료
+
+<!-- codex-turn:01a11ac1-526d-7012-951c-e574b13e723c -->
+
+- 사용자 운영 데이터 공유 테스트 승인 및 실제 푸시 발송/전용 FCM 계정 최소 권한 연결 승인. Identity/LC 신규 revision2 및 desiredCount1 적용. AI2개는 아직0, 기존 서비스 변경 없음.
+- Identity/LC API 기능 활성화, Identity 병합·탈퇴·자동 정리·이벤트 발행은 OFF. LC 알림 등록/추적 ON, 실제 발송OFF/dry-run true. 실제 발송 요청은 아직 미완료다.
+- Identity 초기 실패 원인: 전화번호 Secret 생성기의 ACTIVE가 실제 enum ACTIVE_WRITE와 불일치. 신규 prod 전화번호/eligibility Secret2개 상태 표기만 수정하여 기존 키 소재 보존. 생성기 및 Java enum 대조 테스트 수정. 재기동 후 일시적으로 health200 확인했으나 최종 공개 재조회는 Identity503/LC502로 정상 기동 판정 불가.
+- LC Tomcat8080 및 앱 시작 로그 확인, ALB HTTP/HTTP1 health /actuator/health 및 SG 허용 확인. Target.FailedHealthChecks/교체 반복의 최종 원인은 미확정. API/AI/FCM E2E 미검증.
+- GCP learning-core-prod-fcm 서비스 계정 생성됨. Firebase Cloud Messaging API 관리자 역할은 양식에서 선택만 했고 저장/권한 적용 확인 전. 키 발급/AWS Secret/LC 연결 없음. 브라우저 제어 도구가 현재 호출 가능 목록에서 사라졌고 로컬 AWS CLI 인증도 없어 외부 수정 중단. 공개 HTTP 조회는 로컬 curl로 수행.
+- 검증: Python31개 및 Gradle clean test25초 성공. Node 설정/토폴로지 및 diff 재검증. 제품 Java/API/JWT/AI examId 계약 변경 없음, 기존 사용자 작업 보존. 다음: 브라우저 연결 복구 후 ECS health 원인 해결, AI 기동, FCM 권한·자격증명 연결과 실제 발송 확인. 아직 프론트 테스트 준비 완료가 아님.
+
+## 2026-10-08 — 프론트 테스트 기동 요청, 운영 데이터 공유 범위 재확인 필요
+
+- 사용자는 실제 서버가 아니라는 전제로 전체 기동을 요청했다. 등록 설정을 확인한 결과 신규 prod 서비스는 기존 운영 Identity/학습 DB, Firebase 프로젝트, 음성 버킷을 공유하므로 격리된 테스트 환경이 아니다.
+- 기동/플래그 변경은 아직 수행하지 않음. 운영 데이터 공유를 유지하고 전용 테스트 계정으로 검증할지, 테스트 DB·Firebase까지 분리할지 사용자 확인 후 진행한다. 자동 탈퇴 정리·기존 대기 이벤트 전파·실제 알림 발송을 포괄 승인으로 간주하지 않음.
+- 설정 JSON 두 개를 읽기 검증했으며 제품 코드·외부 계약 변경 없음. 다음은 데이터 범위 확정 후 서비스 기동 및 runtime 검증.
+
+## 2026-10-08 — 신규 ECS 4서비스 실행수0 등록 및 ALB·DNS 연결 완료
+
+<!-- codex-turn:01a11ab1-7c8f-7a93-a407-14f94262f979 -->
+
+- 사용자 구체 승인 후 prod task4개 revision1, 서비스4개 desired/running/pending0, 신규 target group3개/ALB60·70·80 규칙 적용. 모의고사 AI 새 Service Connect alias와 LC client 연결. 기존 서비스/규칙/버킷/Secret 값 유지.
+- 가비아 로그인 사용자 수행 후 서비스 CNAME2개를 TTL600으로 추가. 기존20개 레코드 모두 보존 비교, 총22개. DNS/실행수0 준비 완료이지 실제 서버 가동 완료가 아님.
+- 최종 확인: CloudShell 기본 resolver에서 두 prod 도메인 해석 성공. ALB로 직접 연결하되 각 도메인 SNI를 사용한 HTTPS 검사에서 인증서 검증 성공(TLS=0), HTTP503 확인. 실행 대상0이므로 예상되는 응답이며 앱 health 성공을 의미하지 않는다. 권한 DNS 서버 직접 조회 및 일반 DNS 경유 HTTPS 검사는 수행하지 않음.
+- 실제 등록본은 Identity/LC launchTargetFlags 전부false, 알림 API/추적/발송OFF, 앱 버전 공란, 동의 버전은 기존 운영23 계승. DB/JWT/AI supplier는 운영 참조, 새 키는 prod전용. 테스트 Secret 참조 제거 및 pinned image 검증. 두 AI worker는 존재하지만 태스크0이므로 실행되지 않음.
+- scripts/production-zero-services.py 및 신규 Mock5개, 설정/토폴로지 상태·관련 테스트·작업 문서 갱신. Python관련19개/Node10개/Gradle clean test25초 성공. 예상 밖 제품 코드 변경 없음, 사용자 동시 변경 보존. 계약 API/JWT/AI examId 유지.
+- 다음: API-only 검증용 revision 또는 명시적 worker 제어, 실제 로그/S3/Firebase/콜백·공유DB 대기 이벤트 영향 확인, 운영 버전 확정 및 시작 승인 후 기동. 기존 로그 시뮬레이션 불일치는 실기동 검증 전까지 미해결. 공개 버킷 위험 유지.
+
+## 2026-10-08 — 신규 ECS·ALB·DNS 토폴로지 준비, 외부 적용 전
+
+<!-- codex-turn:01a11aab-bdc2-7871-a37b-1962d3cf0dea -->
+
+- 이번 턴 식별 기록 보완 완료. 외부 적용 승인 대기이며 추가 인프라 변경/기동 없음.
+
+- develop. 실행 source Identity34/LC19/모의고사 AI17/챌린지 AI2와 ECR digest 대조 완료. deployment/production-topology-2026-10-08.json에 immutable 이미지, 기존 승인 SG/역할, private subnet, health, 신규 ALB60/70/80 및 CNAME2개 준비. 실행 가능한 완성 task definition은 아님.
+- 신규 서비스4개 desiredCount0/자동확장OFF/ExecOFF, target group3개, ALB3규칙, DNS2개 범위의 행동 직전 승인 대기. 외부 변경/서버·worker 기동 없음. 기존 서비스/ALB 규칙/버킷/Secret 불변.
+- 두 AI의 API/worker 동시 기동 구조 확인. API-only 초기 단계 또는 worker 제어 설계 및 운영 버전·동의 버전, callback/대기 이벤트·로그/S3/네트워크 실검증은 남음. DNS 두 주소는 CloudShell resolver에서 해석 실패, 권한 zone 확인 필요.
+- 변경 파일: topology JSON, scripts/production-topology.test.cjs, 설정 결정 문서 및 WORKLOG/CURRENT_STATE. Node10/10 성공 및 diff 검사. 제품 코드 변경 없어 Gradle 재실행 생략, 직전 전체 테스트 성공 유지. 예상 밖 변경 없음, API/JWT/AI examId 계약 유지.
+
+## 2026-10-08 — 운영 S3 역할·신규 방화벽·Redis 수신 적용 완료
+
+<!-- codex-turn:01a11aa6-4d18-7da1-bf55-1741666ecba3 -->
+
+- 이번 적용 턴 식별 기록 보완 완료. 추가 외부 변경 없이 아래 적용 완료·서비스 미기동 상태를 유지한다.
+
+<!-- codex-turn:01a11aa1-f9be-7d92-a525-166a47bf3535 -->
+
+- develop. 사용자 구체 승인 후 production-runtime-network.py로 runtime S3 역할2개 및 SG4개 생성, 공유 Redis에 신규 LC/두 AI의 TCP6379 수신3개 추가. 기존 Redis 규칙·ALB 수신·버킷 정책·서비스 보존. 새 SG의 기본 전체 outbound만 제거하고 승인한 포트/대상으로 설정.
+- 역할정책/신뢰 및 SG ingress/egress 정확 일치 검증. 실제 ID와 연결 대기 상태는 deployment/production-settings-2026-10-08.json에 반영. 신규 역할/SG는 아직 ECS 서비스에 연결하지 않았으며 서버/worker 미기동.
+- IAM 시뮬레이션12건 기대 일치: 테스트 버킷 쓰기/삭제 및 AI의 LC 원본 쓰기/삭제 거부 확인. 버킷 공개정책 원문 비교 일치. 실제 객체 조작 없음. 증거 /private/tmp/production-runtime-network-applied.jpg.
+- 신규 도구/테스트 및 운영 설정·기록 문서만 변경. Python7/Node6/Gradle clean test24초 성공. 기존 동시 변경 보존, 예상 밖 제품 변경 없음, JWT/API/AI examId 계약 유지.
+- 남은 배포 전 확인: 이미지의 AI 저장 prefix, 실제 S3/네트워크/로그 연결, NACL/endpoint 제약, ALB/DNS·콜백·대기 이벤트 영향. 공개 버킷의 익명 읽기 위험 유지; IAM 제한은 공개 읽기 차단 수단이 아님. 다음 작업은 신규 task definition·라우팅 준비이며 자동 기동 승인으로 확대하지 않음.
+
+## 2026-10-08 — 운영 S3·네트워크 범위 준비, 구체 권한 승인 대기
+
+<!-- codex-turn:01a11aa1-f9be-7d92-a525-166a47bf3535 -->
+
+- develop. 기존 운영 버킷 전체 익명 GetObject 정책 및 공개차단4개=false, AES256 확인. 사용자 비공개 분리 거절에 따라 기존 버킷·정책 유지. 역할 제한으로 공개 읽기를 막을 수 없다는 위험 명시. 실제 데이터 조회/삭제 없음.
+- LC 원본은 temp/challenges/*, AI에 multipart 전달. AI runtime 정책은 기존 테스트의 challenge/*를 운영 버킷에 한정 복제하는 제안; 이미지의 실제 prefix 확인은 남음.
+- 기존 private subnet2개의 NAT/S3 endpoint active 경로와 공유 Redis SG 확인. 신규 runtime 역할2개·SG4개·Redis TCP6379 수신3개 추가안을 PRODUCTION_SETTINGS_DECISION_2026-10-08.md에 기록. 구체 민감 권한 승인 전이므로 외부 변경/기동 없음.
+- 변경은 운영 설정 문서/CURRENT_STATE/WORKLOG만. 제품 계약·기존 작업 유지, 예상 밖 변경 없음. 코드 무변경으로 Gradle 재실행 생략, 소스 대조/AWS read-only 및 diff 검사. 다음: 구체 범위 승인 후 적용·검증, 로그 실기동/AI prefix/콜백 검증 후 배포.
+
+## 2026-10-08 — 신규 운영 실행 역할 4개 적용·실제 기동 검증 대기
+
+<!-- codex-turn:01a11a94-a469-7392-8a67-9c03aedbfd6f -->
+
+- develop. 사용자 행동 직전 승인 범위로 신규 운영 Identity/LC/모의고사 AI/챌린지 AI 실행 역할의 Secret 읽기, 각 ECR 이미지 pull, 각 로그 그룹 쓰기 정책 적용 및 로그 그룹 준비. 기존 역할/Secret 값/서비스 변경 없음. Identity 초기 Firebase 정책 보존.
+- 정확한 정책·ECS 신뢰 재조회 일치, Secret/ECR 허용 및 테스트 Secret·범위 밖 리소스 거부 확인. 총49개 시뮬레이션 중 로그 허용8개는 implicitDeny. Resource=*인 단독 대조 정책도 동일 판정이어서 원인 미확정, 실제 ECS 로그 쓰기 검증 필요. 권한 확대/기동으로 우회하지 않음.
+- scripts/production-execution-roles.py와 테스트7개, 설정 JSON/상태 문서 갱신. Python7/Node6 통과, Gradle clean test 캐시 접근 승인 후 BUILD SUCCESSFUL(24초), diff 검사 수행. 제품 코드/API/JWT/AI examId 계약 불변. 동시 작업 보존, 예상 밖 변경 없음.
+- S3·기존 서비스 네트워크 read-only 점검 수행. 챌린지 테스트 역할은 테스트 음성 버킷만 허용하므로 운영에 그대로 연결 불가. 신규 runtime S3 역할·보안그룹·ALB/DNS·task definition/서비스 등록·worker 기동은 미실행. 다음: 운영 S3 범위 확정 및 네트워크 구성 승인, 로그 실기동 검증, callback/대기 이벤트 확인 후 기동.
+
+## 2026-10-08 — 운영 Firebase AWS Secret 저장·실행 역할 초기 권한 완료
+
+- 사용자 승인 범위로 로컬 JSON 접근 모드0600 제한, 같은 AWS 서울 계정 CloudShell에 임시 전송. 프로젝트/운영 서비스 계정/키 식별자/토큰 endpoint/PEM 외형 확인 후 tosunsaeng/prod/identity/firebase 생성. AWSCURRENT 원본 일치 검증 완료, 원문 비출력.
+- 검증 후 CloudShell 임시본 제거 확인. 로컬 원본은0600으로 보존. 기존 Secret/JWT/계정/역할/서비스는 변경하지 않음.
+- tosunsaeng-identity-prod-execution-role 새로 생성, ECS 서비스 주체+SourceAccount/서울 SourceArn 제한 신뢰 및 Firebase Secret 정확한 ARN에 GetSecretValue만 부여. 정책 원문 재조회 일치, 시뮬레이션 운영 allowed/테스트 implicitDeny. 기존 공용 역할 수정 없음.
+- 현재 역할은 Firebase만 준비된 초기 상태: DB/JWT/keyring 읽기·ECR·로그 권한 및 task definition 연결 미완료. 실제 ECS 실행/Google 인증/배포/E2E 미검증. 설정 명세에 해당 상태 반영, 증거 /private/tmp/firebase-prod-aws-connected.jpg.
+
+- 2026-10-08: 사용자에게 확정된 신규 운영 API 주소 Identity https://identity-prod.to-teacher.com 및 Learning Core https://api-prod.to-teacher.com 안내. 문서 기반 확인이며 실시간 가용성·배포 완료 확인은 미수행.
+
+## 2026-10-08 — 운영 Firebase JSON 키 사용자 발급 확인
+
+<!-- codex-turn:01a11a8d-662b-77b1-b780-28e93877f817 -->
+
+- 현재 턴 식별 기록 보완 완료. AWS 전송·Secret 저장·읽기 권한 연결은 사용자 확인 대기이며 추가 외부 변경 없음.
+
+- 사용자 직접 발급 후 GCP 비공개 키가 컴퓨터에 저장됨 메시지와 안내한 Downloads 파일 존재 확인. 원문 읽기/출력/업로드 없음. 권한 두 역할 적용 상태는 유지.
+- 다음 전송 대상은 AWS 서울 계정889384901776의 Secrets Manager `tosunsaeng/prod/identity/firebase`. 신규 Identity 실행 역할에만 필요한 읽기 권한을 주는 범위로 사용자 확인 대기. CloudShell 경유 시 임시 파일 보관/정리도 명시해야 함.
+- 다운로드 파일 접근 모드0644 확인, 전송 전 소유자 전용으로 제한 필요. 실제 Secret 저장/IAM 신규 역할/ECS 연결/배포는 미완료. 문서만 갱신, 제품 계약 불변.
+
+## 2026-10-08 — Firebase 운영 권한 적용 완료·키 발급 인계
+
+- 사용자 행동 직전 승인으로 identity-prod에 Firebase 인증 뷰어와 기존 Identity Firebase User Cleanup 역할 적용. 정책 업데이트 성공 및 저장된 역할2개 재조회 확인. 추가 사용자 위임/관리자 역할 부여 없음, 기존 계정·키 불변.
+- 키 목록0개 확인 후 JSON 비공개 키 생성 대화상자를 열었으며 만들기 미클릭. 사용자가 직접 발급/다운로드해야 함. 키 원문을 채팅/저장소로 받지 않음. 인계 화면 /private/tmp/firebase-prod-key-handoff.jpg.
+- 다음: 사용자 발급 확인 후 AWS Secrets Manager 운영 전용 저장·ECS 최소 권한 연결 준비. 현재 AWS에 Firebase 자격증명 연결/서비스 기동/배포는 미완료. 제품 코드 변경 없어 Gradle 생략, UI 검증 및 문서 검사 수행.
+
+## 2026-10-08 — Firebase 운영 서비스 계정 생성·권한 적용 전
+
+<!-- codex-turn:01a11a87-70fd-7722-adc6-2b7972d77e26 -->
+
+- 이번 턴 식별 기록 보완 완료. 현재 역할 부여의 사용자 확인 대기이며 추가 외부 변경 없음.
+
+- 사용자 운영 계정 분리 승인으로 to-teacher-firebase 프로젝트에 identity-prod 서비스 계정 생성 완료. 기존 identity-test 및 기본 계정·키 변경 없음. 신규 키 미발급.
+- Firebase 인증 뷰어 및 기존 Identity Firebase User Cleanup 역할을 양식에 선택했으나 계속/완료 미클릭으로 프로젝트 권한은 미부여. 정리 역할의 firebaseauth.users.update/delete 2개를 실제 GCP 화면에서 확인.
+- 신규 주체에 프로젝트 사용자 조회/갱신/삭제 접근을 부여하는 단계이므로 정확한 범위 확인 대기. 같은 프로젝트 내 계정 분리는 자격증명 분리이며 사용자 데이터의 환경 격리는 아님. 이후 키 발급은 사용자 직접 수행 필요.
+- 화면 /private/tmp/firebase-prod-permissions-review.jpg, GCP 생성 마법사 탭 인계 유지. 제품 코드 변경 없음, AWS Secret 추가 변경/배포/기동 없음. 문서 검사 수행, 코드 미변경으로 Gradle 생략.
+
+## 2026-10-08 — 운영 Secret6개 생성·검증 완료
+
+<!-- codex-turn:01a11a85-933e-7012-978c-307a775667ef -->
+
+- 현재 Firebase 운영 전용 서비스 계정 분리 또는 기존 테스트 계정 재사용의 사용자 선택 대기. 이번 턴 기록 식별자 보완 완료, 추가 외부 변경 없음.
+
+- develop. 사용자 직접 생성 실행 후 CloudShell CREATED6/완료 메시지 확인. Secrets Manager 읽기 검증으로 6개 AWSCURRENT, parser 규격/32-byte 길이 및 키 소재 독립성 모두 통과. 원문 비출력/파일 저장 없음.
+- 기존 JWT/DB Secret이나 서비스 변경 없음. Firebase 운영 서비스 계정 선택 및 신규 최소 IAM 권한·ECS·ALB/DNS·worker 기동은 남아 있다. 이전 생성 전 대기 기록은 과거 상태로 유지.
+- 이번에는 외부 읽기 검증과 문서만 수정, 제품 코드/계약 불변. 테스트는 실제 Secret 형식 검증 및 git diff --check, Gradle 재실행은 코드 미변경으로 생략.
+
+## 2026-10-08 — 운영 Secret 생성 전 사용자 인계
+
+<!-- codex-turn:01a11a7e-958e-7182-9874-c84aed969d6d -->
+
+- 현재 턴 작업 기록 식별자 보완 완료. 사용자 직접 생성 실행 결과는 아직 확인하지 않았으며 생성/배포 완료 상태가 아니다.
+
+- develop. 사용자 후속 적용 요청에 따라 AWS 목록/실행 역할 정책 조회. prod Secret 부재, 운영 실행 역할 inline policy는 staging3개 읽기 범위. 기존 서비스/권한/Secret 변경 없음.
+- scripts/provision-production-secrets.py 및 Mock 테스트5개 추가. CloudShell 업로드 성공, --apply 실행 후 6개 MISSING 확인 및 CREATE-PROD-SECRETS 사용자 입력 대기. 인증정보 생성·저장은 직접 입력/제출하도록 인계, 아직 생성 완료 아님.
+- 도구는 새 독립 키6개만 create-only, 기존 값 회전/출력/저장하지 않음. Firebase 자격증명·IAM·ECS/DNS/ALB·worker 기동 미처리. 정확한 후속 상태는 PRODUCTION_SETTINGS_DECISION_2026-10-08.md 부록 참조. 제품 계약 및 기존 동시 작업 유지.
+- Python5/Node6 성공, ./gradlew clean test 승인된 캐시 접근 재실행 성공, git diff --check 통과. 인증정보 생성 전 인계 화면 /private/tmp/production-secret-handoff.jpg.
+
+## 2026-10-08 — 신규 운영 설정 명세 작성·실제 적용 전
+
+<!-- codex-turn:01a11a6c-288d-7d23-bbad-0c912ff99421 -->
+
+- develop. 운영 DB Secret host가 준비/백업한 클러스터와 일치함을 AWS read-only로 확인. 기존 운영 DB/JWT key 참조·issuer/audience/TTL 유지. Secret 원문 기록 없음.
+- PRODUCTION_SETTINGS_DECISION_2026-10-08.md와 deployment/production-settings-2026-10-08.json에 신규4서비스 AI 큐·콜백·HTTPS 경로와 launchTarget/holdOff 설정 정리. 완성된 ECS task definition 아님, 등록/기동/worker 활성화/외부 설정 변경 없음.
+- 운영 전용 Secret·IAM·digest·네트워크·ALB/DNS·대기 이벤트·실제 callback 검증은 다음 단계. 구서버 교체를 필수 범위로 추가하지 않으며 교차주소 인증 잔여 위험은 미해결. 알림 실제 발송·결제·선택 정리 작업 보류.
+- Node 정적6/6, Gradle clean test1310중1304성공/6skipped/실패0. 제품 API/JWT/AI examId 계약 불변, 기존 동시 작업 보존. 상세 정확한 설정은 위 명세 참조.
+
+## 2026-10-08 — Developer 갱신 반영, 유료 앱 계약 동의 확인 대기
+
+<!-- codex-turn:01a11a72-684b-78b3-94da-9462a1bafe13 -->
+
+- 작업 기록 보완 및 문서 검사 완료. 현재 유료 계약 최종 동의에 대한 사용자 확인 대기 상태이며 계약 체결 완료 아님.
+
+- 사용자 직접 동의 제보 후 무료 계약 활성과 갱신 경고 해제 확인. 유료 앱 계약 신규 항목의 약관 보기 화면 열기.
+- Schedule2/3 유료 판매 계약 본문 및 최종 동의 버튼 확인. 표준30%/조건부15% 수수료, 세금·환불 등 의무 포함. 최종 동의 미실행, 별도 사용자 확인 필요. 은행/세금 등록과 상품 생성 미실행.
+- 증거 /private/tmp/apple-paid-agreement-confirmation.png. 브라우저 후속 작업 탭 유지.
+
+## 2026-10-08 — Apple 계약 갱신 동의 직전 확인 대기
+
+- 사용자 유료 앱 계약 진행 요청에 따라 Developer 계정의 갱신 License Agreement 검토 화면 열기. 동의 버튼 미클릭. 유료 앱 계약과 별개인 선행 계약 갱신 단계임.
+- 법적 구속력 있는 동의 직전 사용자 확인 필요. 확인 범위는 현재 Developer Program License Agreement에 한정, 후속 유료 계약/세금/은행 제출은 별도.
+- 화면 보존: /private/tmp/apple-developer-agreement-confirmation.png. 브라우저 후속 작업 탭 유지, 외부 계약/금융 정보 변경 없음.
+
+## 2026-10-08 — App Store Connect 유료 상품 준비 상태 확인
+
+<!-- codex-turn:01a11a6f-0d50-7dc0-8895-9e5a3d6a6fe2 -->
+
+- 사용자 지정 비즈니스 계약 페이지 읽기 확인: 무료 앱 계약만 표시, 유료 앱 계약 미표시. Developer Program 업데이트 계약을 계정 소유자가 검토·동의해야 신규 제출/업데이트 가능하다는 안내 존재.
+- 유료 판매 준비 완료로 볼 수 없음. 계정 소유자의 약관 처리 및 유료 앱 계약·세금/은행 정보 설정, 앱별 IAP 설정/심사 확인 필요. 상품 생성 화면과 은행/세금 상태는 미확인.
+- 계약 동의·결제정보 입력·상품 등록 등 외부 변경 없음. 개인정보는 기록하지 않음.
+
+## 2026-10-08 — 배포 단계 진입과 실제 준비 완료 구분
+
+<!-- codex-turn:01a11a6a-c5de-7752-8304-d727653eab93 -->
+
+- 기본 DB 구조/TLS/로컬 논리 백업은 준비됐으므로 다음은 신규 운영 구성·배포 단계다. 테스트 이미지를 그대로 운영 설정까지 복제하거나 즉시 트래픽을 열어도 된다는 판정은 아니다.
+- 운영 DB endpoint·issuer/key·keyring·AI callback·기능/worker 설정 확정, 신규4서비스/target group/서비스 DNS·라우팅 구성, 기동 후 health/계정·기록 승계 점검이 남았다. 구서버 공통 코드 교체를 자동 필수 범위로 추가하지 않는다.
+- 이번 질문은 상태 확인이며 실제 배포/새 worker 실행 승인이 아님. 외부 변경 없이 안내 및 기록만 수행.
+
+## 2026-10-08 — 구서버 호환 요구와 수용 범위 설명 정정
+
+<!-- codex-turn:01a11a68-e7b9-7b22-9302-ba59d2684c6d -->
+
+- 구앱→구주소/신앱→신주소, 구서버 알림 추적 생략 및 좁은 채점·병합 저장 경합 수용 결정은 유지한다. 구서버에 신기능 전체 구현이 필요하다는 뜻으로 확대하지 않는다.
+- 뒤늦게 설명한 교차주소 refresh/병합 enum/탈퇴 차단 위험을 곧바로 공통 코드 교체 필수 요건처럼 묶은 설명은 정정한다. 정상 단일기기 전환의 확정 실패와 조건부 잔여 위험을 구분하며, 구주소에 옛 토큰/세션 요청이 도달하는 조건의 안전성은 미검증이다.
+- 구버전 병행 기동 자체가 기술적으로 불가능한 것은 아니다. 모든 위험을 이미 수용했다고 해석하지도 않는다. 사용자는 점검 결과 설명만 요청했으며 코드/설정/배포 변경 없음.
+
+## 2026-10-08 — 로컬 논리 백업 완료·구신 인증 호환은 보류
+
+<!-- codex-turn:01a11a5e-73f5-7e93-8ee6-dfb80cfde1c8 -->
+
+- 사용자 승인으로 저장소 밖 Backups 제한 폴더에 운영 Identity31/LC26컬렉션,24228문서(116681483bytes) 논리 백업. 파일114개 checksum/JSON/건수/권한 검증 통과. 디렉터리0700/파일0600, 원문 데이터 출력 없음. 상세 위치와 복구 한계는 PRODUCTION_AUTH_BACKUP_REVIEW_2026-10-08.md.
+- live export이므로 PITR/동일시점 snapshot 보장 및 실제 restore 검증은 미완료. 모든 컬렉션 전후 건수 일치도 동시 update 부재를 입증하지 않음. 별도 파일 암호화 없음.
+- 구 Identity7f2188d의 ROTATED 재사용 세션 폐기·MERGED/GUEST_MERGED 미지원, 구 LC89defb7의 탈퇴/병합 deny 부재를 소스 재확인. 신코드 recovery ON은 무헤더 재발급 불가. 단순 공통 코드 교체도 아직 호환 확인 필요.
+- 사용자 최신 선택은 점검 결과 설명만. 코드 수정/배포/서버 기동/플래그 변경 없음. 운영 LC task23 UI 설정 확인, ECS Secret host와 최종 runtime 전체 설정은 미검증.
+
+## 2026-10-08 — 운영 DB 기본 구조 추가 완료
+
+<!-- codex-turn:01a11a55-6065-7482-b917-f6c71ccec0c0 -->
+
+- 사용자가 백업을 기동 전으로 분리하고 구조 추가부터 승인. 운영 Identity29컬렉션/70인덱스, LC16컬렉션/25인덱스를 추가하고 사후 manifest 누락/충돌0 확인. 상세: PRODUCTION_DB_DDL_APPLIED_2026-10-08.md.
+- Compass 저장 연결에서 전체 index options 조회 성공. 기존 Identity5개 일치/unique 중복0, 사후75개 일치. 카탈로그100일/300문항 정상. guardDocuments0: 문서 보정·테스트 예외 수정 없음.
+- 기존 TTL/인덱스 변경·삭제, worker/서버 기동 없음. 신규 TTL은 빈 컬렉션만 대상으로 확인. 백업, ECS DB endpoint 일치, 구신 세션/탈퇴 보안 호환, 기동 기능별 학습삭제/문의 구조는 후속 확인.
+- 읽기 검사기의 비동기 cursor 호환 수정 및 DDL-only 도구/테스트 추가. Node13통과, Java1310중1304성공/6skipped/실패0. 기존 사용자 변경 보존, commit/push 없음.
+
+## 2026-10-08 — 백업 필요성의 범위 명확화
+
+<!-- codex-turn:01a11a53-f7a1-7c11-8c70-c7f84f9c86c3 -->
+
+- 백업은 MongoDB 실행상의 필수 조건이 아니라 운영 복구 안전장치다. 없는 빈 컬렉션 및 검증된 인덱스 추가만 분리하면 백업 없이도 기술적으로 실행 가능하나 자원 부하·unique 쓰기 제한 위험은 남는다.
+- 기존 데이터의 TTL 변경/삭제/보정, 신규 서비스의 worker 기동은 단순 DDL과 별도 판단한다. 운영 공유 DB이므로 기동 전 전체 백업을 권장하며 유료 Atlas 전환만 유일한 방법은 아니다.
+- 사용자 질문은 백업 생략·DB 적용 승인 아님. 실제 변경 없이 설명 및 기록만 수행.
+
+## 2026-10-08 — 운영 카탈로그 통과·백업 미준비 확인
+
+<!-- codex-turn:01a11a4d-66e3-7110-a02f-82d562326bec -->
+
+- Atlas 읽기 집계: 챌린지100일/300문항, Day1 존재, 타입/필수값/날짜·문항번호·ID 중복 오류0. 기존 인덱스는 `_id_`만 존재, 요구 unique2개 누락.
+- Cluster0는 Free/Backups Inactive, 저장공간334.57MB/512MB(65%). 외부 수동 전체 백업·복원 검증은 미확인. 실제 DB 쓰기 전에 백업 경로 결정 필요.
+- refresh TTL UI는 expiresAt ASC만 확인 가능하고 TTL 초·users partial 등 full-options는 미확인. 연결된 Mongo shell의 읽기 검사 필요. 후보 수를 최종 diff로 승격하지 않음.
+- 확인된 테스트 예외만 보존하며 제한 allowlist·writer-drain 경로는 아직 미완료. DB쓰기/배포/업그레이드/권한변경 없이 종료. 상세는 PRODUCTION_DB_DRY_RUN_2026-10-08.md 후속 검증 참조.
+
+## 2026-10-08 — 테스트 예외 수용 후 다음 단계
+
+- 바로 다음은 DB 적용 전 남은 검증 마무리: 기존 index 전체 옵션 비교, 챌린지 카탈로그 타입/중복, 확인된 테스트 문서만 한정한 예외 처리와 정상 owner 대상 선정, 백업/복구·writer 가동 조건 확인이다.
+- 이후 최종 변경 diff 승인 → 없는 컬렉션/인덱스 및 필요한 guard 준비 → 운영 설정으로 신규4서비스 기동/health → 서비스 DNS·라우팅 및 E2E 순서. 단순 다음 단계 질문은 외부 적용 승인 아님.
+- 이번은 기존 상태 기반 안내·문서 기록만, 외부 조회/수정/테스트 재실행 없음.
+
+## 2026-10-08 — 확인된 테스트 데이터 예외 수용
+
+- 사용자가 이번에 확인한 orphan 결과4건·UUID 형식 오류 owner 문서2건은 테스트로 만든 데이터라 넘어가도 된다고 명시했다. 이 건들만 전환 점검의 수용된 예외로 기록하며 삭제/임의 귀속 변경하지 않는다.
+- 전체 orphan/비정상 owner를 무조건 무시하는 정책으로 확장하지 않는다. 실제 실행 도구에 예외가 필요하면 해당 문서를 제한적으로 식별한 allowlist가 필요하고, 정상 owner 대상만 guard 준비한다. 기존 스크립트를 우회 실행하거나 writer-drained 조건을 허위 설정하지 않음.
+- 잔여 전체 인덱스 옵션·카탈로그·backup/접속/기동 조건 검증은 유지. 이번 답변으로 DB 적용·배포를 승인받은 것으로 해석하지 않는다.
+
+## 2026-10-08 — DB manifest 생성·운영 집계에서 적용 차단 사유 발견
+
+- [검증 결과](PRODUCTION_DB_DRY_RUN_2026-10-08.md): Spring Data resolver로31컬렉션/75인덱스 정의 생성 및 JSON 보존. 기존 이름 기준29컬렉션/70인덱스 추가 후보이며 전체 옵션 검증 전 승인용 최종 diff 아님.
+- Atlas 실집계: 결과9834 중 session 미매칭4, 요약765의 orphan0, 매칭 결과/요약 owner불일치0. LC 세 컬렉션 입력의 비정상 UUID owner 문서2, owner 그룹320(비정상 포함), 활성 시험 owner 중복0. users 이메일/설치키 중복 및 array0.
+- 기존 prepare blocker가 확인되어 guard 적용 보류. orphan4와 owner형식2의 원인을 먼저 조사하고 자동 삭제/귀속 변경하지 않음. 전체 운영 dry-run 성공 아님, indexStats로 full spec 조회 불가여서 기존 TTL/partial 옵션 및 카탈로그 검증 등 잔존.
+- 새 read-only Identity inspector/테스트 추가. Java clean test 총1310/성공1304/skipped6/실패0, Node7통과. main 코드/외부 DB/기동 변경 없음. 기존 동시 정책 문서 작업 보존.
+
+<!-- codex-turn:01a11a45-ce75-7cc2-b99f-5954d9fcbbcc -->
+
+- 단일 정책 전달문 작성 및 작업 기록 보완 완료. 자동 파기·웹 인증·학습 데이터 삭제 운영 검증은 여전히 후속 과제이며 이번 작업에서 실행하지 않음.
+
+- 2026-10-08: 사용자 요청에 따라 현재/적용 예정 구분 없이 카카오톡용 단일 정책 문안 재작성. 공개 전 실제 처리 일치 확인이 필요하다는 주의는 문안 밖에 유지. 제품 코드·운영 변경 없음.
+
+- 2026-10-08: 카카오톡 전달용 요약 작성. 현재 저장·탈퇴 구현과3년 보관/삭제기한 정책안을 구분하며, 자동 파기·웹 본인확인·LC 삭제 검증 미완료를 명시. 외부 메시지 전송 없음.
+
+<!-- codex-turn:01a11a44-4b02-7110-9676-94a9318718fd -->
+
+- 카카오톡용4개 항목 전달문 작성 완료 및 문서 diff 검사 수행. 정책 기준만 안내했으며 운영 보장·구현 완료로 표시하지 않음.
+
+## 2026-10-08 — 삭제·보존 정책 권장값 문서화
+
+<!-- codex-turn:01a11a40-6fe3-7c43-a22d-0b7e8f9347de -->
+
+- 완료 상태: 정책 권장안 문서 작성 및 공백 검사 완료. 실제 자동 파기·운영 반영은 미실행.
+
+- 사용자 요청에 따라 docs/contracts/account-deletion-policy-recommendation.md 작성 후 전화 HMAC/최소 탈퇴·동의 증빙을 모두 탈퇴일부터3년으로 수정. Firebase 정리24시간/학습 삭제7일 목표·최대30일, 로그/백업30일은 유지. 법정기간이나 현재 운영 보장으로 확정한 것은 아님.
+- 전화번호당 평생1회 정책과3년 후 식별값 파기 충돌 명시. 실제 파기·SLA 감시·웹 본인확인 및 LC·백업 처리 검증 필요. 이번 코드/외부 데이터/설정 변경 없음.
+
+중단 후 기록 확인: 실행 manifest/운영 읽기 검증은 미완료 상태이며, 추가 DB 작업 없이 작업 기록만 보완했다.
+
+## 2026-10-08 — 계정 삭제 고지 4개 항목 정리
+
+<!-- codex-turn:01a11a3e-4df5-7c31-b244-f0639b490612 -->
+
+- Identity 저장·탈퇴 코드에 근거한 인계용 정리이며 확정 게시문 아님. 보존 기간/전체 삭제 SLA, Firebase 실제 속성·LC 학습/음성 삭제·백업은 별도 확인 필요.
+- User에 전용 lastLoginAt은 확인되지 않음. RefreshSession.lastUsedAt은 세션 활동 시각으로 로그인 시각과 동일하게 고지하지 않음.
+- SNS 이메일은 마스킹 힌트이므로 이메일 주소만으로 확정 매칭·본인 확인 불가. AccountRecoveryService는 Firebase PHONE 인증 증명·recovery challenge 검증 후 번호 HMAC으로 ACTIVE 계정 안내; 조회와 탈퇴 권한은 별개. 이메일 접수 전용 본인 확인·탈퇴 절차 미확인.
+- 기존 installationId Guest는 SHA-256 설치 해시 및 내부 UUID로 연결. 설치 식별자는 인증 수단이 아니며 로그인 증명 없이 삭제를 허용하지 않음. LC의 모든 학습 기록 삭제 배포 여부는 이 조사에서 미검증.
+
+## 2026-10-08 — 실행 manifest/운영 dry-run 착수 후 중단
+
+- Identity Spring Data index resolver 기반 manifest 생성 방법과 기존 repository 테스트를 조사했다. 실제 manifest/검증 스크립트 작성은 아직 하지 않았다.
+- 운영 Atlas 집계 화면 열기를 시도했으나 브라우저 응답 시간 초과 이후 작업이 중단됐다. 이번 운영 조회 결과 없음, DB 쓰기/기동 없음. 재개 시 탭 상태부터 확인하고 manifest 생성 및 읽기 검증을 이어간다.
+
+## 2026-10-08 — Google 계정 삭제 안내용 저장·보존 현황 조사
+
+<!-- codex-turn:01a11a3b-e9d8-7183-a42a-45a23a416741 -->
+
+- Identity 소스 기준 조사, 운영 설정/Firebase 실제 속성/LC·Billing·로그·백업 보존 기간은 미검증. 직전 테스트 수동 초기화와 정상 회원탈퇴 처리를 구분.
+- SNS 회원: UUID/닉네임/동의·일시/상태, Firebase UID·SNS provider subject, 마스킹 이메일 힌트, 전화번호 HMAC 및 인증·연결 정보 저장. SNS 생성 시 User email/passwordHash는 null; 로컬 이메일 회원 기능은 별도 원문 이메일/비밀번호 해시 필드 사용.
+- 탈퇴 트랜잭션에서 프로필 식별 필드 제거·닉네임 대체·Refresh 세션 철회. Firebase 비동기 정리 후 연결 문서 삭제, 전화번호 fingerprint/alias는 RELEASED로 남음. User 동의 이력과 lifecycle Firebase UID도 남음.
+- 핵심 잔존 데이터 최종 삭제 기한 및 전체 처리 SLA 미확정. worker5초 주기는 완료 보장 아님. 법정 보관 항목/기간 임의 선언 금지, 정책 확정 및 실제 파기 구현·운영 검증 후 게시 필요.
+
+## 2026-10-08 — 운영 DB 준비 범위·적용 경계 구체화
+
+- [준비 계획](PRODUCTION_DB_PREPARATION_PLAN_2026-10-08.md) 작성. 사전검사→없는 DDL 추가→필요 guard insert-only 보정→별도 기동 승인으로 분리. 실제 DB/서버 변경 없음.
+- LC 병합/탈퇴/알림/챌린지는 신규15컬렉션과 요구25보조 인덱스 정의, merge probe까지 명시 준비 시16컬렉션 후보. 기존 challenge 인덱스 등은 적용 직전 diff로 제외. 학습기록 삭제24개 인덱스와 문의 저장 구조는 활성화 범위에 따라 별도 포함.
+- Identity @Document31개(기존2, 신규 mapping 후보29) 인벤토리와 recovery 정확한 정의 기록. 전체 mapping-resolved DDL manifest 및 운영 dry-run은 아직 필요하며 목록 작성만으로 실행 준비 완료가 아님.
+- guard는 기존 학습 owner 합집합 대상으로 $setOnInsert만 사용. accountType/epoch/전416계정 강제 보정 없음. 런타임 touchActive도 누락 guard 생성 가능하나 기존 스크립트 writer-drain 조건은 임의 우회하지 않음.
+- 관련 기존 준비 스크립트 Mock 테스트27개 통과. 다음은 Identity 전체 manifest 및 실DB 옵션/중복/관계 dry-run, 백업/쓰기 가동 조건 확인 후 최종 DDL 승인. 문서 변경만, 외부 쓰기/배포 없음.
+
+## 2026-10-08 — 운영 기동 전 실제 DB/JWT 읽기 점검
+
+- [상세 점검](PRODUCTION_PRESTART_AUDIT_2026-10-08.md): Atlas Project0/Cluster0 운영 DB를 실제 조회. Identity users/refresh_sessions만 존재; recovery unique 인덱스 없음. LC10개 컬렉션에 병합/탈퇴/알림 신규 컬렉션 없음, 결과/요약 userId 인덱스 및 notification_submission_date 없음. 기능 ON 기동 준비 미완료.
+- 계정416=Guest ACTIVE409/WITHDRAWN7, accountType null/누락. 세션965=미폐기·미만료/ACTIVE229, ROTATED735, ACCOUNT_WITHDRAWN1. owner 미발견0, sessionEpoch null/누락. 기존 fallback/epoch0 호환과 구분하여 일괄 보정하지 않음.
+- ECS6서비스 각 running1/pending0, 기존 task revision 유지. 운영/test DB·issuer 다름, 공개 JWKS 각1개·공개키 교집합 없음 재검증. 새 서비스 미생성. Secret URI host/실제 키 값은 읽거나 기록하지 않음.
+- Identity auto-index=true, 테스트에는 탈퇴/전파/문의 worker 및 LC 삭제 worker ON. startup probe는 rollback하더라도 insert 수행하므로 운영 검증 목적으로 실행하지 않음. worker/인덱스 자동 생성에 기대어 먼저 기동 금지.
+- 다음: 누락 DDL·guard 준비 목록과 중복/타입 검증, writer 가동 조건 확정 후 승인 적용. 기존 prepare의 writers-drained 조건을 허위로 충족시키지 않음. 이번 외부 쓰기·기동·DB 수정 없음, 미검증 범위는 상세 문서 참고.
+
+## 2026-10-08 — TLS 이후 다음 작업 순서 확인
+
+- 다음은 신규4서비스 기동 전 운영 설정/DB 읽기 점검이다. 기존 운영 DB·JWT 신뢰 연속성, 필수 인덱스/guard와 자동 cleanup/outbox 영향, AI queue/callback 분리를 먼저 확인한다. 테스트 이미지 승격과 테스트 설정 복사를 구분한다.
+- 이후 신규 task/target group·최소 네트워크/IAM 범위 확정 → 승인된 서비스 기동 및 health → 서비스용 DNS/host routing → 계정·이력·시험/챌린지·병합/탈퇴 검증 순서. 스토어 공개 전 구 APP_UPDATE_REQUIRED를 켜지 않는다.
+- 수용된 구 callback ownership 경합 때문에 구서버 전면 교체를 다시 요구하지 않는다. 별개인 구주소 재발급/탈퇴 차단 위험은 미해결 사항으로 유지한다.
+- 이번은 기존 설정표/기록 재검토이며 실시간 AWS/Atlas 재조회나 배포가 아니다. 코드/외부 인프라 변경 없음, 문서만 갱신.
+
+## 2026-10-08 — 신규 운영 두 호스트 TLS 준비 완료
+
+- 사용자 명시 승인 범위로 identity-prod.to-teacher.com / api-prod.to-teacher.com 두 SAN의 ACM 관리형 RSA2048 인증서 1개 발급 완료. 인증서 ID: 3064fa95-591a-4cdc-94e0-a7d540a65d53, 서울 리전, 상태 ISSUED.
+- 가비아 DNS 검증·자동갱신 CNAME 2개(TTL600) 추가, 기존18개 보존(총20개). 권한 DNS 조회 및 ACM 두 도메인 SUCCESS 확인. 자동갱신을 위해 검증 CNAME 유지 필요.
+- 기존 tosunsaeng-staging-alb HTTPS443에 추가 SNI 인증서로 연결. 전후 조회로 기존 인증서와 기본 인증서 불변 확인. 두 호스트를 ALB에 직접 연결한 curl TLS 검증 모두 ssl_verify_result=0, HTTP404(아직 prod 라우팅 없음). 애플리케이션 health 통과를 뜻하지 않음.
+- 서비스용 DNS·target group·라우팅·ECS 신규 기동·IAM/SG·DB는 이번에 변경하지 않음. 기존 서버/API/JWT 계약 불변. 다음은 운영 DB/인덱스와 worker 영향 검증, 신규4서비스 및 AI queue/callback 분리 구성, 승인된 DNS/라우팅 적용.
+- 변경은 문서3개와 승인된 TLS 인프라 범위만. 제품 코드 변경 없어 Gradle 생략, DNS/API/TLS 검증 및 git diff --check 수행. 아래 구성 착수 시점의 인증서 미발급 기록은 이 완료 상태로 대체됨.
+
+## 2026-10-08 — 신규 운영 구성 착수, 도메인·AI 분리 확정
+
+- 사용자 진행 승인 및 명시 답변: identity-prod.to-teacher.com / api-prod.to-teacher.com 확정, AI도 별도 운영 서비스로 분리. 기존 운영 DB·JWT 신뢰를 이어가는 구성 범위이며 기존 서비스 변경/데이터 초기화 승인 아님.
+- AWS 읽기 확인: 동일 VPC의 private subnet/Public IP DISABLED 서비스와 기존 인터넷 ALB 사용. HTTPS 기본·추가 SNI 인증서는 staging/test만 포함. Route53 hosted zone0, 공개 NS는 가비아. 새 prod 도메인 TLS/DNS 준비 필요, 가비아 접근 필요.
+- app-ai-learning README 및 task 비교: 챌린지 API/worker와 기존 모의고사 AI는 별도 프로그램. 신규 Identity·LC·모의고사 AI·챌린지 AI 총4서비스 구성이 필요(앞선 3개 설명 정정). 테스트 모의고사 localhost9를 운영에 복사하지 않음.
+- 실제 리소스 생성·기동·보안 권한·DNS/인증서·DB 변경은 아직 없음. 다음: 가비아 DNS 접근, 신규 TLS/라우팅 준비 및 필요한 보안 변경 승인, 운영 DB/인덱스/자동 worker 검증 후 기동. 채점 경합 위험 수용은 유지하되 세션/탈퇴 위험까지 확대하지 않음.
+
+## 2026-10-08 — 최신 앱 main 승계 구현 및 ECS 재조회
+
+- 프론트 main64959404e1fe6fdd013cbb395c88ff6efb8f8b77(10월8일 커밋)의 App에서 새 runtime 사용 확인. v2가 없으면 auth-session.v1을 읽고 v2로 보존, Crypto.randomUUID 요청 ID를 저장 후 전송, 동일 ID 복원·single-flight·절대 만료 응답 처리 확인. replaySupported=true. dev e42409e는 옛 무헤더 경로로 main과 다름.
+- 사용자도 출시 기준 브랜치를 모른다고 답변. main은 코드 조사 기준일 뿐 실제 출시 artifact로 확정하지 않음. production 빌드는 EAS production 환경의 서비스별 URL을 사용하며 실제 환경값·기기 업데이트는 미확인.
+- AWS 서울 리전 클러스터1/서비스6 재조회: 구 Identity23/LC23/AI17, test Identity34/LC19/AI2 각 running1. 별도 신규 운영 서비스 없음. 운영DB to-teacher-identity/to-teacher-app 및 staging issuer, test 별도DB/test issuer 재확인. 테스트 recovery/fence true, LC 시험 AI localhost9 유지.
+- 다음은 신규 운영 서비스 구성과 기존 운영 DB/JWT 신뢰 연결, EAS 출시 빌드 URL/commit 확인 후 실기기 승계 검증. 코드·인프라·데이터 변경 없음, 문서 갱신만. 채점 경합 위험 수용 유지.
+
+## 2026-10-08 — 기존 Guest 세션 승계 코드·회귀 확인
+
+- 관련 테스트92개 성공(GuestRefreshLifecycle7, ReissueRecovery48, SessionRevocation32, ReissueRecoveryHttp3, AuthPersistentTypeCompatibility2). 구7f2188d와 현행 RefreshTokenHasher 차이 없음. 재발급은 세션 userId로 같은 계정에 발급하며 accountType 누락 Guest 문서의 fallback 유지.
+- 신 recovery ON 서버는 기존 토큰도 처리 가능하나 유효한 Idempotency-Key 필수, 누락 시400 INVALID_REISSUE_REQUEST_ID. 구앱→구주소 유지와 신앱→신주소 전환을 구분; 이 사실만으로 구앱용 무헤더 처리 추가가 필요한 것은 아님.
+- 동일 운영 users/refresh_sessions 및 LC 시험 DB, 활성·미만료·미폐기 세션과 보안 epoch 조건 필요. 구서버에서 이미 회전했으나 응답을 잃은 토큰은 복구되지 않으며 재사용 정책 적용. 구·신 동시 재발급의 실환경 안전성은 미검증.
+- 기존 Access Token을 계속 쓰려면 운영 issuer/키 신뢰 유지 필요(Refresh Token 조회 자체와 별개). 신규 앱 SecureStore auth-session.v1 유지·신 헤더·실제 업데이트 E2E와 운영 DB/인덱스는 미확인. 테스트DB가 분리되어 있으므로 기존 운영 계정을 테스트주소에 연결하는 방식은 승계 검증이 아님.
+- 제품 수정·배포 없음. 다음은 프론트 신규 빌드의 저장소/헤더 확인과 신규 운영 DB/JWT 설정 확정 후 승인된 계정의 업데이트 E2E.
+
+## 2026-10-08 — 위험 수용 후 다음 작업 우선순위
+
+- 다음 우선 작업은 구앱 Guest Refresh 세션을 신 Identity에서 동일 UUID로 재발급하고 기존 이력을 유지할 수 있는지 검증. 구·신 재발급 경합과 헤더 차이, issuer/키 신뢰·DB 연속성을 포함하며 빈 테스트 계정 가입 성공과 구분한다.
+- 별도 출시 확인: 탈퇴·병합으로 차단된 계정의 유효 토큰이 구주소에서 계속 허용되는 범위 확인. callback metadata 경합 수용을 이 보안 위험 수용으로 확대하지 않음.
+- 이후 신규 운영 주소·DB/JWT·AI/S3/Redis·이벤트·인덱스 설정 확정 및 승인된 배포. 테스트 설정 그대로 복사 금지. 이번은 순서 안내만 수행, 제품/인프라 변경 없음.
+
+## 2026-10-08 — 사용자 결정: 구 callback·병합 경합 위험 수용
+
+- 사용자는 구 callback의 source 조회→병합 commit→결과 insert 경합으로 결과/summary userId가 source에 남는 위험을 이번 전환에서 수용. 이 위험을 해소하기 위한 구서버 callback 수정은 범위에서 제외한다.
+- 이 결정만으로 최신 공통 코드 전환을 진행하지 않으며, 세션 재발급·탈퇴·기타 공유 DB 호환 위험 수용 또는 배포 승인으로 확대하지 않는다. 실제 발생 빈도와 운영 데이터 불일치는 미확인.
+- 제품·배포·DB 변경 없이 결정 기록만 갱신. 다음은 별도 미해결 인증/세션 전환 항목을 기준으로 필요한 수정 여부 판단.
+
+## 2026-10-08 — 구 LC callback와 병합 경합 소스 확인
+
+- 마지막 운영 조회의 구 LC 이미지 89defb7 소스 기준: callback은 examId로 ExamSession을 조회하고 feedback/summary insert에 조회 당시 userId를 사용. 병합 후 조회라면 target으로 정상 저장하며 Session.userId를 되돌리는 저장은 없음.
+- 예외는 callback이 source를 조회한 뒤 신 consumer의 migration commit이 끝나고 결과를 insert하는 순서. 결과/summary에 source userId가 남을 수 있음. consumer의 PROCESSED 재전송은 migration 재실행 없이 DUPLICATE. 실제 운영 발생·빈도는 미검증.
+- SpeechAce/Azure는 직접 owner 없이 examId 기반. 신 이력 조회는 target Session에서 examId를 얻어 결과를 조회하므로 위 metadata 불일치만으로 이력 소실을 단정하지 않음. 전체 최신 코드 교체 필요성을 이 문제만으로 확정하지 않음. 최소 callback 경합 방어 여부를 별도 선택.
+
+## 2026-10-08 — 구서버의 병합 인지 필요 조건 구분
+
+- 단일 기기 업데이트 후 모든 요청이 신주소로 전환되는 정상 경로만 보면 구서버에 병합 기능 전체가 필요하지 않음. 구주소 재접속을 필연으로 설명하지 않는다.
+- 공유 DB의 잔여 위험은 업데이트 전 시작된 채점 callback/재시도/세션 요청 등 구 writer 작업. 잔여 작업 부재 또는 원자적 소유권 이전과 stale write 방지가 보장되면 구서버 변경을 줄일 수 있으나 현재 그 보장은 미확인.
+- 같은 UUID의 Guest 승격과 다른 계정으로의 병합을 구분. 실제 옛 callback의 소유권 갱신 방식 및 진행 작업 종료 보장을 확인한 뒤 최소 수정 범위를 확정. 이번 설명으로 공통 코드 전환을 강제하거나 배포하지 않음.
+
+## 2026-10-08 — 공통 코드와 구버전 이식 방식 설명
+
+- 공통 코드는 구주소·신주소 서버를 분리 유지하면서 같은 최신 코드 기반을 쓰고, 구앱 요청 호환 및 신규 기능 노출을 서버별로 조정하는 제안. 서버 통합이나 구앱에 SNS 업데이트 강제를 뜻하지 않음.
+- 구버전 이식은 구주소의 옛 코드를 유지하며 필요한 세션/병합/소유권 보호와 의존 코드를 옮기는 방식. 두 코드 계열의 유지·검증 부담이 생김.
+- 무헤더 재발급은 인증 없는 요청이 아니라 기존 Refresh Token은 보내되 새 Idempotency-Key를 보내지 않는 구앱 요청을 의미. 보안 검증 완화가 아닌 하위 호환 설계가 필요. 전략 선택·구현·배포는 아직 미완료.
+
+## 2026-10-08 — 구서버 호환 방식의 수정량 비교
+
+- 기존 세션 보안·병합·callback 보호 코드를 재사용하는 최신 공통 코드 + 구앱 호환 설정 방식이 backport보다 코드 수정량이 적을 것으로 판단. 정확한 diff 규모는 구 API 차이 조사 후 확정 가능.
+- 구버전 backport는 관련 enum·세션 보안·트랜잭션·소유권 방어 의존성을 함께 옮겨야 함. 반면 공통 신코드 적용은 배포 영향 범위가 넓어 기존 무헤더 refresh와 시험 API 회귀 검증이 필수.
+- 단순 신코드 배포나 recovery OFF만으로 안전하다는 의미 아님. 기능별 비활성화 가능 여부와 교차 주소 재발급/병합/탈퇴 호환을 확인해야 함. 전략 선택 대기, 이번은 비교 설명·기록만 수행.
+
+## 2026-10-08 — 전환 구현 착수 조사·기존 호환 회귀 통과, 방식 선택 대기
+
+- 신코드 GuestRefreshLifecycle/응답복구/SessionRevocation 87개 및 LC 병합 Mongo 통합11개 통과. 병합 전후 callback 현재 소유자 저장은 이미 신 LC에 구현됨. 구 binary 혼재 안전성/운영 E2E를 증명하는 테스트는 아님.
+- 주요 적용 대상은 구주소 실행 코드. 최소 backport와 최신 공통 코드 구앱 호환 모드 중 선택을 사용자에게 질문. 최신 코드를 그대로 구주소에 배포하면 recovery 필수 헤더 등 기존 계약 차이 위험이 있어 선택/호환 검증 전 변경하지 않음.
+- 이번은 기존 구현 검증까지 수행, 제품 수정/배포 미완료. 기존 문서 변경 보존. 선택 후 구 API 차이와 feature 설정을 포함한 코드 변경·테스트 진행.
+
+## 2026-10-08 — 전환 호환 선행 수정의 정상 동작 조건
+
+- 사용자 확인: 1번은 기존 result.appUpdateRequired boolean을 웹뷰가 처리. 서버 피드백 본문 차단/새 오류 응답 추가 요구 아님.
+- 2~4 계정·세션 승계/구·신 최소 호환/늦은 채점 callback은 지금 하위 호환 방식으로 준비 가능하나, 미구현·미검증 상태에서 무조건 정상이라고 보장하지 않음.
+- 기존 앱 API/refresh 무헤더 계약 유지, UUID/examId 보존, 현재 소유자·계정 상태 기반 callback 저장, additive DB 준비와 구·신 경합 테스트 후 단계 배포. feature flag OFF만으로 혼합 writer 안전성을 보장하지 않음.
+- 이번은 적용 가능성 설명이며 코드/DB/배포 변경 없음. 기존 운영 시험·로그인 회귀 및 업데이트 중 회원 전환/탈퇴·callback 시나리오 통과를 적용 조건으로 둠.
+
+## 2026-10-08 — 전환 정책 확정: 구앱 시험 허용·피드백 제한
+
+- 사용자 확정: 구앱은 시험 응시/제출 가능, 피드백은 업데이트 안내로 제한. 채점 결과는 보존하고 업데이트 후 이력에서 확인. 구서버 안내-only/시험 API 전체 차단안은 채택하지 않음.
+- 인증/재발급·시험/음성 제출·AI 채점/콜백을 유지해야 하므로 구·신 writer 최소 호환 필요. 동일 examId·소유권/Guest 승격 또는 병합·기록 연속성 및 업데이트 중 도착한 callback을 함께 검증해야 함.
+- 구서버 신규 SNS/알림 기능 전체 이식은 불필요. 세션 호환·탈퇴/병합 차단·owner guard만 필요한 범위로 설계. 이번은 정책/문서 반영, 구현·배포 없음.
+
+## 2026-10-08 — 전환 준비를 묶어서 변경할 범위 제안
+
+- 구서버 차단만으로 출시 준비가 끝나지는 않음. 안내 전용 전환을 택한다면 구 Identity/LC 사용자 API 차단, 인증 없이 도달 가능한 업데이트 안내, 진행 AI/callback/worker 소진, 신서버 세션·JWT/DB 연속성, 운영 설정·인덱스·rollback 점검을 함께 준비.
+- 기존 구앱이 새 오류 응답을 처리할 수 있는지 미확인. 피드백 API보다 앞에서 차단하면 기존 웹뷰 안내 진입이 끊길 수 있어, 서버 차단과 안내 진입 경로는 함께 설계해야 함. 기존 클라이언트가 인식하지 않는 새 오류 코드만 추가하지 않는다.
+- 1주 유예를 기존 시험 허용으로 유지할지 안내만 유지할지 확정 필요. 전자는 최소 혼합 writer 호환이 남고 후자는 기능 중단 정책 변경이다. 이번은 범위 제안이며 코드·배포 변경 없음.
+
+## 2026-10-08 — 구서버 웹뷰 차단과 서버 차단의 구분
+
+- 사용자 제안: 시험 후 웹뷰 업데이트 안내로 구앱 사용 제한. 안내는 UX이며 기존 API·refresh·진행 중 callback/worker를 차단하지 않으므로 공유 DB 신서버 영향이 없어지는 근거는 아님.
+- 구서버에 신규 기능 전체 이식이 필수인 것은 아님. 대안은 신규 기능 활성화 전에 구 Identity/LC의 데이터 접근·쓰기 경로를 서버/라우팅에서 차단하고, 진행 요청·AI callback·worker를 안전하게 소진한 뒤 업데이트 안내 전용으로 유지하는 방식(미승인/미실행).
+- 구앱에서 시험·재발급을 계속 허용하는 1주 병행안이면 최소 호환 조치 또는 데이터 격리가 여전히 필요. UI 차단만으로 충분하다고 확정하지 않음.
+
+## 2026-10-08 — 신규 운영 설정표 및 구 binary 호환성 점검
+
+- NEW_PRODUCTION_CONFIGURATION_MATRIX_2026-10-08.md 작성. 기존 Identity23(7f2188d)/LC23(89defb7), 테스트 Identity34/LC19 모두 안정화·running1/pending0. 테스트 버전 양 플랫폼 최소/최신1.0.0 확인. 운영/test 공개 JWKS 키 교집합 없음.
+- 구 Identity ROTATED reuse 처리·신규 MERGED/GUEST_MERGED enum 부재, 구 LC withdrawal/merge deny·owner guard 부재 확인. 동일 운영 DB에 구 binary 그대로 병행하는 안 보류. 호환 패치/공통 신코드 구앱 라우팅 설계·검증 선행 필요.
+- 운영 DB 내용/인덱스는 미검증: Atlas 다른 작업 점유, CloudShell Mongo 드라이버 없음. task DB명과 소스만 대조. 테스트 AI localhost9 운영 복사 금지. 실제 Secret/키/URI 조회 없음.
+- 사용자 pord 주소 방향을 prod 오타로 이해, identity-prod/api-prod.to-teacher.com 후보로 반영(정확한 주소 최종 확정/생성 아님). DNS/ALB/TLS·DB·배포 변경 없음. 프론트 실기기 검증 담당 분리 유지.
+
+## 2026-10-08 — 프론트 검증 분담 및 신규 운영 전환 준비 우선
+
+- 사용자 결정: 알림 실기기 수신·클릭 등 프론트 검증은 프론트 담당. 다음 서버 작업은 신규 운영 Identity/LC 구성과 기존 운영 데이터·세션 연속성 확정.
+- 우선 운영 DB 컬렉션/인덱스 및 구 writer 호환성, JWT 신뢰·refresh 보안 상태, 병합/탈퇴 양쪽 접근 차단 점검과 운영 설정표 작성. 공유 DB는 제안이며 무검증 연결하지 않는다.
+- 신규 주소·AI 분리 여부는 미확정. 이번 안내는 인프라 생성·설정 변경 승인이 아니며 외부 변경 없음. 다른 작업의 테스트 계정 정리는 운영 계정 승계 검증 근거로 사용하지 않음.
+
+## 2026-10-08 — 테스트 Identity 계정·인증 잔존 데이터 정리 완료
+
+<!-- codex-turn:01a119f5-b210-7582-9f35-2eebd4357944 -->
+
+- 사용자가 테스트 DB 전체 계정 삭제 승인, Firebase 계정은 직접 삭제했다고 안내. Atlas 프로젝트 tosunsaeng-test / DB to-teacher-identity-test 확인 후 계정 관련 문서만 삭제.
+- 삭제 총72건: firebase_identities3, social_identities3, firebase_enrollment_attempts10, phone_identities6, phone_fingerprint_aliases6, refresh_sessions44. users는 작업 전부터0건. 각 대상 및 refresh_reissue_responses 최종0건 확인.
+- 컬렉션/인덱스 보존. 문의, 이벤트/outbox, merge progress, 세션 보안 제어, 탈퇴 이력 및 eligibility 이력은 보존. 운영 DB/Firebase/LC/Billing 변경 없음.
+- 별도 백업 없이 승인된 폐기 가능 테스트 데이터 삭제, 일반 UI로 되돌릴 수 없음. 기존 앱 인증정보 초기화 후 새 가입 필요. 실제 SNS 재가입 E2E 미실행, 기존 LC Access Token 즉시 무효화 또는 학습 이력 초기화를 의미하지 않음.
+- 검증: Atlas 삭제 성공과 컬렉션 건수, git diff --check. 제품 코드 변경 없어 Gradle/배포 없음. 증거: /private/tmp/identity-test-account-cleanup-2026-10-08.png.
+
+## 2026-10-08 — 알림 배포 후 다음 검증 순서
+
+- LC 알림 수정 배포 완료와 실기기 수신 검증은 별개. 다음은 테스트 FCM 발송 자격증명/권한·등록/OS 동의·대상 범위 확인 후 승인된 테스트 기기로 발송 검증, 당일 완료 제외·로그아웃/탈퇴·중복 방지 확인.
+- 기존 등록 기기 전체에 영향이 갈 수 있어 sending/dry-run을 임의 변경하지 않는다. 기본 발송창 KST21:00–21:15 유지, 즉시 테스트를 위해 운영 시간/기기 제한을 임의 변경하지 않음.
+- 그 뒤 신규 운영 Identity/LC 주소·DB/세션 승계·AI 연결·알림 설정표 확정, 구·신 전환 E2E 및 스토어 공개 후 업데이트 안내. 다른 작업의 계정 정리 기록은 보존, 이번 안내에 삭제 권한을 포함하지 않음.
+
+## 2026-10-08 — 알림 수정 테스트 배포 완료
+
+- 사용자 승인 후 LC develop3fda35b 수동 실행37731404441 성공. 테스트 서비스 대상으로 CI 단위/마이그레이션·Mongo 통합, 이미지 빌드, ECS 안정화, 외부 health 모두 통과.
+- 실제 알림 발송 설정 별도 변경 없음, 운영 main 배포 없음. FCM 실제 수신 E2E는 별도. 이전 skipped 실행은 새 승인 수동 실행으로 해소.
+
+## 2026-10-08 — Firebase 사용자 삭제 완료 제보, Identity 정리 범위 확인 대기
+
+<!-- codex-turn:01a119f5-b210-7582-9f35-2eebd4357944 -->
+
+- 사용자에 따르면 Firebase 계정도 이미 삭제함. 직접 외부 상태를 검증한 것은 아님.
+- Firebase 추가 삭제 없이 테스트 Identity 계정·인증 연결·전화번호 점유·세션 정리를 제안. 운영 DB와 Learning Core 학습 기록 제외 여부 확인 대기.
+- 이번 작업에서 DB 삭제/배포/제품 코드 수정 없음. 실제 컬렉션 의존성 및 보존 대상 점검은 후속 작업.
+
+## 2026-10-08 — 전체 계정 초기화 요청, 환경 경계 확인 대기
+
+- 사용자가 개별 계정 대신 모든 계정 삭제를 허용. 테스트 Identity 계정/인증 관련 데이터 초기화와 Firebase 프로젝트 사용자 삭제는 별도 범위이므로 확인 요청.
+- 제안 범위: 테스트 Identity DB의 계정·인증 연결·세션·전화번호 점유 관련 데이터. 운영 DB/Firebase 사용자/Learning Core·Billing 데이터는 제외. 실제 컬렉션 의존성과 보존 대상은 실행 전 조사 필요.
+- 아직 외부 삭제 없음. Firebase 공유 프로젝트 영향 및 다른 서버 잔존 참조 위험을 고려하여 범위 확정 후 진행.
+
+## 2026-10-08 — 수동 사용자 삭제 이후 Firebase 연결 충돌 조사
+
+<!-- codex-turn:01a119f4-d748-72b1-b121-f46b9b25fbbc -->
+
+- 사용자 수동 DB 유저 삭제 이후 FIREBASE_IDENTITY_CONFLICT 보고. FirebaseExchangeService.requireActiveMember에서 연결의 userId에 해당하는 사용자가 없으면 해당 오류 발생함을 코드로 확인.
+- firebase_identities/social_identities 잔존이 유력하나 실제 대상 DB 레코드는 아직 미확인. 테스트 환경 및 삭제한 userId 또는 Firebase UID 확인 후 대상 연결·세션·전화번호 소유권 관련 데이터 범위를 읽기 점검할 것.
+- 대상 식별 전 삭제하지 않음. 제품 코드/외부 DB/Firebase 변경 없음. 연결 충돌 보안 검증 유지, 전체 초기화·학습/무료 사용 이력 삭제는 범위에 포함하지 않음.
+
+## 2026-10-08 — 알림 수정 푸시 확인, 자동 배포 skipped
+
+- LC develop 3fda35b 푸시 확인. Actions 37731221798 전체 success이나 Test, build and deploy job은 skipped. develop HEAD가 병합 PR commit이어야 하는 gate이며 workflow_dispatch는 허용됨.
+- 이번 실행으로 서버 반영되지 않음. 수동 배포 요청/승인 또는 PR 병합 필요. 배포 트리거·실발송 설정 변경 없음.
+
+## 2026-10-08 — Learning Core 알림 전환 조건 구현 완료
+
+- 사용자 승인으로 별도 LC 저장소에서 자정/구 writer 종료 대기를 신서버 추적 준비시각 기준으로 변경하고, 과거 제출 완료 시각 누락에 따른 전체 소유자 제외를 제거. Identity 제품 코드 변경 없음.
+- 단위608개/알림 Mongo 통합15개 통과. Docker API 호환 실행 옵션으로 통합 테스트 성공, 설정 파일 변경 없음. 탈퇴/동의/당일 완료/중복 방지 유지. 배포·실제 발송 미실행.
+
+## 2026-10-08 — 알림 정책 조정 위치 확인(미구현)
+
+- LC DailyReminderWorker.tick의 trackingReadyAt 자정 이전 조건 및 NotificationStartupValidator/NotificationProperties의 전역 구 writer 종료 전제를 신서버 추적 준비 기준으로 재정의하는 안.
+- NotificationStore.eligible의 과거 submissionCompletedAt 누락 시험 때문에 사용자 전체를 제외하는 조건은 구서버 기록만으로 영구 제외하지 않도록 조정 필요. 신서버 제출 오류/불명 결과 처리를 무조건 완화하는 변경과 구분.
+- 신규 서버 당일 제출 완료 제외, MEMBER/권한/활성 기기, 탈퇴·병합/삭제 guard, 일일 중복 방지는 유지. 제품 코드·배포 변경 없이 설명만 수행.
+
+## 2026-10-08 — 구서버 제출 미관측에 따른 일일 알림 허용
+
+- 사용자 결정: 구앱에서 시험 완료 후 신앱으로 전환한 사용자에게 당일 일일 학습 알림이 발송될 수 있는 정도는 허용. 구서버 제출 추적 및 전환 당일 발송 제외를 출시 필수 조건으로 요구하지 않는다.
+- 신앱 등록·권한 동의 기기 대상, 신서버 제출 기준 판정 방향. 탈퇴/로그아웃/권한 철회 및 중복 발송 방지 조건은 완화하지 않는다.
+- 현재 trackingReadyAt/과거 불확실 시험 제외 로직과 새 정책의 차이는 후속 구현 검토 대상. 이번에는 문서만 갱신, 발송 활성화·코드·설정 변경 없음.
+
+## 2026-10-08 — 테스트 앱 버전 1.0.0 반영 확인 완료
+
+<!-- codex-turn:01a119e2-64d9-7f82-a4e1-6d38f9cf371d -->
+
+- 사용자 최종 요청: Android·iOS minimumVersion/latestVersion 모두 1.0.0. 앞선 1.0.1 요청을 대체함.
+- 이미 진행 중인 테스트 Identity revision34 배포를 중복 변경 없이 검증. 14:04 KST ECS 성공, 실행1/보류0, 대상 정상1/비정상0 확인.
+- 공개 GET /api/v1/app/version 양 플랫폼 응답 SUCCESS 및 minimumVersion/latestVersion 모두 1.0.0 확인. 이전 배포 중간의 9.0.0/9.1.4 응답은 최종 상태가 아님.
+- 이번 실행에서 운영·DB·IAM·제품 코드 변경 없음. 문서만 갱신, Gradle 미실행(배포 상태/API 검증으로 대체). 다음 앱 테스트 시 테스트 도메인과 실제 설치 버전 확인.
+
+## 2026-10-08 — 계정·DB·세션 전환 및 알림 출시 읽기 점검
+
+<!-- codex-turn:01a119e2-40e2-73d1-861a-ee2cf7cd0259 -->
+
+- 출시 범위에 알림 포함. 다른 AI 위임 이후 외부 변경 없이 읽기 점검. 상세: ACCOUNT_TRANSITION_AUDIT_2026-10-08.md.
+- 기존 Identity/LC revision23과 테스트 Identity34/LC18의 DB명·issuer 분리 확인. 테스트 설정 그대로 계정·세션·학습 기록 승계 불가. 신규 운영 대상/실기기/운영 인덱스 미검증.
+- 알림 테스트 API/추적 ON, sending OFF/dry-run ON. 구 submit writer 종료 또는 추적 호환 보장과 온전한 KST 추적일, 운영 인덱스/lifecycle gate 및 설치정보 보존 확인 필요. 과거 불확실 시험 보유자 발송 제외 위험 포함.
+- 사용자 질문에 대한 구분: 구앱 기기 등록이 없으면 해당 기기 발송 대상은 아니지만, 신앱 등록 사용자가 구서버에서 제출한 기록은 신 sender의 당일 완료 판정에 영향을 준다. 신앱 수신 대상과 구 writer 사용자가 확실히 분리된다면 구 추적 없이 가능하나 현재 전역 trackingReadyAt 계약 및 대상 격리 검증/설계가 필요하다. 구서버 추적이 무조건 필수라는 의미는 아님.
+- 직전 1.0.0 변경 요청은 revision34 등록·배포 요청 완료(이전 미적용 기록 이후 진행). 이번 중간 조회는 IN_PROGRESS/running1, 구33 running1 및 API 최소9.0.0/최신9.1.4였음. 최종 완료 미확인, 다른 AI 작업과 충돌 방지 위해 추가 변경 없음.
+
+## 2026-10-08 — 테스트 앱 버전 1.0.1 변경 요청, 미적용
+
+<!-- codex-turn:01a119e0-e3e2-76f2-8816-49774e04c6e7 -->
+
+- 요청 범위: 테스트 Android·iOS minimumVersion/latestVersion 모두 1.0.1로 변경. 운영 환경 제외.
+- 기존 기록 조회 후 브라우저 상태 확인이 사용자에 의해 중단되어 실제 설정 조회·변경·배포를 수행하지 못함. 기존 최소9.0.0/최신9.1.4는 과거 검증 기록이며 이번 실시간 확인은 없음.
+- 다음 작업: 테스트 서비스 현재 설정 확인 후 네 버전 환경변수 변경 및 배포/API 검증. 제품 코드와 외부 설정 변경 없음.
+
+## 2026-10-08 — 구·신 운영 분리의 다음 작업 정리
+
+<!-- codex-turn:01a119dd-e15d-7e80-9785-475c9ac8283b -->
+
+- 테스트에서 버전 최소9.0.0/최신9.1.4, 내부 탈퇴·LC 차단 및 Firebase 정리 검증 완료 기록 확인. 신규 운영 환경 준비 완료와는 구분. 이번은 문서 기반 후속 계획이며 인프라 실시간 재조회 없음.
+- 우선 신규 운영 Identity/LC 주소와 AI 분리 여부 확정, 기존 운영 DB/Guest 세션/학습 기록 승계 및 동시 writer 호환성 점검. 검증 이미지와 운영 설정은 분리 관리, 테스트 DB/버전/AI 주소 그대로 복제 금지.
+- 신규 운영 JWT/JWKS·merge/withdrawal 목적지·consumer/deny·DB index 및 Firebase 사용자 관리 권한 준비 후 무료 모의고사/챌린지/가입/기존 Guest 전환/탈퇴 E2E. 테스트 권한 성공을 신규 운영 자격증명에도 자동 적용된 것으로 간주하지 않음.
+- 스토어 설치 가능 확인 후 실제 minimum/latest 및 구 LC summary appUpdateRequired 적용, 약1주 유예 관측 후 구버전 요청·진행 AI 작업·이벤트 처리 확인을 거쳐 종료. 서비스 종료 후에도 기존 데이터 보존 및 롤백 계획 필요.
+
+## 2026-10-08 — 최소 Firebase 권한 적용 및 실제 탈퇴 정리 성공
+
+<!-- codex-turn:01a119d9-11b1-71e2-86b5-292d8a24ee2b -->
+
+- 적용 직전 사용자 승인 후 프로젝트 커스텀 역할 identityFirebaseUserCleanup 생성(표시명 Identity Firebase User Cleanup, 사용 설정됨, 기본 실행 단계 ALPHA). 포함 권한은 firebaseauth.users.update/delete 두 개뿐. identity-test 서비스 계정에 추가, 기존 Firebase 인증 뷰어 유지. 콘솔 정책 업데이트 완료 확인.
+- 권한 적용 이후 13:52:39 KST external_cleanup EXTERNAL_DELETED/failureCode NONE, 13:52:44 KST HANDED_OFF 및 identity_release CLEANED 확인. 테스트 DB 최신 탈퇴 lifecycle 단일 건 CLEANED/attemptCount8, externalDeletedAt/identitiesReleasedAt/cleanedAt 존재. 수동 Firebase 삭제 없이 정상 worker 성공.
+- 재배포/키 교체/DB 일정 변경/상태 덮어쓰기 없음. 학습/무료/감사 이력 유지. 프로젝트 범위 수정·삭제 권한이며 테스트 명칭만으로 Firebase 사용자 범위가 격리되지는 않음.
+- 증거 /tmp/firebase-permission-cleanup-complete.png. 이번 장애의 읽기 전용 IAM 원인과 최소 권한 수정 효과 확인. 재가입 가능 상태, 신규 가입/탈퇴 추가 테스트는 별도. 롤백은 해당 서비스 계정의 새 커스텀 역할 바인딩 제거로 가능하나 이미 수행된 Firebase 삭제는 되돌리지 못함.
+
+## 2026-10-08 — 최소 Firebase 권한 추가 준비, 적용 직전 확인 대기
+
+<!-- codex-turn:01a119d7-b28c-71a3-a30c-192c74d2d505 -->
+
+- 사용자 권한 추가 요청에 따라 해당 프로젝트 역할 생성 화면을 열었으나 생성/바인딩 저장은 미실행. 기존 viewer 유지, 사용자 update/delete 두 권한만 추가하는 범위.
+- 권한 확대는 프로젝트 전체 사용자에 적용되고 대기 중인 탈퇴 작업도 자동 진행될 수 있으므로 적용 직전 이 범위를 명시해 확인 요청. IAM 변경 및 신규 role 생성 없음. 준비 탭 handoff 유지.
+
+## 2026-10-08 — 실제 Firebase 서비스 계정의 읽기 전용 역할 확인
+
+<!-- codex-turn:01a119d4-a275-7db1-b0f3-7e2e9bc6af5d -->
+
+- 테스트 ECS 자격증명의 type/project_id/client_email만 메모리에서 추출하여 identity-test 서비스 계정 사용 확인. 키/토큰/Secret 원문은 출력·기록하지 않음. Firebase 프로젝트 IAM 목록에서 해당 계정의 역할은 Firebase 인증 뷰어만 표시.
+- 공식 Firebase Authentication 역할 문서: roles/firebaseauth.viewer는 firebaseauth.users.get을 포함하지만 update/delete는 없음. 기존 DISABLE/INSUFFICIENT_PERMISSION과 부합.
+- 권장 변경안(미실행): 기존 viewer 유지 + firebaseauth.users.update 및 firebaseauth.users.delete만 가진 프로젝트 커스텀 역할 추가. update는 비활성화/refresh revoke, delete는 사용자 삭제에 사용. 대안 roles/firebaseauth.admin은 구성 변경·사용자 생성 등 더 넓은 권한이므로 기본 권장하지 않음.
+- 이 권한은 서비스 계정 이름과 무관하게 Firebase 프로젝트 범위 사용자에 적용되므로 테스트/운영이 같은 Firebase 프로젝트면 영향 범위를 사용자에게 고지해야 함. 앱 소유권 검사는 유지, 격리가 필요하면 별도 Firebase 프로젝트 검토.
+- IAM/서비스 계정/키/배포 변경 없음. 권한 반영 후 정상 worker의 대기 건 완료 및 Firebase 부재·CLEANED 검증 필요. 동일 자격증명 IAM 변경만이면 보통 재배포 불필요, 전파 지연/재시도 한도 확인 필요.
+
+## 2026-10-08 — Firebase 탈퇴 실패 원인 확인: INSUFFICIENT_PERMISSION
+
+<!-- codex-turn:01a119d1-5d3f-7810-b062-50d8142a5831 -->
+
+- 사용자 확인창 처리 후 실제 WITHDRAWN 성공. 13:41:53 KST completed/withdrawn 로그 및 LC 기존 Access 401 ACCOUNT_WITHDRAWN 확인. Identity 프로필 차단은 기존 도구 기대값 차이로 미검증.
+- 신규 진단 로그 13:42:16 및 13:42:37 KST: operation=DISABLE, firebaseHttpStatus=400, firebaseRemoteErrorCode=INSUFFICIENT_PERMISSION. Firebase 관리 요청의 권한 부족이 확인됐으며 어떤 IAM 역할/권한 또는 자격증명 설정이 빠졌는지는 후속 대조 필요. Firebase 삭제 완료 아님.
+- 첫 조회의 진단 필드 없는 로그는 이전 revision32 태스크 stream에서 발생. 해당 태스크 STOPPED 확인, 현재 revision33/57192f45 태스크 실행 확인 후 신규 필드 로그 확인. 이미지 코드 누락으로 단정하지 않음.
+- 다음 작업은 서버 Firebase 자격증명 주체와 프로젝트 사용자 관리 권한(read/update/delete)의 대조 및 최소 권한 수정 승인. 이번 작업은 권한/코드/DB 수정 없이 조사만 수행. 비교 토큰·로컬 인증정보 폐기 완료. 재가입·재탈퇴 대신 현재 대기 건을 권한 수정 후 검증하는 방향 권장.
+
+## 2026-10-08 — 상세 진단 배포 완료, 재탈퇴 확인창 대기
+
+<!-- codex-turn:01a119cc-004d-7663-a747-db73b5c8ef14 -->
+
+- 테스트 ECS revision33, 이미지 57192f45cc44759dae5560042dea852d555bf8ff, PRIMARY COMPLETED/running1 확인. 기존 배포 미확인 기록은 당시 상태.
+- 로컬 테스트 화면 Google/전화 연결/신규 MEMBER 가입 완료 확인. 실제 탈퇴 버튼 1회 클릭 후 JS confirm 표시. CDP 확인 처리 timeout, native 제어는 사용자의 다른 Chrome 탭 조작으로 중단. 탈퇴 버튼 중복 클릭 없음.
+- 이번 배포 완료 후 시작 시각 기준 withdrawal 로그 조회 결과 0개. 탈퇴 완료 또는 원인 확인으로 판단하지 않음. 사용자에게 기존 확인창의 확인만 누르도록 요청, 테스트 탭 handoff 유지.
+- 다음 작업: 확인창 처리 후 WITHDRAWN 여부와 firebaseHttpStatus/firebaseRemoteErrorCode 조회. 응답 불명 시 재탈퇴하지 말고 서버 상태 확인. 이번 턴 제품/인프라/DB 변경 없음.
+
+## 2026-10-08 — Firebase 수동 삭제 후 자동 인증 연결 정리 완료
+
+<!-- codex-turn:01a119c6-3295-7051-8007-b1a50426f344 -->
+
+- 사용자가 이번 테스트 Firebase 계정 삭제를 확인. 이번 lifecycle의 정확한 Firebase UID로 콘솔 검색해 계정 부재 확인.
+- 조회 중 정상 worker가 8번째 시도에서 CLEANED로 전환. externalDeletedAt/identitiesReleasedAt/cleanedAt 필드 모두 존재. 대상 _id/userId로 단일 문서를 확인했으며 이전 CLEANED 건과 구분.
+- 수동 DB 업데이트/삭제 및 강제 재시도는 실행하지 않음. 학습/무료 이용/감사 이력 보존, 재가입용 인증 연결 해제 완료. 동일 SNS/전화번호로 새 가입 테스트 가능 상태이며 실제 재가입은 미검증.
+- Firebase 수동 삭제 후 부재 경로로 완료된 것이므로 기존 DISABLE 장애 해결 증거는 아님. 신규 진단 배포 완료 확인 후 후속 테스트 필요.
+
+## 2026-10-08 — 재가입용 정리 요청: 이번 탈퇴 건 상태 확인
+
+<!-- codex-turn:01a119c4-be03-7391-af9a-0e217714f10f -->
+
+- 사용자 푸시 후 로컬 HEAD 57192f45 확인. 배포 완료는 이번 단계에서 확인하지 않음.
+- 테스트 Atlas의 이번 탈퇴 요청 시각 범위로 lifecycle 1건 조회: EXTERNAL_CLEANUP_RETRY_WAIT, attemptCount7. 이전 CLEANED 문서와 구분함. DB 쓰기/삭제 없음.
+- 아까의 최소 정리는 사용자의 Firebase 수동 삭제 확인 후 정상 worker가 인증 연결을 해제한 방식. 이번 Firebase 수동 삭제 여부는 확인되지 않아 같은 처리를 바로 실행하지 않음. 학습/무료/감사 이력 보존 유지.
+- 다음 작업: 사용자에게 이번 Firebase 삭제 여부 확인. 삭제 전이라면 신규 배포 후 기존 건의 자동 재시도로 상세 원인을 관측하는 것이 가능하며, 선행 수동 삭제 시 이 건의 DISABLE 실패 재현 조건이 사라질 수 있음을 안내.
+
+## 2026-10-08 — Firebase 원격 오류 코드 안전 진단 보완 완료 (미배포)
+
+<!-- codex-turn:01a119c1-e652-7a51-9d3c-57755759852a -->
+
+- 사용자 승인에 따라 FirebaseCleanupHttpDiagnostic 추가, 기존 firebase_operation_failed에 firebaseHttpStatus 및 firebaseRemoteErrorCode 추가. 27개 사전 정의 코드만 반환하며 콜론 뒤 상세는 폐기. 원문 응답/메시지/headers/request/UID/토큰 미기록.
+- 응답 없으면 status=0/code=NONE, 미등록·잘못된 shape는 UNRECOGNIZED, 잘못된 JSON·중복 key·후행 JSON은 UNPARSEABLE, 16,384자 초과는 RESPONSE_TOO_LARGE. 파싱 오류는 기존 cleanup 실패 분류를 변경하지 않음.
+- ./gradlew clean test 성공: 1,309개, 실패/오류 0, skipped 6. 신규 22개 케이스 포함, 외부 Firebase/Atlas 호출 없음. 기존 API/삭제 순서/retry 정책 및 NOT_FOUND 멱등 처리 유지.
+- 실제 장애를 수정한 것이 아니라 원인 관측 보완. commit/push/배포는 미실행. 배포 전 신규 파일 포함 여부와 대상 lifecycle 재시도 가능 상태 확인 후 신규 로그 조회 필요. UNRECOGNIZED이면 원인 확정 불가, 원문 전체 로깅으로 확대하지 않음.
+
+## 2026-10-08 — DISABLE 실패 원인 추가 조사: HTTP 400 상세 코드 미보존
+
+<!-- codex-turn:01a119bf-701d-7241-9838-7e9a75650d22 -->
+
+- 조사 종료: 상세 원격 reason 진단 보완을 제안했으며 사용자 승인 전 구현하지 않음. 현재 근본 원인은 미확정.
+
+- SDK 9.4.3 source 확인: UpdateRequest(uid).setDisabled(true)는 localId와 disableUser=true만 전송. 전화번호/SNS 토큰은 해당 요청에 없음. cleanup은 getUser 이후 disable, revoke, delete 순서이며 DISABLE 실패 시 후속 revoke/delete에 도달하지 않음.
+- SDK AbstractHttpErrorHandler는 HTTP 400을 INVALID_ARGUMENT으로 변환하고 AuthErrorHandler가 아는 원격 코드만 AuthErrorCode로 세분화한다. 이번 AuthErrorCode NONE은 상세 원격 코드가 현재 enum 로그에 없다는 의미이며 특정 인자 오류나 권한 원인을 확정하지 못함.
+- Firebase 관리 계정으로 Google Cloud Logs Explorer에서 identitytoolkit.googleapis.com 및 2026-10-08T04:18:00Z~04:30:00Z 검색 결과 0개. 감사 로그 미활성/미수집 여부는 미확인. 현재 증거만으로 원격 상세 원인은 확정 불가.
+- 다음 단계 제안: Firebase 오류 응답의 원격 reason을 사전 정의된 허용 목록에 매핑하고 HTTP status와 함께 기록(원문 메시지/응답/개인정보 금지), 배포 후 worker 재시도에서 확인. 이번 요청은 조사이므로 진단 구현/배포/설정/계정 변경 없음.
+
+## 2026-10-08 — 진단 배포 후 재탈퇴: Firebase DISABLE 실패 확인
+
+<!-- codex-turn:01a119ba-e36d-7671-a7a9-907400daf1e0 -->
+
+- 테스트 Identity revision32/running1/PRIMARY COMPLETED, 이미지 dd833a53492d7e31b17302727266fed1445049cd 확인. 아래 미배포 기록은 당시 상태이며 신규 진단 코드 반영 완료.
+- 재가입 완료된 새 테스트 회원으로 탈퇴 직전 Identity MEMBER/LC today 정상 접근, 실제 WITHDRAWN 및 13:18:45 KST completed/revokedSessionCount1 확인. 기존 Access로 LC 401 ACCOUNT_WITHDRAWN 확인.
+- 13:19:08 및 13:19:28 KST 신규 진단: operation=DISABLE, firebaseErrorCode=INVALID_ARGUMENT, firebaseAuthErrorCode=NONE, exceptionType=FirebaseAuthException, causeTypes=HttpResponseException. 외부 정리 RETRY_SCHEDULED/RESULT_UNKNOWN 지속. 비활성화 updateUser 요청 실패는 확인됐지만 어떤 인자/원격 상세 사유인지는 미확정. Firebase 삭제 완료로 보고하지 않음.
+- Identity 프로필 차단은 도구가 401 ACCOUNT_WITHDRAWN만 기대하여 미검증 표시. 코드 계약은 403 ACCOUNT_NOT_ACTIVE이며 이번 실제 응답 상세는 별도 확인하지 못함.
+- 증거 /tmp/withdrawal-retest-result.png 저장 후 비교 토큰·로컬 인증정보 폐기 완료. 제품 코드/설정/DB 수동 변경 없음. 다음 작업은 DISABLE의 안전한 상세 원인 진단 및 도구 기대값 보완; 재시도 상태 임의 초기화나 수동 Firebase 삭제는 수행하지 않음.
+
+## 2026-10-08 — 테스트 계정 인증 연결 정리 완료
+
+<!-- codex-turn:01a119b3-8096-7d42-a56f-11d25fa11a0a -->
+
+- 사용자 승인 범위: 재가입에 필요한 인증 연결만 정리, 학습/무료 이용/탈퇴 감사 이력 보존. 탈퇴 시각으로 lifecycle 1건을 특정하고 해당 Firebase UID 검색 결과 계정 없음 확인.
+- 개별 연결을 직접 삭제하지 않고 정확한 lifecycle _id/userId/EXTERNAL_CLEANUP_RETRY_WAIT 조건으로 nextAttemptAt·updatedAt을 DB 현재 시각으로 변경, version 1 증가. 변경 1건 확인. 상태·시도 횟수·오류 이력 임의 초기화 없음.
+- 정상 worker가 9번째 시도로 처리 후 CLEANED 확인. externalDeletedAt/identitiesReleasedAt/cleanedAt 필드 존재. 서버의 소유권 검사·트랜잭션에 따라 SNS/Firebase 연결 및 전화 연결 정리가 완료됨. 학습/무료 이력·감사 기록 수동 삭제 없음.
+- 이제 같은 SNS/전화번호로 재가입 테스트 가능 상태. 실제 재가입은 아직 미검증. 수동 Firebase 삭제 후 정리 성공이므로 원래 Firebase 삭제 실패 원인이 해결됐다는 증거는 아님. 새 진단 코드 배포 확인 후 후속 탈퇴 테스트 필요.
+
+## 2026-10-08 — 동일 테스트 계정 재가입용 DB 정리 범위 확인
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 사용자가 Firebase 계정을 직접 삭제했으며 동일 계정 재테스트를 위해 DB 관련 내역 삭제 요청. DB 삭제는 아직 미실행.
+- 코드상 정상 identity release는 Firebase/SNS 연결 삭제, 전화 identity/alias release, binding 변경 및 관련 lineage 처리를 함께 수행. 계정 관련 전체 내역에는 인증 외 기록도 포함될 수 있어 재가입용 최소 정리와 테스트 이력 전체 초기화 범위 구분 필요.
+- 최신 읽기 로그에서는 13:03:30 KST cleanup 재시도까지 확인, 자동 연결 해제 완료는 확인되지 않음. 삭제 전 대상 식별자 직접 대조 및 정확한 컬렉션 범위 확인 필요. 전체 DB/컬렉션 삭제 금지.
+
+## 2026-10-08 — 진단 로그 커밋 푸시 확인, CI 테스트 진행 중
+
+<!-- codex-turn:01a119b1-06cd-7390-b17b-6ae85101c580 -->
+
+- 사용자 푸시 커밋 dd833a53의 GitHub Actions run 37725891723 확인. 조회 시점 Run tests 진행 중, 이미지 빌드/배포/health 단계는 대기.
+- 테스트 Identity는 아직 revision31, 이전 이미지 7a634f89, running1/COMPLETED. 신규 진단 코드 배포 완료로 판단하지 않음. 다음 작업은 배포 및 이미지 일치 확인 후 Firebase 실패 진단 event 조회. 이번 단계는 읽기만 수행.
+
+## 2026-10-08 — Firebase 탈퇴 실패 진단 로그 구현 완료 (미배포)
+
+- FirebaseSdkWithdrawalCleanupAdapter에 WARN event `user.withdrawal.firebase_operation_failed` 추가. operation은 INSPECT/DISABLE/REVOKE_REFRESH_TOKENS/DELETE/CHECK_PRESENCE. failureCode, exceptionType, 최대 5단계 causeTypes, firebaseErrorCode, firebaseAuthErrorCode를 기록.
+- UID/프로젝트/토큰/원본 예외 메시지/HTTP 응답/Throwable은 기록하지 않음. 정상적인 USER_NOT_FOUND는 경고하지 않음. 기존 오류 매핑·API 응답·retry/삭제 정책 변경 없음.
+- `./gradlew clean test`: 전체 1,287개 중 실패 0, skipped 6. Adapter 테스트 10개 모두 통과(신규 진단 테스트 3개 포함). git diff --check 통과.
+- 아직 배포하지 않아 실제 Firebase 실패 원인은 미확정. 배포 후 위 event의 작업 단계와 enum/type을 확인해야 함. 기존 lifecycle이 retry 한도를 소진했다면 자동 재시도 재개를 보장하지 않으며 상태 확인 없이 초기화하지 않음.
+
+## 2026-10-08 — Firebase 삭제 미완료 판단 정리
+
+<!-- codex-turn:01a119ad-4e3d-7692-be98-a4ee9a7a15d3 -->
+
+- 기존 증거(내부 WITHDRAWN 성공, LC 차단 성공, Firebase cleanup RESULT_UNKNOWN 반복, 가입 조건에 일치하는 Firebase 사용자 잔존)를 종합하면 Firebase 삭제는 완료되지 않은 것으로 판단. UID 직접 대조 미수행이라는 확인 한계는 유지.
+- 다음 작업은 재탈퇴가 아니라 cleanup 실패 단계 진단. 이번 응답에서는 추가 외부 조회/삭제/코드 변경 없이 판단만 정리.
+
+## 2026-10-08 — Firebase 사용자 목록 잔존 확인
+
+<!-- codex-turn:01a119ab-87b8-7a70-9458-6644fbdec236 -->
+
+- Firebase Authentication 사용자 목록에서 오늘 생성·최종 로그인된 Google+Phone 사용자 행이 여전히 존재함을 확인. 앞서 신규 가입 테스트 조건과 일치하지만 서버 탈퇴 대상과 Firebase UID의 직접 대조는 이번 조회에서 수행하지 않음.
+- Firebase 삭제 완료로 판단할 수 없음. 사용자 목록 조회만 수행, 계정 삭제/비활성화/설정 저장 없음. 개인정보와 UID는 기록하지 않음.
+
+## 2026-10-08 — Firebase 정리 진단: 설정 ON, 원인 정보 부족
+
+<!-- codex-turn:01a119a8-214a-7520-bfdd-0d302079530f -->
+
+- 테스트 Identity revision31/running1 및 탈퇴·cleanup·identity-release 설정 모두 true 확인. 12:52:44~12:55:28 KST RESULT_UNKNOWN/RETRY_SCHEDULED 6회 관측, 조회 시점 완료 기록 없음. ERROR 로그에도 추가 진단 정보 없음.
+- FirebaseSdkWithdrawalCleanupAdapter가 RuntimeException과 미분류 Firebase 오류를 RESULT_UNKNOWN으로 변환하고 원본 예외/실패 단계를 보존하지 않아 근본 원인은 현 로그로 확정 불가. 기본 최대 12회 후 reconciliation 전환.
+- 다음 단계: 민감정보 없이 operation/exceptionType/Firebase enum code를 남기는 진단 추가 및 테스트·배포 후 확인. 이번 요청은 조사로 제품 코드·배포·DB 변경 및 강제 재시도/수동 삭제 미실행.
+
+## 2026-10-08 — 실제 탈퇴 및 LC 차단 성공, Firebase 정리 재시도 확인
+
+<!-- codex-turn:01a119a4-12ab-7ad2-877c-b3f899f94bfe -->
+
+- 승인된 테스트 회원으로 탈퇴 직전 Identity MEMBER/LC today 정상 접근 후 실제 탈퇴 실행. UI WITHDRAWN 성공. 테스트 Identity 로그에서도 12:52:42 KST user.withdrawal.completed/outcome=withdrawn 및 revokedSessionCount=3 확인.
+- 같은 기존 Access로 LC today가 401 ACCOUNT_WITHDRAWN을 반환하여 전파에 따른 접근 차단 확인. 이번 작업에서 outbox/inbox 문서 상태를 직접 재조회한 것은 아님.
+- Firebase 정리는 12:52:44~12:54:02 KST 관측 로그에서 RETRY_SCHEDULED / RESULT_UNKNOWN 반복. 삭제 완료 또는 CLEANED 미확인. 원인 상세가 해당 로그에 없어 권한/네트워크/SDK 원인으로 단정하지 않음. 수동 삭제·재탈퇴·설정 변경 미실행.
+- Identity 프로필 차단 UI는 미검증 표시: 도구가 양 서버에 401 ACCOUNT_WITHDRAWN을 기대하지만 로컬 UserProfileService는 비활성 계정에 403 ACCOUNT_NOT_ACTIVE 계약을 사용함. 실제 이번 응답 코드는 별도 확인 필요하며 도구 판정 보완 필요.
+- 증거 /tmp/withdrawal-e2e-partial-result.png 저장 후 비교용 Access 및 로컬 인증정보 폐기, 검증 버튼 비활성 확인. 실제 탈퇴는 취소/복구되지 않음. 제품 코드·배포·설정 변경 없음. 다음 작업은 Firebase cleanup 실패 원인 진단 및 Identity 검증 기대값 보완.
+
+## 2026-10-08 — 탈퇴 요청 인증 헤더 누락 수정, 재로그인 필요
+
+<!-- codex-turn:01a119a1-6b4c-7581-9c2f-33ab8663a707 -->
+
+- 실제 테스트 요청에서 탈퇴 직전 Identity MEMBER/LC today 성공 후 withdraw가 COMMON_UNAUTHORIZED로 거절됨. 후속 기존 Access 조회도 양쪽 성공하여 탈퇴 미처리 확인. 자동 재탈퇴하지 않음.
+- 원인: 로컬 도구가 Firebase/Refresh body만 전달하고 필수 Bearer Access 헤더를 생략. SecurityConfig 및 UserController 계약 확인 후 외부 도구 app.js의 api 호출에 기존 Access 전달, withdrawal.test.mjs에 헤더 단언 추가. 승인받아 두 파일 반영.
+- mock 전체 36/36 통과. 제품 코드/배포/DB 변경 없음. 정적 파일은 요청마다 읽으므로 서버 재시작 불필요. 현재 탭은 실패 후 Firebase 로그아웃/Refresh 폐기 상태라 새로고침 및 같은 회원 로그인/exchange 필요.
+- 실제 탈퇴/Firebase 삭제/신규 전파 완료는 아직 미검증. 다음 로그인 후 동일 승인 범위로 재검증. 토큰 및 사용자 식별정보 미기록.
+
+## 2026-10-08 — 탈퇴 E2E 로컬 도구 준비 완료, 로그인 대기
+
+- 사용자 승인: 방금 가입한 폐기 가능한 테스트 회원의 실제 탈퇴, Firebase 정리 및 LC 전파/기존 Access 차단 검증.
+- 별도 로컬 도구 `/Users/msde76/tosunsaeng-integration-test`에 탈퇴 POST allowlist와 UI, 탈퇴 전 Identity/LC baseline, 응답 유실 시 재실행 잠금, 기존 Access 메모리 한정 차단 조회/폐기를 구현. 변경 파일은 app.js, index.html, server.mjs, server.test.mjs, withdrawal.test.mjs, README.md.
+- mock 기반 Node 테스트 36/36 통과. 기존 localhost:4173 프로세스를 재시작했고 HTTP200 확인(실행 세션68992). Identity 제품 코드/API/배포/DB 변경 없음.
+- 현재 열린 구 UI는 새로고침하지 않아 기존 메모리 세션을 유지함. 새 UI 적용에는 새로고침 후 Firebase 웹 설정 재적용 및 같은 Google 계정 로그인/Identity exchange가 필요. 재가입/전화 연결을 반복하지 않음.
+- 실제 탈퇴 요청은 아직 미실행. 새 계정 Firebase 삭제, 신규 outbox/inbox 처리 및 ACCOUNT_WITHDRAWN 차단은 미검증. 일반 401/만료/네트워크 실패를 성공으로 간주하지 않음. 승인 범위 확대 없이 동일 테스트 계정으로 후속 진행.
+
+## 2026-10-08 — 실제 탈퇴 테스트 범위 확인 대기
+
+<!-- codex-turn:01a1199a-43b6-72a0-9f02-dfaab614b05e -->
+
+- 조회·접근 테스트는 이전 단계에서 성공. 사용자의 자율 테스트 가능 여부 질문에 실제 테스트 계정 탈퇴 및 로컬 도구 보완 범위를 설명하고 대상 계정 삭제 승인을 요청. 이번 단계에서는 탈퇴 요청·코드 변경 미실행.
+
+## 2026-10-08 — 신규 가입 및 탈퇴 전 정상 접근 확인
+
+- 사용자가 로컬 화면에서 가입 완료. UI의 MEMBER 토큰 발급 성공 확인 후 내 프로필 인증 확인과 Learning Core 접근 확인 버튼을 실행. 서버 MEMBER 프로필 확인 및 today 보호 API 성공 확인.
+- 탈퇴 요청 미실행. 기존 로컬 도구에 탈퇴 UI/프록시 경로가 없어 후속 E2E용 도구 보완 또는 앱에서 직접 탈퇴가 필요. 페이지 새로고침/로컬 인증정보 초기화 금지: 비교할 기존 Access가 메모리에 있음.
+
+## 2026-10-08 — 로컬 가입 폼 동의 버전 입력
+
+<!-- codex-turn:01a11996-3aac-7771-a22b-3ad2f706b13d -->
+
+- 테스트 공개 정책 API 성공 응답에서 privacy-v1/term-v1 확인 후 로컬4173 가입 폼의 두 버전 필드에 입력·검증. 기존 사용자 동의 체크 상태는 변경하지 않았으며 가입 버튼 미클릭. 사용자가 직접 가입 완료할 단계.
+- 코드·외부 설정·계정 데이터 변경 없음. 작업 기록만 갱신, git diff --check 검증.
+
+## 2026-10-08 — Firebase 테스트 전화번호 등록 화면 인계
+
+<!-- codex-turn:01a11993-c8c1-77f1-8353-331b5d6cefcc -->
+
+- 열린 Firebase to-teacher-firebase Authentication 탭에서 로그인 방법 → 전화 → 테스트용 전화번호(선택사항)를 펼침. 전화번호·인증 코드 입력 필드 및 테스트 전화번호 추가 버튼 확인.
+- 번호/코드 입력·추가·저장·삭제 및 인증 설정 변경 없음. 사용자가 직접 가상 번호와 코드를 등록하도록 화면 인계. 기존 로컬 서버 및 테스트 배포 상태 유지.
+
+## 2026-10-08 — 기존 로컬 가입 테스트 서버 재실행
+
+<!-- codex-turn:01a1198d-fda6-73f3-9efd-c676d7f03ef7 -->
+
+- 사용자 요청을 Swagger 안내에서 기존 로컬 테스트 서버 재실행으로 전환. /Users/msde76/tosunsaeng-integration-test/server.mjs를 localhost:4173에 실행, HTTP200 확인. 실행 세션5681.
+- Codex 브라우저 패널 열기는 queued 응답. Chrome 자동 탐색은 ERR_BLOCKED_BY_CLIENT로 열기 미확인, 사용자에게 localhost 링크 제공. 가입/약관 동의/전화 인증은 실행하지 않음.
+- 기존 도구는 테스트 Identity/LC HTTPS 프록시를 사용하며 가상 전화번호 인증만 지원. 폐지 SNS 추가 연결 UI 및 탈퇴 route 미지원 상태이므로 신규 가입용 단계만 안내, 최신 탈퇴 E2E 도구 호환성은 별도 확인 필요.
+- 제품 코드·서버/DB 설정 변경 없음. 이전 배포 완료 및 전파 성공 상태 유지.
+
+## 2026-10-08 — 테스트 버전·탈퇴 전파 배포 완료, 신규 계정 E2E 대기
+
+<!-- codex-turn:01a1194d-7a16-7b02-9349-4aa7326692f1 -->
+
+- Chrome/AWS CloudShell/Atlas 연결 복구. LC17 및 Identity30 모두 COMPLETED/running1 확인.
+- Atlas tosunsaeng-test 프로젝트의 to-teacher-learning-core-test에서 기존 목록 확인 후 누락된 user_withdrawn_event_inbox, withdrawn_user_access_denies, user_withdrawn_transaction_probe 생성. probe 빈 상태 확인.
+- cleanupAt:1 / ttl_user_withdrawn_inbox_cleanup 및 expireAt:1 / ttl_withdrawn_user_access_deny_expire를 expireAfterSeconds=0으로 생성, 둘 다 READY 확인. 기존 데이터·인덱스 변경 없음.
+- LC18 재배포 후 UserWithdrawn transaction_capability outcome=verified, 신규 ALB target healthy 및 기존17 running0/draining 확인. 이후 Identity31 서비스 업데이트 요청. 실제 가입/탈퇴 E2E는 아직 미실행.
+- 배포 전 Identity outbox는 PENDING1/attemptCount0. 별도 시험 조회 인덱스 idx_exam_sessions_user_completed_mock_exam 경고1건은 범위 밖으로 미변경.
+- LC18 COMPLETED 확인. Identity31 기동 완료 후 기존 outbox1건 PUBLISHED 및 LC inbox1건 PROCESSED 확인. Firebase withdrawal/cleanup/identity-release 모두true 유지 확인. Identity ALB 안정화 및 버전 API 최종 검증 대기.
+- 최종: LC18/Identity31 모두 COMPLETED/running1, 신규 target healthy 확인. 공개 API Android/iOS200, minimumVersion9.0.0/latestVersion9.1.4, invalid platform400, 모두no-store 확인. 기존 대기 전파1건 성공. 이제 사용자가 신규 테스트 가입 후 LC 접근→탈퇴→기존 Access 차단을 검증할 수 있음. 실제 E2E 완료를 의미하지 않음.
+- 변경 파일은 작업 기록2개뿐이며 제품 코드·외부 API 계약 변경 없음. Swagger 공유본·운영 설정·backfill 미변경. 신규 계정 테스트 전에 토큰을 채팅에 보내지 말고 사용자 앱/Swagger에서 직접 실행.
+
+## 2026-10-08 — Chrome 제어 재연결 방법 안내
+
+<!-- codex-turn:01a1194b-f9d3-70a3-9d89-434366fe079f -->
+
+- OpenAI Docs 공식 브라우저 확장 문서를 확인해 Settings > Computer Use의 Chrome 활성화/Manage, 확장 설치 프로필, @Chrome 선택 및 재시작·새 대화 대안을 안내. 원인이 확장 연결인지 대화 도구 노출인지 확정하지 않음.
+- 실제 앱 설정·확장·AWS·Atlas 변경 없음. 서버 작업은 아래 중단 상태 유지, 재연결 뒤 LC17 안정 상태부터 확인해야 함.
+
+## 2026-10-08 — 테스트 설정 적용 재시도, 제어 연결 미복구
+
+<!-- codex-turn:01a1194a-c2ea-72b3-9c8e-b85c815b4721 -->
+
+- 사용자 재시도 요청으로 사용 가능한 도구와 AWS CLI를 재확인. Chrome/컴퓨터 제어 도구는 여전히 제공되지 않으며 로컬 AWS CLI는 NoCredentials. 외부 변경 및 배포 상태 재확인 불가.
+- 기존 승인과 아래 진행 상태 유지: Identity31 등록만 완료/서비스 미적용, LC18 실패 후17 복귀 요청 접수/최종 안정화 미확인, 테스트 DDL 미실행. 브라우저 제어를 다시 연결하거나 로컬 AWS CLI 로그인 완료 후 재개 필요. 승인 반복 요청 없음.
+
+## 2026-10-08 — 테스트 버전·탈퇴 전파 적용 진행 중, DB 준비 필요
+
+<!-- codex-turn:01a1193a-89db-7c10-ba64-301565ba2fd3 -->
+
+- 사용자 승인: Android/iOS 최소9.0.0·최신9.1.4, 테스트 기존 대기 탈퇴 이벤트 포함, 테스트 Identity workload 신뢰 및 LC consumer/deny 활성화, 테스트 DB의 없는 컬렉션3개·TTL 인덱스2개만 추가. 사용자는 준비 완료 후 신규 테스트 계정 가입·탈퇴 예정이며9.0.0 이상 앱 사용 가능.
+- AWS CloudShell에서 Identity test:30(이미지7a634f89) 배포 COMPLETED 확인. test:31 등록 완료(버전4개+publisher=true+test LC /internal/v1/events/withdrawn). **31은 서비스에 적용하지 않음**. 11:13 KST Android 버전 API503 APP_VERSION_UNAVAILABLE 재확인.
+- LC test:18 등록·배포 시도 후 startup validator가 ttl_withdrawn_user_access_deny_expire 누락/불일치로 실패. 기존17로 서비스 복귀 요청 성공(RESTORING_BASELINE 출력). 최종 steady state는 브라우저 도구 단절로 미확인. 기존17 정상 태스크가 새 배포 중 남아 있었음. Identity publisher는 계속OFF, backfill 미활성화.
+- 다음: 브라우저 제어 복구 → LC17 rollout/health 확인 → to-teacher-learning-core-test의 user_withdrawn_event_inbox/withdrawn_user_access_denies/user_withdrawn_transaction_probe 조회 → 없는 컬렉션 및 cleanupAt/expireAt TTL0 인덱스만 추가. 기존 동명 불일치는 수정하지 말고 중단. LC18 재배포 및 startup index/transaction probe/health 성공 후 Identity31 배포. 두 플랫폼200·버전값 확인, 기존 outbox/inbox 전달 결과 확인 후 신규 계정 E2E.
+- Atlas 사용자 재로그인·연결 완료 보고 받음. DB DDL/조회 결과 확인은 미완료. 로컬 AWS CLI 인증 없음, 사용하던 브라우저 제어가 도구 목록에서 사라져 CloudShell 후속 조작 불가. 플러그인 관리 검색으로 기존 Chrome 세션을 대체할 적합 연결을 찾지 못함. 제품 코드·운영 환경·Secret·Swagger 공유본 변경 없음.
+
+## 2026-10-08 — 배포 후 버전 설정·검증 순서 안내
+
+<!-- codex-turn:01a11938-f042-7e92-adea-d6b705804665 -->
+
+- 이번 버전 변경은 별도 enabled 플래그 없이 Android/iOS MINIMUM_VERSION·LATEST_VERSION 네 환경변수로 적용. 테스트에서는 각1.1.0 사용 가능, 운영은 최소 호환성과 실제 스토어 설치 가능 여부 확인 필요. 환경변수 변경은 재시작/재배포 필요.
+- 검증 계획: 배포 revision/health 확인 → 두 플랫폼 공개 GET200·필드·no-store 및 잘못된 platform400 → 테스트 앱 강제/권장/정상·오류 UX 확인. 권장 분기는 격리 테스트에서만 latest1.1.1/minimum1.1.0 또는 mock으로 검증.
+- 탈퇴 전파는 버전 변경의 필수 설정이 아님. 이전 점검 당시 OFF였으며 현재 runtime은 재조회하지 않음. 별도 검증 시 테스트 DB/대기 이벤트/목적지/인증 확인 후 LC consumer·deny 준비, Identity publisher 순으로 활성화 승인 필요. backfill 자동 활성화 없음.
+- 이번 작업은 코드·계약 읽기와 안내/기록만 수행. 배포 완료 확인·설정 변경·실서버 테스트·Swagger 공유본 생성 없음.
+
+## 2026-10-08 — SecurityIntegrationTests JSONPath IDE 오류 수정
+
+<!-- codex-turn:01a11936-4284-7d73-83fb-b5213923d3b7 -->
+
+- 291·294행의 `$ref` 접근을 점 표기에서 `['$ref']`로 변경. 기존 OpenAPI 검증 대상과 API 계약은 유지.
+- ./gradlew clean test 성공 및 git diff --check 통과. IDE 진단 해소는 사용자 편집기에서 재확인 필요. Swagger 공유본 생성·배포·commit/push 없음.
+
+## 2026-10-08 — Swagger 공유본 생성은 명시적 요청 시에만
+
+<!-- codex-turn:01a11934-9a43-7452-b576-9bf6ee295bdb -->
+
+- 사용자 요청에 따라 AGENTS.md에 공유본 생성 제한 기록. API 변경 시 Swagger 명세·예시·테스트는 유지하되 ZIP/오프라인 번들은 요청 전 자동 생성하지 않음.
+- 기존 공유본 삭제 및 제품 코드·배포 변경 없음. 문서 변경만 수행하여 Gradle 미실행, git diff --check로 검증.
+
+## 2026-10-08 — 최소 지원·최신 앱 버전 분리 구현 완료(미배포)
+
+<!-- codex-turn:01a1192f-4cd3-7ff1-8934-3f99e2d5f3e1 -->
+
+- develop에서 공개 GET /api/v1/app/version 응답에 minimumVersion 추가. Android/iOS 최소·최신 환경변수 독립 관리, 숫자 형식과 minimum<=latest 기동 검증. 한 플랫폼의 값 중 하나라도 없으면 해당 플랫폼503이며 자동 보완하지 않음.
+- 프론트 계약: 설치<최소 강제, 최소<=설치<최신 선택적 권장, 최신<=설치 정상. 최신 출시 시 최소 자동 상승 없음. API 자체의 서버 요청 차단이나 앱 UI 구현은 아님.
+- appversion 코드·OpenAPI 예시·설정·테스트·앱 버전 계약·프론트 가이드 업데이트. 전체 ./gradlew clean test shareSwagger 성공: test 1284건 중 실패0/오류0/스킵6. 공유본 build/distributions/identity-swagger.zip 생성. git diff --check 통과.
+- 배포 전 APP_ANDROID_MINIMUM_VERSION/APP_IOS_MINIMUM_VERSION 추가 필수. 기존 latest-only 설정은 새 코드에서503. 1.1.0 실제 공개/최소 호환 여부·스토어 설치 가능 범위·프론트 강제 화면 및 실패 UX 확인 필요. runtime 설정·배포·Jira·commit/push 없음. 이전 사용자 변경 보존.
+
+## 2026-10-08 — minimumVersion·latestVersion 분리 정책 제안
+
+- 정확한 작업 식별자01a1192c-1762-71a3-bb44-bfd13bc3661f를 WORKLOG 끝에 보완. 직전 잘못된 식별자는 정정 설명을 추가하고 과거 기록 자체는 보존.
+- 사용자 요구: minimumVersion 미만만 강제 업데이트, latestVersion 미만은 선택적 권장 업데이트. 현재 API는 latestVersion만 제공하므로 기존 공개 GET/result 계약에 minimumVersion을 additive로 확장하는 방안을 제안. 제품/계약 원문은 아직 미변경.
+- 제안: 플랫폼별 최소/최신 설정 분리, 숫자 major.minor.patch 비교 및 minimumVersion<=latestVersion 검증. 앱은 최소 미만 강제, 최소 이상·최신 미만 권장, 최신 이상 정상. 최신 공개 때 최소값을 자동으로 올리지 않음.
+- 1.1.0은 신규 서버 최소 호환 버전인지 확인 후 지정. 구서버 1주 유예 정책과 별개로 관리하며 스토어 설치 가능 전 강제 기준을 올리지 않음. 버전 API 미구현 구앱은 새 필드만으로 차단되지 않고 UI 강제는 서버 보안 차단을 대체하지 않음. API 오류를 강제 업데이트로 오인하지 않음.
+
+## 2026-10-08 — 구·신 AI 서비스 분리 권장 및 출시 예정1.1.0 확인
+
+- 사용자 확인: Android/iOS1.1.0은 이번 출시 예정 버전. 테스트/출시 준비 설정에는 사용 가능하나 사용자에게 제공하는 최신 출시 버전 값은 각 플랫폼 실제 공개 시점에 맞춰 반영해야 함.
+- 권장: 구 LC→구 AI→구 LC callback, 신 LC→신 AI→신 LC callback으로 AI 서비스도 분리. 동일 검증 이미지 재사용 가능 여부는 구·신 API 지원 확인 필요. 별도 물리 서버가 필수는 아니며 ECS service/task 분리로 구현 가능.
+- AI 실제 callback/큐/worker/credential 설정은 미조회. 공유 DB·S3·Redis 및 작업 회수 혼선은 서비스 분리만으로 해결되지 않으므로 검증 필요. 이번은 제안·기록만 수행, 인프라 생성/배포/버전 설정 없음.
+
+## 2026-10-08 — 신규 서버 staging 자원 재사용 및 인증·병합 설명
+
+- 작업 식별자01a11928-e8fb-7221-bdb2-5438fbe488ea를 WORKLOG 끝에 보완. 설정 변경 없이 버전 공개 여부 확인 대기 상태 유지.
+- 사용자 방향: 신규 서버 DB/AI는 staging과 동일하게 사용하고, 탈퇴 전파는 테스트에서 먼저 활성화·검증. 이번에는 설정 의미와 사전 조건을 설명했으며 runtime 변경/전파 실행 없음.
+- 인증은 신규 LC가 신규 Identity 발급 JWT의 issuer/audience/JWKS를 검증하도록 맞추는 것, 병합은 Identity의 UserMerged 목적지를 신규 LC로 지정하고 workload 신뢰·consumer/guard/index를 맞추는 것. Guest 승격과 기존 회원으로의 병합을 구분하며 구·신 writer의 공유 DB 호환성 검증 필요.
+- 최신 앱 버전1.1.0은 두 플랫폼에서 허용되는 형식이나 실제 공개된 최신 버전과 일치할 때만 설정. 출시 예정 값을 현재 최신 출시 버전으로 선반영하지 않음. 테스트 전파는 테스트 DB 격리와 기존 대기 이벤트 영향부터 확인해야 함.
+
+## 2026-10-08 — 신규 Identity·Learning Core 출시 준비 점검
+
+- 작업 식별자01a11922-54b7-76f1-9acf-a8a8200d9306 기록 보완 완료. 준비 미완료 판정과 외부 변경 없음 상태 유지.
+- 테스트 Identity:29 및 LC:17은 실행1/보류0·배포 성공·ALB 정상. 이미지 승격 후보는 확인했으나 테스트 task 그대로 신규 운영 출시 NO-GO. 상세: [준비 점검](NEW_SERVER_READINESS_2026-10-08.md).
+- 실측 차단/준비사항: 앱 버전 API Android/iOS503, LC 모의고사 AI localhost:9, 테스트 DB/S3/Identity·AI·merge endpoint, 탈퇴 전파 OFF. 신규 두 주소·운영 데이터/세션 승계·JWT/AI callback·migration/E2E 확인 필요.
+- 기존 LC main:23의 APP_UPDATE_REQUIRED=false. 실제 summary 필드는 appUpdateRequired이며 과거 계획 updateRequired와 차이. 전환 시 플래그·프론트 처리를 맞춰야 한다. 이번은 읽기 점검·기록만 수행, 외부 변경/배포 없음.
+
+## 2026-10-08 — 구버전·신버전 서버 분리 대화 계획 재확인
+
+- 대화상 계획: 테스트 서버 기준 구버전 유지·신버전 별도 주소 운영. 구버전 피드백 응답에 업데이트 필요 여부 boolean 제공, 앱은 피드백 페이지 전에 안내. 신버전은 최신 앱 버전 조회 API 필요.
+- 전환 유예는 약1주(사용자 수에 따라 조정). 1차 SNS 로그인·10초 챌린지 및 무료 제공, 전화번호당1회 무료 모의고사 정책은 결제 관련 후속 업데이트로 분리하는 방향을 논의함.
+- 이번에는 과거 대화 요약만 수행. 실제 서버 분리·API 구현·배포 완료 여부는 조회하지 않았으며 완료로 단정하지 않음. 인프라/제품 변경 없음.
+
+## 2026-10-07 — azure_results 백업 원본 4721건 삭제 완료
+
+- 사용자 최종 삭제 승인 후 to-teacher-app.azure_results에서 백업과 문서 전체가 일치하는 원본만 조건부 삭제. 완료 결과: 삭제 전4721, 처리4721, 삭제4721, 삭제 후0. 컬렉션 및 인덱스 유지 확인(indexesUnchanged=true).
+- 로컬 Canonical Extended JSON 백업 유지: /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json, 847426583바이트. 삭제 전 SHA-256 재검증 및 EJSON4721건·중복 없는 ID 검증 성공. 실제 복원 테스트 미수행.
+- DB 데이터 복구에는 이 백업의 재가져오기가 필요. Atlas 용량 지표 반영 및 Sentry 뉴스레터 오류 복구 여부는 이번 작업에서 확인하지 않음. 다른 컬렉션·서버 설정·배포 변경 없음.
+
+## 2026-10-07 — 문의 접수번호 보관 의미 설명
+
+- inquiryId는 서버가 저장한 문의의 접수번호이며 완료 화면 표시/후속 문의 식별용. 현재 클라이언트 필수 영속 저장이나 후속 조회 API 호출 요구는 없음. Idempotency-Key와 별개이며 재시도는 동일 인증 범위·키·본문으로 수행.
+- 앱 재시작 후 번호 표시 기능이 없으면 화면 상태 보관으로 충분하다고 안내. 제품/문서 계약 변경 없이 기록만 갱신, 정적 확인 및 git diff --check 수행.
+
+## 2026-10-07 — azure_results 전체 로컬 백업 완료, 삭제 확인 대기
+
+- Compass 대상 Cluster0 연결 및 to-teacher-app.azure_results 확인. Export the full collection → Canonical Extended JSON으로 /Users/msde76/Documents/to-teacher-app.azure_results.2026-10-07.backup.canonical.json 저장. Compass 완료 표시4721건.
+- 스트리밍 JSON 파싱 검증 성공:4721문서, 고유 _id4721개, _id 누락0, raw_data 보유4721건. 파일847426583바이트, SHA-256 974b6275b63482f93d681264ad1e205ebf83ee22de197458d73bc01272fedd2e. 실제 DB 재복원 테스트는 미수행.
+- 원본 삭제 미실행. 삭제 직전 사용자 최종 확인 및 백업 이후 신규/변경 문서 보호 필요. 컬렉션/인덱스 유지, 다른 컬렉션 변경 금지. 파일은 저장소 밖 로컬 문서 폴더에 있으며 사용자 데이터 포함 가능하므로 외부 공유 주의.
+
+## 2026-10-07 — Compass 대상 연결 준비, 비밀번호 입력 대기
+
+- Atlas Cluster0의 공식 Connect → Compass 안내에서 대상 연결 주소를 확인해 Compass 새 연결에 입력. 기존 다른 주소의 저장된 연결은 수정하지 않음.
+- Authentication 화면에 기존 DB 사용자 이름을 설정하고 비밀번호 자리표시자를 제거. URI 편집은 꺼둠. 사용자가 기존 DB 비밀번호를 직접 입력하고 Connect로 접속해야 함. 연결 저장·실제 인증 시도·권한/네트워크 변경·백업·삭제 미실행.
+
+## 2026-10-07 — azure_results 백업 경로 속도 비교
+
+- 이번 답변의 작업 식별자01a11691-93b6-7250-8303-8f778922266a를 WORKLOG 끝에 추가 기록. 제품 및 DB 변경 없음.
+- 전체4721건·100건 페이지 기준 복사 저장은 최소48페이지 확보와 누락/중복 검증이 필요. 정확한 소요 시간은 미측정이나 대상 연결을 확보한 Compass 전체 JSON 내보내기가 더 효율적인 경로로 판단.
+- Atlas의 미확인 다운로드 버튼 탐색을 계속하기보다 기존 대상 DB 접속 설정으로 Compass 연결 후 내보내기를 권장. 접속 정보 확보 시간은 미확정. 백업·삭제는 여전히 미실행.
+
+## 2026-10-07 — Atlas 직접 다운로드와 복사 저장 구분
+
+- 사용자는 이전에 Atlas 문서를 복사해 로컬 저장했다고 설명. 현재 확인한 UI에는 전체 JSON 파일 직접 다운로드 버튼을 찾지 못했으며 복사 저장과 다운로드를 구분해 안내.
+- E-JSON 화면도 1–100 / 4721 페이지 범위를 표시. 전체 백업 파일 생성·건수 검증·원본 삭제 모두 미실행. 부분 복사본을 전체 백업으로 간주하지 않음.
+
+## 2026-10-07 — Atlas 수동 백업 기능 재확인
+
+- Atlas azure_results의 E-JSON Output Options는 Expand/Collapse all documents, BULK는 update/delete, EXPORT CODE는 쿼리 코드 내보내기로 확인. 문서 개별 Copy 기능은 있으나 전체 파일 다운로드 기능은 현재 확인한 UI에서 발견하지 못함. Atlas에서 모든 백업이 불가능하다는 단정은 철회.
+- 이전 후속 요청으로 Compass를 열었으나 미연결이고 저장된 연결 주소가 조사한 Atlas 주소와 달라 접속하지 않음. 백업/삭제 모두 미실행. 사용자가 이전에 사용한 Atlas 내보내기 메뉴 경로 확인 필요. 전체 백업 검증 전 삭제 금지 유지.
+
+## 2026-10-07 — azure_results 수동 백업 방법 안내
+
+- Compass에서 to-teacher-app.azure_results 전체 문서를 JSON(가능하면 BSON 타입을 보존하는 Extended JSON)으로 로컬 내보내고 검증 후 원본 문서만 삭제하는 방법을 안내. 실제 Compass 연결/내보내기/삭제는 수행하지 않음.
+- Atlas EXPORT CODE와 데이터 백업을 구분. 삭제 전 전체 건수·파일 무결성·복원 가능성 확인 및 동시 쓰기 통제가 필요하며, 백업 이후 생성·변경 데이터는 보호해야 함. 컬렉션/인덱스 유지 방침과 기존 접속 경로 대기 상태 유지.
+
+## 2026-10-07 — azure_results 로컬 백업 후 삭제 요청, 접속 경로 확인 대기
+
+- 사용자 요청 대상은 Cluster0의 to-teacher-app.azure_results로 확인. Atlas Documents 화면4721건·Indexes1개 표시(삭제 시점 재확인 필요).
+- 백업/삭제 미실행. Atlas 현재 UI에는 전체 데이터 export가 없고 EXPORT CODE는 쿼리 코드 내보내기다. 로컬 mongosh는 있으나 mongodump/mongorestore는 PATH에서 확인되지 않음. 실행 환경의 Mongo/Atlas/database 관련 환경변수 이름도 미검출.
+- 다음 단계: 사용자가 기존 DB 접속 설정 파일 위치 또는 연결된 Compass 등 백업 경로를 지정해야 함. 비밀값을 채팅에 요청하지 않는다. 백업을 로컬 저장·건수/무결성/복원 가능성 검증한 뒤 삭제. 백업 이후 생성·변경 문서는 삭제 대상에서 보호하고 컬렉션/인덱스 유지 우선. UI 영구 삭제 직전 최종 확인 필요.
+
+## 2026-10-07 — MongoDB Atlas 읽기 전용 점검
+
+- Cluster0(AWS Seoul, MongoDB 8.0.34, Free)의 Overview 표시 Logical Size는 510.4 MB / 512.0 MB(약99.7%), Connections29/500. PRIMARY1개·SECONDARY2개 표시. Project Open Alerts는 3개 노드의 Logical Size 440 MB 초과 ERROR이며10월3일부터 지속.
+- tosunsaeng-db의 newsletter_campaigns19건·newsletter_deliveries35건 표시, 인덱스 각각5개 모두 READY. Atlas 읽기 조회 성공은 애플리케이션 쓰기 정상/복구를 입증하지 않는다.
+- 용량 제한이 뉴스레터 findAndModify 실패 원인 후보로 중요하나 MongoCommandException의 code/message가 없어 확정 불가. 실제 앱 연결 대상 대조도 필요. 데이터 삭제·인덱스/설정/요금제 변경·복구 조치 없음.
+- 다음 작업: 해당 백엔드의 정제된 원인 로그 확인 및 DB별 용량 분석. 용량 증설/데이터 정리는 별도 사용자 결정과 승인 필요. 제품 코드 변경 없으며 기록만 갱신.
+
+## 2026-10-07 — 뉴스레터 오류 복구 여부 안내
+
+- 현재까지 조사만 수행했으며 복구 조치 없음. 앞서 표시한 발송 복구/캠페인 회수는 실패한 작업 이름이지 복구 성공 보고가 아니다. 마지막 조회 시 오류 반복 관측, 현재 자연 복구 여부는 재조회하지 않아 미확인.
+- 복구 완료 판단에는 원인 확인·조치 및 작업 정상 처리 검증 필요. 제품/서버 변경 없음.
+
+## 2026-10-07 — 로그인 후 Sentry 뉴스레터 오류4건 상세 확인
+
+- TO-TEACHER-6/7/8/9 모두 newsletter repository의 findAndModify에서 UncategorizedMongoDbException → MongoCommandException. 예약 캠페인 확보·발송 대기 확보·지연 캠페인 회수·지연 발송 복구4경로다. environment 태그 모두local이며 실제 실행 위치를 보장하는 근거는 아님.
+- 조회 시 이벤트 수는 순차 관측 기준7=224,8=18,9=18,6=107로 단발이 아닌 반복 발생. 원인 메시지는 No error message로 Mongo 오류 코드/실패 명령 상세 확인 불가. 현재 Identity 소스에 해당 도메인 없음. 탈퇴 변경이나 운영 전체 중단으로 단정하지 않는다.
+- 추가 진단에는 해당 백엔드의 안전하게 정제된 Mongo 오류 코드·원인 로그 및 newsletter repository 코드 확인 필요. 읽기 전용 조사와 기록만 수행.
+
+## 2026-10-07 — Sentry 메일 알림 확인, 상세 로그인 필요
+
+- 지정 Gmail 메일에서 to-teacher 프로젝트의 UncategorizedMongoDbException FATAL 알림4건 확인. 발생 시각은2026-10-07 21:17:08 및21:17:12 KST, 표시 경로 web.tosunsaeng.domain.newsletter... . 현재 Identity src/main/java에는 newsletter 경로가 없어 탈퇴 수정 원인으로 단정하지 않는다.
+- Sentry issue7778701664 상세 진입 시 로그인 화면으로 이동. 원인 메시지·stack·환경/배포 버전 미확인. 로그인 후 이어갈 탭 유지, 코드/서버/Sentry 상태 변경 없음.
+
+## 2026-10-07 — Firebase verifier 명시적 Bean 주입으로 정리
+
+- 구현체 setter의 Autowired 제거, 기존 조건부 Bean factory에서 Nullable ProviderChangeGuard를 전달하도록 수정. factory 반환형을 구체 구현체로 명시. Component 추가 없이 조건부 등록 및 optional 동작 유지.
+- factory의 guard 유/무 회귀 검사 추가, 전체 ./gradlew clean test 성공(1281 tests, 실패0/기존skip6). import 정리 후 ./gradlew test 재검증. API/인증 정책 변경 없음, 배포·commit/push 없음. IDE 표시 자체는 별도 확인 필요.
+
+## 2026-10-07 — Firebase verifier 자동 주입 IDE 검사 진단
+
+- FirebaseAdminAuthenticationVerifier는 stereotype 없이 setter에 optional Autowired를 사용하나 FirebaseAuthenticationConfiguration의 조건부 Bean factory가 생성한다. factory 반환형이 인터페이스여서 IDE가 구현체의 Bean 등록을 연결하지 못할 가능성이 높다. 표시 자체는 Java 컴파일 오류와 다르다.
+- 제안은 Component 중복 추가가 아니라 기존 조건부 factory에서 ProviderChangeGuard를 명시 전달하는 주입 방식 정리. 이번에는 원인 확인과 기록만 수행, 제품 수정 없음.
+
+## 2026-10-07 — exchange phone 금지의 정책상 이유 설명
+
+- 현재 턴 `01a115f5-307e-70b1-96b0-734d94afe336` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- exchange는 Firebase 증빙으로 Identity Access/Refresh를 새로 발급하는 로그인 경로다. phone 허용은 연결 SNS 존재 확인만 추가해도 전화번호 인증을 독립 로그인 수단으로 인정하는 정책 변경이 될 수 있다.
+- 탈퇴는 기존 Identity 인증 및 동일 사용자 Refresh 세션까지 요구하므로 phone 단독 로그인과 다르다. phone 금지는 기술적 필수가 아니라 현행 SNS 로그인 정책 경계이며 전화번호 로그인 제품 요구가 있으면 별도 보안 설계 가능.
+- 코드·계약 정적 확인, 기록만 변경, 실행 테스트 미수행. 기존 구현·미배포 상태 유지.
+
+## 2026-10-07 — 탈퇴 한정 phone Firebase 인증 허용 구현 완료 (미배포)
+
+- 현재 턴 `01a115f1-2344-7b41-be81-79215062a250` 식별자로 WORKLOG 끝에 완료 기록 보완. 제품 추가 변경 없음.
+
+- WITHDRAWAL에서 phone 일괄 거절 제거. 최신 Admin snapshot의 phone 연결·검증 전화번호·단일 SNS를 요구하며, 탈퇴 credential verifier에서 해당 SNS provider/subject의 서버 등록과 현재 사용자 소유권을 필수 확인한다. SNS 기존 흐름과 exchange phone 금지 유지.
+- 기존 project/UID/현재 사용자 및 Refresh 세션 소유권, 유효성/폐기/disabled 검증 유지. 요청 필드 추가 없음. WithdrawRequest Swagger 설명 및 프론트 가이드 갱신.
+- 최종 ./gradlew clean test 성공:171 suites/1280 tests, failures0/errors0/기존skip6. git diff --check 통과. 제품3파일·테스트2파일·가이드1파일 및 기록2파일 변경, 기존 기록 보존.
+- 로컬 구현만 완료: 이번 변경 서버 미배포, commit/push 없음. 실제 가입 직후 phone 세션 탈퇴 E2E 및 Apple 외부 revoke는 미완료. 배포 전에 diff 검토 후 배포 이미지 갱신 필요; 기존 서버 flag 변경만으로 이번 코드가 반영되지는 않는다.
+
+## 2026-10-07 — 탈퇴의 SNS/phone Firebase 인증 방식 범위 확인
+
+- 현재 턴 `01a115ef-a420-78b2-be2e-d8a52d50678e` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 제안은 기존 firebaseIdToken 필드에서 SNS 인증 방식과 phone 인증 방식의 Firebase ID 인증 정보를 모두 수락하는 것이다. SNS 공급자 원본 OAuth 인증 정보나 SMS 인증번호를 직접 받는 의미는 아니다.
+- 동일 계정 소유권·유효성·폐기 및 최신 연결 SNS 검증 전제, 탈퇴 한정 변경이며 exchange 정책은 유지. 아직 제품 수정/배포 없음. 기록만 보완 및 git diff --check 검증.
+
+## 2026-10-07 — phone 세션 탈퇴 제안의 인증 기준 명확화
+
+- 제안은 전화번호 입력으로 계정을 검색·탈퇴하는 방식이 아니라 기존 전화 인증 Firebase 세션을 탈퇴 증빙으로 인정하는 방식이다. 추가 SNS 재로그인/전화 인증을 기본 요구하지 않고 Firebase 검증 결과와 현재 Identity 사용자·Refresh 세션·서버 SNS binding 소유권을 대조한다.
+- SNS가 하나라는 전제는 사용자 식별 근거의 대체가 아니며 같은 Firebase UID에 연결된 SNS와 서버 소유권 검증이 필요하다. 아직 제안 단계, 제품 코드·배포 변경 없음.
+
+## 2026-10-07 — 가입 직후 phone 세션의 탈퇴 거절 원인 확인
+
+- FirebaseAdminAuthenticationVerifier.validateProviderPolicy는 LOGIN_EXCHANGE 또는 WITHDRAWAL에서 signInMethod PHONE을 명시 거절한다. 보고된 apple→phone 전환 및 SNS 재로그인 후 탈퇴 성공은 해당 조건과 일치한다. Firebase SDK 호출 자체의 일반 동작은 이번에 독립 재현하지 않음.
+- 제안: WITHDRAWAL만 phone 일괄 거절에서 제외하되, 유효/미폐기 인증 정보·Admin 최신 phone 연결과 검증 정보·동일 프로젝트/UID/Identity 사용자·Refresh 세션 소유권 및 서버 SNS binding 대조를 유지/보강. client identities에 SNS 이름이 있다는 이유만으로 허용하지 않는다. exchange의 phone 금지는 유지.
+- 분석만 수행, 제품 코드/배포 변경 없음. 정적 코드 확인 및 git diff --check, Gradle 미실행. Apple 외부 정리 미구현은 별도 잔여 문제.
+
+## 2026-10-07 — 테스트 서버 탈퇴 설정3개 활성화 배포 완료
+
+- 현재 턴 `01a11598-0f81-7110-bd31-5bd812ec5e35` 식별자로 WORKLOG 끝에 완료 기록 보완. 추가 서버 변경 없음.
+
+- 사용자가 기존 대기 건의 Firebase 삭제·내부 연결 해제까지 명시 승인했다. 테스트 서비스 tosunsaeng-identity-test-service를 task definition27→28로 갱신, FIREBASE_WITHDRAWAL_ENABLED/FIREBASE_WITHDRAWAL_CLEANUP_ENABLED/FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED 모두true.
+- ECS COMPLETED, desired/running1, pending0, failedTasks0, 실행 태스크28 및 새 ALB target healthy 확인. 공개 /actuator/health UP. 구 target은 최종 조회에서 draining이지만 구 태스크는 실행 목록에 없고 배포 완료됨.
+- 이미지·다른 환경변수·컨테이너 설정·task 설정 보존 비교 완료. 운영 서비스/제품 코드/인증 정책 변경 없음. 로컬 기록2파일만 수정, Gradle 미실행, git diff --check 통과.
+- 실제 탈퇴 E2E 및 대기 건별 삭제 완료는 미검증. Apple revoke 미구현으로 해당 계정 정리는 RECONCILIATION_REQUIRED 가능. 롤백 설정 기준은27이나 이미 수행된 외부 삭제는 설정 롤백으로 복구되지 않는다.
+
+## 2026-10-07 — 탈퇴 설정 전체 활성화 요청, 삭제 영향 확인 대기
+
+- 사용자 요청으로 테스트 서버 탈퇴 요청 flag 활성화 배포를 시도했으나 RegisterTaskDefinition이 빈 tags 목록을 거절하여 등록/서비스 업데이트 전에 실패했다. 서비스는 사전 확인 시 test:27, desired/running1, rollout COMPLETED였다.
+- 사용자가 범위를 탈퇴 요청·외부 정리·identity release 3개 flag 전체로 확대했다. cleanup 활성화 시 기존 대기 계정의 Firebase 삭제 및 내부 연결 해제가 진행될 수 있어 해당 영향에 대한 실행 시점 확인을 요청했다. 승인 전 재시도하지 않음.
+- 후속 등록 시 빈 tags는 생략하고 기존 이미지·권한·다른 설정을 보존해야 한다. Apple revoke 미구현 위험 유지. 제품 코드 변경 없음.
+
+## 2026-10-07 — AWS 콘솔에서 테스트 실행 태스크 탈퇴 설정 확인
+
+- 현재 턴 `01a11595-6a6b-7800-ab39-25c20a36e886` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 열린 AWS 콘솔의 CloudShell로 읽기 전용 조회 성공. RUNNING 태스크는 tosunsaeng-identity-test:27, 컨테이너 tosunsaeng-identity. 탈퇴 요청/cleanup/identity-release flag 및 APP_FIREBASE_WITHDRAWAL_ENABLED가 environment와 관련 secret 이름에 없으며 environmentFiles 0개, 해당 flag의 task override도 없음.
+- 저장소 기본false와 대조하면 탈퇴 기능 활성화 설정이 누락된 상태다. 애플리케이션 프로세스의 최종 effective property나 이미지 내부 별도 설정까지 직접 조회한 것은 아니다. 설정 변경·배포 없음.
+
+## 2026-10-07 — 실제 테스트 서버 탈퇴 flag 조회 시도
+
+- 현재 턴 `01a11593-ed86-7250-9b00-774f08ad2af4` 식별자로 WORKLOG 끝에 결과 기록 보완. 제품 추가 변경 없음.
+
+- 저장소 application.yml 및 .env.example의 FIREBASE_WITHDRAWAL_ENABLED 기본값은false. 실제 서버 값은 확정하지 못했다.
+- 문서에 명시된 테스트 ECS service를 AWS CLI로 읽기 전용 조회했으나 NoCredentials로 실패. 설정 변경·배포 없음. 인증된 AWS 접근 후 현재 실행 task의 해당 flag 및 설정 override 확인 필요.
+
+## 2026-10-07 — 탈퇴503와 exchange recent-auth 오류 분리 진단
+
+- 탈퇴 FIREBASE_UNAVAILABLE은 Firebase 장애만 의미하지 않는다. FIREBASE_WITHDRAWAL_ENABLED 기본false, verifier/repository 부재, Admin 권한·설정·통신 실패 등이 같은503으로 매핑된다. exchange가 recent-auth까지 진행됐다면 탈퇴 전용 flag를 우선 확인할 근거가 있으나 실제 배포 원인은 미확정.
+- exchange는 auth_time 최대 나이 검사(기본15분, 설정 변경 가능), 현재 WITHDRAWAL은 해당 나이 제한에서 제외한다. 유효기간/폐기/계정 검사는 유지한다. 갱신된 ID 인증 정보도 auth_time은 오래될 수 있으므로 두 응답은 모순이 아니다.
+- 코드·기존 회귀 테스트 정적 확인만 수행, 실행 테스트·원격 설정/로그 조회 없음. 기록 외 제품 변경 없음, git diff --check 검증.
+
+## 2026-10-07 — TMI-199 exact 규격 수락·추가 경계 검증
+
+- 현재 Jira: TMI-199, develop. Billing exact 수락안 §5 전체 wire/null/상태별 필드 및 §6 manifest를 Identity 구현 기준으로 수락. 상세 docs/contracts/billing-c0-exact-wire-index-proposal-2026-10-07.md §8.
+- 신규 fixture2개 hash 고정, numeric39건+overflow/hash/manifest3건=42건 독립 테스트 통과. 전체 clean test1276건(XML 합산) 실패0/오류0/기존skip6. 이전44건 포함. 외부 DB/운영 호출 없음.
+- 이전 C0 기술 수락 보류 사유 해소. 관련 변경 병합과 양측 결과 기록 후 별도 승인으로 종료 가능. Jira 상태/댓글은 변경하지 않았으며 실제 controller/initializer/장애·운영 검증 gate는 후속 이슈에 유지.
+- 제품·build·배포 미변경. 기존 기록 보존, 예상 밖 제품 변경 없음. commit/push는 사용자 수행.
+
+## 2026-10-07 — Apple 탈퇴 revoke 미구현 확인
+
+- 현재 Identity 서버의 탈퇴 cleanup adapter는 Firebase revokeRefreshTokens만 호출하며 Apple OAuth revoke는 구현하지 않는다. Apple provider 발견 시 PROVIDER_OBLIGATION_REQUIRED로 중단한다.
+- worker가 해당 단계까지 실행되면 Firebase 비활성화·세션 폐기 이후 Firebase 사용자 삭제 전 RECONCILIATION_REQUIRED로 전환하는 경로다. 내부 WITHDRAWN과 외부 정리 완료는 별개. 실제 배포/worker 실행 및 프론트 구현은 미확인.
+- 제품 변경 없이 코드·기존 테스트 정적 확인 및 기록, Gradle 미실행, git diff --check 검증.
+
+## 2026-10-07 — TMI-199 최신 계약 완료 조건 검토
+
+- 현재 Jira: TMI-199, develop. 첨부 최신 공동 계약과 공식 Jira 완료 기준 대조. 새 밀리초 통일·wire decimal/BSON int64·internal 오류 envelope·Lattice IAM/SigV4 방향은 이전 검증 결과와 부합하며, 실환경 미검증 항목을 TMI-202/203/204/206의 통과 기준으로 배정한 것은 적절하다.
+- 현재 바로 Done 판단은 보류: 문서 자체가 후속 exact 규격 상대 수락, endpoint별 nullable 목록, 물리 index manifest 검증을 미완료로 명시한다. 기존44건은 신규 Long.MAX_VALUE 상한/overflow 전체 검증이 아니므로 변경 규격에 해당하는 최소 경계 fixture 보완 필요.
+- 운영 검증 전체를 C0에서 끝낼 필요는 없으나 후속 gate와 이슈 연결 기록, exact 규격 양측 수락 및 관련 PR 병합 확인 후 완료 판단. 기존 테스트 결과 유지, 이번에는 문서/Jira 읽기 및 diff 검사만 수행. Jira 상태·댓글·제품·배포 변경 없음.
+
+## 2026-10-07 — 탈퇴 API 자체의 ACCOUNT_WITHDRAWN 가능 경로 확인
+
+- 현재 턴 `01a11548-ccec-70a1-99ef-572dcefd8b3c` 식별자를 WORKLOG 끝에 추가했다. 제품 추가 변경 없이 기록 보완.
+
+- app.session-revocation.fence-enabled=true로 SessionSecurityService가 주입되면 탈퇴 자격 검사에서 checkAndTouch → requireActive가 WITHDRAWN 계정에401 ACCOUNT_WITHDRAWN을 반환할 수 있다. 최초 ACTIVE 조회 뒤 다른 요청이 탈퇴를 확정하는 경합에서 가능하며, 재발급 전용 오류라고 한정하면 부정확하다.
+- 최초 조회부터 WITHDRAWN이면 기존200 분기가 우선한다. 원격 flag/실제 오류 요청 URL 미확인. 제품 변경 없이 정적 코드 확인·기록 및 git diff --check, Gradle 미실행.
+
+## 2026-10-07 — 탈퇴 진행 중 중복 요청의 단계별 응답 분석
+
+- 현재 턴 `01a11546-a39a-72a3-92be-68fea04a1a00` 식별자로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 내부 WITHDRAWN 확정 후 외부 정리 진행 중이면 정상 인증/요청에서200 및 현재 cleanupStatus를 반환한다. 내부 확정 전 동시 요청은 충돌 재조회로 성공 처리 가능하지만 모든 경합을200으로 정규화하지 않는다.
+- UserWithdrawalService의 Refresh/Firebase 사전 검증은 충돌 처리 try 밖에 있어 최초 ACTIVE 조회 후 다른 요청이 탈퇴 확정하면401 INVALID_WITHDRAWAL_CREDENTIALS 또는 Firebase 검증 오류가 가능하다. 처리된 충돌이 해소되지 않으면409 WITHDRAWAL_CONFLICT 가능. 코드 변경 없이 정적 확인, Gradle 미실행, 원격 경합 미검증.
+
+## 2026-10-07 — Firebase 계정 거절 설명 기록 보완
+
+- WORKLOG 끝에 이번 설명의 정확한 턴 식별자를 추가했다. Firebase 삭제/비활성/연결 정보 이상과 Identity 사용자 부재를 구분한 결과 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — FIREBASE_ACCOUNT_NOT_ALLOWED 조건 안내
+
+- FirebaseSdkAdminClient의 USER_DISABLED/USER_NOT_FOUND 변환 및 verifier의 disabled·연결 로그인 수단 불일치·필수 주 인증 수단 부재·잘못된 Provider 식별 정보 검증에서 발생. Identity User 문서 부재와 구분하며403만으로 Firebase 삭제를 단정하지 않음.
+- 제품 변경 없이 정적 확인·기록 및 git diff --check 수행. 실제 장애 원인 미확인.
+
+## 2026-10-07 — 다른 기기에서 중복 탈퇴 요청 시 성공 반환 확인
+
+- 설명 턴 `01a11544-221e-7321-aeb2-fe8fa9bdae24`의 기록을 WORKLOG 끝에 추가했다. 제품 추가 변경 없이 기록 식별 보완.
+
+- 유효한 Access Token과 정상 요청 형식이면 WITHDRAWN 계정은 Refresh/Firebase 재검증 전 기존 탈퇴 결과를200으로 반환한다. 기존 탈퇴 시각 및 현재 cleanupStatus 유지. 재발급의401 ACCOUNT_WITHDRAWN과는 다른 계약이다.
+- Access Token 만료/요청 검증 실패/기록 불일치는 별도 오류 가능. 제품 변경 없이 코드·기존 테스트 정적 확인과 기록 수행, Gradle 미실행 및 git diff --check 검증. 원격 미확인.
+
+## 2026-10-07 — USER_NOT_FOUND 설명 기록 보완
+
+- WORKLOG 끝에 정확한 턴 식별자를 추가했다. Identity 사용자 문서 부재와 정상 탈퇴/Firebase 부재의 구분 설명 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — 한 기기 탈퇴의 다른 기기 영향 확인
+
+- 현재 설명 턴 식별자 `01a11541-0dd0-78a2-97ad-5c1a105b696b`로 WORKLOG 끝에 기록 보완. 제품 추가 변경 없음.
+
+- 같은 userId의 탈퇴는 계정 전체에 적용하며 활성 RefreshSession을 모두 ACCOUNT_WITHDRAWN 사유로 폐기한다. 다른 기기의 재발급은 해당 세션이 남아 있으면 401 ACCOUNT_WITHDRAWN, 세션 삭제 후에는 INVALID_REFRESH_TOKEN 등이 가능하다.
+- 다른 기기의 화면·로컬 인증 정보가 즉시 사라지는 것은 아니다. 프론트는 오류 수신 후 인증/계정 캐시 정리와 재발급 중단이 필요하다. 기존 Access Token의 Learning Core 즉시 차단은 downstream deny 처리·배포에 의존하며 이번 확인으로 보장하지 않는다.
+- 제품 변경 없이 정적 코드 확인 및 기록만 수행. Gradle 미실행, git diff --check 검증. 원격 배포·실기기 동작 미확인.
+
+## 2026-10-07 — 탈퇴 USER_NOT_FOUND 발생 조건 설명
+
+- UserWithdrawalService의 현재 인증 사용자 ID 조회 및 충돌 후 재조회에서 Identity User 문서 부재 시404 USER_NOT_FOUND. 정상 탈퇴는 tombstone을 남기므로 단순 타 기기 탈퇴와 구분.
+- DB 초기화/수동 삭제 또는 서버 DB 환경 불일치는 가능한 원인이지 확인된 장애 원인은 아님. 제품 변경 없이 정적 확인·기록, git diff --check 수행.
+
+## 2026-10-07 — reissue Swagger 구현 턴 기록 보완
+
+- WORKLOG 끝에 정확한 구현 턴 식별자를 추가했다. 401 선택형 오류 예시5종 및 전체 테스트/공유본 성공 결과 유지. 제품 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — reissue Swagger401 선택형 오류 예시 구현
+
+- 401 Examples에 INVALID_REFRESH_TOKEN/REFRESH_TOKEN_EXPIRED/REFRESH_TOKEN_REUSE_DETECTED/ACCOUNT_WITHDRAWN/SESSION_LOGGED_OUT 각각의 실패 JSON·한국어 요약·프론트 처리 설명 추가. ApiErrorResponse로 실패 schema 지정, 실제 필드는 result이며 data가 아님.
+- AuthController/IdentityOpenApiExamples/OpenApiSharingTests 수정. ./gradlew clean test shareSwagger 최종 성공(전체1234건, 기존skip6 및 export 성공). HTTP/code/인증 동작 유지, 미배포. 기존 미추적 ApiErrorResponse는 선행 작업 파일이므로 배포 커밋에 함께 포함 필요.
+- 초기 검사2건은 단일 example:null 직렬화와 기존 ACCOUNT_WITHDRAWN 설명 회귀 기대값으로 실패해 보정. git diff --check 통과, 기존 Billing/동시 작업 보존. commit/push 없음.
+
+<!-- codex-turn:01a1153f-3a6b-7603-bc77-1ff497d03b25 -->
+
+## 2026-10-07 — 탈퇴 시 Firebase 사용자 부재 의미 설명
+
+- FirebaseSdkAdminClient는 ID Token 검증(폐기 확인 포함) 후 UID로 원격 사용자도 조회한다. 이전에 발급받은 인증 정보가 앱에 남아 있어도 원격 사용자가 삭제되면 사용자 부재가 발생할 수 있다. 프론트 선삭제/관리 삭제/이전 탈퇴 후 비동기 정리 및 이전 UID 잔존은 후보이며 이번 실제 원인은 미확정.
+- 현재 코드에서 Firebase USER_NOT_FOUND는 403 FIREBASE_ACCOUNT_NOT_ALLOWED로 변환하며 disabled도 같은 코드다. 404 USER_NOT_FOUND는 Identity users 조회 실패로 별개. 탈퇴 확정 뒤 정리 worker의 사용자 부재는 ABSENT로 정상 처리할 수 있다. 프로젝트 불일치는 토큰 검증에서 먼저 거절될 수 있어 부재와 동일시하지 않는다.
+- 실제 HTTP 상태·code 및 발생 단계 확인 필요. 제품/계정/배포 변경 없이 정적 코드 확인과 기록만 수행했다.
+
+## 2026-10-07 — reissue Swagger 오류별 예시 개선 제안
+
+- AuthController의401 설명은4개 코드를 나열하지만 IdentityOpenApiExamples의 reissue에는 해당 목록 중 INVALID_REFRESH_TOKEN만 등록됨을 확인. HTTP401의 named examples로 각 오류 JSON을 선택하도록 개선 권고.
+- 실제 HTTP/code/인증 동작은 변경할 필요 없음. 이번에는 정적 확인·기록만 수행, 제품 변경 없음. git diff --check 검증.
+
+## 2026-10-07 — 다른 기기 탈퇴 후 reissue 오류 확인
+
+- 현재 코드에서 탈퇴로 폐기된 Refresh 세션의 재발급은 HTTP401 ACCOUNT_WITHDRAWN으로 차단. legacy/recovery 경로 모두 확인. 이미 삭제된 세션 등은 INVALID_REFRESH_TOKEN 등 다른 오류 가능.
+- 제품 변경 없이 정적 확인 및 기록, git diff --check 수행. 프론트는 탈퇴 안내 후 해당 계정 로컬 세션 정리 및 재발급 반복 중단.
+
+<!-- codex-turn:01a11532-6b1f-73d3-a7e4-bf52e8d9ead3 -->
+
+## 2026-10-07 — 회원 탈퇴 Swagger 예시 수정 완료 (미배포)
+
+- 탈퇴 Request body에 SNS/LOCAL/GUEST별 전송 필드 예시를 분리했다. 오류 400/401/403/404/409/429/503에 실제 enum 기반 실패 예시와 검증 상세 배열 예시를 추가하고 문서 전용 ApiErrorResponse로 Schema의 성공 예시 재사용을 방지했다. 200/공통 성공 schema는 유지한다.
+- 인증 로직·HTTP/code/요청 필드는 유지. WITHDRAWAL_FIREBASE_PROOF_REQUIRED의 message만 기존 최근 재인증 불필요 정책에 맞게 '유효한 Firebase 인증 정보'로 보정했다. 프론트 탈퇴 가이드와 Swagger 공유본 안내도 갱신했다.
+- ./gradlew clean test shareSwagger 성공: 170 suites/1233 tests/실패0/오류0/기존skip6, 별도 export 1개 성공. 요청 유형/필수·writeOnly·Bearer, 모든 탈퇴 오류 예시의 HTTP/code/message/null·배열, 성공 schema 유지 검사 통과. ZIP 무결성/diff 검사 통과.
+- 결과: build/distributions/identity-swagger.zip. 테스트 서버에 배포하지 않아 열린 Swagger에는 아직 미반영. 별도 HTTP generated server URL 문제는 이번 예시 수정에서 변경하지 않았다. 실회원 탈퇴 호출·Jira·commit/push 없음. 기존 Billing 검증 파일과 동시 기록 보존, 예상 밖 제품 변경 없음.
+
+## 2026-10-07 — 알림 API 명세 검토 턴 기록 보완
+
+- WORKLOG 끝에 이번 검토의 정확한 턴 식별자를 추가했다. 실제 API 출처 확인 대기 상태 유지. 제품·Notion 추가 변경 없이 git diff --check 재확인.
+
+## 2026-10-07 — 알림 API 명세 중심 재작성 요청 확인
+
+- 사용자는 Notion 인계를 API·요청/응답·오류 코드와 최소 주의사항 위주로 재작성 요청. 현재 Identity src/main 및 계약 파일에서 notification/reminder/push/fcm 구현 파일을 확인하지 못했다.
+- 실제 명세를 임의로 생성하지 않고 Learning Core의 구현 코드 또는 Swagger 출처 확인이 필요함을 안내. 이번에는 Notion/제품 변경 없이 기록만 수행, git diff --check 검증.
+
+<!-- codex-turn:01a1152f-1f1e-7ff2-82b3-ab1ea1f5efa4 -->
+
+## 2026-10-07 — 회원 탈퇴 Swagger 표시 진단
+
+- 사용자가 연 테스트 Swagger의 /users/withdraw에서 400/401/404/409 예시가 isSuccess=true/code=SUCCESS로 표시됨을 직접 확인. UserController 오류 응답이 성공 예시를 가진 BaseResponse schema를 재사용하고 IdentityOpenApiExamples에는 탈퇴 200만 별도 등록되어 발생하는 문서 예시 결함이다. 실제 코드의 오류 응답은 BaseResponse.failure를 사용한다.
+- 요청 예시에 password와 firebaseIdToken이 함께 표시되지만 실제 SNS는 비밀번호 없이 Firebase 증명, LOCAL은 Firebase 증명 없이 비밀번호, Guest는 둘 다 생략해야 한다. 회원 유형별 예시 분리 필요. SNS 재로그인 불필요 설명은 탭에 반영되어 있다. 추가로 Swagger generated server URL이 HTTP로 표시되며 프록시/문서 URL 설정은 후속 확인 대상.
+- UserControllerTests/FirebaseUserWithdrawalServiceTests 집중 검증 통과. 실제 탈퇴 호출·계정 변경·제품 수정·배포 없음. 이번은 진단/기록만 수행했고 기존 Billing 교차 검증 변경을 보존했다.
+
+## 2026-10-07 — Notion 알림 인계 가독성 개선
+
+- 사용자 요청으로 동일 알림 페이지의 긴 단일 본문을 개별 제목/소제목/목록 블록으로 분리. 상단 5개 핵심 요약과 미확정 계약 안내를 간결하게 정리하고 상세 조건·QA는 보존했다.
+- 새로고침 후 제목 계층 및 마지막 상세 항목 저장 확인, 화면 검수 완료. 제품·정책 변경 없음, 기록2파일만 갱신. git diff --check 수행, 문서 작업으로 실행 테스트 미수행.
+
+## 2026-10-07 — TMI-199 Identity 독립 교차 검증
+
+- 현재 검증 턴 식별자를 WORKLOG 끝에 추가했다. 기존 실행 결과 유지, 제품 코드 추가 변경 없이 문서 diff 검사를 재확인했다.
+- 현재 Jira: TMI-199, 브랜치 develop 유지. 동일 Billing fixture4개 해시를 고정하고 독립 oracle40건·실제 Identity 엔티티/converter/mapper4건 추가, 신규44건 실패0/skip0.
+- ./gradlew clean test:170 suites/1233 tests/실패0/오류0/기존skip6. 실제 DB 없이 Spring Data 변환기 왕복에서 User/outbox 시각 일치 확인. 저장 전 고정밀 값과 저장 후 밀리초를 섞으면 wire/digest 불일치 재현.
+- 현행 publisher는 claimNext로 DB 조회한 outbox를 직렬화하므로 현재 LC 전송 오류를 입증한 것은 아님. 신규 journal의 authoritative 시각 규칙 확정 필요. docs/contracts/billing-c0-fixture-review-2026-10-07.md §7에 상세 결과 및 Jira 댓글 초안(미등록).
+- 제품·외부 계약·배포 변경 없음. index 생성/실제 replica-set 및 운영 gate는 미검증. exact DTO/오류/auth 동결 및 미검증 실험 배정 후 공동 C0 완료 판단 필요. 동시 알림 기록 보존, 예상 밖 제품 변경 없음, Jira 상태/댓글·commit/push 없음.
+
+## 2026-10-07 — 알림 인계 작성 기록 보완
+
+- 알림 Notion 인계 문서 작성 턴 식별자를 WORKLOG 끝에 추가했다. 저장 확인된 문서 내용은 유지하며 제품·외부 페이지 추가 변경 없음. git diff --check 재확인.
+
+## 2026-10-07 — 알림 프론트 인계 Notion 작성
+
+- 사용자 지정 Notion 알림 페이지에 학습 리마인더 설계 인계 초안 작성 및 새로고침 후 본문 유지 확인. 5줄 요약, 프론트/서버 역할, 권한·기기 연결·탭 이동, 결정사항, 위험, 계약 필요 목록, QA 포함.
+- 현재 저장소에서 학습 푸시 API 구현은 확인되지 않아 임의 URL/필드/오류를 확정하지 않음. 발송 시각·시간대·제출 완료 기준·전송 방식·Guest 대상 여부는 합의 전으로 명시. Learning Core 실제 구현/배포는 미조회.
+- 제품 변경·배포 없음. 기록2파일 갱신과 git diff --check, 문서 작업이므로 테스트 재실행 없음.
+
+## 2026-10-07 — TMI-199 Billing fixture 결과 검토
+
+- 현재 검토 Jira: TMI-199. develop에서 Billing 첨부 보고서와 실제 fixture 4개를 확인하고 해시 기록, Node 고정/빈 digest 재계산 일치 확인.
+- 상세: docs/contracts/billing-c0-fixture-review-2026-10-07.md. Identity의 같은 withdrawnAt 전달·저장 경로를 정적 확인했으며 현재 불일치 결함을 확정한 것은 아님.
+- 남은 작업: Identity 독립 serializer/decoder·Mongo 시간 왕복 검증, DTO/null/count/오류/auth 경계와 index·sequence 저장 타입 확정, 미검증 failover/history/응답 유실 gate 배정. TMI-199 전체 완료 아님.
+- 제품·외부 설정·Billing 저장소·Jira 변경 없음. 전체 Gradle 미실행(분석만), Node 확인 및 문서 diff 검사. 기존 기록 보존. 다음은 별도 구현 요청에 따른 C0 교차 테스트.
+
+## 2026-10-07 — SNS 탈퇴 기존 세션 허용 구현 완료
+
+- 구현 턴 식별 기록을 WORKLOG 끝에 보완했다. 제품 코드 추가 변경 없이 문서 diff 검사를 재확인했다.
+- 사용자 승인대로 FirebaseAdminAuthenticationVerifier에서 WITHDRAWAL만 공통 최근 인증 경과 제한에서 제외. 기본 토큰 검증·revocation·disabled·Provider 정책·계정 소유권 및 Identity Refresh 검증 유지. LOCAL/GUEST 변경 없음.
+- WithdrawRequest/UserController OpenAPI와 탈퇴 lifecycle 계약 문서 갱신. 다른 인증 목적의 최근 인증 제한 회귀 및 오래된 인증 세션/잘못된 토큰 거절 테스트 추가.
+- ./gradlew clean test 성공:168 suites/1189 tests/실패0/오류0/skip6. git diff --check 통과. 새 환경변수 없음, 미배포. 앱에서 갱신된 Identity Access/Refresh 쌍과 Firebase 인증 정보로 실제 연동 QA 필요.
+- 유효 세션 탈취 시 추가 재인증 없이 탈퇴 가능하다는 정책 위험 유지. 기존 작업 기록과 타 작업의 Billing 분석 문서2개 보존. commit/push·Jira 변경 없음.
+
+## 2026-10-07 — SNS 탈퇴 재로그인 생략 정책 검토
+
+- 사용자·프론트 결정은 SNS 재로그인 없이 기존 세션에서 인증 정보를 갱신해 탈퇴 요청하는 UX. 현재 WITHDRAWAL은 공통 high-risk auth_time 기본5분 검사를 적용하므로 단순 갱신만으로 항상 통과하지 않는다.
+- 제안: WITHDRAWAL에 한정해 최근 재인증 요구를 분리하고 서명/만료/폐기/계정 소유권/Refresh 세션 검증은 유지. 공통 제한 완화는 다른 기능에 영향이 있어 피한다. 탈취 세션의 탈퇴 위험 증가를 안내. 제품 변경 없이 정적 분석 및 기록만 수행.
+
+## 2026-10-07 — 회원탈퇴 구현 흐름 설명
+
+- 코드 확인: 본인 Access 인증 및 Refresh 세션 소유권, 회원 유형별 추가 인증 후 Mongo 트랜잭션으로 WITHDRAWN tombstone·전체 Refresh 폐기·정리 lifecycle·탈퇴 outbox·활성 binding 철회 처리.
+- Firebase 비활성화/세션 철회/삭제와 내부 SNS·전화 연결 해제는 비동기 작업. CLEANED는 해당 lifecycle 정리 완료이며 Learning Core 전체 처리 완료와 동일시하지 않는다. 외부 서비스의 기존 Access 검증 및 배포 worker 활성화 상태는 별도 확인 필요.
+- 설명 작업으로 제품 변경·배포·실행 테스트 없음. 기록2파일 갱신 및 git diff --check 수행, 기존 동시 작업 보존.
+
+## 2026-10-07 — TMI-137 하위 기존 생성 확인, 중복 생성 불필요
+
+- 공식 Jira 조회로 공통 C0 TMI-199, Identity I1 TMI-200/I2 TMI-202/I3 TMI-203, Billing B1 TMI-201/B2 TMI-204/B3 TMI-205, 공동 C1 TMI-206 총8건 확인. 모두 해야 할 일. 이전4건 생성 승인 대기는 기존 생성 확인으로 대체하며 새로 생성하지 않는다.
+- 본문 완료 기준/의존성/기본 OFF·판매/purge 별도 gate 확인. 의존성은 설명에 있으나 issuelinks는 모두 빈 상태. 현재 작업은 조회만, Jira 수정/상태/댓글 변경 없음. 다음은 TMI-199 공통 준비 후 Identity 구현 요청에 따라 진행.
+
+## 2026-10-07 — TMI-137 하위 작업 생성 승인 대기
+
+- 공식 Atlassian MCP로 TMI-137 결제 기능 에픽 확인, parent 직접 하위 조회 결과 없음. 공통 fixture/실현 가능성 검증 1건과 Identity I1~I3 3건 생성안 제시. 저장소 규칙에 따라 생성 내용을 보여준 후 승인 대기이며 Jira 쓰기 미수행.
+- 각 작업에 합의 계약·완료 조건·의존성·운영 OFF/별도 승인 조건을 포함할 예정. Billing B1~B3 및 별도 공동 E2E 이슈는 이번 제안 범위에 포함하지 않음.
+
+## 2026-10-07 — I1~I3/B1~B3 작업 분할 의견
+
+- 사용자 제시 분할은 합리적이며 공통 fixture/실현 가능성 검증 선행, User/control 공통 변경 고정 후 I1/I2 병행 개발 방향을 권고했다. 구현 완료와 purchase 활성화는 별개로 I2 capture 및 migration gate 전 I1 ON 금지.
+- I2 source 수명/cleanup 결정은 I3 복구 의존성과 함께 먼저 고정. B1 두 PR은 가능하나 탈퇴 차단 미완료 상태에서 첫 PR의 실구매 활성화 금지. B3 provider 미연결/오류는 UNKNOWN으로 삭제 금지. PLAN 원문 미열람, Jira/구현/배포 변경 없음.
+
+## 2026-10-07 — 사용자 합의 공동 계약을 후속 작업 기준으로 채택
+
+- 사용자가 최신 첨부에 “이렇게 하기로 했어”라고 명시. docs/contracts/billing-joint-contract-review-2026-10-07.md §8에 첨부 식별 및 채택 범위 기록. contentDigest 통일/consumerRecoveryGeneration 및 old worker·ACK CAS/readiness 범위 보완을 문서 수준에서 확인, 이전 잔여 설계 지적 판정 갱신.
+- 기술 방향을 이후 구현 계획 기준으로 사용한다. 본문상 별도 보존·TTL·이관/운영 승인과 실제 Mongo 검증 gate는 유지한다. 구현·Jira 생성·외부 전송·배포 착수 아님. 다음 요청 시 Identity 단계별 구현 계획 수립.
+
+## 2026-10-07 — 공동 계약 개정본 R1~R5 재검토
+
+- docs/contracts/billing-joint-contract-review-2026-10-07.md §7에 개정본 판정 추가. 이전 R1~R5의 핵심 설계 대응은 반영됨. 남은 보완은 manifestDigest 산출/응답 규격과 Billing-only restore/RESYNC 전후 오래된 worker·ACK의 consumer 세대 차단이다.
+- 요약의 commit120일을 capturedAt 관측 기준으로 동기화하고 전체 readiness 실패와 purchase 한정 거절을 구분하도록 권고. 보존·TTL·barrier 승인/구현/실제 Mongo 검증은 미수행. 제품/원격 변경 없음.
+
+## 2026-10-07 — Identity–Billing 공동 기술 계약 초안 검토
+
+- 검토서: docs/contracts/billing-joint-contract-review-2026-10-07.md. commit fence/journal/exact204/고정 snapshot 방향 타당. 구현 확정 전 snapshot baseline H ACK, 고정 feed H2 요청, replay floor와 consumer coverage GAP 구분, control 초기 생성/legacy 이행, 일반 발급 unknown commit 경로 보완 필요.
+- 추가 명세: commit 기준 보존시각, delivery 재개/시도/notBefore 필드, canonical digest와 snapshot 멱등/만료, Mongo durability/restore stream identity. 신규 보존120일/7일·TTL상한·barrier 미승인 유지. 정적 검토·문서만 변경, 코드/배포 없음.
+
+## 2026-10-07 — Billing 측 재검토 회신 대조
+
+- 사용자 제공 회신은 기존 Identity 정적 검토와 의미상 일치한다. 구현 승인·외부 계약 확정으로 취급하지 않음. 다음은 추상 방향 재확인보다 원천/보존·발급 경계·snapshot/feed·실패/재개 수치가 명시된 공동 기술 계약 초안이다.
+- 보완 권고: tombstone 존재만으로 전체 과거 coverage 완료를 선언하지 않기, rollback 시 publisher 중단과 capture 유지/누락 처리 분리, 실제 최대 TTL과 발급 지연 상한을 증명하기. 기존 LC 유지 및 판매/purge 별도 gate 유지. 제품/원격 변경 없음.
+
+## 2026-10-07 — Billing 구매·탈퇴 인계서 검토
+
+- 검토 문서: docs/contracts/billing-purchase-withdrawal-handoff-review-2026-10-07.md. 방향은 타당하나 purchase 상태별 제한·탈퇴 발급 경합, destination 독립 delivery, snapshot/feed 계약은 추가 작업이다.
+- 현행 차이: issuer 명시/default scope의 purchase 제한 없음, lowercase sub 엄격 강제 없음, TTL 양수만 검사. LC publisher는2xx 성공/401·403 dead-letter/Retry-After 미지원, 성공 원천 기본30일 정리. 기존 backfill은 원 ID가 아닌 name UUID 생성 및 첫100건 제한으로 Billing 복구 계약에 그대로 사용 불가.
+- 기존 SigV4 transport는 재사용 후보(현재 Retry-After1~300초 정수). purchase 활성·purge 안전성·운영 TTL/과거 coverage/실제 AWS 상태는 승인/확인하지 않았다. 코드/외부 문서/배포 변경 없이 정적 검토와 기록만 수행.
+
+## 2026-10-07 — recoveryId 재발급과 기존 요청 유효성 확인
+
+- develop에서 정적 확인: prepare는 독립된 접수 기록을 추가하며 기존 ID를 무효화하거나 연장하지 않는다. 신규 prepare 진행 중에도 기존 유효 ID로 lookup 가능하다.
+- 최초 lookup 만료 판단은 클라이언트 전송 시간이 아니라 서비스 진입 시각 기준. 전화 인증은 해당 prepare 이후여야 하며 동일 인증 증명은 여러 ID에 재사용할 수 없으므로 진행 중 인증 흐름의 ID를 자동 교체하지 않도록 안내.
+- 소비된 ID의 동일 증명 재시도는 별도 retryUntil(기본5분) 및 인증 유효 조건 적용. 제품·배포 변경 없이 기록2파일만 변경, 실행 테스트 생략하고 git diff --check로 검증.
+
+## 2026-10-07 — 테스트 recovery ON·정책 재배포 완료
+
+- 사용자 push d07cf4d3의 Actions37561447798 성공 후 태스크23 기반 설정 전용24를 등록·배포했다. ECS 성공/실행1/보류0 및 ALB 정상1/비정상0 확인. 기존 미배포 기록은 이 결과로 대체한다.
+- ACCOUNT_RECOVERY_ENABLED=true, PREPARE_PER_MINUTE=15, CHALLENGE_TTL=PT10M, RECENT_AUTH=PT10M 적용. 사용자 별도 승인 후 테스트 전용 HMAC Secret을 생성하고 실행 역할에 해당 Secret 읽기만 추가하여 KEY_RING 참조 주입. 다른 태스크 설정·운영 환경 보존, 원문 비출력.
+- 원격 검증: health UP, prepare HTTP200 SUCCESS·만료까지600초, 가짜 인증 lookup HTTP401 INVALID_RECOVERY_PROOF. 실제 전화 인증/회원 안내 E2E와 원격 한도 소진 검증은 미수행. 코드 테스트는 CI 성공 및 기존 로컬1186건 실패0/skip6 결과 유지.
+- 주의: SERVER_FORWARD_HEADERS_STRATEGY=none 유지로 서버 인식 IP 한도 공유 가능. 프록시 신뢰/IP 처리와 앱 E2E는 후속 과제. 이번 로컬 변경은 기록2파일뿐이며 commit/push/Jira/Notion 변경 없음.
+
+## 2026-10-07 — 모의고사 미완료 사용자 리마인더 방향
+
+- 사용자는 정해진 9시 또는 10시에 당일 모의고사를 풀지 않은 사용자에게만 알림을 보내는 기능을 설명했다. Learning Core가 학습 여부 판단과 예약 대상 선정을 소유하고 FCM 등으로 발송하는 구성을 권고. Identity에 시험 판단 로직 추가 안 함.
+- 제안 기준: 완료 여부는 제출 완료, 발송 직전 재확인, 사용자·날짜·알림 종류별 중복 방지, 수신 설정·유효 기기 토큰 확인. 오전/오후·시간대·실제 완료 기준은 미확정. 발송 이후 완료 및 푸시 지연의 경합은 완전히 제거할 수 없음. 구현·예약·배포 변경 없음.
+
+## 2026-10-07 — 계정 찾기 정책 구현 완료(미배포)
+
+- 구현 턴 식별 marker를 WORKLOG 끝에 보완하고 문서 diff 검사를 재확인했다. 구현·테스트 결과는 아래와 동일하다.
+
+- 코드 기본값: prepare IP당 고정1분15회, recoveryId10분, 최근 전화 인증10분. .env.example/application.yml/RecoveryProperties 및 계약 문서 동기화.
+- 로컬 DB 제한과 계정 찾기 ingress429는 거절된 구간의 실제 남은 초 Retry-After 반환(올림/최소1초). Firebase 자체429는 reset 미상으로 헤더 생략. 다른 SNS ingress 기존60초 유지.
+- 공통 Firebase 검증기의 high-risk5분 cap은 계정 찾기에 중복 적용하지 않고 AccountRecoveryService가 전용 recentAuth를 검사. 다른 인증 목적 제한·revoke/유효성 검사 유지. 응답 유실 retry5분·lookup 한도·기존 ID 만료일 유지.
+- 최종 ./gradlew clean test 성공:168 suites/1186 tests/실패0/오류0/skip6. 경계·HTTP·실제 verifier와 recovery service 조합·인메모리 Mongo·설정 override 검증. git diff --check 통과.
+- 배포 전: 기존 환경변수 override는 CHALLENGE_TTL=PT10M, RECENT_AUTH=PT10M, PREPARE_PER_MINUTE=15 확인 필요. 실제 프록시 IP 및 Firebase SDK QA 미확인. 코드만 수정, commit/push/배포/외부 문서 변경 없음. 선행·동시 작업 기록 보존.
+
+## 2026-10-07 — 알림 기능 서비스 경계 안내
+
+- Identity 서버를 지칭한다는 가정으로 설계 방향 안내. 계정 보안 알림의 발생 판단은 Identity, 채점·학습 알림의 발생 판단은 Learning Core 소유로 유지한다. 앱 공통 알림함·푸시 발송은 별도 알림 모듈/서비스를 권고하되 즉시 별도 서버 구축을 확정하지 않는다.
+- 문의 Slack 전달은 운영자용이며 사용자 푸시/알림함과 별도 계약이다. 사용자가 원하는 알림 종류 확인 전 구현·외부 문서·배포 변경 없음.
+
+## 2026-10-07 — recovery 정책 조정안
+
+- 사용자 제안 검토: 제한 구간의 실제 남은 초 Retry-After, prepare 서버 인식 IP당 고정1분15회, recoveryId TTL10분을 권고. 최근 전화 인증과 응답 유실 재시도 TTL은 각각5분, lookup 한도는 유지하는 범위로 구분했다.
+- 후속 사용자 결정: 최근 전화 인증 허용시간도10분으로 변경안에 반영. 응답 유실 재시도 TTL은5분 유지. Firebase SMS 코드 유효시간 변경과는 별개이며 아직 코드/배포에는 적용하지 않았다.
+- 해당 정책 결정 턴의 식별 marker를 WORKLOG 끝에 추가하고 문서 diff 검사를 완료했다.
+- 제품/배포 변경 없이 설정 확인·문서 기록만 수행. 프록시 IP 공유 문제와 실제 SDK QA는 별도 확인 필요.
+
+## 2026-10-07 — recoveryId 만료 오류 확인
+
+- 만료 검사 응답은410 RECOVERY_EXPIRED. 선행 인증 실패 또는 접수 기록 삭제 시 다른 오류가 먼저 발생할 수 있음을 안내. 제품 변경 없이 정적 확인·기록만 수행.
+- 현재 턴 WORKLOG 식별 기록 보완 및 문서 diff 검사 완료.
+- 후속 질문에 인증 검사 통과 후 만료 시410 RECOVERY_EXPIRED임을 재확인했다. 제품 변경 없음.
+- 재확인 턴의 정확한 식별 marker를 WORKLOG 끝에 추가하고 문서 검증을 수행했다.
+
+## 2026-10-07 — recovery 만료와 제한 안내 검토
+
+- prepare 고정 분 한도는 다음 분에 새10회지만 현재 공통 Retry-After900초는 더 보수적인 대기 안내다. 실제 제한별 헤더 산출을 개선안으로 설명했다.
+- 최초 lookup 전에 recoveryId가 만료되면 새 prepare 및 그 이후 PHONE 인증이 필요하다. 새 SMS 필요 여부와 credential 재사용은 SDK에 의존한다. 이미 처리한 조회 재시도는 별도 retryUntil 및 최근 인증 조건을 모두 만족해야 한다.
+- challengeTtl10분·recentAuth5분 유지안을 제안했으며 제품/배포 설정은 변경하지 않았다. 코드 정적 확인 및 문서 diff 검사만 수행했다.
+
+## 2026-10-06 — 계정 찾기 프론트 답변 정리
+
+- 검토한 Notion 질문 1~9 순서로 짧은 전달용 답변 작성. 제품·외부 문서 변경 없음. PHONE 인증 조건, cleanup 배포 미확인, 번호 재할당 위험 및 계정 삭제 대상 주의사항 유지. 문서 diff 검사 수행, 실행 테스트 미수행.
+
+## 2026-10-06 — Notion 계정 찾기 관련 요청 검토
+
+- 지정 Notion 페이지의 질문 9개를 읽고 recovery·exchange·enrollment·cleanup 코드를 대조했다. 외부 문서 및 제품 코드는 수정하지 않았다.
+- lookup은 SMS 입력 시각이 아니라 검증된 PHONE 토큰의 auth_time을 접수 createdAt(초 단위) 및 최근 인증 한도와 비교한다. 따라서 충돌 후 prepare → updated credential 전화 로그인 흐름은 해당 조건 충족 시 허용 가능하다. Android 확인은 문서 작성자의 보고이며 이번 서버 E2E/iOS 검증은 미실행이다.
+- exchange는 PHONE 로그인 토큰을 거절한다. ENROLLMENT_REQUIRED는 enrollment 기록을 생성/재사용한다. 가입 중단 Firebase cleanup 구현은 있지만 기본 worker OFF이며 실제 배포 설정·정리 대상 포함 여부는 미확인이다.
+- 번호 재할당 시 현재 마스킹도 계정 힌트를 노출한다. 자동 로그인/연결 권한을 주지 않더라도 잔여 개인정보 위험은 별도 판단 필요. 다음은 실제 SDK 통합 검증과 cleanup 배포 설정 확인이다.
+
+## 2026-10-06 — 계정 찾기 prepare 429 기준 안내
+
+- 코드 기본값은 서버 인식 IP당 고정1분10회, 같은 분11번째부터429 RECOVERY_RATE_LIMITED. ACCOUNT_RECOVERY_PREPARE_PER_MINUTE로 조정 가능.
+- 현재429 Retry-After는 lookup 한도까지 고려한 공통900초이며 prepare 카운터의 분 경계 리셋과 다름. 실제 환경 설정/프록시 IP 미조회. 정적 확인·기록만 수행, 제품 변경 없음.
+
+<!-- codex-turn:01a10fa4-2961-7860-bcba-e6e247a3209d -->
+
+- 2026-10-06 Notion 문의 API 8.25를 8.21 스타일로 재정리: API 제목, 하위 제목, 요청·응답 JSON 코드 블록, 오류 대응 표, 분리된 설명 문단 및 목록 적용. 기존 계약과 9번 부록 유지, 브라우저 저장·시각 확인 완료. 제품 변경 없음.
+
+<!-- codex-turn:01a10f9d-3d97-7601-831d-1eb47d90ef53 -->
+
+- 2026-10-06 Notion 로그인 가이드에 사용자 최종 요청 번호인 8.25 문의 접수 API를 추가했다. 요청·응답·REFUND 인증·오류·멱등 재시도·제한·테스트 확인 범위와 남은 QA를 문서화하고 새로고침 후 저장을 확인했다. 기존 8.24 및 9번 부록/링크 유지. 제품 코드·배포 변경 없음. 다음은 실제 로그인 REFUND 및 프론트 연동 검증이다.
+
+<!-- codex-turn:01a10f96-3606-7a93-ab8b-2f97db4aa912 -->
+
+- 2026-10-06 사용자 지정 문의 본문을 테스트 GENERAL 문의로 1건 접수: HTTP201 RECEIVED 및 Slack 문의-테스트 채널 전체 본문 수신 확인. 로그인/회신 이메일 없이 전송했고 제품 변경 없음. 이번 작업은 전달 테스트이며 문의 내용에 대한 원인 분석·회신 처리는 아님.
+
+<!-- codex-turn:01a10f83-0128-7d02-a611-4b70257bdb79 -->
+
+- 테스트 문의·Slack ON 배포 완료의 현재 턴 식별 기록 보완 완료. revision22 정상 가동 및 실제 API/Slack 검증 결과 유지. 이번 보완은 문서만 변경함.
+
+## 2026-10-06 TMI-197 테스트 문의·Slack ON 배포 완료
+
+- develop 커밋 cc076442의 GitHub Actions 실행37414782746 성공 확인. 기존 배포21 안정화 후 설정 전용 revision22로 테스트 Identity 서비스 갱신, PRIMARY COMPLETED/running1/failed0 확인.
+- SUPPORT_INQUIRY_ENABLED=true, SUPPORT_SLACK_WORKER_ENABLED=true, SERVER_FORWARD_HEADERS_STRATEGY=none, 실제 ALB 두 subnet CIDR만 SUPPORT_TRUSTED_PROXIES로 지정. HMAC·Slack JSON 키 Secret 참조 주입. 비밀 원문 조회/출력 없음.
+- 사용자 명시 승인 후 테스트 execution role에 문의용 Secret 두 개 GetSecretValue만 허용하는 별도 ReadSupportInquirySecrets 정책 추가. 기존 정책·운영 서버·ALB 보안 그룹 변경 없음.
+- 실제 테스트: health200/UP, 익명 REFUND401 SUPPORT_REFUND_AUTH_REQUIRED, 합성 GENERAL201, 동일 키/내용200·동일 접수번호, 같은 키 다른 내용409. Slack 문의-테스트 채널에서 합성 문의 도착 확인.
+- 초기 앱 시작55초 동안 ALB unhealthy가 관측됐으나 정상 시작/healthy 및 배포 완료 확인. 실제 인증된 REFUND의 서버 접수는 이번 배포 검증에서 미실행(단위/웹 테스트로 기존 검증).
+- 다음: 프론트 연동 및 실제 계정 테스트. 테스트 문의1건과 Slack 알림은 보관, 자동삭제하지 않음. 로컬 제품 변경/commit/push/Jira 변경 없음. 앞선 push·AWS 인증 대기 기록은 이 완료 결과로 대체.
+
+<!-- codex-turn:01a10f81-0dc3-7393-a4f8-f53bf1db6a85 -->
+
+- 테스트 문의 ON·재배포 요청의 현재 턴 기록 보완 완료. 사용자 commit/push와 AWS 인증 대기이며 ON/재배포는 미수행. 이번 보완은 문서만 변경함.
+
+## 2026-10-06 문의 기능 ON·재배포 요청 — 사용자 push 필요
+
+- 테스트 Identity 재배포 및 문의/Slack flag ON 요청 수신. 읽기 확인 결과 develop HEAD에는 문의 초기 구현 병합만 있고 REFUND enum·인증된 userId 필수 변경은 로컬 미커밋 상태다.
+- 사용자 commit/push 전 새 요구사항이 빠진 이미지로 기능을 켜지 않도록 원격 변경 보류. 저장소 규칙상 Codex commit/push 금지 유지.
+- 로컬 AWS CLI는 NoCredentials로 원격 상태 조회 불가. Secret 값은 읽지 않았으며 실제 ECS revision·권한·프록시·flag 상태는 미확인.
+- 다음: 사용자 develop commit/push 및 CI 완료 후 로그인된 AWS 콘솔 또는 인증된 CLI에서 현재 task/image·Secret refs·권한·proxy 검증, 테스트 한정 flag ON 및 재배포. 이번 작업 원격 변경 없음.
+
+<!-- codex-turn:01a10f7e-aad6-7531-a64a-c2f256e484aa -->
+
+- 환불 문의 서버 확인 userId 필수화의 현재 턴 기록 보완 완료. 아래 구현·테스트 결과 유지, 재배포는 미수행. 이번 보완은 기록 파일만 변경함.
+
+## 2026-10-06 REFUND 문의 서버 사용자 ID 필수화
+
+- develop 유지. REFUND는 서버 인증으로 확인한 활성 MEMBER/GUEST userId 필수. 익명은401 SUPPORT_REFUND_AUTH_REQUIRED, 요청 본문 userId는 계속 거절. AUTH/GENERAL 익명 접수 유지.
+- 컨트롤러와 서비스에서 저장/멱등 응답 전 검사. HTTP 거절·회원 접수·임의 ID 금지·미저장·MEMBER/GUEST ID 저장 테스트 및 Swagger/문서 갱신.
+- `./gradlew clean test exportOpenApi` 성공: 실행1164 통과, opt-in Mongo6개 제외. 기존 데이터 소급 변경/배포/commit/push 없음. 선행 REFUND 변경과 기록 보존, 예상 밖 변경 없음.
+- 다음: 새 코드 배포 후 프론트 REFUND 요청에 Identity Access Token 포함. 회원 전용 제한이나 자동 환불 기능은 아님.
+
+<!-- codex-turn:01a10f7b-7694-7b90-b4ef-b55fa4829113 -->
+
+- REFUND 분류 추가 작업의 현재 턴 식별 기록 보완 완료. 구현·테스트 결과는 아래 항목과 동일하며 실제 재배포는 미수행. 이번 보완은 기록 파일만 변경함.
+
+## 2026-10-06 문의 환불 분류 추가
+
+- 현재 develop 브랜치에서 SupportRequest.Category에 REFUND 추가. AUTH/GENERAL 유지, 환불 문의 접수만 지원하며 결제 취소/자동 환불은 구현하지 않음.
+- HTTP REFUND 접수201 및 서비스 전달 검증 추가, API 계약 갱신. `./gradlew clean test exportOpenApi` 성공: 1161 통과, 로컬 Mongo opt-in6개 제외. Swagger enum 생성 확인.
+- 기존 인증·멱등·제한·Slack 접수번호+본문 형식 유지. 배포/commit/push 없음. 다음은 사용자 재배포 후 프론트 분류 선택지에 REFUND 연결. 선행 WORKLOG 변경 보존, 예상 밖 제품 변경 없음.
+
+<!-- codex-turn:01a10f04-4e9c-78a3-b53e-bc138986d9f0 -->
+
+## 2026-10-06 TMI-197 문의 API 구현 완료 — 배포 전
+
+- 브랜치: 사용자 지정 `feat/TMI-197-support-inquiry`. 아래 이전 미구현/구현 대기 기록은 이 결과로 대체한다.
+- `POST /api/v1/support/inquiries`: 선택 인증, 서버 판별 userId, 엄격 JSON/본문 제한, Mongo 원자 접수·멱등·quota·outbox 구현. Slack 접수번호+본문 plain_text 비동기 전송, 최대5회/lease/CAS와 안전한 counter 구현.
+- 내부 SupportOperations는 승인 참조·FAILED CAS·수동 replay1회 제한·삭제 감사 primitive 제공. 운영 runner/UI는 별도, 실제 삭제/재전송 수행 없음.
+- 테스트: `./gradlew clean test exportOpenApi` 성공(1,166개 중1,160 통과, opt-in6개 제외). 별도 로컬 replica set 통합6개 모두 통과. 최종 diff 검사 수행. 외부 Atlas/OAuth/Slack 호출 없음.
+- 계약: 기존 JWT/인증/병합 변경 없음. Access JWT의 sessionId/epoch 부재로 개별 로그아웃 즉시 판별은 불가. 현재 ACTIVE 계정 검증 적용.
+- 배포 전: 별도 HMAC Secret, webhook Secret 주입·최소권한, forward headers NONE/신뢰 ALB CIDR 검증, Mongo 트랜잭션·인덱스 확인, 합성 Slack 전송/개인정보 보관·삭제·운영 경보 준비. flags 기본 OFF, 실제 배포 없음.
+- 문서: `docs/contracts/support-inquiry-api.md`, 기존 계획서 갱신. 사용자 선행 문서 변경 보존. 예상 밖 제품 변경 없음. commit/push/Jira 변경 없음. WORKLOG에 Jira 댓글 초안만 기록.
+
+<!-- codex-turn:01a10f00-f666-79e3-9142-33cd134048a6 -->
+
+- TMI-197 Secret 등록 완료 보고의 현재 작업 식별 기록 보완 완료. 사용자 보고 상태 유지, 실제 Secret 조회/서버 연결/구현/전송 없음.
+
+- 2026-10-06 TMI-197 문의 Slack 웹훅 Secret 등록 완료 사용자 보고 수신. 실제 저장값·권한 미조회이며 서버 주입/구현/알림 테스트는 아직 미수행. 다음은 별도 구현 요청 후 개발이다.
+
+<!-- codex-turn:01a10efe-c718-7d50-9428-e0478975d850 -->
+
+- TMI-197 Slack 설정 완료 후속 안내의 현재 작업 식별 기록 보완 완료. 사용자 보고 상태 및 Secret 보관 안내 유지, 실제 외부 설정/전송 변경 없음.
+
+- 2026-10-06 TMI-197 Slack 앱/웹훅 설정 완료 사용자 보고 수신(원격 미검증). 테스트 전용 Secrets Manager 신규 보관 단계 안내, 실제 Secret 저장·서버 주입·구현·전송은 미수행.
+
+<!-- codex-turn:01a10efc-f6ef-72c3-901c-f3ad63f856e6 -->
+
+- TMI-197 Slack 앱 생성 안내의 현재 작업 식별 기록 보완 완료. Blank app 선택 안내 상태 유지, 실제 외부 설정 변경 없음.
+
+- 2026-10-06 TMI-197 Slack 생성 메뉴 안내: 사용자가 제시한 선택지 중 Blank app 권고. Incoming Webhooks만 필요한 알림 용도이며 실제 앱/권한/외부 설정 변경 없음.
+
+<!-- codex-turn:01a10efa-eec3-73b1-ba40-3825c82fb58d -->
+
+- 2026-10-06 TMI-197 Slack 연동 준비 순서 안내: 개발은 mock 기반 진행 가능, 실제 알림 테스트 전 채널·앱 Incoming Webhooks·설치 승인·Secret 보관/서버 주입 필요. 실제 Slack 설정/전송 변경 없음.
+
+## 2026-10-06 — SMS 재인증 UX 구분
+
+- 가입 후 별도 계정 찾기를 새로 시작하면 재인증이 필요할 수 있지만 link와 PHONE sign-in 두 동작이 반드시 SMS 입력 두 번을 의미하지는 않는다. 유효한 동일 credential 활용 가능성은 SDK 검증 필요.
+- SMS 1회 통합은 아직 미구현·미검증이며 prepare 순서, PHONE authTime, 기존 SNS/Guest 상태 보존을 함께 설계해야 한다. 설명·기록만 수행.
+
+## 2026-10-06 — lookup용 전화 토큰 흐름 명확화
+
+- 새 SNS 계정에 기존 번호 link가 실패한 뒤 기존 SNS ID Token을 lookup에 보내는 흐름은 지원하지 않는다. prepare만 추가해도 해결되지 않는다.
+- lookup은 Firebase PHONE sign-in으로 얻은 ID Token을 요구한다. 번호가 기존 Firebase 사용자에 연결돼 있으면 해당 사용자로 전화 로그인하는 것이며 새 SNS 연결/Identity 로그인·병합은 아니다.
+- 가입 SNS/Guest 상태를 보존하면서 PHONE sign-in을 수행하는 프론트 흐름이 필요하다. 같은 SMS credential 재사용과 secondary Auth 지원은 실제 SDK 검증 전 확정하지 않는다. 설명·기록만 수행, 제품 변경 없음.
+
+<!-- codex-turn:01a10ef1-07cb-7d42-93d8-903c20e323d2 -->
+
+## 2026-10-06 TMI-197 생성 완료 — 구현 대기
+
+- 현재 작업 Jira: TMI-197 `[Identity] 문의 접수 API 및 Slack 알림 구현`, 상위 TMI-136. 사용자 승인 후 공식 MCP 생성 및 parent 재확인 완료. 초기 해야 할 일, 댓글/별도 상태 전환 없음.
+- 계획서에 이슈 연결. 제품 코드/배포 변경 없음. 다음은 별도 구현 요청 후 TMI-197 기준 개발이다. 앞선 생성 승인 대기 기록은 본 결과로 대체.
+
+<!-- codex-turn:01a10eee-8fe3-7cb0-bb7c-4198221c4961 -->
+
+- 2026-10-06 문의 접수 Jira 생성안 제시: Identity 문의 API·DB/중복 방지·Slack 본문 알림·횟수 제한·테스트/문서 범위. 상위 TMI-136 배치는 제안이며 사용자 내용 승인 후 조회/생성 예정. 아직 Jira 생성·댓글·상태 변경 없음.
+
+<!-- codex-turn:01a10eeb-3ff8-7ec3-9c98-19c000ac8d1c -->
+
+- 2026-10-06 승인된 문의 접수 계획을 사용자 작성부터 DB/Slack/수동 회신 순서로 재설명. 확정 정책 변경 없고 미구현 상태 유지. 작업 기록만 추가, 외부 변경 없음.
+
+## 2026-10-06 — recoveryId 사전 접수 설명
+
+<!-- codex-turn:01a10ee6-7ba7-7083-8fc0-470b2c34ef5a -->
+
+- 이번 설명 작업의 식별 기록 보완 완료. 추가 구현 없이 기존 계약 설명 및 대안 검토 상태 유지.
+
+- recoveryId의 UUID 생성 위치보다 서버의 사전 Attempt 저장·시각·만료·proof 사용 기록이 중요하다. 현재 임의 UUID는 등록된 시도가 없어 거절된다. 클라이언트 UUID 사전 등록은 대안이지만 prepare 역할 자체를 없애지는 않는다.
+- prepare 이후 PHONE 인증 요구는 현재 계약 선택이며 가입 자체의 필수 조건은 아니다. 가입 통합에서 사전 enrollment 활용/별도 proof 계약 가능성은 추가 설계 대상. 코드 변경 없이 설명·기록만 수행.
+
+## 2026-10-06 — 가입 중 전화번호 중복 계정 안내 UX 검토
+
+- 최근 전화 소유 인증을 서버에서 검증한 뒤 기존 가입 SNS와 마스킹 이메일을 같은 가입 화면에서 안내하는 방향을 권장한다. 번호 입력/중복 오류만으로 공개하지 않으며 자동 로그인·SNS 연결·병합은 하지 않는다.
+- 기존 recovery prepare를 SMS 전에 발급하고 중복 시 PHONE proof로 lookup하는 통합안을 검토할 수 있다. SNS link와 PHONE sign-in의 차이 및 동일 SMS credential 재사용은 SDK 검증 전 확정 불가. 기존 Guest/SNS 인증 상태 보존 필요.
+- 설계 설명·기록만 수행, 제품/외부 변경 없음. 다음은 사용자 방향 확정 후 정확한 인증 흐름 설계다.
+
+<!-- codex-turn:01a10edd-1cc6-7250-94ba-2becea23bf6b -->
+
+## 2026-10-06 문의 접수 기본안 승인 — 미구현
+
+- 사용자 승인으로 Identity 독립 모듈, 선택 이메일·수동 회신, 문의90일·멱등7일, 사용자/익명 IP별 시간5건·일10건, Slack 접수번호+본문 확정. DB 상세 조회/횟수 제한만/화면 주의 문구 유지.
+- 계획서의 해당 결정 대기 기록은 본 승인으로 대체. 실제 채널·담당자·Secret·개인정보 고지 및 Slack 보관/삭제 준비는 출시 전 필요. 구현·배포·외부 전송은 이번에 수행하지 않음.
+
+## 2026-10-06 — 계정 찾기 요청 순서 안내
+
+- prepare 본문은 {}이며 전화번호/Identity 토큰을 보내지 않는다. 가입 여부 사전 확인 없이 진입하고 PHONE 인증 후 lookup 결과로 계정 유무·안내 가능 여부를 판정한다.
+- 가입 중 중복 오류는 계정 찾기 진입 계기가 될 수 있지만 필수 조건은 아니다. 새 prepare 후 전화 인증 필요(authTime 검사), 단순 ID Token 갱신은 과거 인증시각을 갱신하지 않음. Firebase link와 전화 sign-in 구분, 기존 Identity 세션 보존.
+- 정적 코드·문서 확인 및 기록만 수행. 제품·배포·Jira 변경 없음.
+
+<!-- codex-turn:01a10ed4-6d36-7761-a710-70cac13f1f21 -->
+
+- 문의 계획 현황 설명의 현재 작업 식별 기록 보완 완료. 선택사항과 미확정 정책 구분 유지, 추가 제품·외부 변경 없음.
+
+- 2026-10-06 문의 계획 현황 요약: 선택 완료인 Slack/횟수 제한/DB 조회/입력 주의 문구와 미확정 정책을 구분해 안내. 본문 Slack 표시 방향 및 서버 userId 식별·원자 접수/비동기 알림 구조 유지. 이번에는 설명·기록만 수행, 구현 없음.
+
+<!-- codex-turn:01a10ed2-c1af-7a10-9220-b5cc9c5fdd92 -->
+
+- 문의 입력 안내 선택의 현재 작업 식별 기록 보완 완료. 화면 주의 문구 및 별도 개인정보 고지 검토 방침 유지, 추가 제품·외부 변경 없음.
+
+- 2026-10-06 문의 입력 화면에는 별도 Slack 전달 문구 없이 민감정보 입력 주의 문구를 두는 선택 반영. 개인정보 처리방침의 필요한 고지·동의 검토는 유지하며 실제 외부 전송 없음. 계획 문서만 수정.
+
+<!-- codex-turn:01a10ed0-dfeb-7c01-9438-490a2f848b2d -->
+
+- 2026-10-06 문의 계획 선택 반영: Slack 알림, 요청 횟수 제한만(CAPTCHA 제외), 제한된 DB 상세 조회. 요약 없이 Slack 본문 표시 변경안 추가, 이메일/userId/진단 필드 제외 및 접수번호 여부 확인 필요. 실제 수신 채널·개인정보 안내·Slack 별도 보관/삭제·기타 정책 미확정. 문서만 변경, 외부 전송 없음.
+
+<!-- codex-turn:01a10ec8-ada9-7182-9907-f70c1c170a42 -->
+
+- 2026-10-06 문의 계획의 미확정 6항목에 대한 선택지/장단점/초기 권고안을 안내. 사용자 선택 대기이며 제안을 확정 정책으로 변경하지 않음. 코드·외부 설정 변경 없음.
+
+## 2026-10-06 — 계정 찾기 API 경로 재확인
+
+- POST /api/v1/auth/account-recovery/prepare → SMS PHONE 인증 → /lookup(recoveryId, firebaseIdToken). 마지막 로그인 이력이 아니라 전화번호에 연결된 가입 SNS/마스킹 이메일을 안내한다.
+- 코드·계약 정적 확인만 수행. 제품·배포·Jira 변경 없음, 환경 활성화 여부 미조회.
+
+<!-- codex-turn:01a10b59-4d9a-7561-9cc5-0ce90d2da38d -->
+
+- 문의 접수 API 계획서 작성의 현재 작업 식별 기록 보완 완료. 계획서 완료·미구현 상태와 정책 결정 대기 유지, 추가 제품/외부 변경 없음.
+
+## 2026-10-05 문의 접수 API 계획서 작성 완료 — 미구현
+
+- [문의 접수 구현 계획](../contracts/support-inquiry-implementation-plan.md) 작성. 인증/익명 접수, 서버 userId 식별, 원자 저장/멱등성/알림 재시도/남용 보호/개인정보/검증·출시 절차 포함.
+- 서비스 소유권·Slack/Discord·회신/보관 정책은 사용자 결정 필요. 일반 지원 기능 배치는 아직 미승인이고 수치/오류/설정은 제안이다.
+- 제품 코드·외부 설정·Jira·배포 변경 없음. 문서 검사만 수행, 기존 기록 보존.
+
+<!-- codex-turn:01a10b58-4c5c-7651-8cc9-0ad1de41fe34 -->
+
+- 2026-10-05 문의 접수 설계에 서버 식별 userId 저장 요구 반영: 유효한 Identity 토큰 sub 기반으로 Guest/Member 계정을 기록, 비로그인은 null. 요청 본문 userId 추가 없이 기존 신뢰 경계 유지. 설계 안내만 수행하며 제품 구현/배포 없음.
+
+## 2026-10-05 — TMI-195 구현 완료, 커밋·배포 대기
+
+<!-- codex-turn:01a10b1c-0cee-7291-b87e-5cb9ee74bbc2 -->
+
+- 이번 구현 작업의 식별 기록 보완 완료. 추가 제품 변경 없이 전체1129 테스트 통과 및 배포 대기 상태 유지.
+
+- 현재 브랜치 feat/TMI-195-app-version-api, Jira TMI-195. 공식 MCP 완료 조건 확인 후 최신 버전 조회만 구현. Jira 상태/댓글 변경 없음.
+- 공개 GET /api/v1/app/version?platform=android|ios, result={platform,latestVersion}. 기존 BaseResponse 및 인증 경계 유지. 잘못된 플랫폼400, 미설정503, 성공/컨트롤러 오류 no-store. 안내/강제 차단/최소 지원 버전/스토어 이동 제외.
+- APP_ANDROID_LATEST_VERSION/APP_IOS_LATEST_VERSION 기본 빈값. 숫자 major.minor.patch 최대32자 검증. 실제 출시 버전을 설정해야 조회200이며 잘못된 비공백 설정은 기동 실패한다. 신규 DB/키/관리 API 없음.
+- 최종 ./gradlew clean test exportOpenApi 성공: 161 suites/1129 tests 실패0, Swagger33 operations/32 paths. [API 계약](../contracts/app-version-api.md) 및 예시 갱신. 기존 작업 기록 보존, 예상 밖 변경 없음.
+- 실제 배포·실앱 조회는 미수행. 다음은 사용자 diff 검토/커밋과 실제 출시 버전 설정·배포 smoke다. 아래 구현 대기 기록은 본 결과로 대체한다.
+
+## 2026-10-05 — TMI-195 생성 완료, 구현 대기
+
+<!-- codex-turn:01a10b19-26f2-7d50-97ef-1b70781c2d17 -->
+
+- 이번 생성 작업의 식별 기록 보완 완료. 추가 Jira 변경·제품 구현·배포 없음.
+
+- 현재 작업 Jira: TMI-195 `[Identity] 플랫폼별 최신 앱 버전 공개 조회 API 구현`, 상위 TMI-136. 사용자 승인 후 공식 MCP로 생성하고 parent를 재확인했다. 상태는 해야 할 일이며 별도 전환/댓글 없음.
+- 공개 GET /api/v1/app/version의 platform/latestVersion 조회만 구현 범위. 환경변수 관리 및 플랫폼400/미설정503·테스트/문서 포함, 프론트 업데이트 처리·배포 제외.
+- 로컬 기록만 갱신, 제품 코드/배포 변경 없음. 다음은 구현 요청 후 TMI-195 기준 개발이다. 아래 생성 승인 대기 기록은 본 결과로 대체한다.
+
+## 2026-10-05 — TMI-136 하위 버전 조회 이슈 등록 준비
+
+<!-- codex-turn:01a10b18-3fba-7c72-81ab-04792f774dae -->
+
+- 현재 관련 Jira: TMI-136(sns 로그인 에픽). 공식 MCP로 조회 완료. 구현 전 Jira 생성 요청에 따라 제품 구현은 중단했고 소스 변경 없음.
+- 하위 작업 초안: Identity 공개 GET /api/v1/app/version?platform=android|ios, platform/latestVersion만 반환, 환경변수 관리, 잘못된 플랫폼400/미설정503, 테스트·문서 추가. 프론트 안내/강제 정책 및 배포 제외.
+- 생성 내용 사전 승인 대기. 이슈 생성·댓글·상태 변경은 아직 수행하지 않음. 다음은 승인 후 생성이다.
+
+## 2026-10-05 — 버전 조회 책임 범위 정리
+
+<!-- codex-turn:01a10b15-b1d2-70e2-9608-6ce1ec1e977d -->
+
+- 이번 서버 범위는 플랫폼별 최신 출시 버전 정보 제공이다. 설치 버전 비교·업데이트 안내·스토어 이동·앱 진입 제한은 프론트 역할이다.
+- 안내/강제 정책 선택을 이번 조회 API 구현의 필수 선결정으로 요구하지 않는다. 원격 최소 지원 버전 관리나 서버 API 차단은 별도 요구사항으로 구분한다.
+- 기록만 수정, 제품 구현·배포 없음. 기존 계획의 안내/강제 정책 확정 대기 표현은 위 책임 구분으로 보완한다.
+
+## 2026-10-05 — 앱 버전 조회 설계 제안, 구현 전
+
+<!-- codex-turn:01a10b0d-f3ea-7920-aa3a-5288a1a184dc -->
+
+- 이번 계획 설명의 작업 식별 기록 보완 완료. 아래 내용은 제안 상태이며 추가 구현·배포 없음.
+
+- 공개 GET /api/v1/app/version?platform=android|ios에서 latestVersion/storeUrl을 제공하고 앱에서 설치 버전과 비교하는 안내 전용 1차안을 제안. 환경변수 관리·재배포 방식이며 DB/관리자 API/강제 차단은 초기 범위 밖.
+- Identity 공개 메타데이터 배치는 아직 제안으로 소유 서비스 확인 필요. 최소 지원 버전·강제 업데이트 및 빌드/OTA 비교를 자동 포함하지 않는다. 실제 스토어 공개 이후 설정 갱신, 조회 장애로 로그인 차단 금지 권장.
+- 코드/계약 미변경, 기록만 갱신. 다음은 서비스 배치·안내/강제 정책·관리 방식 확정 후 구현이다.
+
+## 2026-10-05 — 앱 버전 조회 API 확인
+
+- Identity develop Controller/소스와 로컬 Learning Core 소스·계약 검색 기준 최신 출시 앱 버전 API는 아직 없다. 10월2일 요구사항은 `docs/contracts/guest-app-update-transition-review.md` 3.1~3.2에만 기록돼 있고 담당 서비스·경로·응답·갱신 방식 미확정이다.
+- 정책 동의 버전 조회는 앱 버전 조회가 아니다. 제품 변경 없이 기록만 갱신했고 정적 검색·diff 검사 수행. 원격 배포 상태 미조회, 다음은 API 계약 확정이다.
+
+<!-- codex-turn:01a10139-c9ee-7ae2-91f6-d7e05be1f4e0 -->
+
+- 2026-10-03 이번 LC 변경 필요성 설명의 작업 식별 기록 보완 완료. 기존 계약 준수 시 추가 API 불필요, 실제 LC 코드/배포 확인 필요라는 결론 유지. 제품 코드·외부 설정 변경 없음.
+
+## 2026-10-03 — 테스트 병합 진행 추적 활성화 배포 완료
+
+<!-- codex-turn:01a10141-313e-77f3-a08a-d3cf5299ee61 -->
+
+- develop 작업. 사용자 요청으로 Identity 테스트 개정17→18 설정 배포 완료(19:24 KST). ECS 성공/running1/pending0, 이전 태스크 종료, 신규 ALB Healthy와 공개 health UP 확인.
+- owner UserMerged capture·merge progress capture·LC publisher ON, profile LEARNING_CORE_ONLY, LC 테스트 endpoint 지정. 이 5개 환경변수만 변경하고 이미지52690d2·Secret 참조·역할·네트워크·태스크 수 유지. Billing/trial OFF, 기존 workload/Guest merge/legacy publisher ON 유지. 운영 서버 미변경.
+- LC 테스트 개정12는 이미 writer/source-deny/consumer ON 및 배포·ALB 정상이라 추가 변경 없음.
+- 집중 회귀42 tests 성공. 로컬 변경은 기록2개뿐, 예상 밖 변경 없음. 실제 사용자 병합/응답 유실/COMPLETED 종단 검증과 DB 인덱스 목록 직접 대조는 미수행. 다음은 지정 테스트 계정 E2E.
+
+## 2026-10-03 — LC 실제 코드 확인 완료
+
+<!-- codex-turn:01a1013b-91c3-7b12-a3d7-e8358e17b200 -->
+
+- Identity/LC develop 기준 LC 실제 consumer를 확인했다. 기록 이전·source guard·PROCESSED inbox 동일 Mongo Transaction 후204, 동일 이벤트/digest 중복 성공, 미확정503이 구현돼 있어 이번 조회를 위한 추가 callback/status API는 불필요하다.
+- LC `./gradlew test --tests 'web.tosunsaeng.domain.usermerge.*'` 성공. 제품 코드 변경 없이 Identity 기록만 갱신했고 기존 변경은 보존했다.
+- LC writer/source-deny/consumer flag와 workload issuer/JWKS, guard/index·구 writer drain이 선행 조건이다. 실제 배포 설정/revision, replica-set 장애와 응답 유실·성능·Identity COMPLETED 종단 검증은 이번 확인에 포함하지 않았다.
+- 다음: 대상 환경 설정 확인 및 신규 merge/중복 재전송 E2E. 과거의 LC 실제 코드 미조회 표기는 본 확인으로 대체하되 배포 미확인 상태는 유지한다.
+
+## 2026-10-03 — 배포 후 활성화 설정 안내
+
+<!-- codex-turn:01a10137-a985-7210-b69e-57c1222cafc4 -->
+
+- 브랜치 develop. 사용자가 배포 완료를 알렸으나 실제 환경 설정/LC 상태는 이번에 조회하지 않았다.
+- 신규 추적 기본 OFF: owner UserMerged capture + merge progress capture + LC publisher ON 및 명시 LEARNING_CORE_ONLY 필요. LC endpoint/workload JWT enabled·issuer, 기존 Guest merge 활성화 확인. Billing 관련 기능은 첫 출시 OFF 유지.
+- 조회 API 자체는 별도 ON 플래그가 없으며 새 병합의 추적 생성에 설정이 필요하다. 과거 미추적 작업 자동 생성 없음. legacy publisher 잔량 확인 없이 OFF하지 않도록 안내.
+- 제품/환경 변경 없이 설정 정적 확인·기록만 수행. 다음은 LC commit/멱등204 준비 확인, 설정 적용·재시작 후 신규 mergeId/완료 상태 검증.
+
+## 2026-10-03 최신 문서 작업 — Notion 병합 진행 조회 인계 완료
+
+<!-- codex-turn:01a100c3-c1e0-7003-92b6-d71ca75d5d27 -->
+
+- 현재 확인 브랜치 develop. 브랜치 이동/제품 코드/commit/push/배포/Jira 작업 없음.
+- 사용자 지정 Notion 로그인 문서의 4.5·병합 충돌 처리·카탈로그·8.6을 갱신하고 8.22~8.24에 회원용 단건/목록 GET, 상태/오류/권한/polling/복구·LC-only/Billing NOT_REQUIRED·출시 조건을 추가했다.
+- 새로고침 후 JSON mergeId, 신규 절과 기준일의 저장 상태 확인. 기존 출시 설정 부록 보존. 다른 로그인 기능은 전면 동기화하지 않았으며 기준일에 이번 부분 갱신 범위를 명시했다.
+- 로컬 변경은 작업 기록 2개 파일뿐. 제품 테스트 재실행 없음(문서 작업); 기존 Java1108/Node3 검증과 실제 배포·LC E2E 미확인 상태를 구분했다.
+- 다음: 프론트 인계 및 실제 배포/LC 종단 검증. 다른 과거 Notion 절은 최신 저장소 계약과 별도 대조 필요.
+
+## 2026-10-03 최신 상태 — Guest 병합 진행 조회 구현 완료, 실제 종단 검증·배포 대기
+
+<!-- codex-turn:01a1009a-6e25-7f03-8c9a-5098353f662c -->
+
+- 현재 브랜치: `feat/TMI-192-single-sns-account-recovery`. Jira TMI-192의 기존 변경을 보존한 별도 후속 범위이며 새 이슈는 미생성. 공식 MCP로 기존 이슈 조회만 수행, 상태/댓글 변경 없음.
+- 구현: merge 전용 응답에 실제 fanout eventId인 mergeId, 회원 본인 GET 단건/목록, 생성 당시 profile 불변, LC-only/Billing NOT_REQUIRED, strict204 ACK·delivery/cursor/progress 동일 트랜잭션·CAS, FIFO blocker/비활성 분류, 목록/cursor/분산quota/no-store/현재 계정 검사, TTL 및 탈퇴 privacy cleanup 연결.
+- 신규 추적 기본 OFF. `OWNER_EVENT_MERGE_PROGRESS_CAPTURE_ENABLED`와 명시 `OWNER_EVENT_MERGE_COMPLETION_PROFILE` 필요. 첫 출시 LEARNING_CORE_ONLY이며 Billing delivery/sequence/credential 불필요. 이후 신규 작업만 양쪽 필수, 과거 replay/backfill 없음.
+- 검증: 최종 `./gradlew clean test exportOpenApi` 성공, Java 160 suites/1108 tests 및 Node 3/3, 실패/오류/skip 없음. diff 공백 검사 통과. 공개 OpenAPI 32 operations/31 paths.
+- [확정 API·운영 계약](../contracts/guest-merge-progress-api.md)과 프론트/계획/런북 갱신. signup/upgrade·JWT·UserMerged wire 계약 유지. 로컬 도구는 최근20건 수동 조회 추가, 실제 앱 UI는 별도.
+- 미확인/배포 전: 실제 Mongo replica-set rollback/동시성 및 LC commit·duplicate204·source write guard/탈퇴 경합 E2E, 신규 인덱스/워크로드 인증·관측 알람 검증. 테스트 에뮬레이터의 partial index 한계는 API 문서에 명시.
+- 예상 밖 변경 없음. 기존 단일 SNS·계정 찾기 변경 보존, commit/push/배포 미수행. 다음은 사용자 diff 검토·커밋과 실제 LC 연동 검증 후 활성화.
+
+## 이전 검토 기록 — 아래 미구현/계획 표기는 각 기록 당시 상태이며 위 최신 상태로 대체
+
+- 2026-10-03 LC-only 조회 계획 반영의 현재 turn 식별 기록 보완 완료. 프론트 책임 분리·첫 출시 Billing NOT_REQUIRED·향후 과거 병합 재실행 없음 결정 유지. 계획서 반영 완료, 제품 API 미구현 상태이며 추가 변경 없음.
+
+- 2026-10-03 사용자 방향 반영 완료: [병합 완료 조회 계획](../contracts/guest-merge-progress-query-implementation-plan.md)에 첫 출시 LEARNING_CORE_ONLY/Billing NOT_REQUIRED, 이후 신규 작업만 양쪽 필수, 과거 병합 Billing 재실행/backfill 없음 반영. 생성 시 core/progress/delivery에 같은 필수 consumer snapshot을 저장하고 LC-only에서는 Billing delivery/sequence를 생성하지 않는 후속 변경 범위 명시. 화면·polling은 프론트 인계 사항으로 분리했으며 Identity 계획 진행을 막는 추가 사용자 결정 없음. 제품 API는 아직 미구현. 문서 링크·diff 공백 검사 통과.
+
+- 2026-10-03 병합 완료 조회의 사용자 결정사항 정리: 첫 출시 Billing 미배포는 이미 주어진 조건이므로 LC만 완료 대상/Billing NOT_REQUIRED로 계획 보완 필요. 사용자 확인 항목은 이전 중 기본 회원 화면 허용·영역별 안내 및 향후 Billing 도입 시 과거 병합의 자동 재처리 금지/별도 이행 검토 방향. ACK·멱등성·보관/조회 기본값은 기술 권장안으로 두고 실제 consumer 검증은 개발 책임으로 구분. 계획서/제품 코드 변경 없음.
+
+- 2026-10-03 Learning Core 완료 응답 유실 복구 설명의 현재 turn 식별 기록 보완 완료. 동일 이벤트 재전송·멱등 완료 재응답 계약과 실제 consumer 검증 필요성 유지. 제품 코드·계획서 추가 변경 없음.
+
+- 2026-10-03 Learning Core 완료 응답 유실 설명: Identity는 동일 eventId/payload로 재전송하고 LC는 기록 이전과 함께 commit한 inbox의 PROCESSED를 확인해 중복 이전 없이 204를 재응답하는 계약이다. 예정 progress 조회는 완료 확인까지 PROCESSING, 자동 재시도 소진 시 운영 확인으로 구분한다. Identity ACK 기록 실패도 같은 멱등 재전송으로 복구한다. LC 실제 구현은 이번에 확인하지 않았고 제품 변경 없음.
+
+- 2026-10-03 Billing 미배포 조건 분석의 현재 turn 식별 기록 보완 완료. 첫 출시 LC만 필수/Billing NOT_REQUIRED는 제안 상태이며 계획서·제품 코드에 아직 적용하지 않았다. 추가 기능 변경 없음.
+
+- 2026-10-03 첫 출시 Billing 미배포 조건 확인: 현재 병합 진행 조회 계획은 LC/Billing 둘 다 필수이므로 Billing 없이 정상 출시하는 모드는 반영되지 않았다. 일시 장애와 출시 대상 제외를 구분해야 한다. 후속 보완안은 서버가 병합 생성 시 필요한 consumer를 불변 snapshot으로 저장하고 첫 출시는 LC만 필수/Billing NOT_REQUIRED, 이후 신규 작업부터 Billing 포함. 기존 OwnerEventCore의 두 consumer 고정 불변식·delivery 생성·기능 gate도 함께 변경해야 하며 단순 publisher OFF로 해결할 수 없다. 과거 작업 재전송 및 나중의 Billing 데이터 이행은 별도 정책 필요. 이번에는 확인·제안만 수행, 계획서/제품 코드 변경 없음.
+
+- 2026-10-03 병합 완료 조회 계획 작성의 현재 turn 식별 기록 보완 완료. 계획서·사용자 설명 완료, 제품 API는 미구현 상태 유지. 기존 ACK 기반 progress/회원 조회/복구/출시 gate 제안 외 추가 변경 없음.
+
+- 2026-10-03 병합 전체 완료 조회 후속 계획 작성: [구현 계획서](../contracts/guest-merge-progress-query-implementation-plan.md). Identity가 실제 UserMerged eventId와 연결된 최소 progress를 저장하고, LC/Billing commit 뒤 strict 204 ACK를 확인해 회원용 단건/목록 GET으로 합산 상태를 제공하는 권장안. 기존 LC direct transaction 계약을 활용하므로 새 callback은 우선 제외. 현재 publisher의 모든 2xx 성공 처리 강화, fanout 실제 eventId 연결, 응답 유실·복수 Guest·FIFO blocker·TTL·권한/탈퇴·polling·서비스별 출시 gate 포함. API 구현/Jira 생성은 하지 않았다. TMI-192와 별도 후속 범위이며 실제 LC/Billing 구현 준수 여부는 미확인. 문서 상대 링크 및 diff 공백 검사 통과, 제품 변경 없어 테스트 미실행.
+
+- 2026-10-03 추가 확인: 현재 Identity에는 Guest merge 이후 Learning Core 기록 이전·Billing 처리까지 종합 완료 여부를 조회하는 프론트 API가 없다. merge 성공과 downstream 완료는 별개이며 TMI-192에서 해당 API를 추가하지 않았다. 외부 저장소의 개별 API 존재 여부는 이번 확인 범위가 아니다. 제품 코드 변경 없음.
+
+## 2026-10-03 최신 상태 — TMI-192 저장소 구현 완료, 배포 전 검증 대기
+
+- 현재 Jira: TMI-192 (상위 TMI-136). 브랜치 `feat/TMI-192-single-sns-account-recovery`. 이슈 조회 후 승인 범위 구현, Jira 상태/댓글은 변경하지 않았다.
+- 단일 SNS: signup/Guest upgrade에서 복수 SNS 거절, `social_identities.userId` unique, exchange 신규 SNS 자동 등록 제거, 승인된 현재 SNS만 로그인/merge/sync 허용. 기존 LOCAL/PASSWORD, Guest 전환, phone owner partial unique, 보안 block/floor/epoch/탈퇴 경계 유지.
+- 공개 SNS link/unlink 제품 API는 유효 요청에 `410 PROVIDER_LINK_RETIRED`; ProviderLinkService 런타임 bean 제거. 기존 보안 상태/worker/과거 상태 머신 테스트는 보존.
+- 공개 `/api/v1/auth/account-recovery/prepare`, `/lookup`: 기존 Firebase 프로젝트·tenant·SMS/Admin 재사용, 최근 PHONE 인증과 token/Admin 번호 일치 검증, HMAC proof unique/원자 소비/같은 인증 재조회/Mongo 공유 한도/no-store. Identity 토큰·enrollment 발급 없음. SNS 종류·마스킹 이메일만 안내. 기본 OFF.
+- 가입·승격 시 provider별 이메일을 마스킹해 SocialIdentity에 저장. 원문 이메일/전화/token 저장 및 자동 이메일 백필 없음. Apple relay/null/정지/탈퇴/보안 작업/잘못된 owner 처리 포함.
+- 프론트 가이드·Swagger 예제·설정·로컬 테스트 UI 갱신. 별도 in-memory Firebase Auth로 기존 인증 보존. [정확한 계약·배포 점검](../contracts/single-sns-account-recovery-runbook.md).
+- 검증: 최종 `./gradlew clean test` **157 suite / 1083 tests, 실패·오류·skip 0**. `node --test tools/auth-test/*.test.mjs` **3/3**. `git diff --check` 및 변경 계약 문서 상대 링크 검사 통과. 로컬 포트/Gradle 캐시 sandbox 제한은 승인 후 재실행. 실제 Atlas/Firebase 호출 없음.
+- 남은 출시 gate: 실제 데이터/진행 작업 부재, userId unique 인덱스 전환·TTL 확인, replica-set 트랜잭션·다중 인스턴스/키 회전 경합, 앱 OTP·phone-only UID 후속 가입·플랫폼별 인증 QA. `ACCOUNT_RECOVERY_KEY_RING` 등 설정 공급 전 기능 OFF. 단일 SNS와 계정 찾기는 준비 후 같은 출시 단위로 활성화.
+- commit/push/배포/외부 사용자 삭제/정지 해제/LC·Billing 이전 완료 조회는 수행하지 않았다. 시작 시 존재하던 WORKLOG/CURRENT_STATE/프론트 가이드/계획서 변경을 보존했으며 예상 밖 제품 변경 없음. 아래 항목은 이전 작업 이력이다.
+
+- 2026-10-03 정지 회원 및 병합 비동기 UI 설명의 정확한 turn 식별 기록 보완 완료. 정지 해제와 계정 찾기 구분, 병합 기능 출시 조건과 요청별 이전 상태 구분, 동일 userId 승격의 기록 이전 불필요 결론 유지. 추가 제품/외부 변경 없음.
+
+- 2026-10-03 정지 회원/병합 비동기 UI 계약 설명: GUEST_MERGE_TARGET_NOT_ACTIVE는 대상 SUSPENDED이고 exchange도 ACCOUNT_NOT_ACTIVE로 거절, 재로그인으로 복구 불가. 사용자용 정지 해제 API 미확인, 정지 안내·문의 및 Guest 인증 보존 권고. 프론트 가이드의 UI gate를 consumer 구현/배포/E2E 완료 전 병합 기능 출시 금지로 명확화. Identity에 사용자별 전체 이전 완료 조회 API 없음, 별도 상태 계약이 필요하며 전체 앱 차단은 요구하지 않음. upgrade는 동일 userId이므로 UserMerged 기록 이전 대기 없음; Billing 비동기 반영과 구분. 코드/외부 서비스 구현 검증·Jira 변경 없음.
+
+- 2026-10-03 TMI-192 생성 완료 작업의 정확한 turn 식별 기록 보완 완료. 이슈는 TMI-136 하위의 해야 할 일 상태이며 추가 Jira 변경·제품 구현 없음.
+
+- 2026-10-03 Jira: TMI-192 — 사용자 승인한 단일 SNS 정책·SMS 계정 찾기 구현 작업 생성 완료. 상위 TMI-136, 유형 작업, 상태 해야 할 일, 담당자 미지정. 공식 MCP 재조회로 제목/부모/본문 일치 확인. 통합 계획서에 링크 반영. 제품 구현/배포 미착수, 추가 댓글·상태 변경 없음.
+
+- 2026-10-03 Jira 생성안 준비의 정확한 turn 식별 기록 보완 완료. TMI-136 하위 신규 작업 생성안 승인 대기이며 Jira 쓰기는 미수행.
+
+- 2026-10-03 Jira 생성 요청 준비: 공식 MCP로 TMI-136(sns 로그인 에픽)과 TMI 작업 유형/생성 필드 확인. 통합 계획서 부록 E에 제목·상위 에픽·등록 본문·완료 조건을 작성, 저장소의 사전 내용 제시/승인 규칙에 따라 생성안 승인 대기. Rovo 검색 403으로 중복 여부 미확인. 새 Jira 이슈 생성·댓글·상태 변경은 아직 없음.
+
+- 2026-10-03 남은 사용자 결정사항 점검의 정확한 turn 식별 기록 보완 완료. 필수 미결정 사항 없음 및 계획 기본안 적용 방향 유지. 추가 제품 변경 없음.
+
+- 2026-10-03 남은 결정사항 점검: 단일 SNS/전화번호 단일 활성 회원, Guest 유지, 전화 인증 계정 안내·마스킹 이메일, 기존 Firebase/SMS 재사용 및 통합 개발 방향이 정리되어 진행을 막는 필수 사용자 결정 없음. 이메일 예외 표시·인증 유효기간·제한은 계획 기본안, SDK/데이터/인덱스는 구현 검증 사항으로 구분. 기존 SNS 접근 복구/교체는 범위 밖. 계획서 결정 섹션 갱신, 제품 구현 미수행.
+
+- 2026-10-03 기존 SMS 재사용 설명의 정확한 turn 식별자 기록 보완 완료. 계획서의 전화 인증/회원 로그인 구분 및 기존 Firebase 설정 재사용 방향 유지, 추가 제품 변경 없음.
+
+- 2026-10-03 사용자가 SMS 설정 완료를 확인. 기존 SMS 인증 설정 재사용으로 정리하고 Firebase Phone 제공업체/SDK sign-in은 전화 증명 획득 절차이며 앱의 전화번호 회원 로그인 기능 추가가 아님을 계획서에 명시. 계정 찾기는 인증된 번호로 SNS/힌트를 조회하고 Identity 회원 토큰을 발급하지 않음. 코드/외부 설정 변경 없음.
+
+- 2026-10-03 기존 Firebase 재사용 설명의 현재 turn 식별 기록 보완 완료. 기존 프로젝트 사용·Phone/SMS/앱 검증 확인·서버 계정 찾기 구현 방향 유지. 추가 제품/외부 설정 변경 없음.
+
+- 2026-10-03 계정 찾기 Firebase 환경 방향 갱신: 사용자 요청에 따라 기존 프로젝트/tenant/Admin 자격증명 재사용으로 계획서 수정, 새 프로젝트/공용 계정 일괄 정리 권고 제거. 콘솔 Phone/SMS 국가·한도·결제/플랫폼 앱 검증 확인과 서버 lookup용 PHONE 증명 검증 추가를 구분. 같은 프로젝트 토큰에는 recovery 전용 목적이 자동 부여되지 않음을 명시하고 기존 enrollment/로그인 조건 유지. 실제 콘솔/앱·배포 설정 미조회, 제품 코드 변경 없음.
+
+- 2026-10-03 계정 찾기/Guest 병합 관계 명확화: 계정 찾기는 전화 인증 후 SNS/이메일 힌트 안내로 완료되는 독립 기능이며 Guest 토큰·merge API가 필요 없음. 이후 사용자가 기존 회원 로그인으로 이동하는 경우의 Guest 병합은 별도 기존 흐름이고 찾기 성공으로 자동 실행하지 않음. 계획서 사용자 흐름 문단 정정, 제품 코드 변경 없음.
+
+- 2026-10-03 인증 상태 설명 정정: Firebase 전화 로그인이 Identity Guest JWT를 자동 폐기하거나 Guest 데이터를 삭제하지 않음. Guest merge는 CurrentUserProvider의 source와 요청 Firebase 증명의 target을 따로 사용함을 확인. 앱의 Guest 토큰 보존과 Firebase currentUser 분리를 구분하고 계획서에 명시. 별도 Auth 인스턴스는 클라이언트 상태만 분리하며 같은 프로젝트의 서버 계정 공간은 공유, 별도 프로젝트는 원격 계정 공간까지 격리하는 추가 선택으로 Guest 보존에 필수 아님. 실제 앱 SDK/상태 관리 미조사, 제품 코드 변경 없음.
+
+- 2026-10-03 통합 계획서 사용자 설명: 회원 하나에 특정 SNS 계정 하나, 전화번호 하나에 활성 회원 하나를 예시로 구분. Guest 승격/기존 회원 병합 유지, 전화 OTP→가입 SNS/마스킹 이메일 안내→SNS 재인증 흐름 및 prepare 접수번호/lookup 의미 설명. 서버의 자동 등록 제거·DB unique·힌트 저장·재시도/제한을 쉬운 표현으로 안내. 별도 Firebase 프로젝트는 권고 설계로서 필수 확정 사항이 아님을 명시. 제품/계획서 내용 변경 없음.
+
+- 2026-10-03 사용자 요청으로 단일 SNS 제한·전화 인증 계정 찾기·마스킹 이메일을 **한 번에 개발/출시**하는 계획으로 확정. 앞선 분리 출시 권고는 대체한다. [통합 계획서](../contracts/single-sns-account-recovery-implementation-plan.md) 작성: SNS 이메일은 현재 미저장이고 Firebase provider 전달 모델에도 주소가 없음을 확인, SocialIdentity 힌트 저장·unique userId·자동 추가 차단·공개 link/unlink 폐지·Guest 유지·recovery prepare/lookup·재시도/요청 제한·앱/테스트/배포 범위 포함. 전용 전화 인증 Firebase 프로젝트를 권고 설계로 제시했으며 실제 프로젝트 선택/인프라 구성은 미수행. 문서 링크 검사 통과, 제품 코드·배포 변경 없음.
+
+- 2026-10-02 계정 안내 범위 설명 기록 보완: 단일 SNS 제한 우선 적용, 전화 인증 기반 계정 찾기는 후속 작업으로 분리 권장. 계정 찾기 구현 시 이메일 출처 확인 후 마스킹 힌트 동시 제공 여부 결정. 이번 설명의 정확한 turn 식별자를 WORKLOG 끝에 추가했으며 제품 구현은 미수행.
+
+- 2026-10-02 계정 안내 개발 범위 설명: 이메일 마스킹 자체보다 비로그인 전화 인증 검증·회원 조회·요청 제한을 갖춘 계정 찾기 API가 주요 신규 범위. 이메일 힌트의 추가 작업량은 신뢰할 수 있는 이메일 출처/저장 여부에 따라 달라 아직 일정 확정 불가. SNS 종류 안내 우선, 이메일 힌트 후속 확장 권장. 제품 변경 없음.
+
+- 2026-10-02 계정 찾기 안내 표시 범위 설명: 앞선 제안은 전화번호 인증 후 SNS 종류 안내이며 이메일 원문 노출은 포함하지 않음. 사용성 보완으로 SNS 종류와 마스킹 이메일 힌트 조합 제안, 이메일 미제공·Apple 비공개 중계 주소는 별도 처리 필요. 이메일 출처/저장·조회 계약은 미확정이며 신규 API/제품 코드 변경 없음.
+
+- 2026-10-02 단일 SNS 정책 수정안 설명: MEMBER SNS 추가 link 및 exchange 자동 추가 등록을 폐지하고 signup/Guest upgrade에서 SNS 하나만 허용하는 공통 검증 제안. Guest prepare/upgrade/merge 및 기존 SNS 로그인 유지, 전화번호 중복 소유 거절 유지. 전화 OTP 후 로그인 SNS 종류 안내는 별도 신규 복구 API로 설계하며 자동 로그인·연결·병합 권한으로 사용하지 않음. 제품 구현/배포 미수행, 실제 테스트 DB·진행 link 작업 미조회.
+
+- Guest/SNS prepare 구분 설명의 정확한 현재 작업 식별 기록 보완 완료. Guest prepare·upgrade·merge 유지 및 MEMBER 추가 SNS 연결 금지 방향만 설명했으며 제품 코드/계정/배포 변경 없음.
+
+- 2026-10-02 prepare 경로 구분 정정: 추가 SNS 금지 대상은 /firebase/providers/link/prepare이며 Guest /firebase/guest/prepare·upgrade·merge는 유지. Guest merge는 대상 MEMBER의 기존 단일 SNS로 소유권을 증명하고 Guest 기록을 통합하는 기능이라 추가 SNS 연결과 별개. 사용자가 테스트 서버에 회원 없음 확인, 기존 회원 이행 결정 대기는 사용자 진술 기준 해소(실DB 조회 없음). 제품 코드/배포 변경 없음.
+
+- 2026-10-02 사용자 정책 의도 정정: 전화번호 중복뿐 아니라 MEMBER 하나에 다른 SNS 추가 연결 자체를 금지하려는 요청으로 확인. 현 명시 link prepare/start, LOGIN_EXCHANGE 최초 provider 자동 등록, signup/Guest upgrade 다중 principal 저장을 함께 변경해야 함. 기존 복수 SNS 회원 및 진행 중 link 처리 정책 확인 필요하여 제품 코드/계정 삭제는 미수행. 기존 연결 유지·신규 추가 차단을 권장안으로 제시.
+
+- 2026-10-02 전화번호 다중 회원 연결 API 제거 요청 조사: 현 Controller에 전화번호 연결/변경·공개 rebind API 없음. 가입/Guest 승격은 타 userId의 활성 번호 소유를 PHONE_ALREADY_LINKED로 거절하며 관련 기존 테스트 확인. SNS link는 하나의 MEMBER에 인증수단을 추가하는 별개 기능이므로 삭제하지 않음. 삭제 대상이 없는 현재 코드 사실을 안내, API/데이터 변경 없음. 실제 배포 데이터/인덱스는 미검증.
+
+- 2026-10-02 전화번호 인증 기반 SNS 복구 안내 제안 검토: 활성 전화번호의 타 userId 중복 연결은 현 PhoneIdentityTransactionService가 PHONE_ALREADY_LINKED로 거절하는 코드 확인. 새 복구 조회는 전화 OTP의 서버 검증/최근 인증 후 해당 번호의 활성 회원에 등록된 로그인 가능 SNS 종류만 안내하는 별도 계약 제안. 현 API에 없음, 전화번호 인증만으로 MEMBER 발급/자동 연결/Guest merge 허용하지 않음. 번호 재할당·탈퇴/정지/미완료 연결·rate limit 정책 추가 필요. 코드/배포 변경 없음.
+
+<!-- codex-turn:01a0fc90-cc96-77e0-90e9-0a766b820f71 -->
+
+- 2026-10-02 support/inquiries 구현 구조 제안: 인증 선택 접수와 명시적 비로그인 경로, DB+outbox 원자 저장/비동기 웹훅, 중복 접수 방지·제한 재시도·민감정보 최소화 및 운영 조회/회신 범위 설명. 아직 미구현이며 소유 서비스·채널·회신/보관 정책 미확정. 코드·외부 상태 변경 없음.
+
+- PROVIDER_RELINK_REQUIRED 프론트 대응 설명의 현재 작업 식별 기록 보완 완료. 문맥별 복구 안내와 Guest 인증 보존, 자동 prepare/SDK 재실행 금지 결과 유지. 추가 코드/외부 변경 없음.
+
+- 2026-10-02 RELINK_REQUIRED 프론트 대응 정리: 즉시 재시도/prepare/SDK link 자동 실행 금지, 현재 로그인 및 Guest 인증 유지. 기존 연결 작업이 확인된 경우 해당 status/complete 계약으로 복구하고 STARTED 조회만으로 SDK 재실행 금지. 로그인·merge 문맥에서는 현재 SNS 사용 불가 안내와 사용자 기존 수단 선택/지원 제공, 구체 provider 자동 추정 금지. 원인/대체 SNS를 반환하지 않는 현 응답으로 자동 완전 복구 불가. 설명만 수행.
+
+- SNS 내부 block 경로 설명의 현재 작업 식별 기록 보완 완료. link/start·unlink에서 설정하고 link/complete에서 해제하는 내부 승인 상태이며, 실제 배포 flag/계정 상태는 미조회. 추가 코드/외부 변경 없음.
+
+- 2026-10-02 SNS block 실제 설정 위치 확인: ProviderChangeService.unlink에서 해제 대상 block, ProviderLinkService.start에서 연결 대상 block 후 complete에서 release. 사업자 제재/로그인 실패 자동 차단이 아닌 Identity 승인 상태 fence이며 최초 연결에도 적용. 마지막 SNS unlink 보호 유지. 기능 활성화/실제 DB block 상태 미조회, 코드 변경 없음.
+
+- 유일 SNS 차단 설명 정정의 현재 작업 식별 기록 보완 완료. 정상 unlink의 마지막 수단 보호 및 예외 상태 복구 필요성 확인 결과 유지, 추가 코드/외부 변경 없음.
+
+- 2026-10-02 마지막 SNS 차단 설명 정정: 정상 unlink는 remaining 승인 SNS가 없으면 PROVIDER_LAST_METHOD로 거절하여 유일 로그인 수단을 해제/차단하지 않음. 단일 승인 SNS마저 차단된 불일치 상태는 일반 사용자 흐름이 아닌 복구/운영 확인 대상이며 대체 SNS 로그인 안내만으로 해결되지 않음. RELINK_REQUIRED에 개수 조건이 없다는 사실과 정상 마지막 수단 보호를 구분. 코드 변경 없음.
+
+- 2026-10-02 RELINK_REQUIRED는 SNS 연결 개수 조건이 아님을 재확인. 현재 사용한 SNS의 차단 여부/Identity providerSubject 소유권 등록 여부를 검사하며 최소 2개 연결 조건 없음. 여러 SNS가 정상 승인되어도 오류 없이 merge 가능, 1개뿐이어도 차단·불일치 상태라면 오류 가능. 설명만 수행.
+
+<!-- codex-turn:01a0fc7c-80da-7f10-aa30-97391c14a869 -->
+
+- 2026-10-02 Guest merge 전체 오류 경로 정리 완료: 전용 오류 외에 Firebase/provider guard/세션 보호/공통 요청·보안 예외 확인. 세션 보호 조건부 오류와 외부 네트워크·LC 비동기 장애를 별도 안내. 현재 소스 기준 분석이며 실배포 검증/코드 변경 없음. 이전 전체 경로 미확인 기록은 이번 정적 확인 범위로 대체.
+
+- 2026-10-02 Guest merge 전체 오류 카카오톡 전달용 정리 요청은 작업 시작 전 중단됨. 전체 경로 조사/복사용 문구 작성 미수행, 코드/외부 변경 없음. 재개 요청 대기.
+
+- Guest merge 전용 오류 5개 정리의 현재 작업 식별 기록 보완 완료. 공통 오류는 전용 목록에서 제외했으나 merge 발생 가능성은 유지하며 신규 코드 배포 여부는 미확인. 추가 코드/외부 변경 없음.
+
+- 2026-10-02 Guest merge 전용 오류 5개 정리: 403 NOT_ALLOWED/TARGET_WITHDRAWN/TARGET_NOT_ACTIVE, 409 TARGET_CONFLICT/CONFLICT. 공통 provider/Firebase/인증/탈퇴 정리 오류 및 MERGED source 보호 API 오류는 전용 목록에서 제외하되 merge 발생 가능성을 부정하지 않음. 코드 변경 없음.
+
+- 로그인 전 대상 SNS 조회 공백 설명의 현재 작업 식별 기록 보완 완료. RELINK_REQUIRED만으로 대체 SNS를 선택할 수 없으며 제한 복구 계약은 미구현. 추가 코드/외부 변경 없음.
+
+- 2026-10-02 Guest merge 재연결 안내 정정: 로그인 전 Guest는 대상 MEMBER의 sync 연결 목록을 조회할 수 없으며 RELINK_REQUIRED 응답에도 승인 SNS 목록이 없어 자동으로 대체 SNS를 정해 안내할 수 없음. 앞선 Google 재인증 예시는 사용자가 기존 수단을 아는 경우에만 가능. 기존 SNS 재인증은 연결 변경이 아닌 대상 계정 소유권 증명. 현재는 일반 기존 로그인 수단 선택/복구 안내만 가능, 구체 수단 안내에는 제한된 복구 계약 별도 설계 필요. 코드 변경 없음.
+
+- 2026-10-02 Guest merge에서도 PROVIDER_RELINK_REQUIRED 발생 가능 확인: GUEST_MERGE Firebase verifier는 provider guard 검사 대상이며 대상 Firebase binding의 현재 로그인 SNS 차단/미등록/subject 불일치 시 거절. 로그인 exchange 전용 최초 등록 예외는 merge에 미적용. 프론트는 원 Guest Identity 인증 보존, 대상 MEMBER의 기존 승인 SNS로 Firebase 재인증 후 merge 재시도; MEMBER 전용 link/prepare를 Guest 토큰으로 바로 호출 금지. 설명만 수행.
+
+- 2026-10-02 기존 SNS 식별 방법 설명: 로그인 이력과 현재 연결 목록 구분. MEMBER 인증+유효 Firebase proof의 auth-methods/sync linkedProviders가 서버 연결 목록, /users/me provider는 FEDERATED 등 분류이며 SNS 종류 아님. Firebase providerData/프론트 마지막 로그인 수단은 안내 힌트이며 Identity 승인 근거 아님. 로그인 전 RELINK_REQUIRED만으로 기존 SNS 목록을 알 수 없고 공개 조회 API 없음, 기존 수단 선택/재인증 후 같은 회원 binding 검증 필요. 코드 변경 없음.
+
+- 2026-10-02 PROVIDER_RELINK_REQUIRED 프론트 설명: 해당 SNS가 현재 Identity에서 로그인 허용된 연결이 아니거나 해제/차단·교체 이력 때문에 명시 연결이 필요한 오류이며 단순 재인증 부족과 구분. 일반 재연결은 기존 승인된 다른 SNS 재인증→MEMBER 로그인→link/prepare/start→허가된 같은 Firebase User SDK link→대상 SNS 재인증→complete. 무조건 prepare 자동 호출/SDK 선연결 금지, 진행 중 작업은 status/pending 및 복구 계약 준수. 코드 변경 없음.
+
+<!-- codex-turn:01a0fc45-f9e6-7b33-b2d1-9f8873ca01b6 -->
+
+- 2026-10-02 인증 장애·설정 문의 공통 접수 API 설계 제안. 비로그인 접수 보안, DB+outbox 저장 및 비동기 Slack/Discord 알림, 제한 재시도/실패 보존/중복 방지/개인정보 최소화 권고. 구현 요청 전 가능성 설명만 수행했으며 일반 고객지원 소유 서비스·채널·보존 정책 미확정. 제품 코드·외부 변경 없음.
+
+<!-- codex-turn:01a0fc41-2e10-7e63-983e-d91ec9c684c2 -->
+
+- Guest merge 주요 오류 안내의 현재 작업 식별 기록 보완 완료. 기존 코드 대조 결과와 배포 미확인 사항 유지, 추가 코드/계정/외부 상태 변경 없음.
+
+- 2026-10-02 Guest merge 주요 오류를 카카오톡 복사용으로 정리. 대상 탈퇴/정지 분리 코드와 충돌·인증·일시 장애 대응, 응답 유실 시 상태 확인 원칙 안내. 최신 코드 대조만 수행했고 배포/실API/계정 변경 없음.
+
+<!-- codex-turn:01a0fc3f-f94b-7b73-822d-2fe242d0fb61 -->
+
+- 2026-10-02 Guest merge API 안내: 현재 develop 코드 기준 POST /api/v1/auth/firebase/guest/merge, Guest Bearer와 기존 MEMBER의 fresh Firebase ID Token 본문, 대상 MEMBER 토큰 반환 확인. 이번에는 코드/배포/외부 상태 변경 없이 안내 기록만 추가.
+
+<!-- codex-turn:01a0fb71-09af-7732-b79f-40fcaec7ffea -->
+
+- 2026-10-02 Guest merge 대상 오류 분리 구현 완료(로컬 develop): 최초 TargetResolver 및 TransactionService에서 확인된 대상 WITHDRAWN/SUSPENDED를 각각 403 GUEST_MERGE_TARGET_WITHDRAWN / GUEST_MERGE_TARGET_NOT_ACTIVE로 반환. 기존 withdrawal gate의 CLEANUP_PENDING/IDENTITY_CONFLICT 우선순위와 source CAS conflict 유지, 중복 PROCESSING/응답 replay 추가 없음. 컨트롤러·Swagger 예시·프론트 가이드/회귀 테스트 갱신. 최종 ./gradlew clean test 성공, git diff --check 통과. 배포·커밋/push 미수행, 실제 DB 경합/모바일 QA 미검증. 기존 WORKLOG와 앱 전환 조사 문서의 사용자 변경 보존.
+
+## 최신 상태 — 2026-10-02 TMI-191 구현 완료, 미배포
+
+- Jira: TMI-191 (부모 TMI-136). 브랜치: `codex/TMI-191-provider-link-recovery`. 아래 과거의 구현 미착수 설명을 이 상태로 대체한다.
+- cancel/failure-report/pending API, CANCELLED/FAILED 상태, 제한된 운영 복구 도구 및 로컬 테스트 화면 복원/취소/실패 보고 구현. PREPARED만 즉시 취소하며 STARTED는 ACTION_REQUIRED로 보호 유지. 운영 복구는 승인·SDK 종료 확인·원격/DB 대조·트랜잭션 CAS가 필요하다.
+- 계약/파일/배포 절차: [구현·운영 계약](../contracts/provider-link-recovery-operations.md). `FIREBASE_PROVIDER_LINK_RECOVERY_ENABLED=false` 기본. 호환 코드 전체 배포 및 새 상태를 처리하는 프론트 준비 후 별도 활성화한다.
+- 최종 검증: `./gradlew clean test` 1,030개 통과(실패/오류/skip 0), 운영 도구 unittest 6개 통과, 실제 로컬 도구 폴더 `node --test *.test.mjs` 35개 통과, diff 공백 검사 통과.
+- 별도 `/Users/msde76/tosunsaeng-integration-test`의 6개 파일은 승인된 복사로 반영했다. gateway 재시작/브라우저 새로고침은 하지 않았다. 신규 경로 사용 전 재시작 필요.
+- 실제 Firebase/Atlas 복구, replica-set rollback·경합, 모바일 실증 미수행. 원격 실행 중단은 별도 증거가 필요하고 감사 자료 보존 정책/권한은 운영 전 확정해야 한다.
+- commit/push/배포/실제 계정 변경/Jira 댓글·상태 변경 없음. Jira 댓글 초안은 구현 계약에만 작성. 기존 WORKLOG 및 이전 문서 변경 보존.
+
+## 이전 작업 참고 기록
+
+- 2026-10-02 TMI-191 작업 복원 방식 설명: 원 요청 ID 보존 후 기존 status 조회, 소실 시 인증된 본인 기준 pending 조회를 추가하는 계획. STARTED slot 대조 및 다중 PREPARED 구분 필요. 조회는 SDK 재실행 허가가 아니며 로그인 유실 시 재인증 필요. 구현 없음.
+
+- 2026-10-02 TMI-191 수정 계획을 사용자 사례로 설명: 진행 중 잠금, 안전한 실패/취소 종료, 새로고침 복원 및 감사 가능한 복구. 결과 불명 시 자동 재시도 보장하지 않으며 담당자 확인 가능성 명시. 구현/배포/Jira 변경 없음.
+
+- TMI-191 생성 작업의 현재 turn 식별자 기록 보완 완료. 부모 TMI-136/해야 할 일 상태 확인 완료, 구현 미착수.
+
+- 2026-10-02 TMI-191 생성 완료: SNS 연결 취소·실패 종료 및 재시도 복구 구현. 부모 TMI-136, 초기 상태 해야 할 일 확인. 사용자 내용 승인 후 공식 MCP로 생성, 별도 댓글/상태 전환 없음. 현재 계획 단계이며 구현 미착수.
+
+- TMI-136 하위 이슈 생성안 준비의 현재 turn 식별자 기록 보완 완료. 사용자에게 제목·범위·완료 조건 제시했으며 생성 승인 대기, Jira 외부 변경 없음.
+
+- 2026-10-02 TMI-136(sns 로그인 에픽) 공식 MCP 조회 완료. SNS 연결 취소·실패 종료·재시도 복구 하위 이슈 생성안 제시 및 승인 대기. Jira 생성/댓글/상태 변경 미수행.
+
+- 2026-10-02 SNS 취소·실패 복구 수정 계획서 보완 완료: docs/contracts/provider-link-cancel-recovery-plan.md에 범위/상태 전환/API·데이터 제안/작업 분할/완료 체크리스트/배포 중단 기준 추가. 현재는 문서만 변경했고 구현·배포 미수행. STARTED 결과 불명 자동 해제 제외, 운영 복구 증거 요건 및 정책 수치 확정 필요.
+
+- 2026-10-02 취소·실패 종료 수정 목적 확인: 안전한 종료가 확인된 작업을 종료 상태로 남기고 해당 잠금만 해제하여 재시도 허용. 실패 보고/시간 경과만으로 해제하지 않음. 상태 추가뿐 아니라 조건부 종료와 새로고침 복구 포함 계획이며 구현 미착수.
+
+- 2026-10-01 Kakao 프론트 설정 안내: Firebase Generic OIDC oidc.kakao 로그인 후 Firebase ID Token을 Identity exchange로 전달. Android/iOS 각각 Firebase 앱 구성 및 브라우저 인증 후 앱 복귀 설정 검증 필요. 원본 Kakao 토큰/Client Secret 앱 포함 금지. 프론트 프레임워크·SDK 버전 미확인, 실제 플랫폼 설정 변경 없음.
+
+- SNS 취소·복구 상세 수정 계획의 현재 turn 식별자 기록 보완 완료. 계획 문서 작성만 완료했고 애플리케이션 구현/배포는 미수행.
+
+- 2026-10-01 SNS 취소·실패 복구 상세 계획 문서 docs/contracts/provider-link-cancel-recovery-plan.md 작성. 준비 취소/진행 취소 요청/상태 복원/승인 복구/경합 테스트 구분. STARTED 모든 실패의 즉시 자동 재시도는 현재 SDK 구조에서 보장하지 않음. 문서 작성만 수행, 구현 미착수.
+
+- SNS 취소·재시도 계획의 현재 turn 식별자 기록 보완 완료. 취소/상태 복원/안전한 종료 후 재시도 설계만 설명했으며 코드 및 외부 상태 변경 없음.
+
+- 2026-10-01 SNS 실패 복구 계획에 사용자 취소/재시도 UX 추가 제안: PREPARED는 start와 경합 검사 후 취소, STARTED는 취소 요청 및 원격/이전 실행 종료 확인 후 재시도 허용. 대기 화면 종료와 연결 취소 구분, 이미 연결 완료면 완료 안내(자동 해제 금지). 코드/외부 변경 없음.
+
+- SNS 실패 복구 수정 계획의 현재 turn 식별자 기록 보완 완료. 분석·계획 설명만 수행했으며 코드/계정/배포 변경 없음. 조건부 실패 종료와 새로고침 복구 구현은 후속 요청 대기.
+
+- 2026-10-01 SNS 실패 복구 수정 계획 분석: 실패 자체는 타 회원 소유 Google의 정상 거절, 지속 충돌 원인은 STARTED slot/차단 보호 유지 + 실패 종료 API/상태 부재 + 로컬 요청 ID 새로고침 소실. 정상 연결/로그인은 유지하고 조건부 실패 종료·pending 복구·명확한 UX 추가 제안. 원격 부재만으로 자동 해제하지 않으며 SDK 종료 증거 불충분 시 ACTION_REQUIRED 유지. 구현/외부 변경 없음.
+
+- Google 단독 로그인·프로필 MEMBER 인증 성공 확인의 현재 turn 식별자 기록 보완 완료. 이전 Identity UUID 및 LC 기록 직접 대조는 별도 검증 대상.
+
+- 2026-10-01 Google 단독 로그인 검증: Chrome Google 인증/Identity 로그인 성공 표시 확인 후 프로필 API 읽기 호출로 서버 MEMBER 인증 성공. 이전 Identity UUID 직접 비교/LC 기록 동일성 검증은 미수행. 연결/로그인 재실행 없음.
+
+- SNS 추가 연결 결과 확인의 현재 turn 식별자 기록 보완 완료. 서버 COMPLETED 표시 확인, 추가한 Google 단독 로그인 검증은 후속으로 남아 있음.
+
+- 2026-10-01 Chrome SNS 연결 결과 읽기 확인: 검증표에 Kakao 인증/Identity 로그인 성공과 SNS 추가 연결 서버 COMPLETED, 동일 Firebase UID·기존 전화번호/SNS 유지 표시. 폼은 완료 후 정리되어 연결 전으로 보이나 연결 해제 아님. 새 Google 단독 로그인으로 동일 Identity 회원 확인은 별도 미검증. 이번에는 로그인/연결 재실행 없이 UI 및 성공 표시 코드만 확인.
+
+- 테스트 recovery 개정 13 배포 완료의 현재 turn 식별자 기록 보완 완료. 배포 상태는 COMPLETED이며 실제 사용자 성공 응답 헤더/replay 검증만 후속으로 남아 있음.
+
+- 2026-10-01 테스트 reissue recovery 활성화 배포 완료(이전 승인 대기 상태 대체): tosunsaeng-identity-test:13 ECS COMPLETED, 1 running/0 pending, ALB healthy, public health 200 UP. recovery=true/active-key-id=test-v1/environment=test 및 keyring secret 주입 추가. 기존 IAM 권한으로 충분하여 IAM·운영·이미지 변경 없음. ON 계약 smoke(누락 ID 400, valid ID+가짜 credential 401) 및 전체 1024 테스트 통과. 실사용자 성공 헤더/replay는 미검증. 로컬 테스트 프록시가 응답 헤더를 전달하지 않는 문제는 별도 미수정. 긴급 중단은 recovery OFF가 아니라 maintenance 사용.
+
+- 테스트 recovery 사전 점검의 현재 turn 식별자 기록 보완 완료. 테스트 keyring 주입 및 최소 읽기 권한 승인 대기이며 재배포는 아직 실행하지 않음.
+
+- 2026-10-01 테스트 reissue recovery 활성화 요청 점검: 실제 서비스 개정 12, 1/1 실행, COMPLETED. recovery=false/fence=true 확인. keyring secret 주입과 키 ID/환경/파일 설정 없음. true 단독 변경 시 entrypoint/애플리케이션 기동 실패하므로 재배포 미실행. 테스트 keyring 연결 및 필요한 최소 권한 범위 승인 후 키/DB 인덱스/클라이언트 준비 검증 필요. 원 응답 헤더와 CORS 가시성은 별도 확인 대상.
+
+- 2026-10-01 SNS 연결 복구 완료(아래 사전 점검/승인 대기 기록을 대체): 승인된 테스트 실패 Google STARTED 작업 1건을 감사 컬렉션에 백업한 뒤 정확한 소유·버전 조건 트랜잭션으로 활성 작업 제거 및 slot 해제. Google 차단/auth floor/epoch/회원/Kakao/전화번호/binding 보존 검증. 임시 관리 IP 허용 제거 및 기존 서버 접근 유지 확인. Chrome Kakao 재인증 후 Google 연결 준비 성공(PREPARED), 실제 Google 연결은 아직 미완료. 다른 회원 소유가 아닌 Google 계정 선택부터 사용자 진행 필요. 코드/배포 변경 없음, 일반 실패 복구 UX는 후속 작업.
+
+- reissue recovery 재배포 중단 안내의 현재 turn 기록 보완 완료. 외부 설정 변경/재배포 없음. test/staging 대상 및 선행 준비 확인 후 재개 대기.
+
+- 2026-10-01 reissue recovery 활성화/재배포 요청 사전 점검 중 사용자 중단. 테스트 서비스 콘솔에서 tosunsaeng-identity-test:12, 실행 1/대기 0, 배포 성공 표시 확인. 대상(test/staging) 질문 응답 및 fence·키·인덱스·클라이언트 준비 검증 미완료. 환경변수 변경/태스크 등록/서비스 재배포는 실행하지 않음.
+
+- 2026-10-01 reissue 절대 만료 헤더 null 조사: Recovery OFF(기본 AUTH_REISSUE_RECOVERY_ENABLED=false) 경로는 ReissueResult의 만료 시각을 null로 반환하여 컨트롤러가 두 Reissue-*-Expires-At 헤더를 생략함. Recovery ON 성공 경로는 실제 만료 시각을 반환/헤더 설정. 웹 CORS 응답 헤더 노출 설정은 저장소에서 확인되지 않아 원 응답 존재 여부와 JS 가시성을 구분해야 함. 배포 flag/프록시/실제 요청 미조회, 코드/설정 변경 없음. 관련 HTTP/Configuration 테스트 통과.
+
+- 현재 SNS 연결 복구 사전 점검의 정확한 turn 식별자를 WORKLOG 끝에 추가 완료. 임시 네트워크 접근 승인 및 이전 인증 팝업 종료 확인 대기, 복구 변경은 미수행.
+
+- 2026-10-01 현재 연결 복구 사전 점검: 사용자 credential-already-in-use 확인, 원래 STARTED attempt와 exact owner 세션 slot 일치 확인. 동일 작업 Firebase UID는 OIDC+Phone만 있고 Google 없음. CloudShell DB 진단은 접속 timeout, Atlas 허용 목록에 관리 셸 IP 없음. 테스트 프로젝트에 단일 /32 임시 허용 승인 필요. DB/계정/네트워크 변경은 아직 없음, SDK 종료·현재 로그인 owner 대조 및 조건부 원자적 복구는 남음.
+
+- 실패 SNS 연결 작업 보존 설명의 정확한 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 복구는 미구현이며 계정·DB·외부 설정 변경 없음.
+
+- 2026-10-01 SNS 실패 보존 설명: STARTED는 cleanupAt=null로 자동 삭제/해제되지 않고 만료 시 ACTION_REQUIRED로 표시. PREPARED 만료와 다름. 현재 실패 종료·새로고침 복구 미비를 명확화, 원격 결과 및 이전 실행 종료 확인 후 조건부 복구 필요. 구현/데이터 변경 없음.
+
+- 2026-10-01 새로고침 후 SNS 충돌 조사: 현재 Google prepare 충돌 요청의 status는 PROVIDER_OPERATION_NOT_FOUND. 테스트 DB에 만료된 GOOGLE STARTED 작업 1건 확인, 현재 회원과 소유 대조는 미완료. 로컬 메모리 유실로 원래 작업 복구 불가 확인. 계정/DB 변경·보호 해제 없음. 정확한 작업/Firebase 상태 대조 후 승인된 복구와 UI 보완 필요.
+
+- 테스트 SNS 연결 활성화 배포의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 개정 12 배포 성공 상태이며 실제 계정 연결 검증은 별도 진행 필요.
+
+- 2026-10-01 사용자 승인으로 테스트 Identity SNS 명시 연결 활성화 완료. 개정 11에 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED=true를 먼저 배포하여 개정 10 종료/성공 확인 후 개정 12에 FIREBASE_PROVIDER_LINK_ENABLED=true 추가 배포. 최종 ECS 성공, 1 실행/0 보류, 이전 개정 0 실행 확인. 공개 health UP. 기존 이미지·운영 서버·5분 recent-auth·unlink/worker 설정 유지. 실제 계정 연결 테스트는 사용자 인증으로 별도 수행 필요.
+
+- SNS 연결 unavailable 진단의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 테스트 환경 두 연결 플래그 활성화·재배포는 승인 대기이며 아직 적용하지 않음.
+
+- 2026-10-01 PROVIDER_CHANGE_UNAVAILABLE 진단: AWS 테스트 서비스가 참조하는 tosunsaeng-identity-test:10 환경 변수 48개 확인. AUTH_SESSION_FENCE_ENABLED=true, Google/Apple/Kakao 허용 true이나 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 및 FIREBASE_PROVIDER_LINK_ENABLED 누락(코드 기본 false). 명시 연결 비활성 설정 확인. 변경/재배포 미수행, 승인 후 테스트 환경에 두 플래그 적용 필요. 일반 recent-auth 실패와 구분.
+
+- 5분 재인증 UX 정책 설명의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 구현·외부 설정 변경 없음.
+
+- 2026-10-01 5분 기준은 나중에 설정에서 SNS를 추가하는 사용자에게 사실상 매번 재인증을 요구함을 명확화. 최근 로그인 재사용만으로 장기 로그인 UX 문제를 해결하지 못함. 정책 완화는 별도 검토 대상, 이번 코드/설정 변경 없음.
+
+- 최근 인증 5분 기준 설명의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 코드·외부 설정 변경 없음.
+
+- 2026-10-01 최근 인증 기준 재확인: Firebase auth_time에서 기본 5분 초과 시 SNS 연결 재인증 필요. 앱 마지막 사용·Identity 재발급 시각이 아님. 실배포 값 미확인, 코드/설정 변경 없음.
+
+- 2026-10-01 SNS 연결 UX 권장: 최근 기존 SNS 인증을 재사용하고 만료 시에만 재인증 안내, 서버 준비 단계는 자동화 가능. 재인증 완전 제거는 세션 탈취 후 로그인 수단 추가 위험으로 권장하지 않음. 이번에는 설명/기록만 수행, 정책 및 코드 변경 없음.
+
+- 기존 SNS 재인증 분석의 현재 turn 식별자를 WORKLOG 끝에 추가 완료. 최근 로그인 재사용 UX는 제안 상태이며 코드·외부 설정 변경 없음.
+
+- 2026-10-01 기존 SNS 재인증 요구 분석: 서버는 기존 승인 SNS의 최근 auth_time(기본 5분)을 요구하며 매번 별도 팝업을 강제하지 않음. 현재 로컬 도구는 명시 재인증 단계를 강제하는 테스트 UX. 최근 로그인 재사용 최적화는 미구현, 코드/외부 설정 변경 없음.
+
+- 2026-10-01 기존 MEMBER SNS 명시 연결 로컬 화면 구현 완료: 외부 도구 `/Users/msde76/tosunsaeng-integration-test`의 2-2 섹션에 기존 SNS 재인증 → prepare/start → 1회 SDK 연결 → 대상 재인증 → complete/status 추가. 28개 Node 모의 테스트 통과, 로컬 4173 서버 재시작 및 HTTP 응답 확인. Chrome 자동 새 탭은 ERR_BLOCKED_BY_CLIENT로 시각 검증 미완료. 실제 계정 연결·AWS 변경 없음. 실연동 전 FIREBASE_PROVIDER_LINK_ENABLED 및 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 확인 필요. 기존 로그인 탭 상태 보존, 새 화면 사용 시 재로그인 필요.
+
+- 프론트 인증 교환 설명의 정확한 turn 식별자를 WORKLOG 끝에 추가해 기록 보완. 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 프론트가 Firebase SNS 인증 후 ID Token을 Identity exchange에 자동 전달하는 계약 설명. 로컬 테스트 도구만 단계별 버튼으로 분리됨. 사용자 Kakao 준비 완료 보고 반영(이번 실환경 재검증 없음), 기존 회원 SNS 추가 연결 테스트 준비 맥락 유지. 코드/외부 설정 변경 없음.
+
+- 2026-10-01 기존 회원의 SNS 추가 연결 테스트 준비: 로컬 도구에 providers/link 흐름 미구현 확인. 사용자에게 추가할 SNS 질문. Identity MEMBER 인증과 명시 연결 배포 플래그 확인 필요, 이번 구현·외부 변경·계정 연결 없음. 복구 기능은 보류 유지.
+
+- 계정 복구 경계 설명의 정확한 turn 식별자를 WORKLOG 끝에 추가해 기록 보완. 복구 기능은 제안 단계이며 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 일반 로그인/계정 복구 경계 확인: 정상 SNS 로그인 유지, 다른 UID의 번호를 통한 자동 연결 차단 유지, 충돌 시 기존 로그인 또는 별도 복구 안내 방향 설명. 복구 기능 구현·정책 확정 및 외부 변경 없음.
+
+- 2026-10-01 전화번호 기반 기존 회원 복구 제안 검토. 기존 SNS 접근 불가 시 복구 흐름 필요하나 번호 입력/SMS 단독으로 자동 연결하는 정책은 계정 탈취 위험. 명시 복구·위험 기반 추가 확인·기존 userId 보존 방향 제안, 코드/외부 설정/계정 변경 없음.
+
+- SNS 추가 연결 안내의 현재 turn 식별자를 WORKLOG 끝에 추가하여 보완. 설명만 수행했으며 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 신규 가입과 SNS 추가 연결 구분 안내: 다른 UID의 기존 전화번호 중복 연결 불가, 기존 회원 인증 후 새 SNS 연결하고 전화번호는 유지. 이미 동일 UID일 때의 자동 등록과 다른 회원 소유 SNS 제한은 별개. 코드/외부 설정 변경 없음.
+
+- 전화번호 연결 충돌 안내의 정확한 turn 식별자를 WORKLOG 끝에 추가해 보완. 추가 코드·계정·외부 설정 변경 없음, 실제 Firebase 연결 상태 확인 필요.
+
+- 2026-10-01 사용자 오류 항목 link 확인: Google 일반 로그인 뒤 전화번호를 현재 Firebase 사용자에 붙이는 단계에서 실패. 기존 Kakao 회원에 Google 추가 연결하는 절차와 구분 안내. 실제 UID는 미확인, 계정/번호 삭제·자동 병합·코드 변경 없음.
+
+- 2026-10-01 Kakao 기존 계정과 동일 번호의 새 Google 로그인 오류 안내. 로컬 일반 로그인 버튼은 Google 추가 연결 기능이 아니며 같은 번호 자동 통합 없음. 실패 단계 google/link 구분 질문, 실제 Firebase 충돌 원인 미확정. 코드/계정/외부 설정 변경 없음.
+
+- 기존 연결 번호 재사용 안내의 정확한 turn 식별자를 WORKLOG 끝에 추가하여 기록 보완. 신규 가입/기존 회원 연결 목적 확인 대기, 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 사용자가 다른 계정에 이미 연결된 테스트 번호 재사용을 확인. 신규 가입은 미사용 등록 테스트 번호로, 기존 회원 Kakao 추가는 기존 회원 인증 후 명시 연결 흐름으로 구분 안내. 다른 UID 자동 병합·전화번호 이전·계정 삭제 미수행. 실제 Firebase UID/충돌 세부 상태는 미확인.
+
+- Firebase 연결 충돌 진단 turn 기록 보완 완료. 실제 충돌 원인은 미확정이며 사용자 번호 재사용 여부 답변 대기. 추가 코드·계정·외부 설정 변경 없음.
+
+- 2026-10-01 link account-exists-with-different-credential 안내: PhoneAuthProvider credential을 현재 Firebase UID에 연결하는 단계의 계정 충돌이며 Identity signup 전 실패. 전화번호 중복으로 단정하지 않음. 기존 Google/Apple 번호 재사용 여부 및 Firebase 연결 상태 확인 필요, 계정/설정 변경 없음.
+
+- CAPTCHA 진단 turn 기록 보완 완료. 가상 번호 인증 모드 확인 및 등록 여부 질문 상태이며 실제 원인은 아직 미확정. 추가 코드·외부 설정 변경 없음.
+
+- 2026-10-01 send auth/captcha-check-failed 진단: 로컬 도구는 appVerificationDisabledForTesting=true로 등록된 가상 번호 전용. Firebase 전화 인증 단계 실패이며 Identity 배포 오류와 구분. 입력 번호/프로젝트 테스트 번호 일치 확인 필요, 실제 원인 확정 전. 코드·외부 설정 변경 없음.
+
+- 로컬 테스트 서버 복구 turn 식별자 기록 보완 완료. 재시작 및 HTTP 200 확인 결과 유지, 추가 코드·외부 설정 변경 없음.
+
+- 2026-10-01 localhost:4173 리스너 부재 확인 후 기존 통합 테스트 서버 재시작, HTTP 200 확인. 코드/AWS 설정 변경 없음. 브라우저 상태는 조작하지 않음, 실제 Kakao 테스트 재개 대기.
+
+## 2026-10-01 최신 — 테스트 Kakao 활성 설정 재배포 완료
+
+- 사용자 push commit 1cca3c17c3460e01a7ed75b82f4c22ed6fabede0, GitHub run 36826056025 성공 확인 후 ECS tosunsaeng-identity-test:9 기반 revision 10 생성 및 테스트 서비스 업데이트 완료.
+- 사용자 명시 승인으로 FIREBASE_KAKAO_ENABLED=true, FIREBASE_KAKAO_PROVIDER_ID=oidc.kakao, AUTH_SESSION_FENCE_ENABLED=true 적용. 이미지 및 다른 설정 유지, 운영 미변경.
+- 최종 ECS 배포 성공, revision 10·1 running/0 pending·시작 실패 0, HTTPS health UP 확인. 새 코드/워크플로 수정·commit/push/Jira 변경 없음. 비밀값 미조회·비기록.
+- 현재 워크플로는 서비스 현재 태스크 설정을 승계하므로 다음 CI 배포에도 플래그 유지. 실제 Kakao exchange/가입/기존 회원 연결·모바일 E2E는 미검증. 다음은 Chrome Kakao 재인증 후 Identity 로그인 재시도. 과거 '설정 미적용/배포 대기' 기록은 이 결과로 대체됨.
+
+- Kakao 활성 설정 설명 turn 기록 보완 완료. 코드 지원과 AWS 활성화/배포를 구분했으며 이번 외부 변경은 없음. 테스트 서버 설정 확인 및 실제 로그인 검증 대기.
+
+- 2026-10-01 Kakao 설정 적용 여부 재확인: 코드의 최초 등록 지원은 완료했지만 AWS 환경변수 활성화/배포는 미수행. application.yml은 FIREBASE_KAKAO_ENABLED 기본 false, provider ID 기본 oidc.kakao 유지. 코드 배포와 서버 ON 설정을 함께 확인해야 함.
+
+- 2026-10-01 Kakao exchange 403 진단: 코드상 현재 로그인 제공자 미인식/비활성이 원인. 기본 설정 및 테스트 task 초안은 Kakao OFF지만 실행 task는 AWS 세션 만료로 미확인. Chrome에 기존 AWS 접속 포털을 열고 사용자 로그인 대기. 토큰 조회·외부 설정 변경 없음.
+
+## 2026-10-01 최신 — TMI-189 후속 Kakao 로컬 구현 완료 / 배포 대기
+
+- develop에서 사용자 요청으로 Kakao 최초 로그인 등록 확장. LOGIN_EXCHANGE의 동일 UID 활성 MEMBER에 한해 현재 KAKAO만 등록하며 기존 소유권/차단/이력/보안 작업/트랜잭션 제약 유지. Firebase SDK는 설정된 OIDC ID의 서명된 subject와 최신 원격 연결 일치 검증. 임의 OIDC·Kakao OFF 우회 없음.
+- 기존 로컬 테스트 도구 app.js/index.html/apple.test.mjs에 Kakao 로그인·재인증/회귀 테스트 추가. localhost:4173 서버 재시작 및 HTML 응답 확인. 브라우저 새로고침·실제 로그인·회원 변경 미수행.
+- 최종 ./gradlew clean test 1024개 통과, 웹 node 테스트 7개 통과, git diff --check 통과. 초기 sandbox 제약 및 신규 mock stubbing 오류 수정 후 재검증 완료.
+- JWT/API 불변. 커밋/push/배포 및 AWS/Firebase 설정 변경 없음. 실제 Kakao/Android/iOS E2E는 미검증. 다음: 사용자 push/테스트 배포 후 FIREBASE_KAKAO_ENABLED=true, FIREBASE_KAKAO_PROVIDER_ID=oidc.kakao, AUTH_SESSION_FENCE_ENABLED=true 확인하고 실제 테스트. sync 사용 환경의 provider fence 확인도 유지.
+- TMI-189 조회만 수행, Jira 수정/댓글/상태 변경 없음. 과거 누적 기록 변경 보존. 상세 변경 파일/검증/댓글 초안은 WORKLOG 최신 항목 참조.
+
+- 현재 turn 기록 보완 완료: 사용자 시크릿 교체 보고 반영 및 다음 단계 안내만 수행. 코드·외부 설정 변경 없음, Kakao 실제 로그인 검증 대기.
+
+- 2026-10-01 사용자 시크릿 교체 및 Firebase 값 갱신 완료 보고 수신. 실제 비밀값 재조회 없음. 다음은 웹 테스트 화면과 Identity Kakao 지원 준비이며 실제 로그인은 미검증.
+
+- 2026-10-01 Kakao callback 등록 이후 순서 안내: 시크릿 교체 확인 → 웹 테스트 및 Identity Kakao 검증·등록 지원 준비 → Android/iOS 각각 SDK 로그인·앱 복귀 검증. 이번 코드/외부 설정 변경 없음, 실제 로그인 미검증.
+
+- Redirect URI 확인 작업의 현재 turn 기록 보완 완료. 주소 일치 확인, 민감정보 자동 출력 문제에 따른 사용자 직접 시크릿 교체 권장 상태 유지. 비밀값 기록 및 외부 설정 변경 없음.
+
+- 2026-10-01 Kakao 로그인 Redirect URI 입력값이 Firebase callback과 일치함 확인(저장 완료는 사용자 보고). 화면 도구의 탭 선택 자동 출력에 client secret이 포함되는 문제가 발생해 값은 문서/응답에 복사하지 않음. 노출된 시크릿의 사용자 직접 재발급 및 Firebase 대응 값 갱신 권장, 재발급/저장 등 외부 변경 미수행. 이후 테스트 로그인 준비 필요.
+
+- Android/iOS Kakao 지원 범위 정정의 현재 turn 기록 보완 완료. 두 플랫폼 모두 공통 oidc.kakao를 사용하고 플랫폼별 앱 복귀 설정·검증이 필요함을 안내. 구현/외부 설정 변경 없음.
+
+- 2026-10-01 Kakao 클라이언트 범위 정정: 사용자 확인에 따라 Android와 iOS 모두 대상. Firebase OIDC 화면의 Apple 링크는 Apple 로그인 제공자가 아닌 iOS 플랫폼 SDK 안내이며 두 플랫폼 각각 로그인·앱 복귀 검증 필요. 같은 provider/client 설정을 사용하되 SDK/복귀 설정은 플랫폼별로 준비, 별도 로컬 웹 테스트는 웹 SDK 사용. 이번 코드/외부 설정 변경 없음.
+
+- 2026-10-01 Firebase OIDC 플랫폼별 단계 안내 확인: 콘솔에 Apple/Android/웹 SDK 문서 링크가 표시됨. 추가 콘솔 등록 오류가 아니라 각 앱에서 oidc.kakao 로그인 흐름을 구현하라는 안내임을 설명. Android 프론트 연동과 localhost 웹 테스트 연동을 구분, 서버 Kakao 활성화/최초 자동 등록 확장도 별도 필요. 이번 설정/코드 변경 없음.
+
+- Firebase OIDC 등록 확인·Kakao callback 안내의 현재 turn 기록 보완 완료. oidc.kakao 활성 확인, 사용자 callback 저장 및 실제 로그인 검증 대기. 외부 설정 변경 없음.
+
+- 2026-10-01 Firebase oidc.kakao 제공업체 사용 설정됨 확인. 통합 구성에서 실제 Firebase callback URL 확인, Kakao REST API 키 수정 화면의 카카오 로그인 리다이렉트 URI에 사용자 직접 등록 안내. 비즈니스 인증 URI와 구분, 실제 키/시크릿 비기록. Callback 저장 및 실제 로그인은 아직 미검증.
+
+- 카카오 로그인용 Client Secret 선택 안내의 현재 turn 기록 보완 완료. 실제 비밀값 조회/입력이나 외부 설정 변경은 하지 않았으며 Firebase 연동 검증 대기.
+
+- 2026-10-01 Kakao 시크릿 선택 안내: Firebase OIDC에는 REST API 키의 카카오 로그인용 Client Secret을 사용하며 비즈니스 인증용은 사용하지 않음. 실제 값 조회/기록/전송 및 외부 설정 변경 없음.
+
+- 2026-10-01 MEMBER 승격 후 기존 Guest Access Token으로 guest/prepare 호출 시 서비스는 DB의 현재 User가 Guest인지 검사하여 403 GUEST_UPGRADE_NOT_ALLOWED 반환함을 확인. 만료/유효하지 않은 인증은 먼저 401, 다른 MEMBER에 이미 통합된 MERGED source는 401 ACCOUNT_MERGED_TOKEN_REJECTED로 구분. 코드 변경 없음, 소스 확인만 수행.
+
+- Kakao 플랫폼 키 메뉴 안내의 현재 turn 기록 보완 완료. 현재 브랜치 develop 확인, 기존 변경 보존. REST API 키 카드 위치만 안내했으며 실제 값 기록·키 변경·외부 전송 없음.
+
+- 2026-10-01 Kakao 플랫폼 키 메뉴 확인: 앱 설정 → 앱 → 플랫폼 키에서 REST API 키 카드 및 클라이언트 시크릿 라벨 확인. 값은 출력/기록하지 않음. 사용자 직접 Firebase 입력 안내, 키 생성/변경 없음.
+
+- 현재 설명 turn 기록 보완 완료: Kakao에서도 동일 Firebase UID의 미등록 제공자 상태를 안전 검증 후 등록하는 확장 의도를 확인. 실제 Kakao 자동 연결 여부는 미검증, 추가 구현/배포 없음.
+
+- 2026-10-01 Kakao 확장 의도 확인: 기존 MEMBER의 같은 Firebase UID에 Kakao만 연결되고 Identity에는 없는 경우를 Google/Apple과 동일한 안전 검증 후 등록으로 처리하려는 범위임을 설명. Firebase 자동 연결 자체를 막는 작업이 아니며 실제 Kakao OIDC 자동 연결 동작은 미검증. 이번 turn 구현 변경 없음.
+
+- 2026-10-01 TMI-189 배포/Kakao 활성화 순서 설명: 현 Google/Apple 변경을 사용자 검토·커밋/push 후 테스트 배포/검증하고, Kakao Developers·Firebase OIDC 준비와 자동 등록/subject 검증 확장을 완료한 뒤 FIREBASE_KAKAO_ENABLED=true 및 프론트 노출을 권장. 설정 유지와 상시 OFF는 다르며 준비 완료 후 ON 유지 가능. 기존 Kakao 전용 회원이 생긴 후 OFF하면 신규 로그인에 영향을 주므로 무조건적인 비상 차단 권고는 하지 않음. 이번 turn 코드/외부 설정/배포 변경 없음.
+
+- 2026-10-01 TMI-189 Kakao 확장 설명: 현재 verifier에는 설정된 Kakao OIDC provider 매핑/활성화 검사가 있지만 새 최초 자동 등록과 SDK signed subject 교차 검증은 Google/Apple에 한정됨을 재확인. 이는 승인된 TMI-189 범위 제한이며 기술적 불가가 아님. Kakao까지 동일 UX를 제공하려면 Guard·등록 정책·설정된 OIDC ID의 subject 검증 및 회귀 테스트를 함께 확장해야 함. 이번에는 설명/기록만 수행, 구현·Jira 변경 없음.
+
+- 2026-10-01 TMI-189 구현 설명: 실제 소스를 다시 확인하여 SDK subject 교차 검증 → 로그인 전용 Guard 위임 → 동일 binding/ACTIVE MEMBER·소유권/보안 상태 검증 → 현재 provider 등록과 토큰 발급 트랜잭션의 흐름을 코드와 함께 설명. 애플리케이션 추가 변경 없음. 기존 테스트 결과 1009개 성공 확인(이번 turn 재실행 없음). 배포·실환경 동시성/E2E는 여전히 미확인.
+
+## 현재 진행: TMI-189 — 2026-10-01 로컬 구현·검증 완료, 배포 E2E 대기
+
+- 브랜치: feat/TMI-189-firebase-provider-auto-link. Jira TMI-189 설명을 읽고 사용자 개발 요청 범위로 구현. Jira 상태/댓글 변경 없음.
+- LOGIN_EXCHANGE의 동일 프로젝트·UID ACTIVE MEMBER에 한해 현재 Google/Apple 최초 연결을 등록. ProviderChangeGuard는 로그인에서만 미등록 판단을 트랜잭션에 위임하고 block/floor 검증 유지. Exchange는 등록 이후 기존 소유권 검증 및 토큰 발급 수행.
+- Firebase SDK 어댑터에서 서명된 firebase.identities 현재 SNS subject와 최신 Admin providerData 일치 검증 추가. 자동 등록/세션 발급은 같은 Mongo 트랜잭션이며 기존 세션 control CAS/epoch 및 제공자 revision으로 보안 작업과 경합. 다른 회원 소유·기존 제공자 교체·차단/과거 연결 이력·미완료 작업은 거절. 이메일 병합·UID 변경·다른 제공자 일괄 등록 없음.
+- 외부 요청/응답 필드, UUID userId, JWT 계약 유지. 새 기능은 기존 AUTH_SESSION_FENCE_ENABLED=true에서 설치되며 OFF는 fail-closed. sync 사용 환경은 FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED 확인 필요(보안 상태가 있는 회원은 provider fence OFF에서 기존처럼 sync 거절). 새 환경변수/DB 컬렉션 없음.
+- 최종 ./gradlew clean test: 1009개 통과, failures/errors/skipped=0. git diff --check 통과. 신규 ProviderLoginRegistrationServiceTests 및 Exchange/Verifier/SDK/Configuration 회귀 테스트, 프론트 가이드·QA 부록 갱신.
+- 남은 검증: 실제 replica-set 동시 요청/rollback 및 Firebase Google↔Apple 동일 UID 모바일/웹 E2E. 대상 환경 배포·설정 확인 미수행. 이슈 전체 완료 또는 운영 준비 완료를 뜻하지 않음.
+- 시작 전 WORKLOG의 누적 미커밋 변경 보존, 이번 범위 밖 수정 없음. 커밋/push/배포는 하지 않음. 다음: 사용자 diff 확인 및 직접 커밋/push → 테스트 배포 설정/인덱스 확인 → 실환경 QA. Jira 댓글 초안은 WORKLOG에만 기록.
+
+<!-- codex-turn:01a0f58d-ed66-7321-b9da-8badaf7639dd -->
+
+- 2026-09-30 TMI-188 구현 완료(로컬): feat/TMI-188-quality-review-consent. Firebase signup/Guest upgrade에 isQualityReviewConsented·qualityReviewConsentVersion 추가, signup 누락/null=false, upgrade 누락/null=기존 상태 유지, 명시 false 철회, true 현재 버전 검증/서버 시각 저장. GET /api/v1/policies/consents 공개 조회·no-store 및 Swagger/프론트 계약 갱신. ./gradlew clean test 최종 983개 통과(실패/오류 0), git diff --check 통과. 개인정보/약관 필수·개인 API 인증·enrollment/userId 계약 유지, 새 환경변수/엔티티 없음. 배포·모바일 E2E 미수행, 커밋/push/PR 및 Jira 상태·댓글 변경 없음. 기존 배포 문서/DeploymentTargetTests·docs/postman·tools 변경은 작업 시작 전 dirty 상태로 보존. 후속: diff 확인 후 사용자 커밋·배포 및 실제 정책 본문/버전 대응 검증.
+
+- 2026-09-30 TMI-188 생성 완료 turn 기록 보완. 사용자 승인에 따라 생성했으며 부모 TMI-136 연결 확인 완료. 구현은 아직 시작하지 않았고 추가 Jira 변경 없음.
+
+- 2026-09-30 TMI-188 생성 완료: [Identity] SNS 가입·Guest 승격 선택 동의 및 공개 정책 버전 조회. 사용자 초안 승인 후 공식 Atlassian 도구로 작업 생성, 부모 TMI-136 및 해야 할 일 상태 재조회 확인. 구현 미시작, 댓글/상태 전환 없음. 이전 생성 승인 대기 기록은 생성 완료로 대체됨.
+
+- 2026-09-30 TMI-136 하위 Jira 초안 검토 turn 기록 완료. 제시한 신규 작업 내용의 사용자 승인 대기이며 Jira 생성·댓글·상태 변경 없음.
+
+- 2026-09-30 TMI-136(sns 로그인) 하위 작업 생성 준비: 에픽/작업 유형 및 기존 자식 이슈 확인. SNS signup·Guest upgrade 선택 동의 및 공개 정책 조회를 묶은 작업 초안 준비, AGENTS.md의 Jira 사전 내용 공개·승인 규칙에 따라 생성 승인 대기. Jira 생성·댓글·상태 변경 및 구현 없음.
+
+- 2026-09-30 Guest 승격에도 동일한 enrollment 만료·정리 흐름 적용 확인. 승격 트랜잭션에서 소비 처리 후 공통 finalizeEnrollment 호출, enrollment 삭제 이후 MEMBER와 Firebase 연결 유지. 코드 변경 없음.
+
+- 2026-09-30 enrollment TTL 설명 turn 기록 완료. 사용 만료와 DB 삭제 시점을 구분했으며 기본 10분 유효기간·가입 완료 후 기본 24시간 보관은 코드 기본값임을 안내. 실제 배포 설정·TTL 인덱스는 미조회, 코드 변경 없음.
+
+- 2026-09-30 enrollment 만료와 삭제 구분 확인: 기본 유효기간 10분(expiresAt) 이후 사용할 수 없으나 즉시 DB 삭제되지는 않는다. 생성 시 cleanupAt=null, 가입 완료 lifecycle에서 기본 24시간 보관 뒤 cleanupAt TTL 삭제 예약. 미완료 만료 건은 별도 정리 절차/설정에 의존하며 만료만으로 삭제 예약되지 않음. DB TTL 인덱스·실배포 설정 미조회, 코드 설명만 수행.
+
+- 2026-09-30 신규 signup Firebase 연결 시점 설명의 turn 기록 보완 완료. 가입 전 enrollment의 Firebase 연결과 가입 완료 후 MEMBER의 FirebaseIdentity 매핑을 구분해 설명했으며 코드 변경 없음.
+
+- 2026-09-30 신규 signup Firebase 연결 시점 확인: DIRECT_SIGNUP enrollment는 가입 전부터 Firebase 계정에 연결되며 boundUserId는 null. signup 성공 시 새 MEMBER와 FirebaseIdentity 매핑을 동일 트랜잭션에서 저장. Guest 승격은 기존 Guest userId를 유지하는 차이. 설명만 수행, 코드 변경 없음.
+
+- 2026-09-30 Guest upgrade enrollment 설명의 turn 기록 보완 완료. prepare 발급 ID를 upgrade에 제출하며 Guest·Firebase 계정·유효성 검증을 수행하는 현재 구현 확인. 코드 변경 없음.
+
+- 2026-09-30 Guest upgrade enrollment 사용 확인: guest/prepare가 GUEST_USER 타입으로 현재 Guest와 Firebase 계정에 연결된 enrollment를 발급/재사용하고 guest/upgrade가 ID·미만료 PENDING·Guest 소유권·Firebase 일치를 검증한다. 신규 signup enrollment와 구조는 같지만 용도/소유자 경계로 서로 대체 불가. 설명만 수행, 코드 변경 없음.
+
+- Guest upgrade 선택 동의 확장 검토의 turn 기록 보완 완료(2026-09-30). signup·upgrade 선택 동의 및 공개 정책 조회를 구현 예정 범위로 정리, 실제 API 변경 없음.
+
+- 2026-09-30 Guest upgrade 선택 동의 확장 범위 추가: FirebaseGuestUpgradeRequest에 isQualityReviewConsented/qualityReviewConsentVersion 없음 확인. 기존 승격은 renewRequiredConsents로 선택 동의를 보존함. 신규 signup 확장·공개 정책 GET와 함께 upgrade DTO/검증/저장 확장 계획에 포함. upgrade 필드 누락은 기존 동의 보존, 명시 false는 미동의, 명시 true는 현재 버전 검증 후 반영 권장. 구현 전 검토/방향 정리만 수행.
+
+- signup 선택 동의·공개 정책 조회 설명 기록 완료(2026-09-30). 구현 전 계약 제안 상태이며 이번 turn 기록 식별자 보완, 애플리케이션 변경 없음.
+
+- 2026-09-30 Firebase signup 선택 품질 검토 동의 및 공개 정책 조회 수정 방향: 기존 isQualityReviewConsented/qualityReviewConsentVersion 이름으로 signup DTO 확장, 누락·null은 false, true일 때 현재 버전 검증 및 UserConsents 저장 제안. 공개 GET /api/v1/policies/consents는 ConsentPolicy의 세 버전만 반환하고 해당 GET만 permitAll. 기존 개인정보/약관 필수 및 개인 동의 API 인증 유지. 구현 전 설명 단계이며 Guest upgrade 확장은 별도 범위로 구분.
+
+- 2026-09-30 신규 가입 폼 보관 책임 확인: 전화번호는 Firebase에서 따로 인증하고, 닉네임·필수 동의·버전은 signup에 필수로 제출한다. 프론트가 자동으로 값을 아는 것은 아니며 입력 화면에서 받은 값을 제출/재시도까지 보관해야 한다. 일반 신규 가입 기준이며 Guest 기존 동의 예외 유지. 코드 변경 없음.
+
+- 2026-09-30 가입 입력과 Firebase 인증 시점 설명: 닉네임·동의는 signup 전까지 프론트 폼에만 있고 서버는 PROFILE·CONSENTS를 계속 요구한다. 전화번호 인증은 signup 전에 Firebase에 완료 상태가 저장되어 갱신된 인증 정보 확인 시 PHONE_VERIFICATION이 빠질 수 있다. PASSWORD 이메일 인증도 동일한 사전 인증 예외이며 Guest 기존 동의는 별도 경로. 이번 설명/기록만 수행, 코드 변경 없음.
+
+- 2026-09-30 missingRequirements와 가입 필수 입력 검토: 일반 신규 가입 resolveDirectSignup은 PROFILE·CONSENTS를 항상 포함하며 enrollment에는 닉네임/동의 초안이 저장되지 않는다. signup 입력 선택화나 enrollment 초안 조회 API는 이 문제에 필요 없음. Guest 승격은 기존 최신 동의가 있으면 CONSENTS를 생략할 수 있지만 upgrade DTO는 동의 필드 필수이므로 기존 GET /users/me/consents로 실제 동의 상태를 확인하여 제출하는 프론트 구분 필요. 가입 폼은 클라이언트에서 최종 제출/재시도까지 보존. 공개 정책 버전 조회 필요성은 별도 유지. 이번 코드·계약 변경 없음.
+
+- 2026-09-30 가입 전 정책 버전 조회 공백 확인: GET /api/v1/users/me/consents는 현재 사용자 조회와 JWT 인증이 필요하며 공개 정책 조회 API는 현재 없음. GET /api/v1/policies/consents(제안)에서 ConsentPolicy의 세 버전을 공개하고 가입 제출 시 기존 버전 검증을 유지하는 방향 권장. 조회 후 정책 변경 시 재조회·내용 재표시·재동의 필요. 이번에는 분석/기록만 수행, API 미구현.
+
+- 2026-09-30 EMAIL_VERIFICATION 의미 확인: Firebase PASSWORD 방식이 연결되어 있고 emailVerified=false인 경우 가입/Guest 승격의 missingRequirements에 포함한다. 순수 SNS 계정에는 이 조건으로 별도 이메일 인증을 요구하지 않지만, PASSWORD가 함께 연결된 미인증 계정에는 요구할 수 있다. 기존 로컬 이메일 가입용 잔재가 아닌 현재 Firebase 경로의 실제 조건. 코드·외부 계약 변경 없음, 소스 확인으로 설명.
+
+<!-- codex-turn:01a0f17b-6860-7ae0-97d1-3a57b7e70929 -->
+
+- Apple/Google 연결 복구 검토 turn 기록 완료. 기존 제공자 재인증·명시 연결 동의 기반 복구를 제안했으며 구현·배포·계정 변경 없음.
+
+- 2026-09-30 동일 이메일 Apple/Google 후속 수정 방향: ProviderChangeGuard의 기존 Firebase UID 내 미등록 SocialIdentity 거절 및 ProviderLinkService의 원격 선연결 거절 재확인. 이메일 자체를 기준으로 자동 승인하지 않고 기존 등록 제공자 재인증·명시 연결 동의를 통한 사후 연결 복구 경로 보완 제안. 이번 코드 수정 없음, 상세 계약/구현 승인 전 단계.
+
+<!-- codex-turn:01a0f17a-1321-7121-9953-f75a4c519fa7 -->
+
+- 기록 있는 Guest 병합 검증 turn 기록 완료. 이전 Guest 양 서비스 차단 및 MEMBER에서 시험 1건 이전 조회 성공, 추가 외부 변경 없음.
+
+- 2026-09-30 기록 있는 Guest 병합 검증 성공: 사용자 병합 후 Chrome 읽기 검증을 재실행하여 Identity/LC source의 ACCOUNT_MERGED_TOKEN_REJECTED, MEMBER 완료 이력 조회 성공, 병합 전 시험 ID 1건 중 1건 포함 확인. 이전 0건 미검증과 달리 이번에는 합성 완료 이력의 실제 이전 조회 검증 완료. summary/문항별 결과 소유권 DB 재조회·이벤트204/중복/장애 재시도는 이번 범위에서 미검증. 추가 병합·데이터 변경 없음.
+
+<!-- codex-turn:01a0f172-7184-7dd2-9075-746ef07a8df3 -->
+
+- Guest 더미 생성 turn 기록 완료. 테스트 LC에 합성 완료 모의고사 1건 준비 및 현재 Guest 조회 성공. 실제 병합·이전 검증 대기.
+
+- 2026-09-30 Guest 더미 삽입 완료: 사용자 승인한 최신 생성 기준으로 테스트 Identity 최신 GUEST의 ACTIVE 상태·생성 시각 확인(이전 2개 MERGED). 테스트 LC에 비활성 더미 카탈로그 1건, 해당 Guest 소유 완료 exam_session 1건·합성 exam_summary 1건 추가. Chrome 현재 Guest의 완료 시험 조회 1건 및 비교 준비 확인. 실채점/문항별 결과 아님, 병합은 미실행. 운영·기존 계정·guard 불변.
+
+<!-- codex-turn:01a0f16f-fcea-7f02-b7b6-8781010b68a7 -->
+
+- Guest 더미 데이터 준비 turn 기록 보완 완료. 정확한 Guest UUID 확인 대기이며 데이터 삽입·삭제·병합 미실행 상태 유지.
+
+- 2026-09-30 Guest 더미 삽입 준비: 로컬 app-back-end-learning-core 저장소 발견, 완료 이력은 exam_sessions.userId/completedAt 기준이며 exam_summaries가 점수·요약 제공함을 확인. 현재 도구는 Guest UUID를 표시하지 않으므로 방금 생성한 정확한 소유자 확인 필요. 최신 Guest 추정 삽입은 하지 않음. DB 삽입·기존 데이터 삭제 미실행.
+
+<!-- codex-turn:01a0f16e-72f5-7373-9b33-e76496c0159c -->
+
+- 정책 버전 재입력 turn 기록 완료. Chrome에 privacy-v1/term-v1 표시 확인, 동의·가입은 실행하지 않음.
+
+- 2026-09-30 정책 버전 재입력: 앞서 테스트 task revision 6에서 확인한 privacy-v1 및 term-v1을 Chrome 테스트 화면에 다시 입력하고 표시 확인. 이번에는 AWS 설정 재조회 없이 이전 확인값 사용. 동의·가입·서버 설정 변경 없음.
+
+<!-- codex-turn:01a0f16c-c46e-76a2-ad7a-c1a57e771cc4 -->
+
+- Apple 로그인 팝업 진단 turn 기록 보완 완료. Apple 자체 인증 오류의 상세 원인은 미확정이며 사용자 재인증 대기. 외부 상태 변경 없음.
+
+- 2026-09-30 Apple 로그인 팝업 오류 확인: Apple 자체 계정 로그인 폼에서 일반 오류 문구 표시, localhost는 팝업 응답 대기로 로그인/교환 비활성. 이번 오류는 앞선 Identity 403/409와 다른 Apple 인증 단계이며 상세 원인은 일반 문구만으로 미확정. 팝업만 닫고 새 로그인 또는 사용자 패스키 시도 안내. 세션 초기화·설정 변경·인증정보 입력 없음.
+
+<!-- codex-turn:01a0f16a-4741-70b0-9a6e-579e498bae50 -->
+
+- Guest 생성 잠금 진단 turn 기록 완료. 서버 문제가 아닌 테스트 도구의 병합 상태 잠금 확인. MEMBER 유지형 Guest 초기화 개선 여부를 사용자에게 질문한 상태이며 코드·계정·로컬 세션 변경 없음.
+
+- 2026-09-30 새 Guest 버튼 비활성 원인 확인: Chrome 버튼 disabled, 테스트 도구 controls에서 guest/oldGuest/mergeUncertain 존재 시 생성 차단. 병합 후 oldGuest 보존으로 재생성 잠금 유지. 서버 생성 오류가 아님. 현재 clear는 로그인·Guest·녹음/응시 등 전체 로컬 상태 초기화이므로 자동 실행하지 않음. 사용자 전체 초기화 후 재로그인 또는 Guest 테스트 상태만 초기화하는 도구 개선 선택 가능.
+
+<!-- codex-turn:01a0f167-97be-7490-8a52-f32ed56a3dce -->
+
+- 기록 있는 Guest 재검증 준비 turn 기록 완료. LC 저장소 위치 확인 대기이며 기존 Guest 삭제·새 계정 생성·임시 데이터 삽입·병합은 수행하지 않음.
+
+- 2026-09-30 기록 있는 Guest 병합 재검증 요청: 기존 Guest는 이미 MERGED 상태이므로 삭제 범위 확정 전 변경하지 않음. 신규 Guest+LC 테스트 완료 모의고사 1건으로 검증 제안. 모의고사는 LC 소유이며 Identity에 seed 구현을 추가하지 않음. LC 저장소 위치/테스트 fixture 경로 확인 필요, 삭제·생성·병합 미실행.
+
+<!-- codex-turn:01a0f166-2c49-7ef0-a54d-ae1cca42c1bc -->
+
+- Google 검증 범위 확인 turn 기록 보완 완료. 이전 Google AI 채점 성공은 확인된 사실이며, Apple 이번 시도와 실제 기록 이전은 미확인으로 구분.
+
+- 2026-09-30 Google/Apple 검증 범위 정정: 이전 Google 테스트에서는 S3 CORS 수정 후 업로드·제출·AI completed 및 결과 재조회까지 검증된 기록 확인. 최근 미확인 안내는 새 Apple 계정의 이번 시도에 한정하며 채점 시스템 전체 미검증/장애 의미가 아님. 실제 시험 기록 이전은 Google 당시에도 0건으로 미검증.
+
+<!-- codex-turn:01a0f163-6859-73f0-8185-9d56dd1949c7 -->
+
+- 후속 기능 검증 turn 기록 보완 완료. 기본 인증 및 병합 후 차단 검증 성공, 실제 기록 이전·AI 채점 미검증 상태 유지. 추가 외부 변경 없음.
+
+- 2026-09-30 Apple 후속 기능 확인: 화면에서 Apple 재인증·MEMBER 가입·프로필·재발급·LC 인증·Guest 생성·Identity 병합·응시 준비·S3 업로드 성공 확인. 병합 후 읽기 검증 직접 실행하여 Identity/LC 이전 Guest 전용 거절 코드 및 MEMBER 이력 조회 성공 확인. 이전 기록 0건으로 기록 이전 미검증. 챌린지 결과 solvedQuestionCount=0/question=null, 제출·AI 채점 성공은 미확인. 추가 제출/병합/재발급 실행 없음.
+
+<!-- codex-turn:01a0f161-0128-7b92-b88f-57124fe10a98 -->
+
+- 제공자 거절 진단의 현재 turn 기록 보완 완료. 사용자 동일 Apple 재인증 대기, 추가 계정 변경 없음.
+
+- 2026-09-30 후속 exchange 403 확인: 전화 연결 후 가입 준비 갱신에서 FIREBASE_PROVIDER_NOT_ALLOWED. 서버는 LOGIN_EXCHANGE의 PHONE sign-in을 명시적으로 거절하며 Apple/Phone 활성은 앞선 revision 6에서 확인. 현재 토큰 claim 직접 확인은 하지 않아 PHONE 전환은 유력 가설로 구분. 같은 Apple 재인증→exchange→가입 순서 안내. 설정·코드 변경 없음.
+
+<!-- codex-turn:01a0f15f-3567-7f61-83c8-5570e01ed056 -->
+
+- 가입 오류 진단 작업 식별 기록 보완 완료. RESTART_EXCHANGE 확인 및 가입 준비 갱신 안내 상태이며 추가 계정 변경은 수행하지 않음.
+
+- 2026-09-30 가입 실패 진단: Chrome 결과는 signup RESTART_EXCHANGE. 로컬 도구가 enrollment 존재·동일 UID·만료 전 조건에서 signup 전 차단하는 오류이며 서버 409와 다름. 이전 전화 연결 및 경과 시간을 고려하면 가입 준비 만료가 유력(기본 10분). Identity exchange로 가입 준비 갱신 후 사용자 최종 가입 필요. 이번에는 조회만 수행, 가입/동의/재인증 미실행.
+
+<!-- codex-turn:01a0f15a-e8a5-77e3-8b23-e88ece58b884 -->
+
+- 2026-09-30 정책 버전 입력 완료: AWS 테스트 서비스가 사용하는 task revision 6의 PRIVACY_CONSENT_VERSION=privacy-v1, TERM_CONSENT_VERSION=term-v1을 확인하고 Chrome 가입 화면 두 필드에 입력·표시 검증. 동의 체크는 조회 당시 이미 선택되어 있었으며 조작하지 않음. 최종 가입 미실행, 사용자 약관 확인 후 진행 대기. 코드·배포·서버 설정 변경 없음.
+
+<!-- codex-turn:01a0f157-dcb6-77f3-92fa-aee455c04396 -->
+
+- 2026-09-30 신규 Apple 계정 전화 연결 완료: 사용자 등록한 두 번째 가상 번호가 Firebase에 저장된 것을 확인. 기존 Apple 세션에서 exchange 가입 준비 재확인 후 가상 번호 인증 및 연결 실행, 같은 Firebase UID 유지 성공 표시 확인. 실제 SMS 발송 없음. 약관/정책 버전 입력·동의·최종 signup은 미실행. 서버 현재 정책 버전은 이번 작업에서 live 재확인하지 않았으며 기존 draft 값과 구분해야 함.
+
+<!-- codex-turn:01a0f153-b853-7d73-addf-8c5d552adbf6 -->
+
+- 신규 Apple 전화 인증 준비의 작업 식별 기록 보완 완료. 기존 테스트 번호는 사용 중이므로 별도 가상 번호의 사용자 등록 대기. 전화 연결·가입·설정 변경은 수행하지 않음.
+
+- 2026-09-30 신규 Apple 전화 인증 준비: Chrome 신규 가입 준비 상태 확인. Firebase 전화 provider 테스트 번호 목록 실조회 결과 등록된 가상 번호 1개뿐이며 기존 Google 회원에 이미 연결된 번호임. 기존 번호 재사용/해제하지 않음. 별도 가상 번호와 고정 코드 등록을 위해 콘솔 입력 화면 열어 사용자 직접 설정 대기. 전화 연결·약관 동의·최종 가입 미실행.
+
+<!-- codex-turn:01a0f152-ed12-7800-936d-e5e4dcd2227e -->
+
+- 2026-09-30 후속 검증 순서 안내: 신규 Apple 계정은 enrollment까지만 검증됨. 미사용 테스트 전화번호 연결·사용자 약관 동의·MEMBER 가입→프로필→Apple 재로그인→재발급→LC 접근/챌린지 순으로 진행 권장. 기존 UID 자동 연결 409는 별도 출시 전 해결 항목. 사용자 요청은 순서 상담으로 해석하여 실제 가입·동의·병합·채점 미실행.
+
+<!-- codex-turn:01a0f14f-ab03-7770-88dd-7c286941d9fe -->
+
+- 다른 Apple 계정 비교 검증의 정확한 작업 식별 기록 보완 완료. 다른 Firebase UID로 인증 후 Identity 신규 가입 준비 응답을 확인했고 409는 재발하지 않음. 전화 연결·최종 가입은 미실행.
+
+- 2026-09-30 다른 Apple 계정 비교 검증 완료: 재현 화면에서 동일 UID=false/Apple 연결=true 확인 후 Identity exchange 실행, 신규 가입 준비 완료 안내와 전화 인증 시작 버튼 활성 확인(ENROLLMENT_REQUIRED 처리 경로). 이번에는 PROVIDER_RELINK_REQUIRED 재발하지 않음. 기존 로그인 수단 유지=false는 다른 Firebase 사용자에 Google/전화가 없다는 비교값이며 기존 계정 삭제를 뜻하지 않음. 신규 전화번호 연결·동의·signup 미실행, 기존 계정 Apple 연결은 앞선 요청대로 해제 상태.
+
+<!-- codex-turn:01a0f14c-14b3-7c60-bbfb-0531777241b7 -->
+
+- 다른 Apple 계정 비교 실험 작업 식별 기록 보완 완료. 기존 Apple 단독 해제 및 Google/전화번호 보존 확인, 다른 Apple 인증 대기. 실제 UID 비교와 Identity 응답 검증은 아직 미완료.
+
+- 2026-09-30 다른 Apple 계정 비교 실험 준비: 로컬 UI의 다른 UID 중단 조건을 제거하고 비교 결과만 표시하도록 변경, Mock 다른 UID 케이스 추가 및 테스트 5개 통과. 기존 Google→Identity 로그인 성공 후 요청대로 Apple만 다시 해제, UID·Google/전화 유지·Apple 없음 실확인. 다른 Apple 로그인 창에서 사용자 이중 인증 대기. 새 계정 여부 및 exchange 응답 미확인, signup/전화 연결은 실행하지 않음.
+
+<!-- codex-turn:01a0f14a-183f-7042-9d8f-de39617a950d -->
+
+- 2026-09-30 Apple 자동 연결/409 실제 재현 완료: 사용자 Apple 인증 후 기존 테스트 탭의 비교 결과에서 동일 UID=true, Apple 연결=true, 기존 로그인 수단 유지=true 확인. 앞선 Apple 해제 성공(Apple 없음) 상태에서 일반 Apple 로그인만으로 재연결됨. 이어 Identity exchange를 실행하여 HTTP 409 PROVIDER_RELINK_REQUIRED 재발 확인. 이 재현에서는 자동 재연결 경로가 직접 관측됨. 최초 사건의 과거 로그와는 구분. 현재 Apple은 다시 연결된 상태이고 Google/전화번호 유지, 서버 수정·배포 없음.
+
+<!-- codex-turn:01a0f13f-c70e-7da3-9ab4-eb80e23fcf6f -->
+
+- Apple 재현 작업 식별 기록 보완 완료. 승인된 Apple 단독 해제 성공 및 동일 UID·Google/전화번호 보존 확인. 사용자 Apple 재로그인 대기 중으로 자동 재연결과 409 재발은 아직 미검증. 현재 테스트 페이지를 새로고침하지 않아야 비교 상태 유지됨.
+
+- 2026-09-30 승인된 Apple 재현 실험 진행: 별도 로컬 UI app.js/index.html/apple.test.mjs/README.md에 테스트 Apple 단독 unlink 및 UID/나머지 provider 비교 추가. Google 인증→Identity MEMBER 토큰 발급 성공 후 확인창 승인, 실제 Firebase Apple 연결만 해제 완료. SDK reload 검증으로 동일 UID·Google/전화번호 유지·Apple 부재 확인, 로컬 로그아웃. Apple 재로그인 창을 열어 사용자 직접 인증 대기, 409 재발 여부 아직 미검증. Node Mock 테스트 5개 통과. 기존 오류 탭 새로고침 후 공개 웹 설정 재적용했으며 비교용 메모리는 현재 유지. 서버 코드·배포·Identity DB 직접 변경 없음.
+
+<!-- codex-turn:01a0f13e-1388-7711-bdc3-0df9a4049ed8 -->
+
+- Apple 재현 실험 준비 작업 식별 기록 보완 완료. Firebase 콘솔에 Apple 단독 해제 메뉴가 없어 SDK 기반 경로가 필요하며, Google·전화번호·회원 기록을 유지하는 Apple 단독 해제의 적용 승인 대기. 계정 변경이나 재현 실행은 아직 없음.
+
+- 2026-09-30 Apple 재현 목적 확인: 사용자는 수정이 아닌 해제 후 동일 오류 재발 여부 검증을 요청. Firebase 사용자 메뉴 실조회 결과 비밀번호 재설정/계정 사용 중지/계정 삭제만 있으며 Apple 단독 해제 메뉴 없음. 전체 사용자 삭제하지 않음. 테스트 UI의 Firebase SDK를 통한 Apple 단독 unlink 후 같은 계정 재로그인/UID·provider·exchange 비교 방향 제시, 실제 변경 직전 범위 확인 필요.
+
+- 2026-09-30 사용자 Apple 연결 해제 후 재현 요청: 전체 Firebase 사용자 삭제가 아닌 해당 테스트 계정의 Apple provider 연결만 해제하는 범위를 제안하고 적용 전 확인 대기. Google/전화번호/UID/Identity 회원/기록 유지가 전제이며 현재 아무 변경 없음. 재로그인 시 자동 재연결 및 동일 409 재발 가능, 해결과 원인 재현을 구분.
+
+<!-- codex-turn:01a0f13c-7853-7823-af05-3a9850b7edc2 -->
+
+- Firebase 자동 연결 정책 조사 작업 식별 기록 보완 완료. 동일 이메일의 신뢰된 제공업체 자동 연결은 공식 지원 동작이며 현재 불일치의 유력한 생성 경로. 당시 이벤트 로그가 없어 개별 연결 순간은 미확정. 서버 코드·계정·설정 변경 없음.
+
+- 2026-09-30 Firebase 자동 연결 공식 정책 확인: https://firebase.google.com/docs/auth/users#verified_email_addresses 에서 동일 이메일의 신뢰된 IdP 간 로그인은 오류 없이 자동 연결될 수 있고 Apple은 신뢰된 IdP, Google은 Gmail 주소일 때 신뢰됨을 확인. 테스트 UI는 SNS signIn/reauth만 호출하므로 자동 연결은 현재 단일 UID의 Google/Apple 연결 상태를 설명하는 가장 유력한 경로. Identity exchange는 누락된 SocialIdentity를 자동 저장하지 않고 409 반환하며 기존 sync도 검증 전용. 정확한 이번 연결 이벤트 로그/이전 provider snapshot은 없어 생성 순간을 확정한 것은 아님. 사용자 실수/화면 연결 버튼 누락만으로 단정했던 설명 정정. 수정·외부 데이터 변경 없음.
+
+<!-- codex-turn:01a0f13a-3ebc-7d83-b109-a9008978d8d2 -->
+
+- Apple 로그인 차단 조건 설명의 작업 식별 기록 보완 완료. Identity의 APPLE 승인 레코드 부재가 직접 거절 조건이며, Firebase/Identity 불일치 생성 경위는 미확정. 계정·코드·설정 변경 없음.
+
+- 2026-09-30 차단 조건 설명 보완: ProviderChangeGuard는 기존 Firebase 바인딩이 있을 때 현재 SNS의 userId/provider/providerSubject에 일치하는 SocialIdentity가 없으면 409를 반환함. 현재는 APPLE 승인 레코드 부재가 직접 원인이고 과거 계정 정지나 Apple 기능 OFF를 의미하지 않음. Firebase 연결만으로 서비스의 해제/승인 절차를 우회하지 않도록 하는 검사로 설명하며, 실제 원격 연결 생성 경위는 미확정.
+
+<!-- codex-turn:01a0f138-9261-75c3-9c98-e9fadd0c0848 -->
+
+- 다중 SNS 지원 설명 작업의 정확한 식별 기록 보완 완료. 복수 SNS 연결 모델은 유지되며 현재 오류는 Firebase와 Identity 사이 Apple 연결 정보 불일치. 추가 코드·계정 변경 없음.
+
+- 2026-09-30 다중 SNS 지원 설명 보완: 한 회원에 Google과 Apple을 함께 연결하는 모델은 유지됨. ProviderLinkService.complete는 대상 provider의 SocialIdentity를 추가하며 다른 provider 보유 자체를 거절하지 않음. 현재 409는 다중 SNS 간 충돌이 아니라 Firebase에만 있는 Apple 연결의 Identity 승인 누락. 최초 설계 전체 변경 이력 및 원격 연결 생성 경위는 미확정. 코드/데이터 변경 없음.
+
+<!-- codex-turn:01a0f136-c432-7520-bb9f-0d575ca063ca -->
+
+- 기존 Firebase Apple 연결 복구 조사 작업 식별 기록 보완 완료. 현재 서버의 prepare도 로컬 승인 정보가 없는 원격 연결을 거절하므로 UI 버튼 추가만으로 복구 불가. 안전한 불일치 복구 절차 검토가 다음 단계이며 계정·코드는 변경하지 않음.
+
+- 2026-09-30 정식 연결 복구 코드 조사: ProviderLinkService.prepare는 Firebase에 대상 provider가 이미 있으면 ownedSocial을 요구하므로 현재 APPLE 승인 레코드 누락 상태도 SOCIAL_IDENTITY_CONFLICT로 거절함(link 활성화 전제). 단순 UI 연결 버튼 추가만으로 복구되지 않음. 해당 파일은 이전 확인 배포 commit 88ff5bed와 차이 없음. 로컬 UI는 Apple signIn/reauth만 호출, SNS link 호출 없음(전화번호 linkWithCredential만 존재). Firebase 연결 생성 경위는 자동 연결 가능성 포함 미확정. 기존 설명의 UI만 보완하면 된다는 인상 정정, 안전한 불일치 복구 설계 검토 필요. 코드/외부 데이터 변경 없음.
+
+<!-- codex-turn:01a0f135-a035-71a1-97e4-8737e1098e06 -->
+
+- 2026-09-30 Apple 전역 활성화와 계정별 연결 검증 차이 설명: FIREBASE_APPLE_ENABLED는 Apple 인증 기능 사용 허용이며 기존 회원의 social_identities를 자동 추가하지 않음. FirebaseAdminAuthenticationVerifier는 provider 정책 확인 후 별도 ProviderChangeGuard를 실행. 앞서 확인된 APPLE 승인 레코드 누락이 409 원인이며 전역 플래그 OFF 문제가 아님. 서버 설정 재변경 없이 설명 보완.
+
+<!-- codex-turn:01a0f131-7898-7bf2-8879-4fbe3ec015e4 -->
+
+- Apple 인증과 Identity 연결 승인 차이 설명의 현재 작업 식별자를 보완함. 현재 계정 사용 의도는 추가 확인 필요하며, 신규 계정 생성이나 기존 계정 연결 변경을 실행하지 않음.
+
+- 2026-09-30 사용자 설명 보완: Firebase의 Apple 본인 인증 성공과 Identity의 기존 회원 로그인 수단 승인을 구분. 두 시스템의 등록 상태 차이로 409가 발생함을 쉽게 설명. 연결 생성 경위는 미확정이며 새 계정 생성/기존 계정 삭제가 필수는 아님. 추가 외부 조회·수정 없음.
+
+<!-- codex-turn:01a0f12e-6c76-7680-9a3c-d53f892f18cd -->
+
+- 2026-09-30 Apple exchange 409 원인 실확인: Firebase 사용자 목록 1건에 Google/Apple/Phone 연결, 같은 UID의 테스트 Identity firebase_identities 1건 확인. social_identities 전체 1건은 동일 userId의 GOOGLE이며 APPLE 승인 레코드 없음. 테스트 DB 전체 21개 컬렉션에 auth_method_change_controls 없음. 이전 확인 배포 commit 88ff5bed의 ProviderChangeGuard도 승인된 provider/subject가 없으면 PROVIDER_RELINK_REQUIRED 반환. 신규 계정 문제가 아니라 기존 계정의 Firebase/Identity 제공자 연결 불일치. 생성 경위(자동 연결/기존 작업)는 미확정. DB/계정/세션/설정 수정 없이 조회만 수행. 정식 provider link 흐름으로 복구 필요, 이미 Firebase에 Apple이 연결된 상태의 처리 조건은 구현 전 추가 확인.
+
+<!-- codex-turn:01a0f129-008d-79c1-bbd4-07ae4be59530 -->
+
+- Chrome 실조회 작업 식별 기록 보완: Apple Firebase 인증 성공 후 Identity exchange의 409에서 중단됨을 확인. 계정별 승인 누락/차단 원인 확인은 남아 있으며 탭과 계정 상태는 유지함.
+
+- 2026-09-30 Chrome 기존 localhost 테스트 탭 실조회: 단계별 검증표에 Apple Firebase 인증 성공, exchange HTTP 409 PROVIDER_RELINK_REQUIRED 표시 확인. 전화번호/가입/프로필/재발급/LC 버튼 비활성. app.js exchange가 Identity POST /api/v1/auth/firebase/exchange를 호출함을 확인. 신규 enrollment 또는 Identity 토큰 발급 전 단계에서 차단됨. 계정별 차단/승인 누락의 실제 원인은 DB/로그 미조회로 미확정. 새로고침·로그아웃·요청 재실행 없음.
+
+<!-- codex-turn:01a0f128-0010-7923-bda5-c647bc222d71 -->
+
+- 현재 Apple 계정 유지 안내의 작업 식별 기록 보완 완료. 계정 교체는 필수가 아니며 실제 연결 상태 확인 후 정식 승인 절차 결정 필요. 외부 계정·세션 변경 없음.
+
+- 2026-09-30 현재 Apple 계정 사용 가능 여부 설명 보완: 다른 Apple 계정은 신규 가입 테스트용 선택지일 뿐 필수가 아님. Firebase 로그인 성공과 Identity 로그인 승인은 별개. 현재 409의 실제 계정 원인 미확인 상태이므로 기존 연결/차단 상태를 확인해야 하며 계정 삭제·자동 연결하지 않음.
+
+<!-- codex-turn:01a0f127-1fa0-7473-a14d-016fb48cb2e1 -->
+
+- 신규 Apple 가입 안내의 현재 작업 식별 기록 보완 완료. 별도 미연결 Apple 계정 및 미사용 테스트 전화번호로 가입을 안내했으며 실제 계정·설정 변경은 수행하지 않음.
+
+- 2026-09-30 신규 Apple 계정 테스트 안내: 로컬 인증정보 초기화는 서버 계정 삭제가 아님. 기존 Firebase/Identity에 연결되지 않은 별도 Apple 계정으로 로그인 후 exchange의 ENROLLMENT_REQUIRED를 확인하고, 미사용 테스트 전화번호 연결·약관 동의·가입 진행. 동일 Apple 계정 재로그인은 새 계정 생성이 아니며 기존 provider 승인 오류는 해결하지 않음. 이번 작업은 안내만 수행.
+
+<!-- codex-turn:01a0f125-d451-7be2-becd-0b382bed97af -->
+
+- 2026-09-30 Apple 테스트 HTTP 409 PROVIDER_RELINK_REQUIRED 코드 조사: 기존 Firebase 바인딩에 현재 SNS의 승인된 SocialIdentity가 없거나 해당 제공자가 차단된 경우 발생. 실제 계정 DB/배포 로그 미조회로 두 원인 중 확정은 불가. 로컬 테스트 UI는 Apple 로그인/재인증만 구현되어 기존 계정의 provider link prepare/start/complete 기능은 없음. 계정 삭제·DB 우회·보호 해제 없이 기존 승인 SNS 인증 후 정식 연결 흐름이 필요. 분석 및 기록만 변경, 테스트 미실행.
+
+<!-- codex-turn:01a0f119-e71e-7620-b3ef-121870f401e5 -->
+
+- 2026-09-30 로컬 통합 테스트 화면 Apple 로그인/동일 계정 재인증 추가 완료. 별도 프로젝트 `/Users/msde76/tosunsaeng-integration-test`의 app.js, index.html, apple.test.mjs, README.md 변경. 기존 Google·Guest 병합·챌린지 유지, 제공자 전환은 명시적 로컬 초기화 필요. Node Mock/로컬 프록시 테스트 7개 및 Identity `./gradlew clean test` 통과. 로컬 서버 4173 실행 확인. 새 Chrome 탭 검증은 ERR_BLOCKED_BY_CLIENT로 미완료, 기존 로그인 탭은 새로고침하지 않음. 실제 Apple 인증·Identity 교환 E2E 및 네이티브 앱 검증은 남아 있음. 서버 코드·배포·외부 계약 미변경.
+
+<!-- codex-turn:01a0f10f-31d8-7c73-be2e-e6c742812e36 -->
+
+- 테스트 Apple 활성화 배포의 현재 작업 식별 기록 보완 완료. revision6 배포 성공 및 정상 기동 확인, 실제 Apple 인증 E2E는 미검증. 이번 기록 보완에서 추가 외부 변경 없음.
+
+- 2026-09-30 테스트 Apple 활성화 배포 완료: 사용자 승인 후 FIREBASE_APPLE_ENABLED만 true로 변경한 tosunsaeng-identity-test:6 생성·테스트 서비스 배포. ECS 성공/running1/pending0, 신규 태스크 Started IdentityApplication 로그(06:48:35Z) 및 ALB 비정상0 확인. 운영·이미지·Secret·다른 플래그 유지. HTTPS health 직접 조회는 브라우저 클라이언트 차단으로 미완료. 다음 자동 배포는 현재 서비스 task definition을 사용; 초기 초안 재적용 주의. 실제 Apple 로그인→Identity 토큰 발급 E2E는 다음 단계.
+
+<!-- codex-turn:01a0f10d-5828-7030-8ee9-c3e92c22eba7 -->
+
+- 테스트 Apple 플래그 조회의 현재 작업 식별 기록 보완 완료. Apple 비활성 확인, 적용 직전 사용자 승인 대기. 실제 설정 변경 및 배포 없음.
+
+- 2026-09-30 AWS 실조회: 테스트 Identity 서비스의 task definition test:5에서 FIREBASE_APPLE_ENABLED=false 확인. Apple만 true로 변경한 개정 배포를 위한 적용 직전 승인 대기. 운영·이미지·Secret·다른 설정 변경 없음. 실제 배포 및 Apple 로그인 검증 미완료.
+
+<!-- codex-turn:01a0f10b-51f2-7352-a6be-256d9c0119dc -->
+
+- 2026-09-30 Firebase Apple provider 재조회: 활성 상태, 서비스 식별자 일치, 팀/키 식별자 및 비공개 키 입력 존재 확인. 원문 비출력, 설정 변경 없음. 서버 Apple 기본 OFF이며 현재 배포 플래그 확인 및 실제 Apple 로그인·Identity 교환 검증 필요.
+
+<!-- codex-turn:01a0f107-f2b2-7e33-bf9b-02b2eff722a5 -->
+
+- Firebase Apple 연결 안내의 정확한 현재 작업 식별 기록 보완 완료. 사용자 Firebase 입력·저장 대기, 파일 열람 및 외부 변경 없음.
+
+<!-- codex-turn:01a0f107-a3fc-7dd3-b6e0-a66557eb9cce -->
+
+- 2026-09-30 사용자 Apple 키 다운로드 완료 보고. Firebase Apple provider의 서비스/팀/키 식별자 및 비공개 키 사용자 직접 입력 안내. 파일 열람·원문 수집·외부 변경 없음. Firebase 저장 및 Identity 활성화·로그인 검증은 남아 있음.
+
+<!-- codex-turn:01a0f106-82c6-7590-8c0f-4d1253eeda65 -->
+
+- Apple 키 등록 전 구성 확인의 현재 작업 식별 기록 보완 완료. 구성은 정상이며 사용자 키 발급과 Firebase 연결 대기. 외부 변경 없음.
+
+- 2026-09-30 Apple 키 등록 전 설정 확인: Sign in with Apple만 선택, Primary App ID와 Firebase Services ID 그룹 연결 정상. Edit 조회 후 Back 복귀, 키 생성·설정 변경 없음. 사용자 등록 및 안전한 다운로드 후 Firebase 연결 필요.
+
+<!-- codex-turn:01a0f103-c0cf-7913-918a-32eb41e94a8c -->
+
+- Apple 웹 인증 저장 확인의 현재 작업 식별 기록 보완 완료. Primary App ID 및 Firebase 반환 주소 등록 확인됨. 키 준비와 Firebase 연결·실로그인 검증은 남아 있으며 외부 설정 변경 없음.
+
+- 2026-09-30 Apple Services ID 저장 상태 재조회 성공: Sign In with Apple 활성, Primary App ID com.toteacher.app 선택, Firebase 기본 도메인 및 auth handler 반환 주소 등록 확인. Primary 부재 문제 해소. 외부 변경 없이 조회 후 모달 닫음. 다음은 Apple 로그인 키 준비·Firebase 연결·Identity 활성화 및 실검증.
+
+<!-- codex-turn:01a0f100-fed9-77c2-8c77-41f6dc7f8124 -->
+
+- Apple Next 비활성 진단의 현재 작업 식별 기록 보완 완료. Primary App ID 가용성 재확인 대기, 외부 변경 없음.
+
+- 2026-09-30 Apple Next 차단 원인 실조회: Firebase 도메인/반환 URL은 올바르게 입력됐으나 No App ID is available 표시로 Primary App ID 선택 불가. App ID의 Sign In with Apple primary 설정 최종 저장 및 같은 팀 여부 확인 필요. 저장 누락은 추정이며 미확정. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0ff-50d2-7750-9df0-efcbfefaf975 -->
+
+- Services ID 생성 확인의 현재 작업 식별 기록 보완 완료. 웹 인증 구성은 사용자 진행 단계이며 외부 설정은 변경하지 않음.
+
+- 2026-09-30 Services ID com.toteacher.app.firebase 생성 확인 완료. 편집 화면에서 Sign In with Apple은 아직 OFF, Configure 비활성. 사용자에게 웹 인증 설정 입력 안내, 외부 설정 저장 없음.
+
+<!-- codex-turn:01a0f0fe-6365-7df2-98cf-1d1b032a2823 -->
+
+- Services ID 입력 안내의 정확한 작업 식별 기록 보완 완료. 사용자 등록 후 반환 주소 구성 확인 대기, 외부 변경 없음.
+
+<!-- codex-turn:01a0f0fe-747f-79b0-a496-56eec2e1ba9f -->
+
+- Services ID 제안값 그대로 입력 가능하되 Apple 중복 검증 필요, Firebase 서비스 ID는 생성한 Identifier와 일치하도록 재안내. Bundle ID와 구분. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0fd-0000-70b1-9a00-64653be875c5 -->
+
+- 2026-09-30 올바른 Register a Services ID 화면 확인. Description/Identifier 입력 전이며 Firebase용 서비스 식별자 예시 안내. 등록 후 Sign in with Apple 웹 인증 구성 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0f9-895a-7952-807c-a92a330f3042 -->
+
+- 2026-09-30 현재 Apple 화면은 이메일 릴레이 Email Sources 등록 모달로 확인. OAuth Services ID 웹 인증 설정이 아니므로 입력하지 않도록 안내. Identifiers 목록의 Services IDs로 이동 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0f0f5-7222-75b1-bcb2-7e6dd5c5a242 -->
+
+- 2026-09-30 Apple Edit 모달 실조회: 현재는 App ID의 Server-to-Server Notification Endpoint이며 OAuth Return URL 칸이 아님. 해당 칸은 입력하지 않고 Services ID 웹 인증 구성으로 이동하도록 안내. Firebase 기본 auth 도메인 및 /__/auth/handler 사용 예정. 외부 입력·저장 없음; App ID 저장 여부와 Services ID 생성 상태 미확인.
+
+<!-- codex-turn:01a0f0f0-ef5d-7870-9435-55bd9f5a61b8 -->
+
+- 2026-09-30 Apple Identifiers 접근 안내: App Store Connect가 아닌 Apple Developer 직접 링크 제공. 앱 등록 팀 및 접근 권한은 아직 확인하지 않음. 외부 변경 없이 사용자 접근 후 App ID 확인 예정.
+
+<!-- codex-turn:01a0f0ea-be30-7211-bdd5-a2eafe81f76f -->
+
+- 2026-09-30 Google 지문 등록 확인: Firebase 새 SHA-1/SHA-256 한 쌍이 Play 현재 앱 서명의 기존 방식 인증서와 모두 일치. 외부 설정 변경 없음. Play 실로그인·이전 배포 키 범위는 미검증. 다음은 Apple Developer App ID 로그인 capability와 Services ID/반환 주소, 전용 키의 Firebase 연결 준비; 비밀키는 채팅·저장소에 남기지 않음.
+
+<!-- codex-turn:01a0f0e5-8efd-7fc0-8c64-21897c97fb2b -->
+
+- 기존 키/양자 내성 키 안내의 현재 작업 식별 기록 보완 완료. 외부 변경 없음. 실제 배포 인증서와 Firebase 등록 목록 대조 및 양자 내성 지원 조건 확인은 남아 있음.
+
+- 2026-09-30 기존 키/양자 내성 키 구분 안내: 현재 앱 서명 키의 기존 키 지문부터 Firebase와 대조. 별도의 이전 앱 서명 키도 배포 범위에 따라 필요. 양자 내성 키 연동 지원·필요성은 미검증이며 키 자체 변경 없음.
+
+<!-- codex-turn:01a0f0e2-71ca-79b1-af41-7595febcc93a -->
+
+- 최신 Play 메뉴 실조회의 작업 식별 기록 보완 완료. 인증서 조회 화면까지 이동했으며 외부 등록·설정 변경은 하지 않음. 현재·이전 배포 서명과 Firebase 대조가 다음 단계.
+
+- 2026-09-30 Play 메뉴 실조회 정정: 현재 경로는 Google Play로 보호됨→Play 스토어 보호 펼치기→Play 앱 서명 관리. Chrome 사용자 탭을 앱 서명 화면에 둠. 사용 중/이전 앱 서명 키 존재, 기존 Firebase 등록 한 쌍은 업로드 인증서와 일치. 실제 배포 서명 대조 필요. 설정 변경 없음.
+
+<!-- codex-turn:01a0f0e0-5d2a-7ba2-ad15-d8907cf2168b -->
+
+- 2026-09-30 Play 앱 서명 인증서 위치 안내: Play Console 앱 무결성→앱 서명의 앱 서명 키 인증서 SHA-1/SHA-256을 Firebase Android 지문과 대조 예정. 업로드 키와 구분하고 기존 개발용 지문 유지. 이번에는 안내만 수행, Play 실조회·설정 변경 없음.
+
+<!-- codex-turn:01a0f0da-5a97-71a2-91b8-9d2abc0cc7f2 -->
+
+- 2026-09-30 소셜 제공자 읽기 점검: Firebase Google·Apple·전화 활성, Kakao 미등록. Android에 전달받은 SHA 두 쌍 등록 확인(Play 앱 서명과 일치 여부 미확인). Apple Service ID 및 코드 흐름 설정란은 빈 상태. 서버 코드 Apple/Kakao 기본 OFF, Kakao는 Generic OIDC oidc.kakao 계약. Play 인증서 대조·Apple 개발자 설정·Kakao OIDC/Identity Platform 준비 후 Android 실검증 필요. 외부 설정/배포 변경 없음; 배포 중 플래그는 이번에 재조회하지 않음.
+
+<!-- codex-turn:01a0f0d6-dc0e-7643-bc0f-aa6c386ca867 -->
+
+- 전체 검증 범위 재점검의 현재 turn 식별 기록 보완. 기본 정상 흐름 및 현재 병합 차단·채점 완료 재조회 성공. 기록 이전·장애/중복 처리·Android 앱 및 출시 준비 검증은 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 전체 검증 범위 재점검: Chrome에서 병합 후 읽기 검증과 1번 상세 결과를 직접 재호출. Identity/LC source 차단 및 LC target 인증 성공, 챌린지 solved1/completed/발화·피드백 존재 재확인. 기존 로그인/프로필/재발급/Guest 생성/업로드/제출의 성공 기록도 확인. 정상 기본 흐름은 통과했으나 기록 보유 Guest 이전, 204/이벤트 중복·재시도·장애복구, 신규 가입/전화 연결 재검증, 챌린지 나머지 문항·실패/만료, Android 앱 연동 및 운영 전환은 별도 검증 필요. 추가 쓰기/실제 병합/음성 제출 없음.
+
+<!-- codex-turn:01a0f0d5-a5a6-7ad1-906b-614aeab7aad3 -->
+
+- 병합 후 검증표 조회의 현재 turn 기록 보완 완료. 화면상 병합·양 서비스 source 차단·target 인증 성공, 이전 대상 기록0건으로 기록 이전은 미검증. 추가 API 호출이나 외부 변경 없음.
+
+- 2026-09-30 사용자 병합 후 Chrome 검증표 실조회: Identity 병합 성공, Identity/LC source의 병합 전용 거절 코드 확인 성공, LC target MEMBER 이력 조회 성공 표시. 병합 전 완료 시험0건이므로 실제 시험 기록 이전은 미검증. 하단 문구는 공통 안내이지 오류/대기 확정이 아님. 과거 실패 행이 이후 성공 행과 함께 남아 혼동 가능. 이번은 화면 읽기만 수행; 이벤트204/중복 재전송 로그 미조회.
+
+<!-- codex-turn:01a0f0ce-0fc0-7af1-baad-490e85aff2b7 -->
+
+- 현재 turn 식별 기록 보완: 테스트 S3 CORS 수정 후 실제 업로드·채점 완료, 사용자 Google 재인증 후 exchange·Guest prepare 성공 확인. 최종 병합은 미실행. 독립 도구 재인증 UX 수정은 다음 로딩부터 적용하며 현재 Guest 보존을 위해 새로고침하지 않은 상태.
+
+- 후속 실검증: 사용자 Google 재인증 완료 후 Chrome에서 Identity exchange 성공 및 Guest prepare 재실행 성공(MERGE_REQUIRED에 해당하는 화면/병합 버튼 활성 확인). recent-auth 거절은 실제 재인증으로 해소됨. Guest 생성 단계도 현재 인증된 Guest가 prepare에 성공한 것으로 확인. 실제 병합은 실행하지 않았으며 최종 사용자 확인 단계 유지.
+
+- 2026-09-30 통합 테스트 문제 수정: 테스트 S3 버킷에 사용자 action-time 승인 후 localhost:4173/PUT/Content-Type/MaxAge300 CORS만 설정. OPTIONS200 및 실제 기존 녹음 PUT·LC answer 성공, 1번 결과 completed/solved1/발화·피드백 존재 확인(내용 비기록). recent-auth는 기본5분 auth_time 검사이며 getIdToken(true)로 해결되지 않음. 독립 도구 app.js의 같은 UID 재인증 상태 보존·전용 오류 안내와 challenge.mjs의 S3 네트워크/CORS 오류 분리 수정, Mock6/Gradle 성공. 현재 Chrome은 메모리 Guest 유지를 위해 새로고침하지 않았고 기존 버전의 Google 재인증 popup을 열어 사용자 인증 대기. 서버 보안 기준·운영·IAM/공개 접근은 미변경. 새 도구 코드는 다음 로딩부터 적용. 실제 merge는 미수행.
+
+- 2026-09-30 업로드 차단 원인 확인: 사용자 승인 후 Chrome 업로드 재시도 동일 실패. AWS LC test:11의 테스트 버킷에 Origin localhost:4173 / PUT / content-type OPTIONS 진단 수행, S3 403 AccessForbidden 및 `CORS is not enabled for this bucket` 확인. 브라우저 직접 PUT 선행 요청이 차단되므로 제출·AI 채점 이전 문제. CORS 수정은 미수행이며 localhost 한정 PUT/content-type 허용 승인 필요. Identity test:5의 privacy-v1/term-v1을 실조회해 Chrome 입력란에 채움; 약관 체크는 사용자에게 남김. Guest 생성/병합 및 음성 제출 미완료.
+
+<!-- codex-turn:01a0f0c6-2340-7b00-9593-40ae75ce986b -->
+
+- 2026-09-30 Chrome 추가 실진단: 사용자 녹음/attempt 준비 후 upload 오류, 제출 버튼 비활성, solvedQuestionCount=0 및 question=null 관측. 1번 결과 GET을 직접 재실행해 같은 상태 확인. AI 채점 실패가 아니라 제출 전 업로드 단계 실패로 범위 축소; CORS/네트워크 원인은 아직 미확정, 수집된 브라우저 error/warn 로그 없음. Guest 생성은 CONSENT_REQUIRED, 정책 입력/필수 동의 비어 있음. 현재 음성의 테스트 S3 업로드·LC 제출 승인과 사용자 직접 약관 입력/동의를 요청. 녹음/업로드/제출/Guest 생성/병합/설정 변경 미수행.
+
+<!-- codex-turn:01a0f0c1-b738-7be1-9bee-47f9b41bf1f8 -->
+
+- Chrome 진행 결과 확인의 현재 turn 식별 기록 보완 완료. 화면상 로그인·MEMBER 인증·재발급·LC today 성공, Guest 생성은 동의 누락으로 미완료이며 병합/음성/AI 검증은 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 Chrome 통합 테스트 화면 실조회: Google 인증·Identity 로그인·서버 MEMBER 프로필·재발급·LC today 인증 성공 표시 확인. today는 3문제 모두 not_started/not_requested, nextQuestionNumber=1. guestCreate는 CONSENT_REQUIRED, 정책 버전 입력 비어 있고 필수 동의 미선택으로 Guest 준비/병합 미수행. 기존 MEMBER 로그인에서 전화/signup 재실행 불필요하나 신규 테스트 Guest 생성에는 해당 Guest 약관 동의 필요. 화면 읽기만 수행, 새로고침/추가 API/동의/병합/녹음 실행 없음.
+
+- 기존 테스트 Google/MEMBER 재사용 안내: 동일 Firebase 프로젝트·Identity 테스트 DB에서 가입했던 계정은 Google 인증→Identity exchange로 로그인하고 전화 연결/신규 가입 생략 가능. 병합은 별도 테스트 Guest를 source로 사용하며, 챌린지의 당일 기존 제출/응시 제한은 유지. 새 Google 계정은 신규 가입 자체를 별도 검증할 때만 필요.
+
+<!-- codex-turn:01a0f0b2-c659-78a2-9787-ecd2246ed647 -->
+
+- 독립 통합 테스트 화면 구현 turn 식별 기록 보완 완료. 영구 프로젝트 `/Users/msde76/tosunsaeng-integration-test`의 localhost:4173 서버 실행 및 화면 QA 완료, Mock6/Gradle 통과. 실제 인증·병합·음성 제출 E2E는 사용자 실행 단계로 남아 있음.
+
+- 2026-09-30 별도 통합 테스트 화면 구현 완료: `/Users/msde76/tosunsaeng-integration-test`에 독립 클라이언트 생성, `node server.mjs`로 127.0.0.1:4173 실행 중. Firebase 로그인/가상 전화/signup/프로필/reissue, 별도 Guest 인증·명시적 merge·양측 source 차단·완료 시험 ID 비교, 챌린지 today/question/attempt/M4A 업로드/고정 키 answer/result/poll/history 지원. 기존 Identity tools/auth-test와 서버 코드는 변경하지 않음. Node Mock 6개 및 ./gradlew clean test 성공, 실제 브라우저 새 화면/초기 버튼/렌더링 확인. 실제 인증·병합·음성 전송 E2E는 사용자 수행 필요. M4A/AAC 미지원 브라우저는 파일 업로드 대안, S3 CORS 미확인, Guest 신규 승격·이벤트204/중복 재전송은 별도 검증.
+
+<!-- codex-turn:01a0f0b0-d01f-7e82-8c4d-6c891389466a -->
+
+- 통합 테스트 화면 조사 turn 기록 보완: 별도 tosunsaeng-integration-test 프로젝트 분리 및 localhost:4173 유지 방향에 대한 사용자 확인 대기. 구현/외부 상태 변경 없음.
+
+- 2026-09-30 통합 테스트 화면 확장 조사: 기존 tools/auth-test는 Firebase Google/가상 phone/signup/exchange/reissue/me 및 LC today 읽기만 지원. 사용자 요청은 Guest 병합과 챌린지 전 흐름까지 확장. 저장소 규칙이 Identity 외 챌린지·S3 코드를 금지하므로 별도 로컬 테스트 프로젝트 분리 방향 확인 요청; 구현·서버 재시작·실계정 변경은 아직 없음. LC 계약은 M4A/AAC audio/mp4, 2MiB, attempt→presigned PUT→같은 Idempotency-Key answer→최대60초 결과 polling. 병합 Identity 성공과 LC 데이터 이전 검증을 구분해야 함.
+
+<!-- codex-turn:01a0f0ab-6a03-7c03-8881-57cff08326ac -->
+
+- 현재 turn 기록 식별자 보완 완료. 테스트 Identity revision5 배포 성공 상태이며 실제 병합 이벤트 E2E 검증은 다음 작업으로 남아 있음. 추가 외부 변경 없음.
+
+- 2026-09-30 테스트 UserMerged 연결 배포 완료: 사용자 적용 직전 승인 후 `tosunsaeng-identity-test:5` 생성, 테스트 서비스에 배포 성공·running1/pending0·steady state 확인. 이미지 commit `88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d` 유지. GUEST_MERGE_ENABLED/WORKLOAD_JWT_ENABLED/USER_MERGED_PUBLISHER_ENABLED=true, workload issuer=https://identity-test.to-teacher.com, subject=identity-service, TTL=PT2M, endpoint=https://api-test.to-teacher.com/internal/v1/events/user-merged. 그 외 설정·Secret 참조·역할·네트워크·태스크 수 유지, OwnerEvent/Billing 발행 OFF 및 운영 미변경. CloudWatch 2026-09-30T04:58:28Z Started IdentityApplication 확인. 실제 계정 병합/이벤트 전송 E2E는 미실행. 다음은 지정 테스트 계정으로 204·중복 방지·source 차단·target 기록 이전 검증. 새 코드 빌드 없이 AWS 설정만 반영했으므로 향후 배포에서도 revision5 설정 보존 필요.
+
+<!-- codex-turn:01a0f0a6-526b-7781-9bc6-9422b4ccb65e -->
+
+- 2026-09-30 Atlas 재로그인 후 테스트 DB `to-teacher-identity-test.user_merged_outbox` 실조회: Documents 0, 전체 0건 및 빈 컬렉션 안내 확인. 활성화 즉시 전송될 기존 이벤트 없음. Identity workload 발급·Guest merge·기존 publisher 활성화는 서비스 간 인증 권한 활성화에 해당하여 적용 직전 확인 요청. 아직 설정 저장/배포/병합/이벤트 전송 없음. OwnerEvent/Billing OFF 및 운영 미변경 유지. 다음은 사용자 확인 후 테스트 revision 설정·배포와 안정성 검증이며 이벤트 E2E는 별도.
+
+- 2026-09-30 AWS 재로그인 후 실조회: Identity test:4 running1/pending0, Guest merge/workload/기존 publisher/OwnerEvent capture·LC publisher OFF. LC test:11 running1/pending0·배포 성공, UserMerged writer/source-deny/consumer true, issuer와 JWKS가 테스트 Identity 주소와 일치. Atlas 세션 만료로 outbox 점검 불가하여 로그인 탭 인계. 설정/배포/발행 변경 없이 대기.
+
+<!-- codex-turn:01a0f0a4-8549-7bb2-93f0-56ad0654afb4 -->
+
+- 테스트 이벤트 연결 착수의 현재 작업 식별 기록 보완 완료. AWS 재로그인 대기 상태이며 최신 설정 조회·배포·이벤트 발송은 미수행. 비밀정보 비기록 유지.
+
+- 2026-09-30 사용자 테스트 설정 적용 요청 착수. AWS 내장 브라우저 세션 만료 및 재로그인 세션 오류 확인 후 기존 ISB 포털 로그인 화면 열어 인계. 화면에 남은 test:4 정보는 캐시라 최신 상태로 간주하지 않음. 최신 배포/outbox 조회·설정 적용·재배포 모두 미수행. 로그인 후 사전 확인부터 재개 필요.
+
+<!-- codex-turn:01a0f0a2-847b-75b0-9a48-0487cbaac804 -->
+
+- 2026-09-30 사용자 전달로 LC 수신 준비 완료 통보 수신(직접 live 검증 아님). 기존 UserMerged 연결 외 추가 체크는 현재 배포/신뢰 설정 재확인, outbox 대기·실패 건 점검, 신규 병합용 GUEST_MERGE_ENABLED, 테스트 계정 E2E 및 실패 복구 절차. OwnerEvent/Billing은 OFF 유지. 이번은 코드 확인·안내만 수행, AWS 변경 없음.
+
+<!-- codex-turn:01a0e73f-9870-7be3-bbe6-d5c63e1c039d -->
+
+- 2026-09-28 LC 점검·배포와 연계한 Identity 준비 안내: 기존 UserMerged 경로 유지, LC 준비 완료 전 publisher/Guest merge OFF. workload issuer/subject/PT2M 및 테스트 endpoint 준비, 기존 outbox 미전송·dead-letter 확인 후 발행 활성화. 신규 merge 생성에는 GUEST_MERGE_ENABLED 별도 활성화가 필요하며 OwnerEvent capture/LC·Billing publisher는 OFF 유지. 실제 AWS 변경 없음.
+
+<!-- codex-turn:01a0e738-e560-7cc0-8c08-1bc54397c211 -->
+
+- 2026-09-28 프론트 인계용 테스트 Identity HTTPS base URL과 Swagger URL 안내. 기존 검증 주소 기준이며 이번 live 재조회 없음. Swagger 명세의 HTTP 서버 URL 관측 이력 때문에 실제 요청은 HTTPS 사용 주의 안내. 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e6c8-5816-7a70-839c-6993a4deb8bb -->
+
+- 기존 LC 전용 경로 우선 사용 방향의 현재 작업 식별 기록 보완 완료. Billing 연동 시 공통 경로 전환과 기존 잔량·과거 병합 검토 필요성을 안내했으며 AWS 설정은 변경하지 않음.
+
+- 2026-09-28 사용자 방향 확인: 이번 테스트는 기존 UserMerged LC 전용 경로를 사용하고 Billing 연동 시 OwnerEvent 공통 경로로 전환하는 단계적 접근. 전환 시 기존 outbox 잔량 처리 및 과거 병합의 Billing backfill 별도 검토 필요. 방향 확인만 수행, 실제 플래그/배포 변경 없음.
+
+<!-- codex-turn:01a0e6c6-bfe9-71e0-b261-cef72303b933 -->
+
+- 2026-09-28 이벤트 경로 설명 정정: 기존 LC 전용 outbox와 신규 OwnerEvent fan-out이 공존하며 capture flag가 신규 병합의 저장 위치를 선택한다. 기존 잔량 처리용 publisher와 신규 publisher는 전환 중 함께 동작할 수 있으므로 하나만 켜야 한다는 절대 조건은 아님. 신규 경로는 Billing/LC delivery를 모두 생성하여 Billing OFF 시 pending 보존됨. 실제 설정 변경 없음.
+
+<!-- codex-turn:01a0e6b4-6101-7c83-b723-450df80551f6 -->
+
+- AWS 테스트 Identity 설정 조회의 현재 작업 식별 기록 보완 완료. test:4 실행 및 회원 통합/workload/발행 OFF 확인, LC 수신 준비와 설정 활성화는 후속 작업. 비밀정보 비기록 및 외부 설정 미변경 유지.
+
+- 2026-09-28 15:29~15:30 KST AWS live 조회: 테스트 Identity 서비스 desired1/running1/pending0, task definition test:4, 이미지 commit 88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d. task 정의에서 GUEST_MERGE/WORKLOAD_JWT/기존 merge publisher/OwnerEvent capture·LC publisher·Billing merge publisher 모두 false 확인. workload issuer 및 두 경로 endpoint 항목 없음. 사용자 issuer는 테스트 HTTPS 주소, kid는 tosunsaeng-identity-test-rsa-1, Access TTL PT30M. Secret 값 조회/설정 변경/실제 이벤트 전송 없음. LC 수신 설정은 이번 조회 대상 아님.
+
+<!-- codex-turn:01a0e6b3-45c0-77c3-b0d9-a59b1f442f40 -->
+
+- 회원 통합 테스트 준비 안내의 현재 작업 식별 기록 보완 완료. 다음 단계는 실행 중 테스트 서비스 설정 조회이며 아직 AWS 변경이나 병합 테스트는 수행하지 않음. 비밀정보 비기록 유지.
+
+- 2026-09-28 회원 통합 테스트 후속 순서 안내: 실행 중 테스트 Identity/LC 설정과 이벤트 경로 확인→workload 신뢰 계약 확정→LC 수신 준비→Identity 해당 경로 활성화→테스트 Guest/MEMBER로 병합 E2E. merge transaction은 capture flag에 따라 OwnerEvent 또는 기존 outbox를 선택하므로 발행 경로 일치 필요. 챌린지 403 해결과 별개이며 이번은 안내만 수행.
+
+<!-- codex-turn:01a0e6b0-420b-7b93-a0b1-6a67ac69e80f -->
+
+- 2026-09-28 UserMerged workload 인계 검토: 현재 코드는 사용자 JWT와 JwtEncoder/RSA kid 및 JWKS 기반을 공유하지만 workload issuer는 별도 필수 설정이다. RS256/identity-service/LC merge audience/정확히 PT2M 구현 확인. 테스트 draft merge/workload/publisher OFF, live 상태는 미조회. 같은 테스트 issuer 사용은 가능한 설정 제안이며 활성 완료 아님. 기존 publisher와 OwnerEvent 경로 선택 및 키 overlap 검증 필요. 외부 변경 없음.
+
+<!-- codex-turn:01a0e655-dfb5-7220-b937-990b836c73ef -->
+
+- 2026-09-28 사용자 보고: 프로필 인증 성공, 재발급 후 UUID/MEMBER/LC audience true, LC today는 403 COMMON403. LC 로컬 코드에서 MEMBER 검사와 별도로 Challenge OFF도 동일 403임을 확인했으며 테스트 배포 템플릿 CHALLENGE_ENABLED=false 확인. live AWS 설정은 미확인이라 원인 확정 아님. 기능 활성화/운영 설정 변경 없음.
+
+<!-- codex-turn:01a0e654-ccb1-7910-9cbc-8c94acb93265 -->
+
+- Identity 토큰 수신 결과 해석의 현재 작업 식별 기록 보완 완료. 사용자 보고로 claim 형태 검사 성공 확인, 실제 보호 API/재발급/LC 접근은 후속 검증 대기. 토큰 원문 비기록 유지.
+
+- 2026-09-28 사용자 보고로 로컬 화면 Identity 토큰 수신 및 sub UUID/member/learningAudience 검사 true 확인. 화면 구현상 Access/Refresh pair 수신 성공을 의미하지만 claim 요약은 서명 검증이 아님. 프로필/재발급/LC 접근은 후속 검증 필요. 실제 토큰 비기록, 외부 작업 없음.
+
+<!-- codex-turn:01a0e653-09c5-7f00-b670-34ebc093fcef -->
+
+- 가입 정책 버전 안내의 현재 작업 식별 기록 보완 완료. 저장소 설정 확인과 live AWS 미확인을 구분했으며 외부 설정 변경 없이 사용자 직접 동의 원칙 유지.
+
+- 2026-09-28 가입 정책 버전 안내: 저장소 테스트 task draft의 PRIVACY_CONSENT_VERSION=privacy-v1, TERM_CONSENT_VERSION=term-v1 확인. 현재 실행 중인 ECS task 환경변수와 같아야 하며 live AWS 값은 이번에 재조회하지 않음. 버전과 약관 본문 확인/동의 구분 안내. 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e651-1f41-7a11-95fd-9e79532fbb82 -->
+
+- 국제 번호 입력 안내의 현재 작업 식별 기록 보완 완료. 형식 변환과 등록된 가상 번호 사용을 안내했으며 실제 인증/설정 변경 없음. 비밀정보 비기록 유지.
+
+<!-- codex-turn:01a0e651-6dce-7960-83cf-2ef04432c83a -->
+
+- 2026-09-28 테스트 번호 입력 형식 확인: 로컬 화면은 +로 시작하는 국제 형식만 허용하므로 국내 휴대전화 번호는 맨 앞 0 제거 후 +82 접두사 사용 안내. Firebase에 등록된 동일 가상 번호와 고정 코드가 필요하며 실제 번호는 기록하지 않음. 인증/설정 변경 없음.
+
+<!-- codex-turn:01a0e64f-ec02-77b2-a1aa-ebe93c7345e5 -->
+
+- Chrome 로그인 성공 비교 설명의 현재 작업 식별 기록 보완 완료. 사용자 보고로 Google 로그인 성공 확인, 내장 브라우저 실패의 세부 원인은 미확정. Identity exchange/가입 검증은 다음 단계이며 비밀정보 비기록 유지.
+
+- 2026-09-28 사용자 보고로 일반 Chrome Google 로그인 성공 확인. 내장 브라우저에서만 popup-closed-by-user가 발생한 비교 결과상 팝업/OAuth 결과 전달 호환성 문제 가능성이 높음. 정확한 내부 메커니즘은 미확정. Identity exchange/가입 성공과는 구분하며 웹 테스트는 Chrome 사용 안내. 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0e64d-f3dd-7173-9711-fb6df33043bb -->
+
+- 반복 Google 팝업 실패 조사의 현재 작업 식별 기록 보완 완료. localhost 승인 확인, 팝업 종료 오류 원인은 미확정이며 일반 Chrome 비교 대기. 비밀값 비기록, 코드/외부 설정 변경 없음.
+
+- 2026-09-28 반복 Google 팝업 실패 조사: IAB localhost 결과 auth/popup-closed-by-user, 후속 exchange 비활성 유지. 브라우저 수집 warn/error 로그 없음. Firebase 승인 도메인에 localhost와 기본 authDomain 등록 확인. 코드에서 popup SDK 완료 후에만 exchange 활성화됨을 확인. 내장 브라우저 팝업 통신 문제는 가설이며 일반 Chrome 비교가 필요. 외부 설정/코드 변경 없음.
+
+<!-- codex-turn:01a0e64c-9f49-7db2-a549-9c004ac7b6a8 -->
+
+- 로그인 상태 확인의 현재 작업 식별 기록 보완 완료. 팝업 종료 오류와 exchange 비활성을 확인했으며 재인증은 사용자가 진행하도록 안내. 비밀정보 비기록 및 외부 설정 미변경 유지.
+
+- 2026-09-28 로그인 완료 여부 확인: 로컬 화면 결과 auth/popup-closed-by-user, exchange/가입/서버 확인 버튼 비활성. Firebase 설정은 적용됐으나 화면에서 Google 인증 완료를 받지 못한 상태로 확인. 팝업 인증 재시도 안내, 실제 인증 동작/코드 변경 없음.
+
+<!-- codex-turn:01a0e64a-15d6-7291-804b-372af08e97a4 -->
+
+- 로컬 Firebase 설정 입력 오류 진단의 현재 작업 식별 기록 보완 완료. JSON 문법 수정 안내만 수행했으며 사용자 입력이나 외부 인증 설정은 변경하지 않음. 실제 값 비기록 유지.
+
+- 2026-09-28 로컬 화면 설정 실패 진단: 현재 입력은 속성명 따옴표 누락과 마지막 쉼표가 있는 JS 객체여서 JSON.parse가 실패하는 형태임을 UI에서 확인. Google 버튼 비활성 상태로 인증 이전 입력 단계 오류. 값 유지한 채 JSON 문법 수정 안내, 외부 설정/코드 변경 없음. 실제 값 비기록.
+
+<!-- codex-turn:01a0e648-0866-7b60-9158-82ec6a24ecb4 -->
+
+- Firebase 웹 구성 확인 작업 식별 기록 보완 완료. 사용자에게 로컬 화면용 JSON 입력 방법을 안내했으며 실제 인증과 외부 설정 변경은 수행하지 않음. 실제 키 비기록 유지.
+
+- 2026-09-28 사용자 제공 SDK 코드가 Firebase 웹 앱 구성임을 확인. 로컬 화면에는 apiKey/authDomain/projectId/appId만 큰따옴표 JSON으로 입력하며 import/Analytics 초기화는 불필요함을 안내. 실제 키 비기록, 외부 설정 변경 및 인증 실행 없음.
+
+<!-- codex-turn:01a0e645-f435-75a1-b0ad-dcd4d36ecd6b -->
+
+- 2026-09-28 Firebase 웹 구성 찾기 안내: 현재 Authentication 설정이 아닌 프로젝트 일반 설정의 내 앱→웹 앱→SDK 설정 및 구성(Config) 경로 안내. 웹 앱이 없다면 같은 프로젝트에 웹 앱만 추가하며 Hosting은 불필요. 구성 객체를 큰따옴표 JSON으로 변환해야 함을 설명. 실제 웹 앱 존재/등록은 이번에 확인·변경하지 않음.
+
+<!-- codex-turn:01a0e639-5ecc-7283-8bf4-92e25670f712 -->
+
+- 로컬 인증 테스트 화면 구현의 현재 작업 식별 기록 보완 완료. localhost 서버 실행 및 Node 3개/전체 Java 테스트 성공, 실제 브라우저 렌더링·회원 인증은 차단/설정 준비로 미검증. 운영과 Firebase 설정은 변경하지 않음.
+
+- 2026-09-28 로컬 인증 테스트 도구 구현: tools/auth-test에 화면/Web SDK 흐름/고정 테스트 HTTPS 게이트웨이/테스트/README 추가. localhost:4173 로컬 서버 기동. Google→exchange→동일 UID 가상 phone link→signup 및 프로필/refresh/LC 읽기 smoke 제공. 토큰 메모리 보관/민감정보 비출력/Origin·Host 가드 유지. Node 3개 테스트와 전체 Gradle clean test 성공. Chrome 자동 열기는 ERR_BLOCKED_BY_CLIENT로 차단, 실제 UI 렌더링/인증 E2E 미확인. 웹 앱 구성/localhost 허용/약관 버전 준비 필요. 운영/Firebase 설정 변경 없음.
+
+<!-- codex-turn:01a0e638-bf2e-7b93-b16e-6b9d4b7d43ce -->
+
+- 2026-09-28 최소 웹 테스트 화면 방향 안내: 별도 공개 배포 없이 로컬 HTTP 페이지와 Firebase Web SDK로 Google 인증/동일 UID 전화 연결 및 Identity 가입 검증 가능. 같은 프로젝트 웹 앱 등록·인증 허용 도메인·전화 인증 웹 설정 및 직접 API 호출 시 CORS 확인 필요. 아직 화면 구현/외부 설정 변경 없음. Android SHA/SDK 검증은 별도.
+
+<!-- codex-turn:01a0e630-f709-7f23-b4ff-a6fe4bca4d3c -->
+
+- 2026-09-28 Firebase 열린 콘솔 확인: to-teacher-firebase Google/전화 사용 설정 및 저장된 테스트 전화번호·인증 코드 1쌍 확인. 설정 변경 없음. 다음은 SDK Google 로그인→exchange→동일 UID phone link→signup 검증이며 회원 생성은 아직 미수행. 열린 페이지에 Spark 표시도 관측했으나 실제 결제 연결 상태는 별도 재확인 필요. 번호/코드는 기록하지 않음.
+
+<!-- codex-turn:01a0e625-c8ec-7c70-a91b-565707c268de -->
+
+- 테스트 계정 생성 안내의 현재 작업 식별 기록 보완 완료. 절차 안내만 완료했으며 SDK 테스트 화면/회원 생성/인증 E2E는 미수행, 외부 변경 없음.
+
+<!-- codex-turn:01a0e625-5503-7271-a27a-251d2cc3a321 -->
+
+- 2026-09-28 테스트 계정 생성 방법 안내: Firebase 콘솔 수동 사용자 추가가 아닌 Google SDK 로그인→exchange enrollment→동일 UID에 테스트 phone credential link→강제 갱신 ID Token→Identity signup 흐름 설명. 테스트 번호 등록만으로 회원 생성되지 않음. 앱 전체 대신 최소 SDK 테스트 화면을 준비할 수 있으나 아직 만들거나 계정을 생성하지 않음. 실제 인증/서버 설정 변경 없음.
+
+<!-- codex-turn:01a0e621-9da6-7d80-b98a-3fa688b86cc0 -->
+
+- 2026-09-28 Identity/LC 사전 smoke: 사용자 LC 주소 https://api-test.to-teacher.com 확인, Firebase 테스트 계정 없음. Postman 앱 제어 권한 부재로 HTTP 직접 검사 수행: 두 health200/UP, 프로필/챌린지 무토큰 및 잘못된 토큰401, Firebase exchange 빈값/잘못된 값401, 잘못된 refresh401. JWKS 공개 메타데이터 정상. docs/postman에 비밀값 없는10요청 collection 및 결과/미검증 범위 작성. MEMBER E2E/GUEST403/서버 간 신뢰 성공은 미검증. Identity OpenAPI 서버가 http URL인 문제 관측, 변경하지 않음. 테스트 설정/운영/DB 사용자 생성 없음.
+
+<!-- codex-turn:01a0e5dc-f4ed-7513-bd4c-ac48de99b1bb -->
+
+- 2026-09-28 사용자 요청으로 테스트 Identity test:4 desired1 기동 완료, running1/pending0 확인. HTTPS health200/UP, Swagger UI 리다이렉트 후200, /v3/api-docs OpenAPI3.1.0/23개 경로, JWKS RS256/test kid 정상 확인. 운영/Secret/IAM/이미지 미변경. 테스트 실행 비용 발생하며 회원 인증 E2E는 여전히 별도 검증 필요.
+
+<!-- codex-turn:01a0e5bb-8e86-7c92-bf1d-ce1147c7225d -->
+
+- 2026-09-28 AWS 테스트 Swagger 설정 실제 반영 완료. 현재 test:3 JSON을 기준으로 SWAGGER_ENABLED만 false→true 변경하여 test:4 생성/서비스 적용. 이미지88ff5bed 및 인증/Secret/네트워크 보존. desired0/running0/pending0 확인, 서버는 기동하지 않음. 다음 사용자 기동 요청 시 /swagger-ui.html 및 /v3/api-docs 실제 응답 검증 필요. 운영 변경 없음.
+
+<!-- codex-turn:01a0e5b5-3981-76a2-b63d-3e2160a31201 -->
+
+- Swagger 활성화 준비 작업 식별 기록 완료. 로컬 설정 및 전체 테스트 성공, AWS 세션 만료로 실제 설정 적용은 재로그인 대기. 서버 기동이나 운영 변경 없음.
+
+- Swagger 설정 준비 검증: ./gradlew clean test --no-daemon 성공, git diff --check 통과. 실제 AWS 반영과 live 검증은 아직 미완료.
+
+- 2026-09-28 테스트 Swagger 활성화 요청: 로컬 task draft SWAGGER_ENABLED=true와 DeploymentTargetTests assertion 수정. 기존 AWS IAB 세션 만료(Unauthorized/로그아웃)로 실제 ECS 적용 미완료. ISB 로그인 페이지 열어 사용자 재로그인 대기. 서버 기동/운영/Secret/IAM 변경 없음. 로그인 후 최신 테스트 revision의 Swagger 설정만 적용하고 desired0 보존할 계획. Learning Core 준비 후 별도 기동 요청 필요.
+
+<!-- codex-turn:01a0e5b3-b827-74f0-b3a7-be6caf06d2d0 -->
+
+- 2026-09-28 Swagger 사용 가능 여부 안내: 저장된 테스트 task 설정은 SWAGGER_ENABLED=false이므로 단순 재기동만으로 Swagger 사용 불가. true로 설정한 새 revision 적용 후 /swagger-ui.html 사용 가능. 현재 SecurityConfig는 문서 GET을 permitAll하므로 활성화 시 외부 문서 노출 주의. 실제 API 인증은 유지되며 Firebase 인증/phone link는 별도 앱 SDK 흐름 필요. 이번은 코드/설정 읽기만 수행, AWS 현재 상태 재조회·변경·기동 없음.
+
+<!-- codex-turn:01a0e30b-5569-7513-b978-5cb92ec91400 -->
+
+- 단계 출시 검토의 현재 작업 식별 기록을 보완했다. SNS·챌린지 선출시는 가능한 방향이며 무료 자격·결제 후속 적용은 정책 및 E2E 확인 후 진행한다. 이번은 분석/기록만 수행했고 구현·배포 승인이나 완료를 의미하지 않는다.
+
+- 2026-09-27 `develop` 단계 출시 가능성 검토: SNS 로그인·10초 챌린지를 1차, 전화번호당 1회 무료 모의고사·결제를 2차로 분리하는 방향은 코드 구조상 가능하다. Learning Core는 CHALLENGE_ENABLED와 Billing 생성/phone continuation 설정을 분리하며 모의고사 Billing OFF는 기존 생성 경로를 사용한다(모의고사 차단을 뜻하지 않음). 현재 Identity 가입·Guest 승격의 전화번호 인증/내부 eligibility binding 의존성은 유지해야 하며 Billing 외부 발행과 구분한다. 2차 적용 전 기존 사용자 무료 자격·1차 이용 이력 소급 여부와 지연된 이벤트 인계 확인이 필요하다. 이번은 읽기 검토만 했으며 앱/챌린지 AI/운영 E2E·출시 준비 완료를 확인한 것은 아니다. 코드·설정·배포 변경 없음.
+
+<!-- codex-turn:01a0e309-e393-78c3-b4f6-520be76424ca -->
+
+- 2026-09-27 `develop`: 사용자가 구·신 서버 분리, 피드백 진입 전 웹뷰 업데이트 안내, 사용자 수를 보고 조정하는 초기 1주 유예를 이전에 전달했는지 확인했다. 2026-09-22 WORKLOG와 `docs/contracts/guest-app-update-transition-review.md`에 같은 계획 및 피드백 result.updateRequired 인계 계약이 기록되어 있음을 확인. 이번은 이력 확인/기록만 수행했으며 실제 구현·배포 현황을 새로 검증하거나 서버 설정을 변경하지 않았다.
+
+<!-- codex-turn:01a0cdc7-7a37-72f3-bbe3-9a987688a90c -->
+
+- 중지 최종 검증: AWS 새로고침 후 desired0/running0/pending0 확인 완료.
+
+- 2026-09-23 사용자 비용 절감 요청으로 테스트 Identity 서비스 desired count를1→0 변경했다. test:3/이미지/Secret/DB/라우팅은 보존하고 운영 서비스는 미변경. 다음 사용 시 desired1로 기동 후 health/JWKS 재확인 필요. 중지 기간 테스트 API 사용 불가, 기존 workflow는 desired0을 유지하므로 배포 health 검사 실패 가능. Fargate 태스크 중지와 별개로 ALB/Secret/로그 등 잔여 비용은 존재할 수 있다.
+
+<!-- codex-turn:01a0cdbc-58c1-7d40-907e-47144abe8ae9 -->
+
+- 2026-09-23 Learning Core 인계 조회: AWS test:3 JSON에서 issuer https://identity-test.to-teacher.com, audience tosunsaeng-learning-core, 이미지 commit88ff5bedc1ee661ccd38a8a1d2c4dbf3b9f03f2d 재확인. 공개 JWKS RS256/kid tosunsaeng-identity-test-rsa-1 재확인. 해당 commit 발급 코드에 UUID sub 검증/account_type/LC+Billing audience 포함 확인. 실제 배포 환경 가입/로그인/재발급 성공 및 실제 MEMBER 토큰 claim 검증은 미수행으로 명확히 구분해 인계.
+
+<!-- codex-turn:01a0cdb6-1084-7162-be93-903d3d595ccf -->
+
+- 현재 작업 기록 완료: 테스트 Identity test:3 running1/pending0, HTTPS health200/UP 및 JWKS 정상 확인. 앱 회원 인증 검증은 다음 단계이며 운영 변경 없음.
+
+- 2026-09-23 테스트 Identity 최초 정상 기동 확인 완료. 사용자 저장된 ELIGIBILITY keyring이 3필드/ACTIVE_WRITE/32바이트로 정상 확인되어 test:3 desired1 기동. running1/pending0, 19:03 KST 시작 완료 로그 및 MongoDB 트랜잭션 지원 확인 로그, HTTPS health200/UP, JWKS RSA/RS256/kid tosunsaeng-identity-test-rsa-1 확인. 운영/IAM/Secret 변경 없음. 앱의 Google+phone 가입/로그인/재발급 및 실제 transaction rollback은 미검증. 기존 CI health 실패 이력은 그대로이며 로컬 설정/기록 수정은 미커밋 상태.
+
+<!-- codex-turn:01a0cdb2-6518-7e00-9096-ff3d03896df6 -->
+
+- 최신 Secret 재조회 기록 완료. 저장 결과 불일치 원인 확인을 위해 사용자 편집 화면 인계 대기. 추가 외부 변경이나 서버 재기동 없음.
+
+- 2026-09-23 사용자 저장 이의에 따라 Secret 페이지 전체 reload 후 재조회했다. 동일 테스트 phone-fingerprint의 ELIGIBILITY 값에서 쉼표 구분 필드가 여전히 1개로 확인됨(요구 3개). 비밀값 비출력, 서버/Secret 변경 없이 저장 대상 확인 필요. 사용자 실수나 캐시 원인을 단정하지 않음.
+
+<!-- codex-turn:01a0cdb0-59de-7e23-8903-8fa69fb5a7a2 -->
+
+- 현재 작업 기록 완료. ELIGIBILITY keyring 접두사 누락으로 사용자 수정 대기, 서버 재기동 보류. 이번 외부 설정 변경 없음.
+
+- 2026-09-23 사용자 재저장 후 재조회: PHONE_ELIGIBILITY_BINDING_KEY_RING은 여전히 Base64 단독(접두사/쉼표 없음). PHONE_IDENTITY_FINGERPRINT_KEY_RING은 버전/ACTIVE_WRITE 포함 정상 구조. 원문 비출력으로 확인했고 서버 재기동/설정 변경은 하지 않았다. 테스트 desired0 유지, 정확한 ELIGIBILITY 항목 수정 재안내 필요.
+
+<!-- codex-turn:01a0cdaa-0452-7252-88aa-880e36c157cd -->
+
+- task:3 배포 진단 기록 완료. 테스트 서비스 desired0/running0/pending0 원복, 사용자 keyring 접두사 보완 저장 대기. 실제 정상 기동/health/JWKS는 미완료이며 운영/IAM 변경 없음.
+
+- 2026-09-23 테스트 task:3 등록/서비스 적용 완료(이미지 88ff5bed 유지, 내부 binding ON/scope/Secret selector만 변경). 기동 시 bean 누락 대신 binding configuration invalid 확인. 사용자 저장 키는 32바이트 Base64 단독으로 버전/상태 접두사 누락. 사용자에게 해당 값 앞 `test-v1,ACTIVE_WRITE,` 추가 저장을 요청한다. 서비스 desired0/running0/pending0 원복 완료. IAM/운영 변경 없고 실제 health/JWKS 검증 미완료.
+
+<!-- codex-turn:01a0cda6-ba83-7112-91d2-ce73aefcfc96 -->
+
+- 내부 binding 보완 작업 기록 완료. 로컬 설정 및 회귀 테스트 준비, 전체 958개 테스트 통과. 사용자 신규 HMAC key 저장 대기이며 AWS revision 미변경/테스트 desired0 상태 유지. 다음 단계는 키 저장 확인 후 현재 test:2 기반 설정 적용과 기동 검증.
+
+- 2026-09-23 사용자 보완 승인 후 로컬 test task draft에서 내부 eligibility binding ON, consumer scope tosunsaeng-billing-test, 기존 테스트 phone-fingerprint Secret 내 별도 JSON key selector 주입을 준비했다. 기존 fingerprint key 재사용 없음, publisher OFF 유지. 배포 설정 회귀 테스트 추가 및 ./gradlew clean test 성공. AWS Secret 새 비밀키 입력/저장은 사용자 대기이며 AWS revision은 아직 변경하지 않았다. Secrets Manager 해당 화면을 열어두었고 서비스 desired0 유지. 키 저장 후 현재 test:2 이미지/설정을 보존한 새 revision으로 적용할 것.
+
+<!-- codex-turn:01a0cd9e-ef7f-79e3-8e8d-9535653d9c29 -->
+
+- 현재 배포 진단 기록 완료: 테스트 :2는 desired0/running0/pending0로 안전 원복됨. 내부 eligibility binding 의존성 설정 및 전화번호 식별용 HMAC keyring 보완 필요(응답 복구 암호화 키와 별개). 운영 변경 없음, 테스트 가입/로그인 검증은 미완료.
+
+- 위 기동 실패 대응 후 AWS 성공 알림과 desired0/running0/pending0 원복을 확인했다. 테스트 revision은 :2 유지.
+
+- 2026-09-23 develop 88ff5bed push 확인: Actions 35843168284 테스트/이미지/ECS 배포 성공, health503 실패. test:2/desired0 확인 후 테스트 서비스만 desired1로 기동했으나 CloudWatch에 PhoneEligibilityFingerprintHasher bean 부재로 시작 실패가 기록됨. Firebase signup 필수 의존성과 PHONE_ELIGIBILITY_BINDING_ENABLED=false 설정의 불일치가 원인. 반복 재시작 방지를 위해 desired0 원복 요청. 다음은 내부 binding ON/consumer scope/전용 keyring 준비(외부 publisher OFF 유지) 후 재기동. 운영 변경 없음. 정상 API 검증은 미완료.
+
+<!-- codex-turn:01a0cd9b-75fb-7211-9de9-7c090e18cdd7 -->
+
+- DNS 연결 확인 작업 식별 기록 보완 완료. CNAME 일치 및 HTTPS503 확인 상태 유지. 추가 외부 변경 없이 workflow 반영과 실제 서버 기동 검증이 남아 있다.
+
+- 2026-09-23 사용자 DNS 설정 후 조회: identity-test.to-teacher.com CNAME이 지정한 staging ALB DNS와 일치(NOERROR, TTL600). 인증서 검증을 끄지 않은 HTTPS health 요청에서 HTTP503 수신. DNS/TLS 연결은 확인됐으며 직전 desired0 상태와 부합하나 서버 기동/정상 health는 미완료. 이번 외부 설정 변경 없음. 다음은 로컬 workflow 사용자 commit/push 및 테스트 이미지 배포/기동 검증.
+
+<!-- codex-turn:01a0cd9a-63c5-7d63-af9d-3a7af1766713 -->
+
+- 2026-09-23 CNAME 등록 실패 문의: 실제 가비아 오류/입력 화면 미확인으로 원인 판단 보류. 올바른 입력 및 동일 호스트 충돌 가능성 안내, 오류 문구 요청. 이번 DNS/AWS 변경 없음.
+
+<!-- codex-turn:01a0cd90-1e27-76f1-a7fb-81e2903fa55f -->
+
+- 테스트 인프라 생성 작업의 현재 식별 기록 보완 완료. 테스트 SG/ALB 규칙/ECS 서비스 생성 완료 및 desired0 상태 유지. 추가 외부 변경 없음. 원격 workflow 사용자 반영과 DNS 연결 후 실제 서버 기동 검증 필요.
+
+- 2026-09-23 승인된 테스트 네트워크/service 생성 완료: test SG sg-03c6bd60c4026a227(ALB→8081, 송신443/27017), ALB priority30 exact test host→test TG, ECS tosunsaeng-identity-test-service ACTIVE/task test:1/desired0/running0 확인. private subnet 2개/public IP·Exec·AutoScaling OFF. 실제 기동 전 차단: 원격 develop workflow는 여전히 운영 대상으로 로컬 변경의 사용자 commit/push 필요. DNS test 호스트 NXDOMAIN으로 가비아 CNAME 연결 필요. 기존 운영 service/role/Secret은 변경하지 않음. 이번 실제 task 실행 없음.
+
+<!-- codex-turn:01a0cd8e-0183-7a71-b125-f58325824bdb -->
+
+- 프론트 접근 조건 안내의 현재 작업 식별 기록 보완 완료. ALB 경유 접근 구조 설명 완료, DNS/서버 기동/health 및 필요 시 CORS 검증은 남아 있다. 추가 외부 변경 없음.
+
+- 2026-09-23 프론트 접근 조건 설명: 공인 ALB HTTPS를 통해 사설 테스트 ECS로 접근 가능하나 현재 desired0 생성 계획은 준비 단계다. DNS 연결, 승인된 SG/ALB/service 구성, 이미지 배포 및 desired1 기동/health 정상 확인 필요. Android 네이티브 HTTP와 달리 브라우저/WebView JS 요청은 CORS 별도 검증 필요(현재 Java 소스 검색에서 명시적 CORS 설정 없음). 이번 외부 변경 없음.
+
+<!-- codex-turn:01a0cd8b-c543-7640-93f7-9b966322cf9b -->
+
+- 테스트 네트워크 조사 작업 식별 기록 보완 완료. ALB/SG 확인 및 접근 변경안 작성 완료, 사용자 최종 승인 대기. 추가 외부 변경 없이 테스트 SG/ALB 규칙/service 미생성 상태 유지.
+
+- 2026-09-23 테스트 서비스 네트워크 확인: ALB SG 식별 및 HTTPS 규칙10/20/default404 확인, 테스트 호스트 규칙 없음. 신규 test SG(ALB에서만8081, 송신443/27017), host exact 우선순위30→test TG, private subnet/desired0 테스트 service 구성안 작성. 접근 범위 변경 직전 사용자 승인 대기, AWS 변경 없음. NAT/endpoint/Atlas 및 실제 통신 검증은 남음.
+
+<!-- codex-turn:01a0cd87-fb5b-70b3-8aa0-27a1763424cd -->
+
+- 테스트 Task Definition 등록 작업의 현재 식별 기록 보완 완료. tosunsaeng-identity-test:1 등록 및 저장 설정 확인 완료 상태 유지. 추가 외부 변경 없이 서비스 생성 및 실제 기동 검증이 남아 있다.
+
+- 2026-09-23 승인된 테스트 Task Definition tosunsaeng-identity-test:1 등록 완료. AWS 성공 메시지 및 컨테이너/JSON 저장 설정 확인(테스트 execution role, 0.5vCPU/1GiB, 테스트 DB/issuer, Google/phone ON, Stage9 및 외부 발행 OFF). Task Definition만 등록했으며 service/실행 수 설정/task 기동/라우팅 변경 없음. Atlas DB 권한·이미지 pull·실제 연결 검증은 남음. 초기 desired=0 service는 후속 구성 대상.
+
+<!-- codex-turn:01a0cd84-68a9-7f42-aa4e-5d6c03b09e5a -->
+
+- 초기 테스트 Task Definition 준비 작업 식별 기록 보완 완료. 초안과 JSON 검사 완료, DB명/권한 및 AWS 등록 승인 확인 대기. 추가 외부 변경 없이 task/service 미등록 상태 유지.
+
+- 2026-09-23 테스트 task definition 초안 작성: 기존 운영 service/revision23 사양 조회(0.5vCPU/1GiB/Linux X86_64/private network), 운영 값 복사 없이 테스트 issuer/kid/DB/Secret/log 구성. Google/phone/fingerprint ON, Stage9 및 외부 publish OFF 제안. 미사용 recovery keyring 미주입. DB 권한/약관 버전/설정 승인, 이미지/네트워크/ALB 준비 후 등록 필요. AWS task/service 미생성, 실제 배포 미수행. JSON/diff 검사만 수행.
+
+<!-- codex-turn:01a0cd7f-9fb8-7201-bfdb-61742a426b9d -->
+
+- Secret 형식 확인 작업의 현재 식별 기록 보완 완료. 혼합 저장 형식에 맞는 ECS secrets 배열 준비 및 검사 완료 상태 유지. 추가 외부 변경 없이 task 등록/기동 검증이 남아 있다.
+
+- 2026-09-23 테스트 Secret 저장 형식 확인 완료: MongoDB/fingerprint는 JSON key selector, Firebase 서비스 계정은 JSON 전체, JWT PEM 2개와 재발급 keyring은 일반 텍스트 전체. docs/contracts/identity-test-container-secrets.json 준비 및 JSON 검사 완료. 키 이름/형식만 출력·기록, 원문 파일 저장 없음. AWS 값/정책 미변경. task 등록 및 실제 연결 검증은 아직 미수행.
+
+<!-- codex-turn:01a0cd7c-a139-7671-a9c7-6c89a0e1fe68 -->
+
+- 테스트 로그 그룹 생성 작업 식별 기록 보완 완료. 30일 보존 설정 확인, ECS Secret 저장 형식에 대한 사용자 확인 대기. 추가 외부 변경 및 서버 기동 없음.
+
+- 2026-09-23 테스트 로그 그룹 /ecs/tosunsaeng-identity-test 생성 완료(서울/표준/30일 보존). 성공 메시지·목록 확인. ECS Secret 주입 변수와 entrypoint 계약 검토 및 문서화. Secret 저장 형식(전체 원문 vs 상위 JSON 키) 확인 필요로 task/service 등록 전 중단. Secret 원문 미조회, 운영 변경 없음. 실제 서버/로그 전송 미검증.
+
+<!-- codex-turn:01a0cd7a-0363-7810-b0c2-41eee45d0375 -->
+
+- 테스트 실행 역할 생성 작업의 현재 식별 기록 보완 완료. 역할 및 저장 권한 검증 완료 상태 유지. 추가 외부 변경 없이 로그 그룹/task/service 준비와 실제 기동 검증이 남아 있다.
+
+- 2026-09-23 실행 역할 생성 완료: 사용자 승인 후 tosunsaeng-identity-test-execution-role 및 IdentityTestExecution 정책 생성. AWS 성공 메시지, ARN, 저장된 정확한 6개 Secret 읽기/ECR pull/테스트 로그 스트림 쓰기 및 동일 계정 서울 ECS 신뢰 확인. 운영 role/Secret/GitHub 변수 미변경. 실제 ECS 실행 및 로그 그룹/task/service 구성은 미완료. 제품 변경 없음, 문서 갱신 및 diff 검사만 수행.
+
+<!-- codex-turn:01a0cd77-0b9b-7433-a4ca-fb6294c8ca19 -->
+
+- 2026-09-23 테스트 execution role 준비: Secrets Manager에서 테스트 Identity Secret 6개 ARN 확인(원문 미조회). 동일 계정/서울 ECS task 신뢰, 정확한 6개 Secret 읽기, Identity ECR pull, 제안 로그 그룹 /ecs/tosunsaeng-identity-test 스트림 쓰기 정책 JSON 작성. 역할 생성·권한 부여 직전 승인 대기, 외부 변경 없음. 로그 그룹 생성/보존 기간 및 task/service 준비는 후속. JSON/diff 검증, 제품 변경 없어 Gradle 미실행.
+
+<!-- codex-turn:01a0cd6f-0d88-7c52-af7f-ccc9b1ac7f06 -->
+
+- 2026-09-23 사용자 승인 후 테스트 CI 역할 tosunsaeng-github-identity-test-deploy-role 생성 및 IdentityTestDeploy 인라인 정책 적용 완료. AWS 저장 화면에서 develop exact immutable subject, sts audience, 정책 및 ARN 확인. GitHub AWS_TEST_ROLE_ARN repository variable 생성 후 GET 일치 확인. 기존 운영 role/AWS_ROLE_ARN/서비스는 변경하지 않음. 실제 OIDC 수임/배포 미실행. 테스트 execution role 및 Secret 최소권한은 별도 승인·구성이 필요하며 초기 task/service/이미지/DNS·라우팅도 남음. 공유 ECR 및 운영 role wildcard 신뢰 위험 유지. 이번은 외부 설정 및 문서만 변경, Gradle 재실행 없음.
+
+<!-- codex-turn:01a0cd67-8814-7460-83fc-bc6cb5d1fef7 -->
+
+- 2026-09-23 테스트 IAM 준비: 기존 운영 역할의 repo wildcard OIDC 신뢰 확인(운영 main 전용 아님). GitHub OIDC use_immutable_subject=true 및 실제 sub prefix 조회 후 develop exact 신뢰/권한 JSON 초안 작성. 새 테스트 배포 역할 및 AWS_TEST_ROLE_ARN 등록은 권한 생성 승인 대기, AWS/GitHub 변경 미수행. 공유 ECR 쓰기 및 기존 운영 역할 wildcard 위험 명시. execution role/Secret 권한/task/service는 별도 준비 필요. JSON jq 검사/diff check 통과.
+
+<!-- codex-turn:01a0cd58-b624-7302-bc90-eaa3b78ea5d8 -->
+
+- main/develop workflow 분리 구현의 현재 작업 식별 기록 보완. 전체 957 tests 통과, 실제 배포 미수행. 테스트 IAM 및 최초 ECS 서비스 준비 필요 상태 유지.
+
+- 2026-09-23 기존 deploy-staging.yml 수정 완료: main 기존 서비스/staging 태그, develop 테스트 서비스/test 태그로 분기. 테스트 전용 AWS_TEST_ROLE_ARN 필수, 기타 ref 거절, ACTIVE 서비스 및 task family/container 선행 검사, 운영 fallback 없음. [배포 준비 문서](../contracts/identity-branch-deployment.md). 전체 clean test 147 suites/957 tests 성공, diff check 통과. commit/push/workflow 실행/AWS 변경 없음. 테스트 IAM/최초 task/service/DNS·라우팅 준비 후 적용 필요.
+
+<!-- codex-turn:01a0cd55-55fd-7db1-be8c-6efb91efdc5c -->
+
+- 테스트 대상 그룹 생성 및 이미지 선행 조건 확인 작업 식별 기록 보완. 대상 그룹 생성 완료, develop 이미지 업로드와 로컬 AWS 인증 준비는 미완료. 운영 배포/라우팅 변경 없음.
+
+- 2026-09-23 테스트 인프라 준비: tosunsaeng-identity-test-tg 생성 완료(IP/HTTP:8081/동일 staging VPC/health /actuator/health, 대상0, ALB 미연결). 기존 서비스 3개만 존재. ECR Identity 28개 이미지 목록 최신은 main 7f2188df/staging이며 현재 develop bd337be4 이미지는 없음. 기존 workflow는 운영 서비스 갱신 대상이므로 실행하지 않음. 로컬 AWS CLI 자격증명이 없어 이미지 업로드 전 사용자 인증 또는 별도 승인된 빌드 경로 필요. ECS 서비스/Task Definition/권한/라우팅/DNS 미변경.
+
+<!-- codex-turn:01a0cd53-2f36-70b1-9b6a-1743151c5642 -->
+
+- ALB 테스트 인증서 추가 작업 식별 기록 보완. HTTPS:443 SNI 추가 성공 및 기존 기본 인증서 유지 확인 완료. 테스트 서비스/호스트 라우팅/DNS 연결 작업은 별도로 남아 있다.
+
+- 2026-09-23 사용자 승인으로 tosunsaeng-staging-alb HTTPS:443에 identity-test.to-teacher.com 인증서를 SNI 추가 완료. AWS 성공 메시지와 인증서 2개 목록 확인. 기존 identity-staging 기본 인증서 유지. DNS/리스너 규칙/보안 정책/대상 그룹/서비스 변경 없음. 테스트 호스트 라우팅은 미구성 상태로 관측했으며 테스트 배포 및 도메인 연결은 별도 남음.
+
+<!-- codex-turn:01a0cd51-d10b-7e50-9788-13a034c1d8bc -->
+
+- 인증서 발급 확인 작업 식별 기록 보완 완료. ACM 발급됨/도메인 검증 성공/미사용 확인 결과 유지. ALB 연결은 아직 수행하지 않았다.
+
+- 2026-09-23 재로그인 후 ACM 확인: identity-test.to-teacher.com 인증서 발급됨, 도메인 검증 성공, 사용 중 아니요. 발급 시각 2026-09-22 17:14:54 KST. 다음은 기존 인증서를 유지하면서 ALB HTTPS 443 인증서 목록에 추가하는 단계. 이번은 조회만 수행, ALB 변경 없음.
+
+<!-- codex-turn:01a0cd4d-6c1e-7e11-a5d5-73866f13e334 -->
+
+- 2026-09-23 테스트 인증서 검증 CNAME의 DNS 응답이 ACM 안내 값과 일치함을 확인. ACM 발급 여부는 AWS 세션 만료로 미확인. 사용자 재로그인용 ISB 페이지를 열고 탭 유지. DNS/ALB/인증서 설정 변경 없음. 현재 브랜치 develop.
+
+<!-- codex-turn:01a0c824-820a-7552-89e7-d07cb6586ae1 -->
+
+- 2026-09-22 ACM 현재 인증서 확인: identity-test.to-teacher.com 인증서는 DNS 검증 대기 중이며 사용 중 아님. 현재 화면의 검증 CNAME을 가비아 DNS에 등록하고 발급 후 ALB HTTPS listener에 추가하는 순서 안내. DNS/인증서/ALB 변경 및 탭 종료 없음.
+
+<!-- codex-turn:01a0c7e0-658a-7753-b50a-0512c96c992b -->
+
+- 2026-09-22 작업 순서 확인: 운영과 분리된 테스트 배포 및 SNS 인증/챌린지 검증을 먼저 진행할 수 있다. 구·신 주소 전환, 피드백 업데이트 안내, 기존 Guest 계승·재발급 응답 유실 검증은 실제 앱 업데이트 전 완료한다. 테스트는 운영 DB/키/이벤트 목적지와 격리하며 이번에 배포나 flag 변경을 수행한 것은 아니다.
+
+<!-- codex-turn:01a0c7d6-ee64-73a3-ac1b-abdc66b23e35 -->
+
+- 2026-09-22 전환 방안 가능 여부 재확인: 구/신 주소 분리와 피드백 result.updateRequired 기반 웹뷰 안내는 구현 가능하다. 구현·배포 완료 또는 세션 전환 안전성 검증 완료를 뜻하지 않는다. 기존 Guest 보존·진행 중 회전 응답 유실·신앱 Stage 9 지원 검증은 선행 과제로 유지. 이번은 설명/기록만 변경.
+
+<!-- codex-turn:01a0c7c9-a219-76c3-9b27-3197f34475fb -->
+
+- 2026-09-22 Guest 업데이트 전환 검토: 프론트 최신 main의 세션 보존 코드·오류 시 URL fallback 부재 확인. 신규 SNS 앱 revision/실기기 업데이트/운영 설정은 미확인. 구서버 회전 응답 유실 후 원 토큰은 신 복구 서비스에서도 재사용 감지 대상이며 안전 전환 완료로 판정하지 않는다.
+- 사용자 확정: Learning Core도 구·신 주소 분리, 피드백 result.updateRequired는 구 true/신 false. Identity 도메인 밖이므로 LC 제품 코드는 수정하지 않았고 [검토 및 인계안](../contracts/guest-app-update-transition-review.md)에 정리. 재발급/세션 기존 테스트 두 클래스 성공, 전체 테스트 재실행 없음. 기존 미커밋 구현 보존, 배포·flag·Jira 변경 없음.
+
+<!-- codex-turn:01a0c7c7-512c-71f3-8f05-64255056a05a -->
+
+- 단일 기기 업데이트 전환 설명의 작업 식별 기록 보완 완료. 주소 분리 자체가 동일 세션의 혼합 처리를 뜻하지 않음을 정정했으며 실제 전환·공유 저장소 호환성 검증은 미수행이다. 제품 코드 및 운영 설정 변경 없음.
+
+- 2026-09-22 업데이트 전환 위험 설명 보정: 한 기기에서 구 앱 종료 후 신 앱이 새 주소만 호출하고 동일 세션의 기존 요청이 남지 않는다면 두 서버가 그 세션을 번갈아 처리하는 상황은 아니다. 앞선 예시는 조건부이며 주소 분리만으로 자동 발생하지 않는다. 복구 ON을 반드시 유예 종료까지 미뤄야 한다는 일반화 대신 실제 단방향 전환·진행 요청·다중 기기와 계정 매핑·공유 데이터 호환성 검증 결과에 따라 판단하도록 안내. 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c7c5-9c23-7201-9ffa-a85cc14b8d36 -->
+
+- 2026-09-22 주소 분리와 세션 공유 차이를 설명했다. 두 서버 운영 자체가 위험한 것은 아니며, 같은 계정·세션 DB를 쓰는 경우 구버전의 재사용 탐지가 해당 계정의 신규 세션까지 폐기할 수 있다는 조건부 위험이다. 실제 구/신 서버의 저장소 공유 및 사용자 매핑은 미확인. 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c7be-4404-7e62-9e0f-4b57fae620e7 -->
+
+- 2026-09-22 구/신 앱 주소 분리와 1주 업데이트 유예 방안 검토: 가능하지만 주소 분리는 세션 격리가 아니다. 같은 계정/세션 DB에서 구 코드와 recovery ON writer 혼재는 승인하지 않으며 유예 중 recovery OFF 유지, 호환 서버·업데이트 안내·종료 후 정책 검증 뒤 활성화하는 방안을 권고했다. 웹뷰 안내는 로그인 실패 전에도 도달 가능해야 한다. Guest 승격/병합에 필요한 유효 세션 보존과 장기 미접속자 전환 경로 확인 필요. 실제 서버/웹뷰/flag 변경 없음.
+
+<!-- codex-turn:01a0c7a4-fcb0-74f1-8d76-6579c3794f39 -->
+
+- 2026-09-22 /reissue Idempotency-Key 필수 여부 재확인: 응답 복구 ON일 때만 필수, 기본 OFF에서는 필수 아님. 실제 배포 환경 설정은 미조회이므로 현재 운영 필수 여부는 단정하지 않는다. 코드/설정 변경 없음.
+
+<!-- codex-turn:01a0c7a1-0787-7593-bad3-e3e2e3673c62 -->
+
+- 2026-09-22 /reissue 만료 조건 확인: 기존 경로와 응답 복구 경로 모두 원 Refresh Token 만료 시 REFRESH_TOKEN_EXPIRED로 거절한다. Access Token 만료와 구분하며 복구 기간이 Refresh Token 수명을 연장하지 않음을 안내했다. 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c79a-b4c8-7e33-a1de-9aba35f232ec -->
+
+- 재발급 계약 설명 작업 식별 기록 보완 완료. Guest/Member 공통 API, 응답 복구 flag와 동일 요청 ID 재사용 규칙, 구버전 전환 전 운영 활성화 금지 권고를 안내했다. 실제 운영 flag는 미조회이며 코드/외부 설정 변경 없음.
+
+- 2026-09-22 재발급 프론트 계약 설명: /reissue는 Guest/Member 공통이며 Stage 9는 AUTH_REISSUE_RECOVERY_ENABLED로 선택하는 응답 복구 기능 이름이다. 기본 false와 활성 시 전 클라이언트 UUID v4 헤더 필수 조건을 코드에서 확인. 현재 배포 환경 ON/OFF는 이번에 조회하지 않았다. 동일 재발급 재전송은 원 Refresh Token+동일 ID, 다음 재발급은 새 ID. 구버전이 같은 API를 호출하면 ON 후 헤더 누락 400이므로 테스트 환경 검증과 구버전 업데이트 전환 선행 필요. 문서 상대 링크 대신 로컬 직접 링크 안내, 제품 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c78b-1ed3-79a2-83d8-7b5987912baf -->
+
+- 2026-09-22 TMI-176 로컬 구현 완료, 브랜치 fix/TMI-176-identity-operability. R1 공통 JSON 요청 로그 중복 제거, R2 JWKS/자체 decoder 공개키 집합 공유 및 exact kid/RS256, R3 안전 DB 진단과 worker/scheduler 경고, R4 runtime Sentry release 매핑 반영. 최종 ./gradlew clean test --no-daemon 146 suites/952 tests 성공(실패·오류·skip 0), git diff --check 통과. 기존 미커밋 작업 보존, 예상 밖 변경 없음.
+- [구현 결과/댓글 초안](../contracts/identity-operability-remediation-plan.md), [배포·키 전환 runbook](../contracts/identity-operability-runbook.md). 실제 외부 GitHub Action 렌더링/배포/CloudWatch/Sentry·Firebase/Atlas E2E는 미검증. commit/push/실제 키 교체/기능 flag/Jira 댓글·상태 변경 없음. 다음 단계는 사용자 diff 검토·commit/PR, 별도 테스트 배포 승인 및 검증이다.
+
+<!-- codex-turn:01a0c787-e3d2-7e32-9ae0-34f490eb54ca -->
+
+- 2026-09-22 Jira TMI-176 생성 완료: [Identity] 운영 안정성 보완 — 요청 로그·JWT 키 회전·DB 진단·Sentry release. 상위 TMI-136 에픽 연결과 해야 할 일 상태를 재조회 확인했다. 사용자가 이번 범위를 Jira 생성만으로 한정하여 구현 미착수; 제품 코드/배포/기능 설정 변경 없음.
+
+<!-- codex-turn:01a0c786-950f-7712-8312-46a83682576e -->
+
+- TMI-136 하위 작업 생성 준비 기록의 현재 작업 식별자 보완 완료. 생성안 승인 대기이며 Jira 생성/코드 구현은 아직 수행하지 않았다.
+
+- 2026-09-22 운영 안정성 R1~R4 구현 요청 접수. 상위 Jira TMI-136(sns 로그인)은 에픽으로 확인했으며 하위 일반 작업 1건 생성안을 제시하고 승인 대기 중이다. Jira 생성 선행 요청에 따라 구현은 아직 시작하지 않았다. Jira 조회만 수행, 이슈/댓글/상태 변경 없음.
+
+<!-- codex-turn:01a0c784-86b7-79e1-a022-6db91de18a0c -->
+
+- 2026-09-22 운영 안정성 수정 계획 설명: 로그 출력 복구·키 교체 중 기존 토큰 검증·안전한 DB 장애 분류·Sentry 배포 버전 식별의 목적과 사용자 영향을 정리했다. 구현 승인 대기 유지. 이번은 설명 및 작업 기록만 변경했으며 제품 코드/외부 설정/배포 변경 없음.
+
+<!-- codex-turn:01a0c777-e6a7-7963-9a79-0897e2e33423 -->
+
+- 2026-09-22 [운영 안정성 수정 계획](../contracts/identity-operability-remediation-plan.md) 작성 완료, 구현 승인 대기. R1 requestId 중복 제거/실제 console 검증 → R2 로컬 active+retained 공개키 검증 → R3 안전한 장애 분류 → R4 runtime Sentry release mapping 순서. 제품 코드/기능 flag/외부 설정 변경 없음. API/JWT 유지, 실제 키 교체/배포는 별도 단계, 기존 미커밋 변경 보존.
+
+<!-- codex-turn:01a0c76f-42cf-7c82-b086-06f227192ef7 -->
+
+- develop 코드 리뷰 작업 식별 기록 보완 완료. 4건의 리뷰 결과 및 순수 커밋 896 tests 성공 기록 유지, 수정 승인 대기.
+
+- 2026-09-22 순수 develop 5f37c135 코드 리뷰 완료: 별도 git archive 사본 전체 896 tests/139 suites 성공. 콘솔 로그 중복 결함과 **JWKS에 구키를 유지해도 Identity decoder가 active key/kid만 허용해 기존 토큰을 거절하는 회전 결함**을 임시 진단으로 재현. DB 원인 소실 및 SENTRY_RELEASE 전달 누락 포함 4건 정리. 제품 수정/외부 변경 없음, 승인 대기. [리뷰 상세](develop-code-review-2026-09-22.md). 이전 919개는 미커밋 포함 작업 트리 결과이며 이번 기준과 다름.
+
+<!-- codex-turn:01a0c76d-0b9c-7263-9daf-eb601b7964ee -->
+
+- develop 재검토 작업 식별 기록 보완 완료. 동일 로그 결함 확인, 제품 수정은 승인 대기 상태 유지.
+
+- 2026-09-22 develop 재확인: 로컬 HEAD 5f37c135. 공통 로그/session/application.yml/workflow는 커밋과 작업 트리 동일하므로 requestId 중복 결함은 develop에도 존재. 직전 919 tests와 콘솔 재현은 develop+미커밋 작업 트리에서 수행한 결과다. recovery/fence 구현은 있으며 기본 OFF/설정 조합 확인 필요. 이번은 비교만, 제품 수정/추가 테스트/원격 fetch 없음. 상세 검토 문서에 기준 구분 보완.
+
+<!-- codex-turn:01a0c764-4820-70f0-96e6-b68ede8bca35 -->
+
+- 2026-09-22 운영성 검토: **P1 공통 요청 로그 누락 원인 재현 완료**. RequestLoggingFilter의 MDC/requestId key-value 중복으로 ECS JSON writer가 이벤트를 버린다. 200/401/500 모두 확인. 실제 CloudWatch에는 최근 24시간 서비스 성공 로그 15건만 관측, awslogs 연결 자체는 동작. ECS revision 23/이미지 7f2188df, task 1/ALB 정상 1. 제품 수정·운영 변경 없음; main hotfix 우선 권장.
+- 검증: 임시 콘솔 진단 후 제거, 전체 ./gradlew clean test 최종 919 tests/141 suites 모두 성공. 기존 LogCapture는 실제 encoder를 거치지 않아 결함을 검출하지 못한다. DB 503 원인 정보 소실, 재발급 보호 OFF 경로 및 SENTRY_RELEASE runtime 전달도 후속 점검 대상. 상세: [운영성 검토](identity-operability-review-2026-09-22.md).
+- 인증서 작업: 사용자 요청으로 생성된 identity-test.to-teacher.com 인증서가 검증 대기 상태임을 탭 유지 중 확인. 인증서/DNS는 이번 작업에서 변경하지 않았다.
+
+<!-- codex-turn:01a0c741-c3d2-7551-89a2-d8a3111e9630 -->
+
+- 인증서 요청 안내 작업 식별 기록 보완 완료. 사용자 직접 요청 대기이며 외부 설정 변경 없음.
+
+- 2026-09-22 테스트 ACM 인증서 직접 요청 방법 안내: 서울/공개/identity-test.to-teacher.com/DNS 검증/RSA 2048/내보내기 비활성. 실제 요청 및 DNS 변경은 수행하지 않았으며 사용자 요청 후 검증 CNAME 등록 단계가 남는다.
+
+<!-- codex-turn:01a0c73e-a183-7653-938c-90b2359ae202 -->
+
+- 2026-09-22 재로그인 후 서울 ACM 확인 완료: 기존 발급/사용 중 인증서는 identity-staging.to-teacher.com과 api-staging.to-teacher.com만 포함하며 tosunsaeng-staging-alb에 연결돼 있다. wildcard 및 identity-test.to-teacher.com 미포함으로 테스트 주소에 재사용 불가. 별도 테스트 인증서와 가비아 DNS 검증이 다음 단계다. 이번 인증서/DNS/ALB 변경 없음; listener/rule 상세 미조회.
+
+- 2026-09-22 사용자 지정 ISB URL을 새 탭으로 열어 AWS 로그인 화면 확인 및 탭 유지 완료. 사용자 로그인 대기, 인증서 조회/설정 변경 없음.
+
+<!-- codex-turn:01a0c73d-0890-7892-b659-cff669962d5f -->
+
+- 2026-09-22 서울 ACM 조회는 AWS 세션 만료로 중단. 재로그인 화면을 열어 두었으며 사용자 로그인 후 인증서 도메인/상태 확인 필요. 인증서/DNS/ALB 변경 없음.
+
+<!-- codex-turn:01a0c735-a39f-7392-b717-2a8077edc548 -->
+
+- 2026-09-22 공개 DNS 확인: to-teacher.com은 가비아 네임서버 사용. 제안된 identity-test.to-teacher.com A/CNAME 결과 없음. 다음은 서울 ACM 기존 인증서 적용 가능 여부 확인 및 필요시 DNS 인증/ALB 호스트 라우팅 준비. 네임서버/DNS/AWS는 변경하지 않았다.
+
+<!-- codex-turn:01a0c732-25d8-7e73-9095-31dd4fc63f6e -->
+
+- 2026-09-22 테스트 서버 준비 순서 안내: Firebase Blaze/SMS·Secret 준비 이후 테스트 주소/issuer 확정, 실행 역할, 확정 revision 이미지, Task Definition, 별도 서비스/HTTPS, DB·인증 E2E가 남는다. 로컬 미커밋 변경 존재 확인. 기존 workflow는 기존 서비스 대상이므로 테스트 배포에 그대로 쓰지 않는다. 이번 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c6ec-4fd5-7422-ab54-b6287363a51a -->
+
+- 2026-09-22 사용자 승인 후 Firebase SMS 리전 정책을 허용/KR 단독으로 저장했다. 처리 완료 후 미저장 변경 표시 제거 및 저장 비활성 확인. 예산 알림은 기존 설정 유지. 실제 SMS 발송/앱 E2E 및 테스트 번호 등록 상태는 미검증, 다른 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c6e5-ce55-7301-bf91-b42dd3bc7966 -->
+
+- 예산/SMS 준비 작업 식별 기록 보완 완료. 예산 알림은 저장됐으며 대한민국 SMS 허용 정책은 선택만 한 상태로 저장 승인 대기다. 이번 보완은 기록만 변경했다.
+
+- 2026-09-22 Firebase 프로젝트 월 10000원/50·90·100% 이메일 예산 알림 생성·저장 확인(크레딧 차감 전, 알림만). 최신 provider 화면에서 Google/Phone 활성 확인. SMS 허용 목록은 비어 있어 KR만 선택했으나 저장 전 사용자 확인 대기. Phone 활성화/Identity Platform 변경은 agent가 수행하지 않았다. 테스트 번호 등록/앱 E2E 미확인, 비밀값 조회 없음.
+
+<!-- codex-turn:01a0c6e4-3a39-76d1-b8e9-62fd9d3ec9a1 -->
+
+- 2026-09-22 to-teacher-firebase의 기존 결제 계정 연결 및 Blaze 전환 완료를 UI에서 확인했다. 현재 Firebase 계정은 예산 조회 권한이 없어 예산 존재 여부는 미확인. 다음은 결제 관리자 계정의 예산 알림 확인, SMS 정책/테스트 번호 확인, 별도 테스트 ECS 준비다. 이번 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c6e0-828d-7cc3-bc67-51a288311df5 -->
+
+- 결제 계정 표시 확인 작업 식별 기록 보완 완료. Firebase에서 계정 선택은 가능하지만 Blaze 연결 완료는 아직 미확인이다. 이번 보완은 기록만 변경했다.
+
+- 2026-09-22 Firebase 결제 계정 선택 창에 기존 계정이 나타난 것을 확인했다. 권한 반영은 확인됐지만 최종 연결/Blaze 전환 완료는 아직 아니다. 사용자 계정 선택 및 최종 과금 승인 단계가 남았고 외부 변경은 수행하지 않았다.
+
+<!-- codex-turn:01a0c6de-40ff-7f52-9c41-ed67b8cffd2a -->
+
+- IAM 저장 확인 작업 식별 기록 보완 완료. 권한 추가는 확인했으나 Firebase 결제 계정 목록 반영과 Blaze 연결은 아직 확인되지 않았다. 이번 보완은 기록만 변경했다.
+
+- 2026-09-22 사용자 직접 IAM 저장 완료 확인: Firebase 관리 계정에 결제 계정 사용자 역할 및 업데이트 성공 알림 확인. Firebase 재조회에서는 아직 연결 가능한 계정 없음. 권한 전파 가능성 있으나 원인 미확정, 추가 권한 변경/실제 결제 연결 없음. 잠시 후 재확인 필요.
+
+<!-- codex-turn:01a0c6db-925e-7461-8daa-6fd08ea964d4 -->
+
+- 2026-09-22 결제 계정 IAM에 Firebase 관리 계정이 없는 것을 확인했다. 결제 계정 사용자 역할을 추가 양식에 선택했으나 저장하지 않았다. 권한 확대에 대한 저장 직전 사용자 확인 대기. 실제 IAM/Blaze 연결 변경 없음, 탭 유지.
+
+<!-- codex-turn:01a0c6cd-6695-7cd2-aed7-32c27ddc67ff -->
+
+- Firebase 결제 연결 준비 식별 기록 보완. 현재 연결 가능한 결제 계정이 없어 로그인/권한 확인 대기 상태이며 실제 연결/IAM 변경은 수행하지 않았다.
+
+- 2026-09-22 Firebase 결제 연결 준비 중: Blaze 선택 창에 연결 가능한 Cloud Billing 계정이 없다고 표시된다. 기존 결제 계정은 확인됐으므로 새 계정을 만들지 않고 로그인/권한 확인이 우선이다. 실제 결제 연결/과금 승인/IAM 변경 없음. 사용자 후속 작업용 탭 유지.
+
+<!-- codex-turn:01a0c6cb-b374-7aa1-881b-1ee58eabe9c8 -->
+
+- 2026-09-22 콘솔 확인: Cloud Billing 결제 반영 및 무료 체험 활성 상태 확인. to-teacher-firebase는 여전히 Spark이므로 해당 결제 계정 연결/Blaze 전환이 남아 있다. 요금제/결제/IAM 변경은 하지 않았고 탭 유지. 실제 연결 가능한 계정 및 권한은 미확인이다.
+
+<!-- codex-turn:01a0c30d-c642-75d2-8ec8-b5233eb982a2 -->
+
+- 2026-09-21 배포 gate 확인: 현재 deploy-staging.yml은 main push/수동 실행 시 기존 tosunsaeng-identity-service를 갱신한다. 별도 테스트 배포가 아니므로 바로 실행하면 안 된다. 테스트 역할/Task Definition/Secret 매핑/서비스/HTTPS와 배포 revision 준비 필요. 이번 workflow/AWS 변경 및 배포 없음.
+
+<!-- codex-turn:01a0c2fe-bbca-7ca3-80ae-f3966ec62b86 -->
+
+- 2026-09-21 `develop`: 사용자 요청으로 폐기된 `POST /api/v1/auth/firebase/providers/relink/prepare` 서버 라우트·service stub·Swagger를 제거했다. 유효한 사용자 인증 요청은 404이며 기존 Security/미해결 시도 차단 로직은 유지한다. 현재 OpenAPI는 실제 Identity Controller 전체 23 paths/24 operations와 정상·재개·상태별·주요 오류 응답 예시 65개를 포함한다. DTO 직렬화 기반 예시는 live Swagger와 정적 공유본에 함께 반영된다. Provider unlink의 실제 202 문서화, link/unlink Status 모델 충돌 분리, Guest 생성 누락 schema와 FEDERATED 문서 enum을 보완했다. 기존 Provider link의 MEMBER용 ALREADY_LINKED와 JWT/세션 계약은 유지한다.
+- 검증: `./gradlew clean test shareSwagger` 최종 성공(919 tests/141 suites, 실패·오류·skip 0), 별도 export 1 test 성공. Controller 전체 등록 목록 대조, 제거 경로 미노출/인증 시 404, 정상 응답 예시·schema 필드와 내부 참조, SDK 최초 start 허가/재시도 불허, ZIP 무결성·diff 검사를 통과했다. 결과는 `build/distributions/identity-swagger.zip`, JSON은 `build/frontend-swagger/identity-openapi.json`; `./gradlew shareSwagger`로 갱신한다. 학습 기록 삭제는 미구현 Learning Core 요구사항으로 포함하지 않는다.
+- 다음 확인: 수신자의 ZIP 압축 해제 후 화면 렌더링, 구 relink 호출 미사용, 실제 배포 base URL/버전·feature flag 활성화. 이전 앱 브라우저의 로컬 HTML 접근 차단 때문에 화면 검증은 하지 않았다. 별도 Jira 쓰기·배포·commit·push 없음. 기존 Docker/entrypoint·배포 테스트/문서 및 선행 Swagger 변경 보존, 예상 밖 변경 없음.
+
+<!-- codex-turn:01a0c2ee-e72a-7d52-9e6b-4debc18832d7 -->
+
+- Bootstrap 재검토의 작업 식별 기록 보완 완료. 집중 21개 테스트 재실행 성공, 실제 ECS 연결은 미검증 상태 유지. 이번 보완은 기록만 변경했다.
+
+- 2026-09-21 Secret bootstrap 재검토: 집중 21개 테스트 재실행 성공, 기존 전체 917개 성공 결과 확인. 복구 활성화 시 AUTH_SESSION_FENCE_ENABLED=true 필요를 코드로 확인. 이번 코드 수정/외부 변경 없음. 실제 Docker/ECS 권한/Secret 연결 및 인증 E2E는 아직 미검증이다.
+
+<!-- codex-turn:01a0c2e8-57b2-71e1-8c67-6c8880cf85c8 -->
+
+- 2026-09-21 develop: 컨테이너 Firebase JSON/복구 keyring 파일 공급 구현 완료. entrypoint는 기능별 필수값/원문-경로 충돌을 검사하고 기동별 700 폴더/600 파일과 JVM 원문 환경변수 제거를 적용한다. 기존 JWT/API/feature flag 유지. 집중 21개 및 전체 917개 테스트(140 suites) 통과, 실패/오류/skip 0. sh -n 및 diff 검사 통과. 기존·동시 프론트 문서 변경 보존. 실제 Docker/ECS/인증 E2E 미검증, AWS 변경/commit/push/배포 없음. 다음은 docs/contracts/identity-container-secret-bootstrap.md에 따라 테스트 Task Definition 매핑·권한·새 이미지 준비다.
+
+<!-- codex-turn:01a0c2e5-515b-7321-8afe-9cccff56f1b1 -->
+
+- 2026-09-21 `develop`: 프론트의 학습 기록만 삭제 요구사항을 가이드 5.4와 부록에 추가했다. 계정·로그인·SNS 연결·프로필·동의 유지, Learning Core 소유 기능으로 구분했다. 삭제 범위·API·배포는 미확정이며 해당 서비스 구현은 조회하지 않았다. 학습 통계/스트릭/단어장/파일 포함 여부, 처리 중 AI와 새 기록 경계, 완료 확인·멱등성을 후속 결정 항목으로 인계한다. 구매·이용권/체험 자격 초기화 제외는 제안으로 표시했다. 로컬 링크 57개·JSON 40개·diff 검사 통과, 문서만 변경해 Gradle 미실행. TMI-169 구현 범위를 확장하거나 새 Jira를 생성하지 않았다.
+
+<!-- codex-turn:01a0c2e5-b424-7023-b6fc-d93df2c08068 -->
+
+- 2026-09-21 다음 작업은 저장소 시작 스크립트 보완이며 인증 API 변경은 아님을 설명했다. 구현/배포는 아직 시작하지 않았고 기록만 갱신했다.
+
+<!-- codex-turn:01a0c2db-619f-7b30-9a42-07c72d664808 -->
+
+- 2026-09-21 TMI-169 프론트 인계 갱신 완료. 현재 브랜치는 `develop`이며 새 prepare 구현을 코드에서 확인했다. 프론트 가이드·부록에 중단 후 재개, 활성 ID 재사용/만료 교체, PROFILE 상시 반환, CONSENTS 화면 생략과 upgrade 필수 필드 구분, 정책 변경·recent-auth 오류, QA 판정표·코드 근거를 보완했다. 문서 로컬 링크 52개·JSON 예시 40개와 diff 검사 통과. 문서만 변경하여 Gradle 재실행 없음. 배포 버전/약관 본문 공급/실제 모바일 E2E 확인은 남아 있으며 Jira 댓글·상태 변경 및 commit·push는 수행하지 않았다. 기존 동시 작업 기록은 보존했다.
+
+<!-- codex-turn:01a0c2db-14c8-7751-9894-61ae262ee8f2 -->
+
+- 2026-09-21 develop에서 시작 스크립트 보완 범위를 분석했다. JWT 파일 공급은 기존 지원, Firebase JSON/복구 keyring은 추가 필요. 기능별 실패 처리/기존 파일 경로 호환/700 디렉터리와 600 파일/비밀값 로그 방지 및 회귀 테스트를 권장한다. 코드 구현과 AWS 변경은 하지 않았다.
+
+- 2026-09-21 다음 테스트 배포 작업 안내: 현재 entrypoint는 JWT PEM 파일 생성만 지원한다. Firebase JSON과 응답 복구 keyring의 안전한 파일 공급을 먼저 준비하고 테스트 execution role/Task Definition/서비스/HTTPS 및 실제 인증 검증을 진행해야 한다. 이번 코드/외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c2d6-4241-7cf1-9ccd-5a3c419d50fe -->
+
+- 테스트 복구 키 형식 확인 작업 식별 기록 보완. 사용자 예시 문법은 적합하며 실제 Secret 로딩은 미검증. 비밀값 기록/외부 변경 없이 동시 작업을 보존한다.
+
+- 2026-09-21 사용자 제공 비실제 예시의 복구 keyring properties 형식 적합 확인. 예시 값은 기록하지 않음. 실제 Secret 값/서버 로딩 검증은 별개이며 ECS 파일 공급 준비가 남아 있다.
+
+## 현재 작업 — TMI-169
+
+<!-- codex-turn:01a0c2c6-6e44-7153-8451-e055695994f8 -->
+
+- 2026-09-21 `feat/TMI-169-guest-enrollment-resume`에서 Guest SNS 가입 재개 및 enrollment 만료 계약 구현·검증 완료. commit·push·배포와 Jira 댓글·상태 변경은 수행하지 않았다.
+- `/api/v1/auth/firebase/guest/prepare` 전용 `ALREADY_LINKED`를 제거했다. owner 없음은 활성 attempt 재사용 또는 만료 attempt 교체 후 `ENROLLMENT_REQUIRED`, 다른 ACTIVE MEMBER owner는 mutation 없는 `MERGE_REQUIRED`, 현재 Guest owner는 `409 IDENTITY_STATE_CONFLICT`로 처리한다.
+- `ENROLLMENT_REQUIRED`에 `missingRequirements`, `privacyConsentVersion`, `termConsentVersion`을 추가했다. email·phone은 fresh Firebase proof, profile은 Guest 승격 시 항상 필요, 필수 동의는 저장 상태·현재 version·동의 시각을 모두 사용해 계산한다.
+- `identity.firebase.guest.prepare{outcome=...}` 저카디널리티 counter와 Guest-owned conflict의 식별자 없는 구조화 WARN을 추가했다. Token, Firebase UID, provider subject, phone, userId, enrollmentId는 관측 값에 포함하지 않는다.
+- 만료 attempt는 기존 `expiresAt` 애플리케이션 판정과 `cleanupAt` TTL 정책을 유지한다. 만료 ID upgrade는 기존 `FIREBASE_ENROLLMENT_CONFLICT`이며 프론트는 `/guest/prepare`를 다시 호출한다. Provider link의 MEMBER용 `ALREADY_LINKED`는 유지한다.
+- 최종 `./gradlew clean test` 성공: 896 tests, 실패 0. 실제 Atlas·Firebase Provider는 호출하지 않았다.
+- 관련 구현·계약: `FirebaseEnrollmentRequirementResolver`, Guest prepare service/DTO/result type/configuration/controller, `AuthErrorStatus`, 관련 단위·Controller·구성 테스트, `docs/contracts/firebase-guest-enrollment-resume-plan.md`와 Firebase 프론트 가이드·부록.
+- 남은 작업: 사용자가 diff를 검토해 commit·push하고 PR을 생성한다. staging에서 활성 attempt 재사용, 만료 교체, MEMBER merge, `IDENTITY_STATE_CONFLICT` 0건 관측과 구버전 앱의 409 안전 중단을 확인한다. Jira 댓글은 초안만 제공하며 등록과 상태 전환은 별도 승인 후 수행한다.
+
+- 2026-09-21 서울 Secrets Manager에서 reissue-encryption-keyring 저장 리소스 및 기본 KMS 암호화 확인. phone-fingerprint 목록 존재도 확인. 비밀값은 열지 않아 properties 형식/32바이트 검증은 미완료이며 실제 서버 주입과 구분한다. 외부 설정 변경 없음.
+
+<!-- codex-turn:01a0c2d4-18c8-7302-8f17-1ac5b3747332 -->
+
+- 2026-09-21 복구 keyring 저장 형식 재확인: 현재 코드는 JSON이 아닌 properties 원문을 읽으며 Base64 디코딩 결과 32바이트를 요구한다. 사용자 저장 완료 보고 후 형식 의문이 있어 비밀값 없이 증상을 확인하는 중. 실제 Secret 조회/수정 및 ECS 공급 검증 없음.
+
+<!-- codex-turn:01a0c2d0-e07f-7251-bbcf-074b14febafb -->
+
+- 2026-09-21 HMAC Secret 저장 완료는 사용자 보고 기준으로 정리. 다음 응답 복구 AES-256 키는 독립 생성하여 properties 원문으로 보관하도록 안내. 코드의 32바이트/절대 파일 경로 요구 확인. 실제 키 조회/외부 변경 없음; ECS 파일 공급과 기능 활성화는 미완료.
+
+<!-- codex-turn:01a0c2cc-2837-7cf3-84ea-ae44913b8fe7 -->
+
+- 2026-09-21 테스트 전화번호 fingerprint 키 준비: 로컬 develop에서 `v1,ACTIVE_WRITE,<표준 Base64>` 및 최소 32바이트 계약 확인. 사용자에게 독립된 테스트 키 생성/Secrets Manager key-value 저장 방법 안내. 실제 생성/저장/ECS 주입은 미확인. 현재 브랜치는 feat/TMI-169-guest-enrollment-resume이며 동시 구현 변경은 보존한다. 키 원문 조회/기록 및 외부 변경 없음.
+
+<!-- codex-turn:01a0c2cb-0620-75a0-8c82-4db1668db613 -->
+
+- 2026-09-21 서울 Secrets Manager에서 테스트 jwt-private-key/jwt-public-key 생성 확인. 테스트 mongodb/firebase 포함 네 리소스 존재 확인. 비밀값은 열지 않았으므로 PEM 형식/키 쌍 일치/실제 서명은 미검증이다. 다음은 HMAC/재발급 복구 암호화 키 준비 및 ECS 주입 설정. 이번 외부 변경 없음, 탭 유지 처리.
+
+<!-- codex-turn:01a0c2c8-29d3-7ff0-bdbb-f6acd343cf72 -->
+
+- 2026-09-21 RSA 키 안내 보완: 개인키는 Secret 보관 필수지만 서버 실행에는 현재 개인키/공개키 PEM 모두 필요하다. 공개키는 일반 설정으로 전달 가능하며 관리 편의상 별도 Secret에 보관하는 선택지도 안내했다(추가 비용 가능). 실제 키 조회/등록 없음. Learning Core는 JWKS로 공개키를 조회한다.
+
+<!-- codex-turn:01a0c2c4-6779-7622-a251-e8674a484157 -->
+
+- 2026-09-21 테스트 JWT RSA 키 준비 안내 기록 보완. 사용자 로컬 키 생성 및 개인키 Secret 보관 절차를 안내했으며 실제 키 생성/내용 조회/저장 검증은 수행하지 않았다. 다음은 키 준비 완료 후 테스트 ECS 주입 및 나머지 보안 설정 준비다.
 ## 2026-10-18 — TMI-205 main 구 staging 배포 차단
 
 - 최신 main 기반의 최소 변경. 기존 workflow는 push 트리거와 AWS/배포 단계를 제거하고 수동 실행을 오류 종료한다. develop 브랜치 workflow 및 제품 코드는 불변.

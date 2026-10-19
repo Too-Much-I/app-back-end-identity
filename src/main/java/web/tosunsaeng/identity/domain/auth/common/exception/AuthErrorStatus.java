@@ -1,0 +1,240 @@
+package web.tosunsaeng.identity.domain.auth.common.exception;
+
+import org.springframework.http.HttpStatus;
+
+import web.tosunsaeng.identity.global.exception.ErrorCode;
+
+public enum AuthErrorStatus implements ErrorCode {
+	AUTH_ISSUANCE_UNRESOLVED(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_ISSUANCE_UNRESOLVED", "인증 발급 결과를 확인할 수 없습니다. 로그인 상태를 다시 확인해 주세요."),
+    INVALID_MERGE_STATUS_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_MERGE_STATUS_REQUEST", "병합 조회 요청이 올바르지 않습니다."),
+    MERGE_STATUS_NOT_FOUND(HttpStatus.NOT_FOUND, "MERGE_STATUS_NOT_FOUND", "병합 작업을 찾을 수 없습니다."),
+    MERGE_STATUS_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "MERGE_STATUS_RATE_LIMITED", "잠시 후 다시 조회해 주세요."),
+    MERGE_STATUS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MERGE_STATUS_UNAVAILABLE", "병합 상태를 확인할 수 없습니다."),
+	PROVIDER_LINK_RETIRED(HttpStatus.GONE, "PROVIDER_LINK_RETIRED", "SNS 추가 연결 및 해제를 더 이상 지원하지 않습니다."),
+	SINGLE_SNS_REQUIRED(HttpStatus.CONFLICT, "SINGLE_SNS_REQUIRED", "하나의 SNS 계정으로 가입해 주세요."),
+	SNS_ACCOUNT_MISMATCH(HttpStatus.CONFLICT, "SNS_ACCOUNT_MISMATCH", "가입한 SNS 계정으로 인증해 주세요."),
+	INVALID_RECOVERY_PROOF(HttpStatus.UNAUTHORIZED, "INVALID_RECOVERY_PROOF", "전화번호 인증을 다시 진행해 주세요."),
+	RECOVERY_RECENT_AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "RECOVERY_RECENT_AUTH_REQUIRED", "최근 전화번호 인증이 필요합니다."),
+	RECOVERY_EXPIRED(HttpStatus.GONE, "RECOVERY_EXPIRED", "계정 찾기 유효시간이 지났습니다. 다시 시작해 주세요."),
+	RECOVERY_CONFLICT(HttpStatus.CONFLICT, "RECOVERY_CONFLICT", "새 전화번호 인증으로 계정 찾기를 다시 시작해 주세요."),
+	INVALID_RECOVERY_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_RECOVERY_REQUEST", "계정 찾기 요청이 올바르지 않습니다."),
+	RECOVERY_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "RECOVERY_RATE_LIMITED", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+	RECOVERY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "RECOVERY_UNAVAILABLE", "계정 찾기를 일시적으로 사용할 수 없습니다."),
+	PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "PROVIDER_RATE_LIMITED", "인증 수단 변경 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
+	PROVIDER_CHANGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_CHANGE_UNAVAILABLE", "인증 수단 변경을 일시적으로 사용할 수 없습니다."),
+	PROVIDER_CHANGE_CONFLICT(HttpStatus.CONFLICT, "PROVIDER_CHANGE_CONFLICT", "인증 수단 변경 상태를 확인해 주세요."),
+	PROVIDER_LAST_METHOD(HttpStatus.FORBIDDEN, "PROVIDER_LAST_METHOD", "마지막 로그인 수단은 해제할 수 없습니다."),
+	PROVIDER_REMAINING_AUTH_REQUIRED(HttpStatus.FORBIDDEN, "PROVIDER_REMAINING_AUTH_REQUIRED", "남는 로그인 수단으로 다시 인증해 주세요."),
+	PROVIDER_RELINK_REQUIRED(HttpStatus.CONFLICT, "PROVIDER_RELINK_REQUIRED", "명시적인 인증 수단 재연결이 필요합니다."),
+	PROVIDER_RELINK_EXPIRED(HttpStatus.CONFLICT, "PROVIDER_RELINK_EXPIRED", "재연결 허가가 만료되었습니다. 연결 상태를 확인해 주세요."),
+	PROVIDER_OPERATION_NOT_FOUND(HttpStatus.NOT_FOUND, "PROVIDER_OPERATION_NOT_FOUND", "인증 수단 변경 작업을 찾을 수 없습니다."),
+	INVALID_PROVIDER_REQUEST_ID(HttpStatus.BAD_REQUEST, "INVALID_PROVIDER_REQUEST_ID", "인증 수단 변경 요청 식별자가 올바르지 않습니다."),
+	INVALID_REISSUE_REQUEST_ID(HttpStatus.BAD_REQUEST, "INVALID_REISSUE_REQUEST_ID", "재발급 요청 식별자가 올바르지 않습니다."),
+	REISSUE_REQUEST_CONFLICT(HttpStatus.CONFLICT, "REISSUE_REQUEST_CONFLICT", "이미 사용한 재발급 요청 식별자입니다."),
+	REISSUE_RECOVERY_EXPIRED(HttpStatus.CONFLICT, "REISSUE_RECOVERY_EXPIRED", "재발급 응답 복구 기한이 지났습니다. 다시 인증해 주세요."),
+	REISSUE_RESULT_SUPERSEDED(HttpStatus.CONFLICT, "REISSUE_RESULT_SUPERSEDED", "이미 변경된 인증 결과입니다. 최신 인증 상태를 확인해 주세요."),
+
+	SESSION_LOGGED_OUT(HttpStatus.UNAUTHORIZED, "SESSION_LOGGED_OUT", "로그아웃된 세션입니다. 다시 로그인해 주세요."),
+	SESSION_SECURITY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "SESSION_SECURITY_UNAVAILABLE", "인증 처리를 일시적으로 완료할 수 없습니다."),
+
+	EMAIL_ALREADY_EXISTS(
+			HttpStatus.CONFLICT,
+			"EMAIL_ALREADY_EXISTS",
+			"이미 사용 중인 이메일입니다."
+	),
+	GUEST_ALREADY_EXISTS(
+			HttpStatus.CONFLICT,
+			"GUEST_ALREADY_EXISTS",
+			"이미 생성된 Guest 사용자입니다."
+	),
+	INVALID_CREDENTIALS(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_CREDENTIALS",
+			"이메일 또는 비밀번호가 올바르지 않습니다."
+	),
+	INVALID_REFRESH_TOKEN(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_REFRESH_TOKEN",
+			"유효하지 않은 Refresh Token"
+	),
+	REFRESH_TOKEN_EXPIRED(
+			HttpStatus.UNAUTHORIZED,
+			"REFRESH_TOKEN_EXPIRED",
+			"만료된 Refresh Token"
+	),
+	REFRESH_TOKEN_REUSE_DETECTED(
+			HttpStatus.UNAUTHORIZED,
+			"REFRESH_TOKEN_REUSE_DETECTED",
+			"이미 사용된 Refresh Token"
+	),
+	ACCOUNT_WITHDRAWN(
+			HttpStatus.UNAUTHORIZED,
+			"ACCOUNT_WITHDRAWN",
+			"탈퇴 처리된 계정입니다."
+	),
+	INVALID_WITHDRAWAL_CREDENTIALS(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_WITHDRAWAL_CREDENTIALS",
+			"회원 탈퇴 인증 정보가 올바르지 않습니다."
+	),
+	WITHDRAWAL_FIREBASE_PROOF_REQUIRED(
+			HttpStatus.BAD_REQUEST,
+			"WITHDRAWAL_FIREBASE_PROOF_REQUIRED",
+			"Firebase 회원 탈퇴에는 유효한 Firebase 인증 정보가 필요합니다."
+	),
+	WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"WITHDRAWAL_CREDENTIAL_TYPE_MISMATCH",
+			"계정 유형과 회원 탈퇴 인증 방식이 일치하지 않습니다."
+	),
+	WITHDRAWAL_CLEANUP_PENDING(
+			HttpStatus.CONFLICT,
+			"WITHDRAWAL_CLEANUP_PENDING",
+			"회원 탈퇴 후 계정 정보를 정리하고 있습니다."
+	),
+	INVALID_FIREBASE_ID_TOKEN(
+			HttpStatus.UNAUTHORIZED,
+			"INVALID_FIREBASE_ID_TOKEN",
+			"유효하지 않은 Firebase 인증 정보입니다."
+	),
+	FIREBASE_RECENT_AUTH_REQUIRED(
+			HttpStatus.UNAUTHORIZED,
+			"FIREBASE_RECENT_AUTH_REQUIRED",
+			"최근 Firebase 인증이 필요합니다."
+	),
+	FIREBASE_ACCOUNT_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_ACCOUNT_NOT_ALLOWED",
+			"사용할 수 없는 Firebase 계정입니다."
+	),
+	FIREBASE_PROVIDER_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_PROVIDER_NOT_ALLOWED",
+			"허용되지 않은 Firebase 인증 수단입니다."
+	),
+	FIREBASE_EMAIL_VERIFICATION_REQUIRED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_EMAIL_VERIFICATION_REQUIRED",
+			"이메일 인증이 필요합니다."
+	),
+	FIREBASE_PHONE_VERIFICATION_REQUIRED(
+			HttpStatus.FORBIDDEN,
+			"FIREBASE_PHONE_VERIFICATION_REQUIRED",
+			"전화번호 인증이 필요합니다."
+	),
+	FIREBASE_RATE_LIMITED(
+			HttpStatus.TOO_MANY_REQUESTS,
+			"FIREBASE_RATE_LIMITED",
+			"Firebase 인증 요청이 일시적으로 제한되었습니다."
+	),
+	FIREBASE_UNAVAILABLE(
+			HttpStatus.SERVICE_UNAVAILABLE,
+			"FIREBASE_UNAVAILABLE",
+			"Firebase 인증을 일시적으로 사용할 수 없습니다."
+	),
+	FIREBASE_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"FIREBASE_IDENTITY_CONFLICT",
+			"Firebase 계정 연결이 충돌했습니다. 다시 시도해 주세요."
+	),
+	SOCIAL_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"SOCIAL_IDENTITY_CONFLICT",
+			"소셜 계정 연결이 충돌했습니다. 다시 시도해 주세요."
+	),
+	IDENTITY_STATE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"IDENTITY_STATE_CONFLICT",
+			"계정 연결 상태를 확인할 수 없습니다. 다시 로그인한 뒤에도 계속되면 고객 지원에 문의해 주세요."
+	),
+	FIREBASE_ENROLLMENT_CONFLICT(
+			HttpStatus.CONFLICT,
+			"FIREBASE_ENROLLMENT_CONFLICT",
+			"가입 요청을 완료할 수 없습니다. Firebase 로그인부터 다시 진행해 주세요."
+	),
+	FIREBASE_ENROLLMENT_RESTART_REQUIRED(
+			HttpStatus.CONFLICT,
+			"FIREBASE_ENROLLMENT_RESTART_REQUIRED",
+			"회원가입을 다시 시작해 주세요."
+	),
+	GUEST_UPGRADE_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"GUEST_UPGRADE_NOT_ALLOWED",
+			"현재 계정은 Guest 승격을 진행할 수 없습니다."
+	),
+	MERGE_REQUIRED(
+			HttpStatus.CONFLICT,
+			"MERGE_REQUIRED",
+			"이미 연결된 MEMBER 계정으로 로그인해야 합니다."
+	),
+	GUEST_MERGE_NOT_ALLOWED(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_NOT_ALLOWED",
+			"현재 계정은 Guest 통합을 진행할 수 없습니다."
+	),
+	GUEST_MERGE_TARGET_CONFLICT(
+			HttpStatus.CONFLICT,
+			"GUEST_MERGE_TARGET_CONFLICT",
+			"통합할 MEMBER 계정을 확정할 수 없습니다."
+	),
+	GUEST_MERGE_TARGET_WITHDRAWN(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_TARGET_WITHDRAWN",
+			"통합할 MEMBER 계정이 탈퇴했습니다."
+	),
+	GUEST_MERGE_TARGET_NOT_ACTIVE(
+			HttpStatus.FORBIDDEN,
+			"GUEST_MERGE_TARGET_NOT_ACTIVE",
+			"통합할 MEMBER 계정을 현재 이용할 수 없습니다."
+	),
+	GUEST_MERGE_CONFLICT(
+			HttpStatus.CONFLICT,
+			"GUEST_MERGE_CONFLICT",
+			"Guest 통합 처리 중 계정 정보가 변경되었습니다. 다시 시도해 주세요."
+	),
+	ACCOUNT_MERGED_TOKEN_REJECTED(
+			HttpStatus.UNAUTHORIZED,
+			"ACCOUNT_MERGED_TOKEN_REJECTED",
+			"통합된 Guest 계정의 인증 정보는 사용할 수 없습니다."
+	),
+	INVALID_PHONE_NUMBER(
+			HttpStatus.BAD_REQUEST,
+			"INVALID_PHONE_NUMBER",
+			"유효하지 않은 전화번호 형식입니다."
+	),
+	PHONE_ALREADY_LINKED(
+			HttpStatus.CONFLICT,
+			"PHONE_ALREADY_LINKED",
+			"이미 다른 사용자에게 연결된 전화번호입니다."
+	),
+	PHONE_IDENTITY_CONFLICT(
+			HttpStatus.CONFLICT,
+			"PHONE_IDENTITY_CONFLICT",
+			"전화번호 연결이 충돌했습니다. 다시 시도해 주세요."
+	);
+
+	private final HttpStatus httpStatus;
+	private final String code;
+	private final String message;
+
+	AuthErrorStatus(HttpStatus httpStatus, String code, String message) {
+		this.httpStatus = httpStatus;
+		this.code = code;
+		this.message = message;
+	}
+
+	@Override
+	public HttpStatus getHttpStatus() {
+		return httpStatus;
+	}
+
+	@Override
+	public String getCode() {
+		return code;
+	}
+
+	@Override
+	public String getMessage() {
+		return message;
+	}
+}

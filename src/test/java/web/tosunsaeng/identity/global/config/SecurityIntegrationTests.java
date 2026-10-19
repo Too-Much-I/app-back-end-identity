@@ -1,6 +1,7 @@
 package web.tosunsaeng.identity.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,21 +55,29 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
 import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
 import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
 import web.tosunsaeng.identity.global.security.jwt.JwtConfiguration;
 import web.tosunsaeng.identity.global.security.jwt.JwtProperties;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 import web.tosunsaeng.identity.global.observability.RequestLoggingFilter;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
 import web.tosunsaeng.identity.domain.user.domain.UserFactory;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.user.application.UserWithdrawalService;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 
-@SpringBootTest
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
+@SpringBootTest(properties = {
+		"app.version.android-latest-version=1.10.0",
+		"app.version.android-minimum-version=1.1.0",
+		"app.version.ios-minimum-version=2.0.0",
+		"app.version.ios-latest-version=2.0.1"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import({
@@ -76,8 +85,109 @@ import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 		SecurityIntegrationTests.TestEndpointConfiguration.class
 })
 class SecurityIntegrationTests {
+    @Test
+    void recoveryPathsRejectEvenAnAuthenticatedUserWhileOff() throws Exception {
+        for (var route : web.tosunsaeng.identity.domain.user.withdrawalrecovery.RecoveryProtocol.Route.values()) {
+            mockMvc.perform(post(route.path())
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()))
+                    .andExpect(status().isForbidden()).andExpect(header().string("Cache-Control", "no-store"));
+            mockMvc.perform(post(route.path())).andExpect(status().isForbidden());
+        }
+    }
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@Test
+	void appVersionGetIsPublicButOtherMethodsAndRoutesRemainProtected() throws Exception {
+		for (String platform : List.of("android", "ios")) {
+			mockMvc.perform(get("/api/v1/app/version").param("platform", platform))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("$.result.platform").value(platform))
+					.andExpect(header().string("Cache-Control", "no-store"));
+		}
+		mockMvc.perform(get("/api/v1/app/version"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		mockMvc.perform(post("/api/v1/app/version")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/app/private")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/app/version").param("platform", "ios")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer invalid"))
+				.andExpect(status().isUnauthorized());
+	}
+
+    @Autowired private web.tosunsaeng.identity.domain.auth.mergeprogress.UserMergeQueryService mergeQuery;
+
+    @Test void mergeQueriesRequireMemberJwtAndNoStoreEvenOnErrors() throws Exception {
+        String path = "/api/v1/users/me/merges";
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized())
+                .andExpect(header().string("Cache-Control", "no-store"));
+        String guest = accessTokenIssuer.issue(USER_ID, UserAccountType.GUEST, Set.of()).tokenValue();
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + guest))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"))
+                .andExpect(header().string("Cache-Control", "no-store"));
+        String member = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of()).tokenValue();
+        when(mergeQuery.list("true", "20", null)).thenThrow(new web.tosunsaeng.identity.domain.auth.mergeprogress.MergeQuerySupport.RateLimited(17));
+        mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + member))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "17"))
+                .andExpect(jsonPath("$.code").value("MERGE_STATUS_RATE_LIMITED"))
+                .andExpect(header().string("Cache-Control", "no-store"));
+    }
+
+	@Test
+	void accountRecoveryIsPublicAndDisabledWithoutConfiguration() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/account-recovery/prepare").contentType("application/json").content("{}"))
+				.andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("RECOVERY_UNAVAILABLE"))
+				.andExpect(header().string("Cache-Control", "no-store"));
+	}
+	@MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	private static final String USER_ID = "73a18ed4-1d56-4c4f-afd6-b39175b82a86";
+
+	@ParameterizedTest
+	@ValueSource(strings = {"/api/v1/auth/firebase/providers/unlink",
+			"/api/v1/auth/firebase/providers/link/prepare", "/api/v1/auth/firebase/providers/link/start",
+			"/api/v1/auth/firebase/providers/link/complete", "/api/v1/auth/firebase/providers/link/status"})
+	void providerChangesRequireUserJwtAndRejectWorkloadJwt(String path) throws Exception {
+		mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+		String workload = signedToken(jwtEncoder, "identity-service", "https://identity.test/workload",
+				"learning-core-user-merged", TestRsaKeyConfiguration.TEST_INSTANT.plusSeconds(60));
+		mockMvc.perform(post(path).header(HttpHeaders.AUTHORIZATION, "Bearer " + workload)
+				.contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test void retiredRelinkApiReturnsNotFoundWithValidUserAuthentication() throws Exception {
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/relink/prepare")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"provider\":\"GOOGLE\",\"firebaseIdToken\":\"test-only-proof\"}"))
+				.andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND"));
+	}
+
+	@Test void providerStatusReachesProofValidationWithoutUserJwt() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/unlink/status")
+				.contentType(MediaType.APPLICATION_JSON).content("{\"requestId\":\"11111111-1111-4111-8111-111111111111\"}"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		mockMvc.perform(post("/api/v1/auth/firebase/providers/unlink/status")
+				.contentType(MediaType.APPLICATION_JSON).content("{\"requestId\":\"11111111-1111-4111-8111-111111111111\",\"firebaseIdToken\":\"test-only-proof\"}"))
+				.andExpect(status().isGone()).andExpect(jsonPath("$.code").value("PROVIDER_LINK_RETIRED"))
+				.andExpect(header().string("Cache-Control", "no-store"));
+	}
+
+	@Test void providerOpenApiSeparatesUserBearerFromStatusProof() throws Exception {
+		mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/unlink'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/relink/prepare']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/prepare'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/start'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/complete'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/link/status'].post.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/auth/firebase/providers/unlink/status'].post.security").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.ChangeRequest.properties.firebaseIdToken.writeOnly").value(true));
+	}
 	private static final String OTHER_USER_ID = "45c05c3f-ae7f-4ca7-af88-3ab8aa8f428e";
 
 	@Autowired
@@ -99,10 +209,10 @@ class SecurityIntegrationTests {
 	private UserRepository userRepository;
 
 	@MockitoBean
-	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+	private RefreshSessionRepository refreshSessionRepository;
 
 	@MockitoBean
-	private RefreshSessionRepository refreshSessionRepository;
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@MockitoBean
 	private UserWithdrawalService userWithdrawalService;
@@ -112,6 +222,7 @@ class SecurityIntegrationTests {
 			"/api/v1/auth/check-email",
 			"/api/v1/auth/signup",
 			"/api/v1/auth/guest",
+			"/api/v1/auth/firebase/signup",
 			"/api/v1/auth/login",
 			"/api/v1/auth/reissue",
 			"/api/v1/auth/logout"
@@ -123,6 +234,144 @@ class SecurityIntegrationTests {
 				.andExpect(status().isBadRequest())
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
 				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void currentConsentPoliciesArePublicWithoutUserStateAndNotCached() throws Exception {
+		mockMvc.perform(get("/api/v1/policies/consents"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
+				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
+				.andExpect(jsonPath("$.result.qualityReviewConsentVersion").value("quality-review-v1"))
+				.andExpect(jsonPath("$.result.length()").value(3))
+				.andExpect(jsonPath("$.result.userId").doesNotExist())
+				.andExpect(jsonPath("$.result.consentedAt").doesNotExist());
+		mockMvc.perform(post("/api/v1/policies/consents"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void publicPolicyOpenApiAndOptionalSignupUpgradeFieldsAreDocumented() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/policies/consents'].get.security").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.isQualityReviewConsented").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.qualityReviewConsentVersion").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.isQualityReviewConsented").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.qualityReviewConsentVersion").exists());
+	}
+
+	@Test
+	void disabledFirebaseExchangeIsPublicAndReturnsStableUnavailableResponse() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/exchange")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"firebaseIdToken\":\"test-only-credential\"}"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
+				.andExpect(jsonPath("$.code").value("FIREBASE_UNAVAILABLE"));
+	}
+
+	@Test
+	void disabledFirebaseSignupIsPublicAndReturnsStableUnavailableResponse() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/firebase/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "enrollmentId": "550e8400-e29b-41d4-a716-446655440000",
+								  "firebaseIdToken": "test-only-credential",
+								  "nickname": "테스트회원",
+								  "isPrivacyConsented": true,
+								  "privacyConsentVersion": "privacy-v1",
+								  "isTermConsented": true,
+								  "termConsentVersion": "term-v1"
+								}
+								"""))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE))
+				.andExpect(jsonPath("$.code").value("FIREBASE_UNAVAILABLE"));
+	}
+
+	@Test
+	void firebaseExchangeOpenApiMarksCredentialWriteOnlyAndDocumentsUnionResult() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeResponseEnvelope.properties.result['$ref']"
+				).value("#/components/schemas/FirebaseExchangeResponse"))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseExchangeResponse.oneOf[*]['$ref']",
+						hasItems(
+								"#/components/schemas/FirebaseAuthenticatedResponse",
+								"#/components/schemas/FirebaseEnrollmentRequiredResponse"
+						)
+				))
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/exchange'].post.security"
+				).doesNotExist());
+	}
+
+	@Test
+	void firebaseSignupOpenApiIsPublicAndDoesNotAcceptUserIdOrPhone() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseSignupRequest.properties.phone"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/signup'].post.security"
+				).doesNotExist());
+	}
+
+	@Test
+	void guestUpgradeAndAuthMethodOpenApiRequireBearerAndNeverAcceptUserId() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/prepare'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/upgrade'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/guest/merge'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/firebase/auth-methods/sync'].post.security[0].bearerAuth"
+				).isArray())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestPrepareRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestUpgradeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestMergeRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestMergeRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseAuthMethodsSyncRequest.properties.firebaseIdToken.writeOnly"
+				).value(true))
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestPrepareRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseGuestUpgradeRequest.properties.userId"
+				).doesNotExist())
+				.andExpect(jsonPath(
+						"$.components.schemas.FirebaseAuthMethodsSyncRequest.properties.userId"
+				).doesNotExist());
 	}
 
 	@Test
@@ -151,7 +400,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void authenticatedUnknownApiReturnsSafeNotFoundResponse() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/not-found")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -172,7 +421,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void authenticatedUnsupportedMethodReturns405() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		mockMvc.perform(get("/api/v1/auth/signup")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -203,6 +452,9 @@ class SecurityIntegrationTests {
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/auth/reissue'].post.responses['401'].description"
+				).value(containsString("ACCOUNT_WITHDRAWN")))
 				.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
 		mockMvc.perform(get("/swagger-ui.html"))
 				.andExpect(status().is3xxRedirection())
@@ -226,6 +478,18 @@ class SecurityIntegrationTests {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{\"refreshToken\":\"security-test-value\"}"))
 				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/guest/prepare")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/guest/upgrade")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
+		assertUnauthorized(mockMvc.perform(post("/api/v1/auth/firebase/auth-methods/sync")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{}"))
+				.andReturn());
 	}
 
 	@Test
@@ -241,7 +505,7 @@ class SecurityIntegrationTests {
 
 	@Test
 	void withdrawalEndpointRequiresJwtAndAcceptsValidAccessToken() throws Exception {
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 		when(userWithdrawalService.withdraw(any()))
 				.thenReturn(new WithdrawResponse(
 						UserStatus.WITHDRAWN,
@@ -296,7 +560,7 @@ class SecurityIntegrationTests {
 				"토스마스터"
 		);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me")
 						.queryParam("userId", OTHER_USER_ID)
@@ -309,6 +573,7 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.result.userId").value(user.getUserId()))
 				.andExpect(jsonPath("$.result.email").value("Profile.User@Example.com"))
 				.andExpect(jsonPath("$.result.nickname").value("토스마스터"))
+				.andExpect(jsonPath("$.result.accountType").value("MEMBER"))
 				.andExpect(jsonPath("$.result.provider").value("LOCAL"))
 				.andExpect(jsonPath("$.result.privacyConsented").value(true))
 				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
@@ -344,7 +609,7 @@ class SecurityIntegrationTests {
 				TestRsaKeyConfiguration.TEST_INSTANT
 		);
 		when(userRepository.findById(guest.getUserId())).thenReturn(Optional.of(guest));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(guest.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(guest.getUserId(), UserAccountType.GUEST, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me")
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken.tokenValue()))
@@ -352,6 +617,7 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.result.userId").value(guest.getUserId()))
 				.andExpect(jsonPath("$.result.email").value(nullValue()))
 				.andExpect(jsonPath("$.result.nickname").value("게스트"))
+				.andExpect(jsonPath("$.result.accountType").value("GUEST"))
 				.andExpect(jsonPath("$.result.provider").value("GUEST"))
 				.andExpect(jsonPath("$.result.privacyConsented").value(true))
 				.andExpect(jsonPath("$.result.termConsented").value(true))
@@ -373,7 +639,7 @@ class SecurityIntegrationTests {
 				"동의조회사용자"
 		);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(get("/api/v1/users/me/consents")
 						.queryParam("userId", OTHER_USER_ID)
@@ -410,7 +676,7 @@ class SecurityIntegrationTests {
 		ReflectionTestUtils.setField(user, "consents", null);
 		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
 		when(userRepository.updateConsentsIfActive(any(), any())).thenReturn(true);
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(user.getUserId(), UserAccountType.MEMBER, Set.of());
 
 		MvcResult result = mockMvc.perform(put("/api/v1/users/me/consents")
 						.queryParam("userId", OTHER_USER_ID)
@@ -440,7 +706,7 @@ class SecurityIntegrationTests {
 	void logoutAllUsesJwtSubjectAndReturnsNoSessionOrTokenData() throws Exception {
 		when(refreshSessionRepository.findAllByUserIdAndRevokedAtIsNull(USER_ID))
 				.thenReturn(List.of());
-		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, Set.of());
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(USER_ID, UserAccountType.MEMBER, Set.of());
 
 		mockMvc.perform(post("/api/v1/auth/logout-all")
 						.header(
@@ -462,6 +728,7 @@ class SecurityIntegrationTests {
 	void scopeClaimMapsToScopePrefixedAuthoritiesWithoutEnforcingEndpointScope() throws Exception {
 		IssuedAccessToken accessToken = accessTokenIssuer.issue(
 				USER_ID,
+				UserAccountType.MEMBER,
 				Set.of("profile:read", "profile:write")
 		);
 
@@ -472,9 +739,23 @@ class SecurityIntegrationTests {
 						))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.authorities", hasItems(
+						"SCOPE_billing:read",
 						"SCOPE_profile:read",
 						"SCOPE_profile:write"
 				)));
+	}
+
+	@Test
+	void legacyTokenWithoutBillingClaimsOrAccountTypeStillAccessesIdentityProfile() throws Exception {
+		User user = userFactory.createGuest("A".repeat(43), TestRsaKeyConfiguration.TEST_INSTANT);
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		String legacyToken = signedToken(jwtEncoder, user.getUserId(), jwtProperties.issuer(),
+				jwtProperties.audience(), TestRsaKeyConfiguration.TEST_INSTANT.plusSeconds(60));
+
+		mockMvc.perform(get("/api/v1/users/me")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + legacyToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.result.accountType").value("GUEST"));
 	}
 
 	@Test

@@ -25,6 +25,7 @@ RUN groupadd --system app \
        --shell /usr/sbin/nologin \
        app \
     && mkdir -p /app/runtime/keys \
+    && chmod 700 /app/runtime/keys \
     && chown -R app:app /app
 
 WORKDIR /app

@@ -14,6 +14,7 @@ import java.security.interfaces.RSAPublicKey;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 
 import org.junit.jupiter.api.Test;
@@ -75,14 +76,15 @@ class JwksControllerTests {
 	static class TestJwkConfiguration {
 
 		@Bean
-		RSAKey testRsaKey() {
+		JwksPublicKeySet testRsaKey() {
 			KeyPair keyPair = generateRsaKeyPair();
-			return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+			RSAKey key = new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
 					.privateKey((RSAPrivateKey) keyPair.getPrivate())
 					.keyID(KEY_ID)
 					.algorithm(JWSAlgorithm.RS256)
 					.keyUse(KeyUse.SIGNATURE)
 					.build();
+			return new JwksPublicKeySet(new JWKSet(key.toPublicJWK()));
 		}
 
 		private KeyPair generateRsaKeyPair() {

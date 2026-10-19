@@ -66,7 +66,7 @@ public class UserConsentService {
 					.addKeyValue("event", "user.consents.updated")
 					.addKeyValue("outcome", "unchanged")
 					.addKeyValue("userId", user.getUserId())
-					.addKeyValue("provider", user.getProvider())
+					.addKeyValue("accountType", user.getAccountType())
 					.log("사용자 동의가 이미 최신 상태입니다");
 			return UserConsentResponse.from(user);
 		}
@@ -83,6 +83,7 @@ public class UserConsentService {
 				.addKeyValue("event", "user.consents.updated")
 				.addKeyValue("outcome", "updated")
 				.addKeyValue("userId", user.getUserId())
+				.addKeyValue("accountType", user.getAccountType())
 				.addKeyValue("provider", user.getProvider())
 				.log("사용자 동의를 갱신했습니다");
 		return response;

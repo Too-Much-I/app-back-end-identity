@@ -1,5 +1,7 @@
 package web.tosunsaeng.identity.domain.user.application;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,13 +37,19 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingOutbox;
+import web.tosunsaeng.identity.domain.auth.domain.entity.PhoneEligibilityBindingRevision;
 import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
-import web.tosunsaeng.identity.domain.auth.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingOutboxRepository;
+import web.tosunsaeng.identity.domain.auth.phoneidentity.repository.PhoneEligibilityBindingRevisionRepository;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
 import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawnOutbox;
 import web.tosunsaeng.identity.domain.user.domain.entity.UserConsents;
 import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.domain.user.dto.response.WithdrawResponse;
 import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
 import web.tosunsaeng.identity.global.exception.BusinessException;
@@ -54,6 +62,9 @@ class UserWithdrawalTransactionServiceTests {
 
 	private UserRepository userRepository;
 	private RefreshSessionRepository sessionRepository;
+	private PhoneEligibilityBindingRevisionRepository bindingRevisionRepository;
+	private PhoneEligibilityBindingOutboxRepository bindingOutboxRepository;
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 	private RecordingTransactionManager transactionManager;
 	private AtomicReference<User> persistedTombstone;
 	private AtomicReference<List<RefreshSession>> persistedSessions;
@@ -64,6 +75,9 @@ class UserWithdrawalTransactionServiceTests {
 	void setUp() {
 		userRepository = mock(UserRepository.class);
 		sessionRepository = mock(RefreshSessionRepository.class);
+		bindingRevisionRepository = mock(PhoneEligibilityBindingRevisionRepository.class);
+		bindingOutboxRepository = mock(PhoneEligibilityBindingOutboxRepository.class);
+		userWithdrawnOutboxRepository = mock(UserWithdrawnOutboxRepository.class);
 		transactionManager = new RecordingTransactionManager();
 		persistedTombstone = new AtomicReference<>();
 		persistedSessions = new AtomicReference<>(List.of());
@@ -80,11 +94,16 @@ class UserWithdrawalTransactionServiceTests {
 			clearAfterRollback(persistedSessions);
 			return sessions;
 		});
+		when(bindingRevisionRepository.findAllByUserIdAndActiveTrue(any()))
+				.thenReturn(List.of());
 
 		context = new AnnotationConfigApplicationContext();
 		context.register(TransactionTestConfiguration.class);
 		context.registerBean(UserRepository.class, () -> userRepository);
 		context.registerBean(RefreshSessionRepository.class, () -> sessionRepository);
+		context.registerBean(PhoneEligibilityBindingRevisionRepository.class, () -> bindingRevisionRepository);
+		context.registerBean(PhoneEligibilityBindingOutboxRepository.class, () -> bindingOutboxRepository);
+		context.registerBean(UserWithdrawnOutboxRepository.class, () -> userWithdrawnOutboxRepository);
 		context.registerBean(
 				"mongoTransactionManager",
 				PlatformTransactionManager.class,
@@ -95,9 +114,75 @@ class UserWithdrawalTransactionServiceTests {
 		service = context.getBean(UserWithdrawalTransactionService.class);
 	}
 
+	@Test
+	void createsRevocationEventInWithdrawalTransactionForEveryActiveBinding() {
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId()))
+				.thenReturn(List.of(credential));
+		PhoneEligibilityBindingRevision active = mock(PhoneEligibilityBindingRevision.class);
+		when(active.getUserId()).thenReturn(user.getUserId());
+		when(active.getConsumerScopeId()).thenReturn("opaque-scope-v1");
+		when(active.getRevision()).thenReturn(1L);
+		PhoneEligibilityBindingRevision revoked = mock(PhoneEligibilityBindingRevision.class);
+		when(revoked.getUserId()).thenReturn(user.getUserId());
+		when(revoked.getConsumerScopeId()).thenReturn("opaque-scope-v1");
+		when(revoked.getRevision()).thenReturn(2L);
+		when(bindingRevisionRepository.findAllByUserIdAndActiveTrue(user.getUserId()))
+				.thenReturn(List.of(active));
+		when(bindingRevisionRepository.advanceRevoked(
+				user.getUserId(), "opaque-scope-v1", 1L, WITHDRAWN_AT))
+				.thenReturn(Optional.of(revoked));
+
+		service.withdraw(user, CREDENTIAL_HASH, WITHDRAWN_AT);
+
+		verify(bindingOutboxRepository).save(any(PhoneEligibilityBindingOutbox.class));
+		assertThat(transactionManager.commits).isEqualTo(1);
+		verify(userWithdrawnOutboxRepository).save(any());
+	}
+
 	@AfterEach
 	void tearDown() {
 		context.close();
+	}
+
+	@Test
+	void billingCaptureFailureRollsBackExistingWithdrawalWork() {
+		var capture = mock(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService.class);
+		service.setCapture(capture);
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId())).thenReturn(List.of(credential));
+		org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("synthetic"))
+				.when(capture).capture(any(), any());
+		assertThatThrownBy(() -> service.withdraw(user,CREDENTIAL_HASH,WITHDRAWN_AT))
+				.isInstanceOf(org.springframework.dao.DataAccessException.class);
+		assertThat(transactionManager.commits).isZero();
+		assertThat(transactionManager.rollbacks).isEqualTo(1);
+		assertThat(persistedTombstone.get()).isNull();
+		assertThat(persistedSessions.get()).isNull();
+	}
+
+	@Test
+	void lcAndBillingCaptureShareStableEventAndTransaction() {
+		var capture = mock(web.tosunsaeng.identity.domain.user.withdrawalcapture.WithdrawalCaptureService.class);
+		service.setCapture(capture);
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH)).thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId())).thenReturn(List.of(credential));
+		String eventId = "55555555-5555-4555-8555-555555555555";
+		org.mockito.Mockito.doAnswer(call -> {
+			assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isTrue();
+			assertThat(((UserWithdrawnOutbox)call.getArgument(0)).getEventId()).isEqualTo(eventId);
+			return null;
+		}).when(capture).capture(any(),any());
+		service.withdrawWithEvent(user,CREDENTIAL_HASH,WITHDRAWN_AT,null,eventId);
+		verify(userWithdrawnOutboxRepository).save(org.mockito.ArgumentMatchers.argThat(e -> eventId.equals(e.getEventId())));
+		verify(capture).capture(any(),any());
+		assertThat(transactionManager.commits).isEqualTo(1);
 	}
 
 	@Test
@@ -146,6 +231,30 @@ class UserWithdrawalTransactionServiceTests {
 		);
 		order.verify(sessionRepository).findAllByUserIdAndRevokedAtIsNull(user.getUserId());
 		order.verify(sessionRepository).saveAll(List.of(credential, second, third));
+		verify(userWithdrawnOutboxRepository).save(any());
+	}
+
+	@Test
+	void outboxFailureRollsBackWithdrawalTransaction() {
+		User user = localUser();
+		RefreshSession credential = activeSession(user.getUserId(), CREDENTIAL_HASH);
+		when(sessionRepository.findByTokenHash(CREDENTIAL_HASH))
+				.thenReturn(Optional.of(credential));
+		when(sessionRepository.findAllByUserIdAndRevokedAtIsNull(user.getUserId()))
+				.thenReturn(List.of(credential));
+		doThrow(new DataAccessResourceFailureException("test-only outbox save failure"))
+				.when(userWithdrawnOutboxRepository).save(any(UserWithdrawnOutbox.class));
+
+		DataAccessResourceFailureException exception = catchThrowableOfType(
+				DataAccessResourceFailureException.class,
+				() -> service.withdraw(user, CREDENTIAL_HASH, WITHDRAWN_AT)
+		);
+
+		assertThat(exception).isNotNull();
+		assertThat(transactionManager.rollbacks).isEqualTo(1);
+		assertThat(transactionManager.commits).isZero();
+		assertThat(persistedTombstone.get()).isNull();
+		assertThat(persistedSessions.get()).isNull();
 	}
 
 	@Test

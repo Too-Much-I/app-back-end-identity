@@ -102,6 +102,9 @@ public class GlobalExceptionHandler {
 			BusinessException exception,
 			HttpServletRequest request
 	) {
+		if (exception instanceof web.tosunsaeng.identity.domain.auth.common.exception.AuthException auth) {
+			RequestLogContext.recordDiagnostic(request, auth.diagnostic());
+		}
 		return errorResponse(request, exception.getErrorCode(), null);
 	}
 

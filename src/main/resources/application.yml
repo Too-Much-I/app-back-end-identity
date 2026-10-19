@@ -34,8 +34,95 @@ sentry:
     enabled: false
 
 app:
+  billing-workload:
+    private-jwk: ${BILLING_WORKLOAD_PRIVATE_JWK:}
+    issuer: ${BILLING_WORKLOAD_ISSUER:}
+    withdrawal-audience: ${BILLING_WORKLOAD_WITHDRAWAL_AUDIENCE:}
+    trial-audience: ${BILLING_WORKLOAD_TRIAL_AUDIENCE:}
+    trial-owner-audience: ${BILLING_WORKLOAD_TRIAL_OWNER_AUDIENCE:}
+    merge-audience: ${BILLING_WORKLOAD_MERGE_AUDIENCE:}
+  withdrawal-recovery:
+    source-jobs-enabled: ${WITHDRAWAL_RECOVERY_SOURCE_JOBS_ENABLED:false}
+    http-enabled: ${WITHDRAWAL_RECOVERY_HTTP_ENABLED:false}
+    workload-port: ${WITHDRAWAL_RECOVERY_WORKLOAD_PORT:0}
+    jwt:
+      public-jwks: ${WITHDRAWAL_RECOVERY_BILLING_PUBLIC_JWKS:}
+      issuer: ${WITHDRAWAL_RECOVERY_BILLING_ISSUER:}
+      audience: ${WITHDRAWAL_RECOVERY_AUDIENCE:}
+    tls:
+      certificate-file: ${WITHDRAWAL_RECOVERY_TLS_CERTIFICATE_FILE:}
+      private-key-file: ${WITHDRAWAL_RECOVERY_TLS_PRIVATE_KEY_FILE:}
+  withdrawal-capture:
+    required: ${WITHDRAWAL_CAPTURE_REQUIRED:false}
+    publisher-enabled: ${BILLING_WITHDRAWAL_PUBLISHER_ENABLED:false}
+    cleanup-enabled: ${WITHDRAWAL_SOURCE_CLEANUP_ENABLED:false}
+    environment: ${WITHDRAWAL_ENVIRONMENT:}
+    billing-origin: ${BILLING_WITHDRAWAL_ORIGIN:}
+  purchase:
+    # Preparation and strict issuance are separate. No automatic migration is performed.
+    control-writes-enabled: ${AUTH_PURCHASE_CONTROL_WRITES_ENABLED:false}
+    fence-enabled: ${AUTH_PURCHASE_FENCE_ENABLED:false}
+    scope-enabled: ${AUTH_PURCHASE_SCOPE_ENABLED:false}
+    source-stream-id: ${AUTH_PURCHASE_SOURCE_STREAM_ID:}
+  support:
+    enabled: ${SUPPORT_INQUIRY_ENABLED:false}
+    worker-enabled: ${SUPPORT_SLACK_WORKER_ENABLED:false}
+    hmac-key: ${SUPPORT_INQUIRY_HMAC_KEY:}
+    slack-webhook-url: ${SUPPORT_SLACK_WEBHOOK_URL:}
+    trusted-proxies: ${SUPPORT_TRUSTED_PROXIES:}
+    worker-delay-ms: 5000
+  version:
+    android-minimum-version: ${APP_ANDROID_MINIMUM_VERSION:}
+    ios-minimum-version: ${APP_IOS_MINIMUM_VERSION:}
+    android-latest-version: ${APP_ANDROID_LATEST_VERSION:}
+    ios-latest-version: ${APP_IOS_LATEST_VERSION:}
   guest-recovery:
     enabled: ${GUEST_RECOVERY_ENABLED:false}
+  account-recovery:
+    enabled: ${ACCOUNT_RECOVERY_ENABLED:false}
+    key-ring: ${ACCOUNT_RECOVERY_KEY_RING:}
+    challenge-ttl: ${ACCOUNT_RECOVERY_CHALLENGE_TTL:PT10M}
+    recent-auth: ${ACCOUNT_RECOVERY_RECENT_AUTH:PT10M}
+    retry-ttl: ${ACCOUNT_RECOVERY_RETRY_TTL:PT5M}
+    prepare-per-minute: ${ACCOUNT_RECOVERY_PREPARE_PER_MINUTE:15}
+    lookup-per-minute: ${ACCOUNT_RECOVERY_LOOKUP_PER_MINUTE:20}
+    proof-per-quarter-hour: ${ACCOUNT_RECOVERY_PROOF_PER_QUARTER_HOUR:5}
+  provider-change:
+    fence-enabled: ${FIREBASE_PROVIDER_CHANGE_FENCE_ENABLED:false}
+    enabled: ${FIREBASE_PROVIDER_UNLINK_ENABLED:false}
+    worker-enabled: ${FIREBASE_PROVIDER_UNLINK_WORKER_ENABLED:false}
+    relink-enabled: ${FIREBASE_PROVIDER_RELINK_ENABLED:false}
+    link-enabled: ${FIREBASE_PROVIDER_LINK_ENABLED:false}
+    link-recovery-enabled: ${FIREBASE_PROVIDER_LINK_RECOVERY_ENABLED:false}
+    recent-auth: ${PROVIDER_UNLINK_RECENT_AUTH_MAX_AGE:PT5M}
+    permit-ttl: ${PROVIDER_RELINK_ATTEMPT_TTL:PT5M}
+    retention: ${PROVIDER_UNLINK_TERMINAL_RETENTION:P7D}
+    permit-retention: ${PROVIDER_RELINK_TERMINAL_RETENTION:PT24H}
+    lease: ${PROVIDER_UNLINK_LEASE:PT60S}
+    initial-backoff: ${PROVIDER_UNLINK_BACKOFF_INITIAL:PT5S}
+    max-backoff: ${PROVIDER_UNLINK_BACKOFF_MAX:PT5M}
+    max-attempts: ${PROVIDER_UNLINK_MAX_ATTEMPTS:12}
+    batch-size: ${PROVIDER_UNLINK_BATCH_SIZE:20}
+    poll-delay: ${PROVIDER_UNLINK_FIXED_DELAY:PT5S}
+  reissue-recovery:
+    enabled: ${AUTH_REISSUE_RECOVERY_ENABLED:false}
+    maintenance: ${AUTH_REISSUE_RECOVERY_MAINTENANCE:false}
+    window: ${AUTH_REISSUE_RECOVERY_WINDOW:PT2M}
+    response-max-bytes: ${AUTH_REISSUE_RESPONSE_MAX_BYTES:16384}
+    concurrency-attempts: ${AUTH_REISSUE_CONCURRENCY_ATTEMPTS:3}
+    encryption-active-key-id: ${AUTH_REISSUE_ENCRYPTION_ACTIVE_KEY_ID:}
+    encryption-keyring-location: ${AUTH_REISSUE_ENCRYPTION_KEYRING_LOCATION:}
+    environment: ${AUTH_REISSUE_ENCRYPTION_ENVIRONMENT:}
+  session-revocation:
+    fence-enabled: ${AUTH_SESSION_FENCE_ENABLED:false}
+    capture-enabled: ${FIREBASE_LOGOUT_ALL_CAPTURE_ENABLED:false}
+    worker-enabled: ${FIREBASE_LOGOUT_ALL_WORKER_ENABLED:false}
+    retention: ${FIREBASE_LOGOUT_ALL_RETENTION:P7D}
+    verifier-skew: ${FIREBASE_LOGOUT_ALL_VERIFIER_SKEW:PT1M}
+    lease: ${FIREBASE_LOGOUT_ALL_LEASE:PT1M}
+    poll-delay: ${FIREBASE_LOGOUT_ALL_POLL_DELAY:PT5S}
+    batch-size: ${FIREBASE_LOGOUT_ALL_BATCH_SIZE:20}
+    max-attempts: ${FIREBASE_LOGOUT_ALL_MAX_ATTEMPTS:8}
   consent:
     privacy-version: ${PRIVACY_CONSENT_VERSION}
     term-version: ${TERM_CONSENT_VERSION}
@@ -53,6 +140,134 @@ app:
     default-scopes:
       - learning:read
       - learning:write
+  jwt-rotation:
+    previous-key-ids: ${JWT_PREVIOUS_KEY_IDS:}
+    previous-public-key-locations: ${JWT_PREVIOUS_PUBLIC_KEY_LOCATIONS:}
+  workload-jwt:
+    enabled: ${WORKLOAD_JWT_ENABLED:false}
+    issuer: ${WORKLOAD_JWT_ISSUER:}
+    subject: ${WORKLOAD_JWT_SUBJECT:identity-service}
+    ttl: ${WORKLOAD_JWT_TTL:PT2M}
+  firebase-auth:
+    enabled: ${FIREBASE_AUTH_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    tenant-id: ${FIREBASE_TENANT_ID:}
+    google-enabled: ${FIREBASE_GOOGLE_ENABLED:false}
+    apple-enabled: ${FIREBASE_APPLE_ENABLED:false}
+    kakao-enabled: ${FIREBASE_KAKAO_ENABLED:false}
+    phone-enabled: ${FIREBASE_PHONE_ENABLED:false}
+    kakao-provider-id: ${FIREBASE_KAKAO_PROVIDER_ID:oidc.kakao}
+    login-max-authentication-age: ${FIREBASE_LOGIN_MAX_AUTHENTICATION_AGE:PT15M}
+    high-risk-max-authentication-age: ${FIREBASE_HIGH_RISK_MAX_AUTHENTICATION_AGE:PT5M}
+    clock-skew: ${FIREBASE_CLOCK_SKEW:PT30S}
+    connect-timeout: ${FIREBASE_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${FIREBASE_READ_TIMEOUT:PT5S}
+    enrollment-ttl: ${FIREBASE_ENROLLMENT_TTL:PT10M}
+    enrollment-cleanup-retention: ${FIREBASE_ENROLLMENT_CLEANUP_RETENTION:PT24H}
+  phone-only-cleanup:
+    audit-enabled: ${FIREBASE_PHONE_ONLY_CLEANUP_AUDIT_ENABLED:false}
+    delete-enabled: ${FIREBASE_PHONE_ONLY_CLEANUP_DELETE_ENABLED:false}
+  firebase-abandoned-cleanup:
+    capture-enabled: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_ENABLED:false}
+    capture-dry-run: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_DRY_RUN:true}
+    capture-lower-bound: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_LOWER_BOUND:}
+    capture-upper-bound: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_UPPER_BOUND:}
+    worker-enabled: ${FIREBASE_ABANDONED_CLEANUP_WORKER_ENABLED:false}
+    grace: ${FIREBASE_ABANDONED_CLEANUP_GRACE:PT24H}
+    terminal-lifecycle-retention: ${FIREBASE_ABANDONED_CLEANUP_TERMINAL_RETENTION:P7D}
+    terminal-enrollment-retention: ${FIREBASE_ENROLLMENT_TERMINAL_RETENTION:PT24H}
+    fixed-delay: ${FIREBASE_ABANDONED_CLEANUP_FIXED_DELAY:PT5S}
+    lease-duration: ${FIREBASE_ABANDONED_CLEANUP_LEASE_DURATION:PT1M}
+    max-attempts: ${FIREBASE_ABANDONED_CLEANUP_MAX_ATTEMPTS:12}
+    initial-backoff: ${FIREBASE_ABANDONED_CLEANUP_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${FIREBASE_ABANDONED_CLEANUP_MAX_BACKOFF:PT1H}
+    max-batch-size: ${FIREBASE_ABANDONED_CLEANUP_MAX_BATCH_SIZE:20}
+    capture-max-batch-size: ${FIREBASE_ABANDONED_CLEANUP_CAPTURE_MAX_BATCH_SIZE:100}
+  firebase-withdrawal:
+    enabled: ${FIREBASE_WITHDRAWAL_ENABLED:false}
+  firebase-withdrawal-cleanup:
+    enabled: ${FIREBASE_WITHDRAWAL_CLEANUP_ENABLED:false}
+    fixed-delay: ${FIREBASE_WITHDRAWAL_CLEANUP_FIXED_DELAY:PT5S}
+    lease-duration: ${FIREBASE_WITHDRAWAL_CLEANUP_LEASE_DURATION:PT1M}
+    max-attempts: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_ATTEMPTS:12}
+    initial-backoff: ${FIREBASE_WITHDRAWAL_CLEANUP_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_BACKOFF:PT1H}
+    max-batch-size: ${FIREBASE_WITHDRAWAL_CLEANUP_MAX_BATCH_SIZE:20}
+    connect-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${FIREBASE_WITHDRAWAL_CLEANUP_READ_TIMEOUT:PT5S}
+  firebase-withdrawal-identity-release:
+    enabled: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_ENABLED:false}
+    fixed-delay: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_FIXED_DELAY:PT5S}
+    max-batch-size: ${FIREBASE_WITHDRAWAL_IDENTITY_RELEASE_MAX_BATCH_SIZE:20}
+  guest-merge:
+    enabled: ${GUEST_MERGE_ENABLED:false}
+  phone-identity:
+    fingerprint:
+      enabled: ${PHONE_IDENTITY_FINGERPRINT_ENABLED:false}
+      key-ring: ${PHONE_IDENTITY_FINGERPRINT_KEY_RING:}
+  phone-eligibility-binding:
+    enabled: ${PHONE_ELIGIBILITY_BINDING_ENABLED:false}
+    consumer-scope-id: ${PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID:}
+    key-ring: ${PHONE_ELIGIBILITY_BINDING_KEY_RING:}
+  phone-eligibility-publisher:
+    enabled: ${PHONE_ELIGIBILITY_PUBLISHER_ENABLED:false}
+    base-url: ${PHONE_ELIGIBILITY_PUBLISHER_BASE_URL:}
+    lease-duration: ${PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION:PT60S}
+    fixed-delay: ${PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY:PT5S}
+    max-attempts: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS:12}
+    published-retention: ${PHONE_ELIGIBILITY_PUBLISHER_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${PHONE_ELIGIBILITY_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_CONNECT_TIMEOUT:PT1S}
+    read-timeout: ${PHONE_ELIGIBILITY_PUBLISHER_READ_TIMEOUT:PT3S}
+    max-batch-size: ${PHONE_ELIGIBILITY_PUBLISHER_MAX_BATCH_SIZE:20}
+  user-merged-publisher:
+    enabled: ${USER_MERGED_PUBLISHER_ENABLED:false}
+    endpoint: ${USER_MERGED_PUBLISHER_ENDPOINT:}
+    lease-duration: ${USER_MERGED_PUBLISHER_LEASE_DURATION:PT60S}
+    fixed-delay: ${USER_MERGED_PUBLISHER_FIXED_DELAY:PT5S}
+    max-attempts: ${USER_MERGED_PUBLISHER_MAX_ATTEMPTS:12}
+    published-retention: ${USER_MERGED_PUBLISHER_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${USER_MERGED_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${USER_MERGED_PUBLISHER_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${USER_MERGED_PUBLISHER_READ_TIMEOUT:PT5S}
+    max-batch-size: ${USER_MERGED_PUBLISHER_MAX_BATCH_SIZE:20}
+  owner-event:
+    merge-progress-capture-enabled: ${OWNER_EVENT_MERGE_PROGRESS_CAPTURE_ENABLED:false}
+    merge-completion-profile: ${OWNER_EVENT_MERGE_COMPLETION_PROFILE:}
+    user-merged-capture-enabled: ${OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED:false}
+    trial-rebind-capture-enabled: ${OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED:false}
+    billing-user-merged-publisher-enabled: ${OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED:false}
+    learning-core-user-merged-publisher-enabled: ${OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED:false}
+    billing-trial-rebind-publisher-enabled: ${OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED:false}
+    billing-base-url: ${OWNER_EVENT_BILLING_BASE_URL:}
+    learning-core-endpoint: ${OWNER_EVENT_LEARNING_CORE_ENDPOINT:}
+    lease-duration: ${OWNER_EVENT_LEASE_DURATION:PT60S}
+    fixed-delay: ${OWNER_EVENT_FIXED_DELAY:PT5S}
+    initial-backoff: ${OWNER_EVENT_INITIAL_BACKOFF:PT5S}
+    max-backoff: ${OWNER_EVENT_MAX_BACKOFF:PT15M}
+    max-attempts: ${OWNER_EVENT_MAX_ATTEMPTS:12}
+    published-retention: ${OWNER_EVENT_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${OWNER_EVENT_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${OWNER_EVENT_CONNECT_TIMEOUT:PT1S}
+    read-timeout: ${OWNER_EVENT_READ_TIMEOUT:PT3S}
+    max-batch-size: ${OWNER_EVENT_MAX_BATCH_SIZE:20}
+  user-withdrawn-publisher:
+    enabled: ${USER_WITHDRAWN_PUBLISHER_ENABLED:false}
+    endpoint: ${USER_WITHDRAWN_PUBLISHER_ENDPOINT:}
+    lease-duration: ${USER_WITHDRAWN_PUBLISHER_LEASE_DURATION:PT60S}
+    fixed-delay: ${USER_WITHDRAWN_PUBLISHER_FIXED_DELAY:PT5S}
+    max-attempts: ${USER_WITHDRAWN_PUBLISHER_MAX_ATTEMPTS:12}
+    published-retention: ${USER_WITHDRAWN_PUBLISHER_PUBLISHED_RETENTION:P30D}
+    dead-letter-review: ${USER_WITHDRAWN_PUBLISHER_DEAD_LETTER_REVIEW:P90D}
+    connect-timeout: ${USER_WITHDRAWN_PUBLISHER_CONNECT_TIMEOUT:PT3S}
+    read-timeout: ${USER_WITHDRAWN_PUBLISHER_READ_TIMEOUT:PT5S}
+    max-batch-size: ${USER_WITHDRAWN_PUBLISHER_MAX_BATCH_SIZE:20}
+  user-withdrawn-backfill:
+    enabled: ${USER_WITHDRAWN_BACKFILL_ENABLED:false}
+    dry-run: ${USER_WITHDRAWN_BACKFILL_DRY_RUN:true}
+    lower-bound: ${USER_WITHDRAWN_BACKFILL_LOWER_BOUND:}
+    upper-bound: ${USER_WITHDRAWN_BACKFILL_UPPER_BOUND:}
+    batch-limit: ${USER_WITHDRAWN_BACKFILL_BATCH_LIMIT:20}
 
 springdoc:
   swagger-ui:

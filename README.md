@@ -14,7 +14,7 @@ Identity Service는 다음 기능을 소유한다.
 - 로그아웃
 - 개인정보 처리방침·이용약관 필수 동의와 품질 검토 이용 선택 동의
 
-시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다.
+시험, 시험 문제, AI 채점, 시험 결과, 10초 챌린지, 스트릭, 단어장, 음성 파일 및 AWS S3 업로드는 Learning Core 또는 다른 서비스의 책임이며 이 저장소에 구현하지 않는다. 서버 간 JWT 계약은 `docs/contracts/identity-learning-jwt.md`를 따른다. Firebase 인증 broker 목표 구조는 `docs/adr/ADR-001-firebase-authentication-broker.md`, 전체 단계는 `docs/contracts/social-login-implementation-plan.md`를 따른다.
 
 ## 기술 환경
 
@@ -58,8 +58,46 @@ Identity Service는 다음 기능을 소유한다.
 | `JWT_ACCESS_TOKEN_TTL` | 선택 | `PT30M` |
 | `JWT_PRIVATE_KEY_LOCATION` | 선택 | 로컬 PKCS#8 Private Key Resource 경로 |
 | `JWT_PUBLIC_KEY_LOCATION` | 선택 | 로컬 X.509 Public Key Resource 경로 |
+| `FIREBASE_AUTH_ENABLED` | 선택 | Firebase adapter 전체 활성화 여부, 기본값 `false` |
+| `FIREBASE_PROJECT_ID` | Firebase 활성화 시 필수 | 허용할 Firebase project ID |
+| `FIREBASE_TENANT_ID` | 선택 | Identity Platform tenant를 사용할 때만 지정 |
+| `FIREBASE_GOOGLE_ENABLED` | 선택 | Google provider kill switch, 기본값 `false` |
+| `FIREBASE_APPLE_ENABLED` | 선택 | Apple provider kill switch, 기본값 `false` |
+| `FIREBASE_KAKAO_ENABLED` | 선택 | Kakao OIDC provider kill switch, 기본값 `false` |
+| `FIREBASE_PHONE_ENABLED` | 선택 | Firebase phone proof kill switch, 기본값 `false` |
+| `FIREBASE_KAKAO_PROVIDER_ID` | 선택 | Kakao Generic OIDC provider ID, 기본값 `oidc.kakao` |
+| `FIREBASE_LOGIN_MAX_AUTHENTICATION_AGE` | 선택 | 로그인 교환 recent-auth 상한, 기본값 `PT15M` |
+| `FIREBASE_HIGH_RISK_MAX_AUTHENTICATION_AGE` | 선택 | 가입·연결 등 고위험 recent-auth 상한, 기본값 `PT5M` |
+| `FIREBASE_CLOCK_SKEW` | 선택 | Firebase Token 시간 허용 오차, 기본값 `PT30S` |
+| `FIREBASE_CONNECT_TIMEOUT` | 선택 | Admin SDK 연결 timeout, 기본값 `PT3S` |
+| `FIREBASE_READ_TIMEOUT` | 선택 | Admin SDK 읽기·쓰기 timeout, 기본값 `PT5S` |
+| `FIREBASE_ENROLLMENT_TTL` | 선택 | PENDING enrollment 유효 시간, 기본값 `PT10M` |
+| `FIREBASE_ENROLLMENT_CLEANUP_RETENTION` | 선택 | 만료 뒤 TTL 정리 유예, 기본값 `PT24H` |
+| `PHONE_IDENTITY_FINGERPRINT_ENABLED` | 선택 | PhoneIdentity HMAC fingerprint 활성화 여부, 기본값 `false` |
+| `PHONE_IDENTITY_FINGERPRINT_KEY_RING` | PhoneIdentity 활성화 시 필수 | 별도 Secret으로 주입하는 retained identity key ring |
+| `PHONE_ELIGIBILITY_BINDING_ENABLED` | 선택 | consumer-scoped eligibility outbox fingerprint 활성화 여부, 기본값 `false` |
+| `PHONE_ELIGIBILITY_BINDING_CONSUMER_SCOPE_ID` | eligibility binding 활성화 시 필수 | Identity가 의미를 해석하지 않는 allowlist된 opaque consumer scope |
+| `PHONE_ELIGIBILITY_BINDING_KEY_RING` | eligibility binding 활성화 시 필수 | PhoneIdentity key와 분리해 Secret으로 주입하는 retained key ring |
+| `PHONE_ELIGIBILITY_PUBLISHER_ENABLED` | 선택 | eligibility event HTTPS publisher 활성화 여부, 기본값 `false` |
+| `PHONE_ELIGIBILITY_PUBLISHER_BASE_URL` | publisher 활성화 시 필수 | VPC Lattice Billing HTTPS origin; route는 코드에 고정 |
+| `PHONE_ELIGIBILITY_PUBLISHER_REGION` | 선택 | SigV4 region, 기본값 `ap-northeast-2` |
+| `PHONE_ELIGIBILITY_PUBLISHER_LEASE_DURATION` | 선택 | atomic claim lease, 기본값 `PT60S` |
+| `PHONE_ELIGIBILITY_PUBLISHER_FIXED_DELAY` | 선택 | publisher polling 간격, 기본값 `PT5S` |
+| `PHONE_ELIGIBILITY_PUBLISHER_MAX_ATTEMPTS` | 선택 | transient delivery 최대 시도 횟수, 기본값 `12` |
+| `PHONE_ELIGIBILITY_PUBLISHER_PUBLISHED_RETENTION` | 선택 | 발행 완료 event 보존 기간, 기본값 `P30D` |
+| `PHONE_ELIGIBILITY_PUBLISHER_DEAD_LETTER_REVIEW` | 선택 | dead-letter 검토 기준 기간, 기본값 `P90D`이며 자동 삭제하지 않음 |
+| `OWNER_EVENT_USER_MERGED_CAPTURE_ENABLED` | 선택 | 신규 UserMerged core와 consumer별 delivery capture, 기본값 `false` |
+| `OWNER_EVENT_TRIAL_REBIND_CAPTURE_ENABLED` | 선택 | phone rejoin lineage와 Billing owner event capture, 기본값 `false` |
+| `OWNER_EVENT_BILLING_USER_MERGED_PUBLISHER_ENABLED` | 선택 | Billing UserMerged publisher, 기본값 `false` |
+| `OWNER_EVENT_LEARNING_CORE_USER_MERGED_PUBLISHER_ENABLED` | 선택 | Learning Core UserMerged publisher, 기본값 `false` |
+| `OWNER_EVENT_BILLING_TRIAL_REBIND_PUBLISHER_ENABLED` | 선택 | Billing TrialOwnerRebindApproved publisher, 기본값 `false` |
+| `OWNER_EVENT_BILLING_BASE_URL` | Billing publisher 활성화 시 필수 | VPC Lattice Billing HTTPS origin |
+| `OWNER_EVENT_BILLING_REGION` | 선택 | owner event SigV4 region, 기본값 `ap-northeast-2` |
+| `OWNER_EVENT_LEARNING_CORE_ENDPOINT` | Learning Core publisher 활성화 시 필수 | workload JWT로 호출할 exact UserMerged HTTPS endpoint |
 
 로컬 예시는 `.env.example`에만 제공한다. 실제 환경의 사용자 이름, 비밀번호, Secret, Token, MongoDB 주소 및 Private Key는 저장소에 커밋하지 않는다.
+
+Firebase는 기본 비활성이다. 활성화 시 Admin SDK는 Workload Identity 또는 Application Default Credentials를 우선 사용하며 credential 파일을 저장소나 image에 포함하지 않는다. 공개 `/api/v1/auth/firebase/exchange`·`/api/v1/auth/firebase/signup`과 Identity Bearer가 필요한 `/api/v1/auth/firebase/guest/prepare`·`/api/v1/auth/firebase/guest/upgrade`·`/api/v1/auth/firebase/auth-methods/sync`는 같은 kill switch를 따른다. signup과 Guest 승격 활성화에는 PhoneIdentity와 consumer-scoped eligibility binding의 서로 다른 key ring이 모두 필요하다. 설정 하나라도 빠지면 신규 User 생성이나 Guest 승격을 비원자적으로 진행하지 않고 기동 단계에서 fail-closed한다.
 
 ## 로컬 실행
 
@@ -106,6 +144,8 @@ Sentry는 기본적으로 꺼져 있으며 실제 DSN은 저장소에 두지 않
 ```
 
 테스트 프로필은 MongoDB 자동 설정을 제외하므로 Atlas, OAuth Provider 또는 다른 외부 인프라에 연결하지 않는다.
+
+Firebase Stage 0 PoC는 Java 기본 테스트와 분리돼 있다. production Firebase project나 credential 없이 demo project ID와 Auth Emulator만 사용하는 재현 방법은 `poc/firebase-auth/README.md`, 검증 결과와 남은 외부 gate는 `docs/poc/firebase-auth-broker-stage-0.md`를 따른다. Kakao 공개 discovery 테스트는 외부 HTTPS를 사용하므로 별도 opt-in 명령으로만 실행한다.
 
 ## 인증 수명 주기
 

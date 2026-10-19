@@ -55,13 +55,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.exception.BusinessException;
 import web.tosunsaeng.identity.global.exception.CommonErrorStatus;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 import web.tosunsaeng.identity.support.LogCapture;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest(properties = {
 		"sentry.enabled=true",
 		"sentry.dsn=https://public@example.invalid/1",
@@ -85,6 +87,11 @@ import web.tosunsaeng.identity.support.LogCapture;
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SentryCaptureIntegrationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	private static final String SENSITIVE_SENTINEL =
 			"TEST_ONLY_SENSITIVE_SENTINEL_7C0F5E6A";
@@ -107,10 +114,10 @@ class SentryCaptureIntegrationTests {
 	private UserRepository userRepository;
 
 	@MockitoBean
-	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+	private RefreshSessionRepository refreshSessionRepository;
 
 	@MockitoBean
-	private RefreshSessionRepository refreshSessionRepository;
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@BeforeEach
 	void clearCapturedEvents() {
@@ -161,6 +168,23 @@ class SentryCaptureIntegrationTests {
 	@Test
 	void sentryLoggingIntegrationIsNotInstalled() {
 		assertThat(applicationContext.containsBean("sentryLogbackInitializer")).isFalse();
+	}
+
+	@Test
+	void diagnosedBusiness503StaysInConsoleAndDoesNotCreateSentryEvent() throws Exception {
+		try (LogCapture logs = LogCapture.forClass(RequestLoggingFilter.class)) {
+			var result = mockMvc.perform(post("/test/sentry/database-unavailable")
+					.with(jwt().jwt(token -> token.subject(SENSITIVE_SENTINEL))))
+					.andExpect(status().isServiceUnavailable()).andReturn();
+			assertThat(result.getResponse().getContentAsString()).doesNotContain(SENSITIVE_SENTINEL, "DB_TIMEOUT", "diagnostic");
+			assertThat(logs.events("http.request.failed")).singleElement().satisfies(event -> {
+				assertThat(LogCapture.value(event, "failureKind")).isEqualTo("DB_TIMEOUT");
+				assertThat(LogCapture.rendered(event)).doesNotContain(SENSITIVE_SENTINEL);
+				assertThat(event.getThrowableProxy()).isNull();
+			});
+		}
+		Sentry.flush(1_000);
+		assertThat(transportFactory.eventPayloads()).isEmpty();
 	}
 
 	private void assertSanitizedFinalEvent(String payload) {
@@ -219,6 +243,14 @@ class SentryCaptureIntegrationTests {
 
 	@RestController
 	static class SentryTestController {
+
+		@PostMapping("/test/sentry/database-unavailable")
+		void unavailable() {
+			var source = new org.springframework.dao.QueryTimeoutException(SENSITIVE_SENTINEL);
+			throw new web.tosunsaeng.identity.domain.auth.common.exception.AuthException(
+					web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus.SESSION_SECURITY_UNAVAILABLE,
+					FailureDiagnostic.from(source, FailureDiagnostic.Operation.SESSION_TRANSACTION));
+		}
 
 		@PostMapping("/test/sentry/business")
 		void business(@RequestBody Map<String, Object> ignored) {

@@ -19,10 +19,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import web.tosunsaeng.identity.domain.auth.domain.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
 import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserWithdrawnOutboxRepository;
 import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 
+@web.tosunsaeng.identity.domain.auth.mergeprogress.MockMergeProgressInfrastructure
 @SpringBootTest(properties = {
 		"springdoc.api-docs.enabled=false",
 		"springdoc.swagger-ui.enabled=false"
@@ -31,6 +33,11 @@ import web.tosunsaeng.identity.global.security.jwt.TestRsaKeyConfiguration;
 @ActiveProfiles("test")
 @Import(TestRsaKeyConfiguration.class)
 class DisabledSwaggerIntegrationTests {
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.registration.application.GuestRecoveryTransactionService guestRecoveryTransactionService;
+
+	@org.springframework.test.context.bean.override.mockito.MockitoBean
+	private web.tosunsaeng.identity.domain.auth.providerchange.ProviderChangeGuard providerChangeGuard;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -39,10 +46,10 @@ class DisabledSwaggerIntegrationTests {
 	private UserRepository userRepository;
 
 	@MockitoBean
-	private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+	private RefreshSessionRepository refreshSessionRepository;
 
 	@MockitoBean
-	private RefreshSessionRepository refreshSessionRepository;
+	private UserWithdrawnOutboxRepository userWithdrawnOutboxRepository;
 
 	@ParameterizedTest
 	@ValueSource(strings = {"/v3/api-docs", "/swagger-ui/index.html"})

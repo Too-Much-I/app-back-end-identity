@@ -1,0 +1,147 @@
+package web.tosunsaeng.identity.domain.user.domain.repository;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.Optional;
+
+import com.mongodb.client.result.UpdateResult;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+
+import web.tosunsaeng.identity.domain.user.domain.entity.UserWithdrawnOutbox;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserWithdrawnFailureCode;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserWithdrawnOutboxStatus;
+
+public final class UserWithdrawnOutboxRepositoryCustomImpl
+		implements UserWithdrawnOutboxRepositoryCustom {
+
+	private final MongoOperations mongoOperations;
+
+	public UserWithdrawnOutboxRepositoryCustomImpl(MongoOperations mongoOperations) {
+		this.mongoOperations = Objects.requireNonNull(mongoOperations);
+	}
+
+	@Override
+	public Optional<UserWithdrawnOutbox> claimNext(
+			String leaseOwner,
+			Instant claimedAt,
+			Instant leaseExpiresAt
+	) {
+		String requiredOwner = requireText(leaseOwner, "leaseOwner");
+		Instant requiredClaimedAt = Objects.requireNonNull(claimedAt);
+		Instant requiredLeaseExpiresAt = Objects.requireNonNull(leaseExpiresAt);
+		if (!requiredLeaseExpiresAt.isAfter(requiredClaimedAt)) {
+			throw new IllegalArgumentException("leaseExpiresAt must be after claimedAt");
+		}
+		Criteria pendingDue = new Criteria().andOperator(
+				Criteria.where("status").is(UserWithdrawnOutboxStatus.PENDING),
+				Criteria.where("nextAttemptAt").lte(requiredClaimedAt)
+		);
+		Criteria expiredLease = new Criteria().andOperator(
+				Criteria.where("status").is(UserWithdrawnOutboxStatus.IN_FLIGHT),
+				Criteria.where("leaseExpiresAt").lte(requiredClaimedAt)
+		);
+		Query query = Query.query(new Criteria().orOperator(pendingDue, expiredLease))
+				.with(Sort.by(Sort.Direction.ASC, "withdrawnAt", "eventId"));
+		Update update = new Update()
+				.set("status", UserWithdrawnOutboxStatus.IN_FLIGHT)
+				.set("leaseOwner", requiredOwner)
+				.set("leaseExpiresAt", requiredLeaseExpiresAt)
+				.inc("attemptCount", 1L);
+		return Optional.ofNullable(mongoOperations.findAndModify(
+				query,
+				update,
+				FindAndModifyOptions.options().returnNew(true),
+				UserWithdrawnOutbox.class
+		));
+	}
+
+	@Override
+	public boolean markPublished(
+			String eventId,
+			String leaseOwner,
+			Instant publishedAt,
+			Instant cleanupAt
+	) {
+		return updateLeased(eventId, leaseOwner, new Update()
+				.set("status", UserWithdrawnOutboxStatus.PUBLISHED)
+				.set("publishedAt", Objects.requireNonNull(publishedAt))
+				.set("cleanupAt", Objects.requireNonNull(cleanupAt))
+				.unset("leaseOwner")
+				.unset("leaseExpiresAt")
+				.unset("nextAttemptAt")
+				.unset("lastFailureCode"));
+	}
+
+	@Override
+	public boolean scheduleRetry(
+			String eventId,
+			String leaseOwner,
+			UserWithdrawnFailureCode failureCode,
+			Instant nextAttemptAt
+	) {
+		return updateLeased(eventId, leaseOwner, new Update()
+				.set("status", UserWithdrawnOutboxStatus.PENDING)
+				.set("lastFailureCode", Objects.requireNonNull(failureCode))
+				.set("nextAttemptAt", Objects.requireNonNull(nextAttemptAt))
+				.unset("leaseOwner")
+				.unset("leaseExpiresAt"));
+	}
+
+	@Override
+	public boolean markDeadLetter(
+			String eventId,
+			String leaseOwner,
+			UserWithdrawnFailureCode failureCode,
+			Instant deadLetteredAt,
+			Instant retentionReviewAt
+	) {
+		return updateLeased(eventId, leaseOwner, new Update()
+				.set("status", UserWithdrawnOutboxStatus.DEAD_LETTER)
+				.set("lastFailureCode", Objects.requireNonNull(failureCode))
+				.set("deadLetteredAt", Objects.requireNonNull(deadLetteredAt))
+				.set("retentionReviewAt", Objects.requireNonNull(retentionReviewAt))
+				.unset("leaseOwner")
+				.unset("leaseExpiresAt")
+				.unset("nextAttemptAt"));
+	}
+
+	@Override
+	public boolean replayDeadLetter(String eventId, Instant replayAt) {
+		Query query = Query.query(Criteria.where("_id")
+				.is(requireText(eventId, "eventId"))
+				.and("status").is(UserWithdrawnOutboxStatus.DEAD_LETTER));
+		Update update = new Update()
+				.set("status", UserWithdrawnOutboxStatus.PENDING)
+				.set("attemptCount", 0)
+				.set("nextAttemptAt", Objects.requireNonNull(replayAt))
+				.unset("lastFailureCode")
+				.unset("deadLetteredAt")
+				.unset("retentionReviewAt")
+				.unset("leaseOwner")
+				.unset("leaseExpiresAt");
+		UpdateResult result = mongoOperations.updateFirst(query, update, UserWithdrawnOutbox.class);
+		return result.getModifiedCount() == 1;
+	}
+
+	private boolean updateLeased(String eventId, String leaseOwner, Update update) {
+		Query query = Query.query(Criteria.where("_id")
+				.is(requireText(eventId, "eventId"))
+				.and("status").is(UserWithdrawnOutboxStatus.IN_FLIGHT)
+				.and("leaseOwner").is(requireText(leaseOwner, "leaseOwner")));
+		UpdateResult result = mongoOperations.updateFirst(query, update, UserWithdrawnOutbox.class);
+		return result.getModifiedCount() == 1;
+	}
+
+	private static String requireText(String value, String fieldName) {
+		String required = Objects.requireNonNull(value, fieldName + " must not be null");
+		if (required.isBlank()) {
+			throw new IllegalArgumentException(fieldName + " must not be blank");
+		}
+		return required;
+	}
+}

@@ -1,0 +1,214 @@
+package web.tosunsaeng.identity.domain.auth.session.application;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
+
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.stereotype.Service;
+
+import web.tosunsaeng.identity.domain.auth.common.converter.AuthResponseConverter;
+import web.tosunsaeng.identity.domain.auth.domain.entity.RefreshSession;
+import web.tosunsaeng.identity.domain.auth.domain.enums.RevocationReason;
+import web.tosunsaeng.identity.domain.auth.session.repository.RefreshSessionRepository;
+import web.tosunsaeng.identity.domain.auth.session.dto.request.ReissueRequest;
+import web.tosunsaeng.identity.domain.auth.session.dto.response.ReissueResponse;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthErrorStatus;
+import web.tosunsaeng.identity.domain.auth.common.exception.AuthException;
+import web.tosunsaeng.identity.domain.user.domain.entity.User;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserStatus;
+import web.tosunsaeng.identity.domain.user.domain.enums.UserAccountType;
+import web.tosunsaeng.identity.domain.user.domain.repository.UserRepository;
+import web.tosunsaeng.identity.domain.user.exception.UserErrorStatus;
+import web.tosunsaeng.identity.domain.user.exception.UserException;
+import web.tosunsaeng.identity.global.security.jwt.AccessTokenIssuer;
+import web.tosunsaeng.identity.global.security.jwt.IssuedAccessToken;
+import web.tosunsaeng.identity.global.security.refresh.RefreshTokenHasher;
+
+@Service
+@RequiredArgsConstructor
+public class TokenReissueService {
+
+	private static final Logger log = LoggerFactory.getLogger(TokenReissueService.class);
+
+	private final RefreshTokenHasher refreshTokenHasher;
+	private final RefreshSessionRepository refreshSessionRepository;
+	private final UserRepository userRepository;
+	private final AccessTokenIssuer accessTokenIssuer;
+	private final RefreshSessionIssuer refreshSessionIssuer;
+	private final AuthResponseConverter authResponseConverter;
+	private final Clock clock;
+	private ReissueRecoveryService recovery;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setRecovery(ReissueRecoveryService recovery) { this.recovery = recovery; }
+
+	public ReissueResult reissue(ReissueRequest request, List<String> requestIds) {
+		return withSessionErrorCompatibility(request, () -> {
+			if (recovery != null) return recovery.reissue(request, requestIds);
+			return new ReissueResult(reissueLegacy(request), null, null, null);
+		});
+	}
+
+	public ReissueResponse reissue(ReissueRequest request) {
+		return withSessionErrorCompatibility(request, () -> recovery != null
+				? recovery.reissue(request, List.of()).response() : reissueLegacy(request));
+	}
+
+	// Client 2.0.1 handles Member logout errors; retain response compatibility for active Guests only.
+	// Resolve current account type on the server, never from stale token claims. Revocation checks remain intact.
+	private <T> T withSessionErrorCompatibility(ReissueRequest request, Supplier<T> action) {
+		try {
+			return action.get();
+		} catch (AuthException exception) {
+			if (exception.getErrorCode() != AuthErrorStatus.SESSION_LOGGED_OUT) throw exception;
+			boolean activeGuest;
+			try {
+				activeGuest = refreshSessionRepository.findByTokenHash(refreshTokenHasher.hash(request.refreshToken()))
+						.flatMap(session -> userRepository.findById(session.getUserId()))
+						.map(user -> user.getStatus() == UserStatus.ACTIVE
+								&& user.getAccountType() == UserAccountType.GUEST).orElse(false);
+			} catch (RuntimeException lookupFailure) {
+				throw exception; // Preserve original rejection when account type cannot be verified.
+			}
+			if (!activeGuest) throw exception;
+			log.atInfo().addKeyValue("event", "auth.refresh.session_error_compatibility")
+					.addKeyValue("originalErrorCode", "SESSION_LOGGED_OUT")
+					.addKeyValue("errorCode", "INVALID_REFRESH_TOKEN")
+					.addKeyValue("reason", exception.sessionRejectionReason().name())
+					.log("재발급 거절에 임시 호환 오류 코드를 적용했습니다");
+			throw invalidRefreshToken();
+		}
+	}
+
+	private ReissueResponse reissueLegacy(ReissueRequest request) {
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			// Reuse revocations must commit even though the public result is an error.
+			Object result = refreshSessionIssuer.security().transaction(() -> {
+				try { return web.tosunsaeng.identity.global.security.jwt.TokenIssuanceBoundary.execute(
+						accessTokenIssuer, () -> reissueInternal(request)); }
+				catch (AuthException exception) {
+					if (exception.getErrorCode() == AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED) return exception;
+					throw exception;
+				}
+			});
+			if (result instanceof AuthException exception) throw exception;
+			return (ReissueResponse) result;
+		}
+		return reissueInternal(request);
+	}
+
+	private ReissueResponse reissueInternal(ReissueRequest request) {
+		String tokenHash = refreshTokenHasher.hash(request.refreshToken());
+		RefreshSession currentSession = refreshSessionRepository.findByTokenHash(tokenHash)
+				.orElseThrow(this::invalidRefreshToken);
+		Instant currentTime = clock.instant();
+		if (currentSession.getRevocationReason() == RevocationReason.ACCOUNT_WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		}
+		if (refreshSessionIssuer.isFenceEnabled()) {
+			// Account state and epoch precede reuse handling: old rotated tokens must not
+			// revoke sessions issued after an explicit logout-all boundary.
+			refreshSessionIssuer.security().checkAndTouch(currentSession, false);
+			if (currentSession.getRevocationReason() == RevocationReason.LOGOUT_ALL) {
+				throw new AuthException(AuthErrorStatus.SESSION_LOGGED_OUT);
+			}
+		}
+
+		// A recovery-aware source must never fall back to legacy reuse punishment after flag OFF.
+		if (currentSession.getRotationResponseId() != null) throw SessionSecurityService.unavailable();
+		// 회전된 토큰이 재사용되면 탈취 가능성에 대비해 활성 세션을 모두 폐기한다.
+		if (currentSession.getRevocationReason() == RevocationReason.ROTATED) {
+			int revokedSessionCount = revokeActiveSessionsForReuse(
+					currentSession.getUserId(),
+					currentTime
+			);
+			log.atWarn()
+					.addKeyValue("event", "auth.refresh.reuse_detected")
+					.addKeyValue("outcome", "active_sessions_revoked")
+					.addKeyValue("userId", currentSession.getUserId())
+					.addKeyValue("revokedSessionCount", revokedSessionCount)
+					.addKeyValue("errorCode", AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED.getCode())
+					.log("Refresh Token 재사용을 감지했습니다");
+			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_REUSE_DETECTED);
+		}
+		if (currentSession.isRevoked()) {
+			throw invalidRefreshToken();
+		}
+		if (currentSession.isExpiredAt(currentTime)) {
+			throw new AuthException(AuthErrorStatus.REFRESH_TOKEN_EXPIRED);
+		}
+
+		User user = userRepository.findById(currentSession.getUserId())
+				.orElseThrow(this::invalidRefreshToken);
+		if (user.getStatus() == UserStatus.WITHDRAWN) {
+			throw new AuthException(AuthErrorStatus.ACCOUNT_WITHDRAWN);
+		}
+		if (user.getStatus() != UserStatus.ACTIVE) {
+			throw new UserException(UserErrorStatus.ACCOUNT_NOT_ACTIVE);
+		}
+
+		String rotationFamilyId = currentSession.initializeRotationFamilyIfMissing();
+		String replacementSessionId = RefreshSession.newSessionId();
+		currentSession.rotate(currentTime, replacementSessionId);
+		try {
+			// 낙관적 잠금으로 동일한 Refresh Token의 동시 회전을 차단한다.
+			refreshSessionRepository.save(currentSession);
+		} catch (OptimisticLockingFailureException exception) {
+			log.atInfo()
+					.addKeyValue("event", "auth.refresh.reissue.rejected")
+					.addKeyValue("outcome", "concurrent_rotation_rejected")
+					.addKeyValue("userId", currentSession.getUserId())
+					.addKeyValue("errorCode", AuthErrorStatus.INVALID_REFRESH_TOKEN.getCode())
+					.log("동시에 요청된 Refresh Token 재발급을 거절했습니다");
+			throw invalidRefreshToken();
+		}
+
+		// 기존 세션 폐기가 저장된 후에만 후속 토큰과 세션을 발급한다.
+		IssuedAccessToken accessToken = accessTokenIssuer.issue(
+				user.getUserId(), user.getAccountType(), Set.of()
+		);
+		IssuedRefreshSession refreshSession = refreshSessionIssuer.isFenceEnabled()
+				? refreshSessionIssuer.issueRotated(currentSession, replacementSessionId, currentTime)
+				: refreshSessionIssuer.issueRotated(
+				replacementSessionId,
+				currentSession.getUserId(),
+				rotationFamilyId,
+				currentSession.getSessionId(),
+				currentTime
+		);
+		ReissueResponse response = authResponseConverter.toReissueResponse(
+				accessToken,
+				refreshSession.tokenValue(),
+				refreshSession.expiresAt(),
+				currentTime
+		);
+		log.atInfo()
+				.addKeyValue("event", "auth.refresh.reissued")
+				.addKeyValue("outcome", "rotated")
+				.addKeyValue("userId", currentSession.getUserId())
+				.log("Refresh Token을 재발급했습니다");
+		return response;
+	}
+
+	private int revokeActiveSessionsForReuse(String userId, Instant currentTime) {
+		List<RefreshSession> activeSessions = refreshSessionRepository
+				.findAllByUserIdAndRevokedAtIsNull(userId)
+				.stream()
+				.filter(session -> !session.isRevoked())
+				.toList();
+		activeSessions.forEach(session -> session.revokeForReuse(currentTime));
+		if (!activeSessions.isEmpty()) {
+			refreshSessionRepository.saveAll(activeSessions);
+		}
+		return activeSessions.size();
+	}
+
+	private AuthException invalidRefreshToken() {
+		return new AuthException(AuthErrorStatus.INVALID_REFRESH_TOKEN);
+	}
+}
