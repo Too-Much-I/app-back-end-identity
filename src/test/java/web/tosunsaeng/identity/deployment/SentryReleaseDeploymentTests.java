@@ -28,7 +28,7 @@ class SentryReleaseDeploymentTests {
 		assertThat(inputs.get("environment-variables").toString().trim()).isEqualTo("SENTRY_RELEASE=${{ env.SENTRY_RELEASE }}");
 		assertThat(inputs).doesNotContainKeys("secrets", "log-configuration-options", "docker-labels");
 		var image = steps.stream().filter(s -> "image".equals(s.get("id"))).findFirst().orElseThrow();
-		assertThat(image.get("run").toString()).contains("${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}");
+		assertThat(image.get("run").toString()).contains("${ECR_REGISTRY}/${ECR_REPOSITORY}@${IMAGE_DIGEST}");
 	}
 	@Test void sanitizerPreservesConfiguredReleaseNotEventSuppliedVersion() {
 		String expected = "app-back-end-identity@0123456789012345678901234567890123456789";

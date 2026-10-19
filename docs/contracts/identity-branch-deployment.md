@@ -1,5 +1,36 @@
 # Identity main/develop 배포 분리
 
+## 2026-10-17 최신 정책 — 구 staging 배포 종료
+
+### 5줄 결론
+
+1. 기존 deploy-staging.yml을 test 전용으로 수정하며 새 workflow는 추가하지 않는다.
+2. develop push 및 develop 수동 실행은 기존 test 대상으로 유지한다.
+3. main push 트리거는 제거하고 main 수동 실행은 AWS 인증 이전에 오류로 종료한다.
+4. main을 prod로 자동 연결하지 않는다. 기존 issuer/JWT·런타임 설정과 IAM은 변경하지 않는다.
+5. 로컬 변경이며 원격 반영은 사용자 commit/push/병합 후 적용된다. 아래 2026-09 기록은 당시 이력이다.
+
+### 반드시 읽어야 하는 내용·결정사항
+
+- 종료한 staging 서비스에 대한 main 분기를 제거했다. test role 누락 시 기존 역할로 fallback하지 않는다.
+- 기존 파일명은 참조/테스트 호환을 위해 유지하고 표시 이름만 Deploy Identity Test로 변경한다.
+- 운영 자동 배포 경로의 신설은 이번 요청에 포함하지 않는다. 운영 배포는 별도 확정된 절차를 사용한다.
+
+### 위험·배포 전 확인
+
+- 이 변경을 develop에만 반영하면 원격 main의 옛 workflow는 남는다. 사용자 commit/push와 main 반영이 필요하며 반영 전 main의 기존 workflow를 실행하지 않는다.
+- LC 저장소의 배포 workflow와 원격 GitHub 설정은 이번에 변경하지 않았다. IAM/OIDC 권한 자체를 축소한 것은 아니다.
+- [staging 종료 결과](staging-retirement-2026-10-17.md)와 별개로 로컬 workflow 수정은 AWS 서비스 상태를 바꾸지 않는다.
+
+### 검증 근거
+
+- DeploymentTargetTests에서 실제 선택 shell을 실행해 develop 유지/main·다른 branch·tag 거절/역할 누락 거절을 검증한다. trigger·AWS 인증 전 차단·구 대상 및 prod 자동 연결 부재도 검사한다.
+- 2026-10-17 ./gradlew clean test 성공: 전체 2,168개 중 2,134개 통과/34개 스킵, 실패·오류0. git diff --check 통과. 실제 GitHub Actions 실행이나 AWS 배포 검증은 포함하지 않는다.
+
+---
+
+## 아래는 2026-09 당시 구성·준비 이력 (최신 정책은 위 항목 우선)
+
 ## 1. 5줄 결론
 
 - 기존 deploy-staging.yml 하나를 수정하며 새 workflow는 추가하지 않는다.

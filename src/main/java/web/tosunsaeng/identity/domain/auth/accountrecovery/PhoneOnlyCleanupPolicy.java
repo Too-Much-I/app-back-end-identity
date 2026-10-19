@@ -6,7 +6,7 @@ import java.util.Set;
 
 /** Candidate selection only: this decision is never an authorization to delete a Firebase UID. */
 public final class PhoneOnlyCleanupPolicy {
-    public static final Duration PROTECTION = Duration.ofMinutes(30);
+    public static final Duration PROTECTION = Duration.ofMinutes(5);
     public static final Duration SCAN_INTERVAL = Duration.ofMinutes(5);
 
     public enum Decision { CANDIDATE, NOT_PHONE_ONLY, PROTECTED, RECENT, UNKNOWN }

@@ -31,24 +31,36 @@ class DeploymentTargetTests {
 	}
 
 	private Result select(String ref, String testRole) throws Exception {
+		return select(ref, testRole, "fake-prod-role");
+	}
+
+	private Result select(String ref, String testRole, String prodRole) throws Exception {
 		Path env = Files.createTempFile(temp, "env", ".txt");
 		Path output = Files.createTempFile(temp, "output", ".txt");
 		var process = new ProcessBuilder("bash", "-c", step("Select deployment target").get("run").toString());
 		process.environment().putAll(Map.of("GITHUB_REF", ref, "MAIN_ROLE_ARN", "fake-main-role",
-				"TEST_ROLE_ARN", testRole, "GITHUB_ENV", env.toString(), "GITHUB_OUTPUT", output.toString()));
+				"PROD_ROLE_ARN", prodRole, "TEST_ROLE_ARN", testRole, "GITHUB_ENV", env.toString(), "GITHUB_OUTPUT", output.toString()));
 		process.redirectErrorStream(true);
 		var running = process.start();
 		String log = new String(running.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
 		return new Result(running.waitFor(), Files.readString(env), Files.readString(output), log);
 	}
 
-	@Test void mainKeepsExistingTarget() throws Exception {
-		var result = select("refs/heads/main", "");
+	@Test void mainUsesOnlyProductionTarget() throws Exception {
+		var result = select("refs/heads/main", "fake-test-role");
 		assertThat(result.code()).isZero();
-		assertThat(result.env()).contains("ECS_SERVICE=tosunsaeng-identity-service\n",
-				"TASK_FAMILY=tosunsaeng-identity\n", "IMAGE_CHANNEL=staging\n",
-				"HEALTH_URL=https://identity-staging.to-teacher.com/actuator/health\n");
-		assertThat(result.output()).isEqualTo("role_arn=fake-main-role\n");
+		assertThat(result.env()).contains("ECS_SERVICE=tosunsaeng-identity-prod-service\n",
+				"TASK_FAMILY=tosunsaeng-identity-prod\n", "IMAGE_CHANNEL=prod\n",
+				"HEALTH_URL=https://identity-prod.to-teacher.com/actuator/health\n")
+				.doesNotContain("ECS_SERVICE=tosunsaeng-identity-service\n", "IMAGE_CHANNEL=staging");
+		assertThat(result.output()).isEqualTo("role_arn=fake-prod-role\n");
+	}
+
+	@Test void missingProductionRoleNeverFallsBackToTestOrLegacyRole() throws Exception {
+		var result = select("refs/heads/main", "fake-test-role", "");
+		assertThat(result.code()).isNotZero();
+		assertThat(result.env()).isEmpty();
+		assertThat(result.output()).isEmpty();
 	}
 
 	@Test void developUsesOnlyTestTarget() throws Exception {
@@ -84,6 +96,14 @@ class DeploymentTargetTests {
 		var trigger = (Map<String, Object>) workflow.getOrDefault("on", workflow.get(Boolean.TRUE));
 		assertThat(((Map<String, Object>) trigger.get("push")).get("branches"))
 				.isEqualTo(List.of("main", "develop"));
+		assertThat(trigger).containsKey("workflow_dispatch");
+		assertThat((Map<String, Object>) step("Select deployment target").get("env"))
+				.containsOnlyKeys("TEST_ROLE_ARN", "PROD_ROLE_ARN");
+		assertThat(steps().indexOf(step("Select deployment target")))
+				.isLessThan(steps().indexOf(step("Configure AWS credentials")));
+		assertThat(Files.readString(Path.of(".github/workflows/deploy-staging.yml")))
+				.doesNotContain("SERVICE=tosunsaeng-identity-service", "TAG=staging",
+						"identity-staging.to-teacher.com", "${{ vars.AWS_ROLE_ARN }}");
 		assertThat(((Map<String, Object>) workflow.get("concurrency")).get("group"))
 				.isEqualTo("identity-deploy-${{ github.ref }}");
 		var credentials = (Map<String, Object>) step("Configure AWS credentials").get("with");
@@ -96,10 +116,39 @@ class DeploymentTargetTests {
 		assertThat(steps().indexOf(download)).isLessThan(steps().indexOf(step("Build and push image")));
 		var deploy = (Map<String, Object>) step("Deploy to Amazon ECS").get("with");
 		assertThat(deploy.get("service")).isEqualTo("${{ env.ECS_SERVICE }}");
+		assertThat(steps().indexOf(step("Check deployment has not changed")))
+				.isLessThan(steps().indexOf(step("Deploy to Amazon ECS")));
+		assertThat(step("Check deployment has not changed").get("run").toString())
+				.contains(".taskDefinition == $base", "COMPLETED", "BASE_TASK_DEFINITION_ARN");
 		assertThat(step("Verify health").get("run").toString()).contains("\"$HEALTH_URL\"");
 	}
 
 	private record Result(int code, String env, String output, String log) {}
+
+	@Test void concurrentOrUnstableDeploymentIsRejected() throws Exception {
+		Path aws = temp.resolve("aws");
+		Files.writeString(aws, "#!/bin/sh\ncat \"$SERVICE_FIXTURE\"\n");
+		assertThat(aws.toFile().setExecutable(true)).isTrue();
+		Path fixture = temp.resolve("service.json");
+		for (String task : List.of("expected", "changed")) {
+			for (String state : List.of("COMPLETED", "IN_PROGRESS")) {
+				Files.writeString(fixture, "{\"services\":[{\"status\":\"ACTIVE\",\"taskDefinition\":\"" + task
+						+ "\",\"deployments\":[{\"rolloutState\":\"" + state + "\"}]}]}");
+				var process = new ProcessBuilder("bash", "-c",
+						step("Check deployment has not changed").get("run").toString());
+				process.directory(temp.toFile());
+				process.environment().putAll(Map.of("PATH", temp + ":" + System.getenv("PATH"),
+						"SERVICE_FIXTURE", fixture.toString(), "ECS_CLUSTER", "fake-cluster",
+						"ECS_SERVICE", "fake-service", "AWS_REGION", "fake-region",
+						"BASE_TASK_DEFINITION_ARN", "expected"));
+				process.redirectErrorStream(true);
+				var running = process.start();
+				String log = new String(running.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+				assertThat(running.waitFor() == 0).as(log)
+						.isEqualTo(task.equals("expected") && state.equals("COMPLETED"));
+			}
+		}
+	}
 
 	@Test @SuppressWarnings("unchecked")
 	void firebaseTestTaskKeepsInternalBindingEnabledWithoutExternalPublishing() throws Exception {
