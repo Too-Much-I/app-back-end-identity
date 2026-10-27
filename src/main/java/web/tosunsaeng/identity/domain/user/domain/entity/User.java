@@ -446,6 +446,15 @@ public class User {
 		return status;
 	}
 
+	public boolean updateMarketingPushConsent(Boolean consented, String version, Instant now) {
+		UserConsents current = getConsents();
+		UserConsents updated = current.renewMarketingPush(consented, version, now);
+		if (current == updated) return false;
+		this.consents = updated;
+		this.updatedAt = now;
+		return true;
+	}
+
 	public Instant getCreatedAt() {
 		return createdAt;
 	}

@@ -15,6 +15,28 @@ class FirebaseConsentRequestTests {
 	private final ObjectMapper mapper = new ObjectMapper();
 
 	@Test
+	void marketingDefaultsAndExplicitValuesMatchSignupAndUpgradeContract() throws Exception {
+		for (boolean explicitNull : new boolean[] {false, true}) {
+			ObjectNode json = body();
+			if (explicitNull) json.putNull("isMarketingPushConsented");
+			assertThat(mapper.treeToValue(json, FirebaseSignupRequest.class).isMarketingPushConsented()).isFalse();
+			assertThat(mapper.treeToValue(json, FirebaseGuestUpgradeRequest.class).isMarketingPushConsented()).isNull();
+		}
+		for (boolean flag : new boolean[] {true, false}) {
+			ObjectNode json = body().put("isMarketingPushConsented", flag)
+					.put("marketingPushConsentVersion", " marketing-push-v1 ");
+			var signup = mapper.treeToValue(json, FirebaseSignupRequest.class);
+			var upgrade = mapper.treeToValue(json, FirebaseGuestUpgradeRequest.class);
+			assertThat(signup.isMarketingPushConsented()).isEqualTo(flag);
+			assertThat(upgrade.isMarketingPushConsented()).isEqualTo(flag);
+			assertThat(signup.marketingPushConsentVersion()).isEqualTo("marketing-push-v1");
+			assertThat(upgrade.marketingPushConsentVersion()).isEqualTo("marketing-push-v1");
+			assertValid(signup);
+			assertValid(upgrade);
+		}
+	}
+
+	@Test
 	void missingAndNullFlagsRemainBackwardCompatibleForBothPaths() throws Exception {
 		ObjectNode body = body();
 		for (boolean explicitNull : new boolean[] {false, true}) {

@@ -244,7 +244,8 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.result.privacyConsentVersion").value("privacy-v1"))
 				.andExpect(jsonPath("$.result.termConsentVersion").value("term-v1"))
 				.andExpect(jsonPath("$.result.qualityReviewConsentVersion").value("quality-review-v1"))
-				.andExpect(jsonPath("$.result.length()").value(3))
+				.andExpect(jsonPath("$.result.marketingPushConsentVersion").value("marketing-push-v1"))
+				.andExpect(jsonPath("$.result.length()").value(4))
 				.andExpect(jsonPath("$.result.userId").doesNotExist())
 				.andExpect(jsonPath("$.result.consentedAt").doesNotExist());
 		mockMvc.perform(post("/api/v1/policies/consents"))
@@ -258,6 +259,9 @@ class SecurityIntegrationTests {
 				.andExpect(jsonPath("$.paths['/api/v1/policies/consents'].get.security").doesNotExist())
 				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.isQualityReviewConsented").exists())
 				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.qualityReviewConsentVersion").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.isMarketingPushConsented").exists())
+				.andExpect(jsonPath("$.components.schemas.FirebaseSignupRequest.properties.marketingPushConsentVersion").exists())
+				.andExpect(jsonPath("$.components.schemas.UserConsentStatusResponse.properties.marketingPush").exists())
 				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.isQualityReviewConsented").exists())
 				.andExpect(jsonPath("$.components.schemas.FirebaseGuestUpgradeRequest.properties.qualityReviewConsentVersion").exists());
 	}

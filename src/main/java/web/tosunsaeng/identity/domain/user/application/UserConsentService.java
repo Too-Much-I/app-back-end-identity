@@ -36,11 +36,13 @@ public class UserConsentService {
 				user,
 				consentPolicy.getPrivacyConsentVersion(),
 				consentPolicy.getTermConsentVersion(),
-				consentPolicy.getQualityReviewConsentVersion()
+				consentPolicy.getQualityReviewConsentVersion(),
+				consentPolicy.getMarketingPushConsentVersion()
 		);
 	}
 
 	public UserConsentResponse updateConsents(UserConsentUpdateRequest request) {
+		consentPolicy.validateMarketingPush(request.isMarketingPushConsented(), request.marketingPushConsentVersion());
 		consentPolicy.validateWithQualityReview(
 				request.isPrivacyConsented(),
 				request.privacyConsentVersion(),
@@ -61,6 +63,8 @@ public class UserConsentService {
 				consentPolicy.getQualityReviewConsentVersion(),
 				consentedAt
 		);
+		changed |= user.updateMarketingPushConsent(request.isMarketingPushConsented(),
+				consentPolicy.getMarketingPushConsentVersion(), consentedAt);
 		if (!changed) {
 			log.atDebug()
 					.addKeyValue("event", "user.consents.updated")

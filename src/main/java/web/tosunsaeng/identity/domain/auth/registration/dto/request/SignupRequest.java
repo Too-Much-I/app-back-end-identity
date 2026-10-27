@@ -42,10 +42,24 @@ public record SignupRequest(
 
 		@Schema(description = "이용약관 정책 버전", example = "term-v1")
 		@NotBlank(message = "이용약관 동의 버전은 필수입니다.")
-		String termConsentVersion
+		String termConsentVersion,
+		@Schema(description = "광고성 푸시 선택 동의. 누락/null은 미동의", example = "false")
+		Boolean isMarketingPushConsented,
+		@Schema(description = "true이면 현재 광고성 푸시 동의 버전 필수", example = "marketing-push-v1")
+		@Size(max = 100)
+		@jakarta.validation.constraints.Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+		String marketingPushConsentVersion
 ) {
 
+	public SignupRequest(String email, String password, String nickname, Boolean isPrivacyConsented,
+			String privacyConsentVersion, Boolean isTermConsented, String termConsentVersion) {
+		this(email, password, nickname, isPrivacyConsented, privacyConsentVersion, isTermConsented,
+				termConsentVersion, null, null);
+	}
+
 	public SignupRequest {
+		isMarketingPushConsented = Boolean.TRUE.equals(isMarketingPushConsented);
+		marketingPushConsentVersion = trimNullable(marketingPushConsentVersion);
 		email = trimNullable(email);
 		nickname = trimNullable(nickname);
 		privacyConsentVersion = trimNullable(privacyConsentVersion);

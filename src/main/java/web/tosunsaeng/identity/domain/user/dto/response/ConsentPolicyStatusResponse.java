@@ -11,13 +11,13 @@ public record ConsentPolicyStatusResponse(
 		@Schema(description = "현재 정책 버전에 유효한 사용자 동의 여부", example = "true")
 		boolean consented,
 		@Schema(
-				description = "사용자가 마지막으로 동의한 정책 버전. 미동의 사용자는 null",
+				description = "마지막 동의 정책 버전. 기록이 없으면 null. 광고성 푸시는 철회 후에도 마지막 증빙 유지",
 				example = "privacy-v1",
 				types = {"string", "null"}
 		)
 		String consentedVersion,
 		@Schema(
-				description = "사용자가 해당 버전에 동의한 서버 시각. 미동의 사용자는 null",
+				description = "해당 버전에 동의한 서버 시각. 기록이 없으면 null. 현재 유효 여부는 consented로 판단",
 				format = "date-time",
 				types = {"string", "null"}
 		)

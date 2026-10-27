@@ -99,6 +99,30 @@ class UserConsentServiceTests {
 		assertThat(response.qualityReview().consentedVersion()).isNull();
 		assertThat(response.qualityReview().consentedAt()).isNull();
 		assertThat(response.qualityReview().requiresConsent()).isFalse();
+		assertThat(response.marketingPush().consented()).isFalse();
+		assertThat(response.marketingPush().requiresConsent()).isFalse();
+	}
+
+	@Test
+	void marketingOptInReadLegacyUpdateAndWithdrawalUseServerTimeAndConditionalWrite() {
+		User user = localUser(UserConsents.consented(PRIVACY_VERSION, TERM_VERSION, PREVIOUS_AT));
+		when(currentUserProvider.getCurrentUserId()).thenReturn(user.getUserId());
+		when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
+		var request = new UserConsentUpdateRequest(true, PRIVACY_VERSION, true, TERM_VERSION,
+				false, null, true, "marketing-push-v1");
+		var saved = userConsentService.updateConsents(request);
+		assertThat(saved.marketingPushConsented()).isTrue();
+		assertThat(saved.marketingPushConsentedAt()).isEqualTo(NOW);
+		verify(userRepository).updateConsentsIfActive(user, PREVIOUS_AT);
+		assertThat(userConsentService.getCurrentConsentStatus().marketingPush().consented()).isTrue();
+		userConsentService.updateConsents(validRequest());
+		assertThat(user.getConsents().isMarketingPushConsented()).isTrue();
+		var withdrawn = userConsentService.updateConsents(new UserConsentUpdateRequest(
+				true, PRIVACY_VERSION, true, TERM_VERSION, false, null, false, null));
+		assertThat(withdrawn.marketingPushConsented()).isFalse();
+		assertThat(withdrawn.marketingPushRevokedAt()).isEqualTo(NOW);
+		assertThat(userConsentService.getCurrentConsentStatus().marketingPush().consented()).isFalse();
+		assertThat(userConsentService.getCurrentConsentStatus().marketingPush().requiresConsent()).isFalse();
 	}
 
 	@Test
@@ -242,7 +266,7 @@ class UserConsentServiceTests {
 	void consentStatusResponseDoesNotExposeUserOrInstallationIdentifiers() {
 		assertThat(Arrays.stream(UserConsentStatusResponse.class.getRecordComponents())
 				.map(RecordComponent::getName))
-				.containsExactly("privacy", "terms", "qualityReview")
+				.containsExactly("privacy", "terms", "qualityReview", "marketingPush")
 				.doesNotContain("userId", "installationId", "guestInstallationIdHash");
 		assertThat(Arrays.stream(ConsentPolicyStatusResponse.class.getRecordComponents())
 				.map(RecordComponent::getName))
@@ -546,7 +570,9 @@ class UserConsentServiceTests {
 						"isTermConsented",
 						"termConsentVersion",
 						"isQualityReviewConsented",
-						"qualityReviewConsentVersion"
+						"qualityReviewConsentVersion",
+						"isMarketingPushConsented",
+						"marketingPushConsentVersion"
 				)
 				.doesNotContain("userId", "installationId");
 	}
