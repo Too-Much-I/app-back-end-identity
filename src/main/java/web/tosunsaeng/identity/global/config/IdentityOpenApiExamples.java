@@ -142,7 +142,12 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 						ConsentPolicyStatusResponse.of("term-v1", true, "term-v1", NOW),
 						ConsentPolicyStatusResponse.optionalOf("quality-review-v1", false, null, null)));
 		success(api, "/api/v1/policies/consents", "get", "200", "CURRENT_POLICY_VERSIONS", "인증 없는 현재 정책 버전 조회",
-				new CurrentConsentPolicyResponse("privacy-v1", "term-v1", "quality-review-v1"));
+				new CurrentConsentPolicyResponse("privacy-v1", "term-v1", "quality-review-v1", "marketing-push-v1"));
+		success(api, USER + "me/consents", "get", "200", "MARKETING_PUSH_CONSENTED", "현재 광고성 푸시 선택 동의 완료",
+				new UserConsentStatusResponse(ConsentPolicyStatusResponse.of("privacy-v1", true, "privacy-v1", NOW),
+						ConsentPolicyStatusResponse.of("term-v1", true, "term-v1", NOW),
+						ConsentPolicyStatusResponse.optionalOf("quality-review-v1", false, null, null),
+						ConsentPolicyStatusResponse.optionalOf("marketing-push-v1", true, "marketing-push-v1", NOW)));
 		success(api, USER + "me/consents", "put", "200", "SAVED", "현재 동의 저장 완료",
 				new UserConsentResponse(true, "privacy-v1", NOW, true, "term-v1", NOW, false, null, null));
 		success(api, USER + "withdraw", "post", "200", "WITHDRAWN", "탈퇴 확정, 외부 데이터 정리는 비동기",
@@ -161,7 +166,13 @@ public class IdentityOpenApiExamples implements OpenApiCustomizer {
 				AuthErrorStatus.RECOVERY_RECENT_AUTH_REQUIRED, AuthErrorStatus.RECOVERY_CONFLICT, AuthErrorStatus.RECOVERY_EXPIRED}) {
 			error(api, AUTH + "account-recovery/lookup", code);
 		}
-		for (String path : new String[]{"signup", "guest/upgrade"}) error(api, FIREBASE + path, AuthErrorStatus.SINGLE_SNS_REQUIRED);
+		for (String path : new String[]{"signup", "guest/upgrade"}) {
+			error(api, FIREBASE + path, AuthErrorStatus.SINGLE_SNS_REQUIRED);
+			error(api, FIREBASE + path, UserErrorStatus.MARKETING_PUSH_CONSENT_VERSION_MISMATCH);
+		}
+		example(api, USER + "me/consents", "put", "400", "MARKETING_PUSH_CONSENT_VERSION_MISMATCH",
+				"광고성 푸시 동의 시 현재 버전 필요",
+				BaseResponse.failure(UserErrorStatus.MARKETING_PUSH_CONSENT_VERSION_MISMATCH));
 		for (String path : new String[]{"exchange", "guest/merge", "auth-methods/sync"}) error(api, FIREBASE + path, AuthErrorStatus.SNS_ACCOUNT_MISMATCH);
 		error(api, AUTH + "signup", AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		error(api, AUTH + "guest", AuthErrorStatus.GUEST_ALREADY_EXISTS);

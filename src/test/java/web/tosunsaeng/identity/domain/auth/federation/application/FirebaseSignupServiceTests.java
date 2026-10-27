@@ -361,6 +361,37 @@ class FirebaseSignupServiceTests {
 		return captor.getValue();
 	}
 
+	@Test
+	void marketingConsentIsSavedInRegistrationAggregate() {
+		service.signup(marketingRequest(true, "marketing-push-v1"));
+		var consents = registeredUser().getConsents();
+		assertThat(consents.isMarketingPushConsented()).isTrue();
+		assertThat(consents.getMarketingPushConsentVersion()).isEqualTo("marketing-push-v1");
+		assertThat(consents.getMarketingPushConsentedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void legacySignupDoesNotGrantMarketingConsent() {
+		service.signup(request());
+		assertThat(registeredUser().getConsents().isMarketingPushConsented()).isFalse();
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = {"marketing-push-v0"})
+	void marketingVersionMismatchCannotRegister(String version) {
+		assertThatThrownBy(() -> service.signup(marketingRequest(true, version)))
+				.isInstanceOf(UserException.class);
+		verify(transactionService, never()).register(any(), any(), any(), any(), any(), any(), any(), any(), any());
+	}
+
+	private FirebaseSignupRequest marketingRequest(Boolean flag, String version) {
+		var base = request();
+		return new FirebaseSignupRequest(base.enrollmentId(), base.firebaseIdToken(), base.nickname(),
+				base.isPrivacyConsented(), base.privacyConsentVersion(), base.isTermConsented(), base.termConsentVersion(),
+				base.isQualityReviewConsented(), base.qualityReviewConsentVersion(), flag, version);
+	}
+
 	private void assertQualityReviewUnconsented(User user) {
 		assertThat(user.getConsents().isQualityReviewConsented()).isFalse();
 		assertThat(user.getConsents().getQualityReviewConsentVersion()).isNull();

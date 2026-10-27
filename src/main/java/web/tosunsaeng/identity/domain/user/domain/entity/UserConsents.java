@@ -22,6 +22,10 @@ public class UserConsents {
 	private String qualityReviewConsentVersion;
 
 	private Instant qualityReviewConsentedAt;
+	private boolean marketingPushConsented;
+	private String marketingPushConsentVersion;
+	private Instant marketingPushConsentedAt;
+	private Instant marketingPushRevokedAt;
 
 	private UserConsents() {
 	}
@@ -160,7 +164,7 @@ public class UserConsents {
 				requestedQualityReviewConsent,
 				requestedQualityReviewConsent ? qualityReviewVersion : null,
 				renewedQualityReviewAt
-		);
+		).copyMarketingFrom(this);
 	}
 
 	public UserConsents renewRequiredConsents(
@@ -196,8 +200,42 @@ public class UserConsents {
 				qualityReviewConsented,
 				qualityReviewConsentVersion,
 				qualityReviewConsentedAt
-		);
+		).copyMarketingFrom(this);
 	}
+
+	private UserConsents copyMarketingFrom(UserConsents source) {
+		marketingPushConsented = source.marketingPushConsented;
+		marketingPushConsentVersion = source.marketingPushConsentVersion;
+		marketingPushConsentedAt = source.marketingPushConsentedAt;
+		marketingPushRevokedAt = source.marketingPushRevokedAt;
+		return this;
+	}
+
+	/** null preserves existing consent, including on requests from older clients. */
+	public UserConsents renewMarketingPush(Boolean requested, String version, Instant now) {
+		if (requested == null) return this;
+		Objects.requireNonNull(now, "consent change time");
+		String requestedVersion = requested ? requireVersion(version, "marketingPushConsentVersion") : null;
+		if (requested ? marketingPushConsented && requestedVersion.equals(marketingPushConsentVersion)
+				&& marketingPushConsentedAt != null : !marketingPushConsented) return this;
+		UserConsents copy = new UserConsents(privacyConsented, privacyConsentVersion, privacyConsentedAt,
+				termConsented, termConsentVersion, termConsentedAt, qualityReviewConsented,
+				qualityReviewConsentVersion, qualityReviewConsentedAt).copyMarketingFrom(this);
+		copy.marketingPushConsented = requested;
+		if (requested) {
+			copy.marketingPushConsentVersion = requestedVersion;
+			copy.marketingPushConsentedAt = now;
+		} else {
+			// Retain last consent evidence and record the latest explicit withdrawal.
+			copy.marketingPushRevokedAt = now;
+		}
+		return copy;
+	}
+
+	public boolean isMarketingPushConsented() { return marketingPushConsented; }
+	public String getMarketingPushConsentVersion() { return marketingPushConsentVersion; }
+	public Instant getMarketingPushConsentedAt() { return marketingPushConsentedAt; }
+	public Instant getMarketingPushRevokedAt() { return marketingPushRevokedAt; }
 
 	private static String requireVersion(String version, String fieldName) {
 		String requiredVersion = Objects.requireNonNull(

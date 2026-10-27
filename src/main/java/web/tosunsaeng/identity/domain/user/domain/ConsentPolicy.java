@@ -16,17 +16,25 @@ public class ConsentPolicy {
 	private final String privacyConsentVersion;
 	private final String termConsentVersion;
 	private final String qualityReviewConsentVersion;
+	private final String marketingPushConsentVersion;
 
+	public ConsentPolicy(String privacy, String terms, String quality) {
+		this(privacy, terms, quality, "marketing-push-v1");
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
 	public ConsentPolicy(
 			@Value("${app.consent.privacy-version}") String privacyConsentVersion,
 			@Value("${app.consent.term-version}") String termConsentVersion,
-			@Value("${app.consent.quality-review-version}") String qualityReviewConsentVersion
+			@Value("${app.consent.quality-review-version}") String qualityReviewConsentVersion,
+			@Value("${app.consent.marketing-push-version:marketing-push-v1}") String marketingPushConsentVersion
 	) {
 		this.privacyConsentVersion = requireVersion(
 				privacyConsentVersion,
 				"privacyConsentVersion"
 		);
 		this.termConsentVersion = requireVersion(termConsentVersion, "termConsentVersion");
+		this.marketingPushConsentVersion = requireVersion(marketingPushConsentVersion, "marketingPushConsentVersion");
 		this.qualityReviewConsentVersion = requireVersion(
 				qualityReviewConsentVersion,
 				"qualityReviewConsentVersion"
@@ -96,6 +104,16 @@ public class ConsentPolicy {
 
 	public String getPrivacyConsentVersion() {
 		return privacyConsentVersion;
+	}
+
+	public String getMarketingPushConsentVersion() {
+		return marketingPushConsentVersion;
+	}
+
+	public void validateMarketingPush(Boolean consented, String version) {
+		if (Boolean.TRUE.equals(consented) && !marketingPushConsentVersion.equals(trimNullable(version))) {
+			throw new UserException(UserErrorStatus.MARKETING_PUSH_CONSENT_VERSION_MISMATCH);
+		}
 	}
 
 	public String getTermConsentVersion() {

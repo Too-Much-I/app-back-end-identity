@@ -126,6 +126,8 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 				principal,
 				now
 		);
+		consentPolicy.validateMarketingPush(requiredRequest.isMarketingPushConsented(),
+				requiredRequest.marketingPushConsentVersion());
 		consentPolicy.validateWithQualityReview(
 				requiredRequest.isPrivacyConsented(),
 				requiredRequest.privacyConsentVersion(),
@@ -147,6 +149,8 @@ public final class FirebaseSignupService implements FirebaseSignupUseCase {
 				Boolean.TRUE.equals(requiredRequest.isQualityReviewConsented()),
 				now
 		);
+		user.updateMarketingPushConsent(requiredRequest.isMarketingPushConsented(),
+				consentPolicy.getMarketingPushConsentVersion(), now);
 		FirebaseIdentity firebaseIdentity = FirebaseIdentity.create(
 				principal.firebaseProjectId(),
 				principal.firebaseUid(),

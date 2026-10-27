@@ -123,6 +123,8 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 				|| !attempt.getFirebaseUid().equals(principal.firebaseUid())) {
 			throw enrollmentConflict();
 		}
+		consentPolicy.validateMarketingPush(requiredRequest.isMarketingPushConsented(),
+				requiredRequest.marketingPushConsentVersion());
 		consentPolicy.validateWithQualityReview(
 				requiredRequest.isPrivacyConsented(),
 				requiredRequest.privacyConsentVersion(),
@@ -169,6 +171,8 @@ public final class FirebaseGuestUpgradeService implements FirebaseGuestUpgradeUs
 				now
 		);
 		PreparedRefreshSession preparedRefreshSession = refreshSessionIssuer.prepare(userId);
+		user.updateMarketingPushConsent(requiredRequest.isMarketingPushConsented(),
+				consentPolicy.getMarketingPushConsentVersion(), now);
 		if (refreshSessionIssuer.isFenceEnabled()) {
 			FirebaseIdentity sessionBinding = firebaseIdentityToCreate != null ? firebaseIdentityToCreate : currentFirebaseIdentity.orElseThrow();
 			preparedRefreshSession.session().attachAuthentication(new SessionAuthentication(

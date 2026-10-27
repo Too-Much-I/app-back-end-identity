@@ -55,10 +55,23 @@ public record FirebaseSignupRequest(
 		@Size(max = 100, message = "품질 검토 이용 동의 버전은 100자 이하여야 합니다.")
 		@Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
 				message = "품질 검토 이용 동의 버전 형식이 올바르지 않습니다.")
-		String qualityReviewConsentVersion
+		String qualityReviewConsentVersion,
+
+		@Schema(description = "광고성 푸시 선택 동의. 누락/null은 미동의", example = "false")
+		Boolean isMarketingPushConsented,
+		@Schema(description = "광고성 푸시 동의 버전. true이면 현재 버전 필수", example = "marketing-push-v1")
+		@Size(max = 100)
+		@Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+		String marketingPushConsentVersion
 ) {
 
+	public FirebaseSignupRequest(String enrollmentId, String firebaseIdToken, String nickname, Boolean isPrivacyConsented, String privacyConsentVersion, Boolean isTermConsented, String termConsentVersion, Boolean isQualityReviewConsented, String qualityReviewConsentVersion) {
+		this(enrollmentId, firebaseIdToken, nickname, isPrivacyConsented, privacyConsentVersion, isTermConsented, termConsentVersion, isQualityReviewConsented, qualityReviewConsentVersion, null, null);
+	}
+
 	public FirebaseSignupRequest {
+		marketingPushConsentVersion = trimNullable(marketingPushConsentVersion);
+		isMarketingPushConsented = Boolean.TRUE.equals(isMarketingPushConsented);
 		enrollmentId = trimNullable(enrollmentId);
 		nickname = trimNullable(nickname);
 		privacyConsentVersion = trimNullable(privacyConsentVersion);

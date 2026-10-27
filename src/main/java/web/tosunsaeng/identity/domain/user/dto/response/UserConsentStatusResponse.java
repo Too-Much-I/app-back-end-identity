@@ -12,14 +12,21 @@ public record UserConsentStatusResponse(
 		@Schema(description = "이용약관 동의 상태")
 		ConsentPolicyStatusResponse terms,
 		@Schema(description = "품질 검토 이용 선택 동의 상태")
-		ConsentPolicyStatusResponse qualityReview
+		ConsentPolicyStatusResponse qualityReview,
+		@Schema(description = "광고성 푸시 선택 동의 상태. 필수 동의가 아니므로 requiresConsent는 항상 false")
+		ConsentPolicyStatusResponse marketingPush
 ) {
+	public UserConsentStatusResponse(ConsentPolicyStatusResponse privacy, ConsentPolicyStatusResponse terms,
+			ConsentPolicyStatusResponse qualityReview) {
+		this(privacy, terms, qualityReview, ConsentPolicyStatusResponse.optionalOf("marketing-push-v1", false, null, null));
+	}
 
 	public static UserConsentStatusResponse from(
 			User user,
 			String currentPrivacyVersion,
 			String currentTermVersion,
-			String currentQualityReviewVersion
+			String currentQualityReviewVersion,
+			String currentMarketingPushVersion
 	) {
 		UserConsents consents = user.getConsents();
 		return new UserConsentStatusResponse(
@@ -40,6 +47,10 @@ public record UserConsentStatusResponse(
 						consents.isQualityReviewConsented(),
 						consents.getQualityReviewConsentVersion(),
 						consents.getQualityReviewConsentedAt()
+				),
+				ConsentPolicyStatusResponse.optionalOf(
+						currentMarketingPushVersion, consents.isMarketingPushConsented(),
+						consents.getMarketingPushConsentVersion(), consents.getMarketingPushConsentedAt()
 				)
 		);
 	}

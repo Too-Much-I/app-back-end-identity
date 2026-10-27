@@ -296,6 +296,41 @@ class FirebaseGuestUpgradeServiceTests {
 		return request(null, null);
 	}
 
+	@Test
+	void legacyUpgradePreservesMarketingConsent() {
+		guest.updateMarketingPushConsent(true, "marketing-push-v1", NOW.minusSeconds(10));
+		service.upgrade(request());
+		assertThat(guest.getConsents().isMarketingPushConsented()).isTrue();
+		assertThat(guest.getConsents().getMarketingPushConsentedAt()).isEqualTo(NOW.minusSeconds(10));
+	}
+
+	@ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+	void explicitMarketingChoiceIsAppliedDuringUpgrade(boolean flag) {
+		guest.updateMarketingPushConsent(true, "marketing-push-v0", NOW.minusSeconds(10));
+		service.upgrade(marketingRequest(flag, flag ? "marketing-push-v1" : null));
+		assertThat(guest.getConsents().isMarketingPushConsented()).isEqualTo(flag);
+		if (flag) assertThat(guest.getConsents().getMarketingPushConsentedAt()).isEqualTo(NOW);
+		else assertThat(guest.getConsents().getMarketingPushRevokedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void invalidMarketingVersionDoesNotMutateGuest() {
+		var before = guest.getConsents();
+		assertThatThrownBy(() -> service.upgrade(marketingRequest(true, "marketing-push-v0")))
+				.isInstanceOf(UserException.class);
+		assertThat(guest.getConsents()).isSameAs(before);
+		assertThat(guest.isGuest()).isTrue();
+		verify(transactionService, never()).upgrade(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+	}
+
+	private FirebaseGuestUpgradeRequest marketingRequest(Boolean flag, String version) {
+		var base = request();
+		return new FirebaseGuestUpgradeRequest(base.enrollmentId(), base.firebaseIdToken(), base.nickname(),
+				base.isPrivacyConsented(), base.privacyConsentVersion(), base.isTermConsented(), base.termConsentVersion(),
+				base.isQualityReviewConsented(), base.qualityReviewConsentVersion(), flag, version);
+	}
+
 	private FirebaseGuestUpgradeRequest request(Boolean qualityReviewConsented, String qualityReviewVersion) {
 		return new FirebaseGuestUpgradeRequest(
 				attempt.getEnrollmentId(),

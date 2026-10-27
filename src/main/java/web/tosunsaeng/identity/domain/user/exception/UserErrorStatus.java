@@ -58,6 +58,11 @@ public enum UserErrorStatus implements ErrorCode {
 			"TERM_CONSENT_VERSION_MISMATCH",
 			"현재 이용약관 동의 버전과 일치하지 않습니다."
 	),
+	MARKETING_PUSH_CONSENT_VERSION_MISMATCH(
+			HttpStatus.BAD_REQUEST,
+			"MARKETING_PUSH_CONSENT_VERSION_MISMATCH",
+			"현재 광고성 푸시 수신 동의 버전과 일치하지 않습니다."
+	),
 	QUALITY_REVIEW_CONSENT_VERSION_MISMATCH(
 			HttpStatus.BAD_REQUEST,
 			"QUALITY_REVIEW_CONSENT_VERSION_MISMATCH",

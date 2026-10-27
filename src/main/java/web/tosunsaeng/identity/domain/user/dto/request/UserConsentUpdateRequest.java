@@ -41,10 +41,23 @@ public record UserConsentUpdateRequest(
 				regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
 				message = "품질 검토 이용 동의 버전 형식이 올바르지 않습니다."
 		)
-		String qualityReviewConsentVersion
+		String qualityReviewConsentVersion,
+
+		@Schema(description = "광고성 푸시 선택 동의. 누락/null은 기존 상태 유지, false는 철회", example = "false")
+		Boolean isMarketingPushConsented,
+		@Schema(description = "광고성 푸시 동의 버전. true이면 현재 버전 필수", example = "marketing-push-v1")
+		@Size(max = 100)
+		@Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+		String marketingPushConsentVersion
 ) {
 
+	public UserConsentUpdateRequest(Boolean isPrivacyConsented, String privacyConsentVersion, Boolean isTermConsented, String termConsentVersion, Boolean isQualityReviewConsented, String qualityReviewConsentVersion) {
+		this(isPrivacyConsented, privacyConsentVersion, isTermConsented, termConsentVersion, isQualityReviewConsented, qualityReviewConsentVersion, null, null);
+	}
+
 	public UserConsentUpdateRequest {
+		marketingPushConsentVersion = trimNullable(marketingPushConsentVersion);
+		// Preserve null for backwards-compatible partial consent updates.
 		privacyConsentVersion = trimNullable(privacyConsentVersion);
 		termConsentVersion = trimNullable(termConsentVersion);
 		isQualityReviewConsented = Boolean.TRUE.equals(isQualityReviewConsented);

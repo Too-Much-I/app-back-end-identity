@@ -11,13 +11,16 @@ public record CurrentConsentPolicyResponse(
 		@Schema(description = "현재 이용약관 버전", example = "term-v1")
 		String termConsentVersion,
 		@Schema(description = "현재 학습 품질 검토 선택 동의 버전", example = "quality-review-v1")
-		String qualityReviewConsentVersion
+		String qualityReviewConsentVersion,
+		@Schema(description = "현재 광고성 푸시 선택 동의 버전", example = "marketing-push-v1")
+		String marketingPushConsentVersion
 ) {
 	public static CurrentConsentPolicyResponse from(ConsentPolicy policy) {
 		return new CurrentConsentPolicyResponse(
 				policy.getPrivacyConsentVersion(),
 				policy.getTermConsentVersion(),
-				policy.getQualityReviewConsentVersion()
+				policy.getQualityReviewConsentVersion(),
+				policy.getMarketingPushConsentVersion()
 		);
 	}
 }

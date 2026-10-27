@@ -131,6 +131,7 @@ app:
     privacy-version: ${PRIVACY_CONSENT_VERSION}
     term-version: ${TERM_CONSENT_VERSION}
     quality-review-version: ${QUALITY_REVIEW_CONSENT_VERSION}
+    marketing-push-version: ${MARKETING_PUSH_CONSENT_VERSION:marketing-push-v1}
   refresh-token:
     ttl: ${REFRESH_TOKEN_TTL:P14D}
     random-bytes: ${REFRESH_TOKEN_RANDOM_BYTES:32}

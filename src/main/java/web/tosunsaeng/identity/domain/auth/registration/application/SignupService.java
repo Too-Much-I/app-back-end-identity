@@ -36,6 +36,7 @@ public class SignupService {
 			throw new AuthException(AuthErrorStatus.EMAIL_ALREADY_EXISTS);
 		}
 
+		consentPolicy.validateMarketingPush(request.isMarketingPushConsented(), request.marketingPushConsentVersion());
 		consentPolicy.validate(
 				request.isPrivacyConsented(),
 				request.privacyConsentVersion(),
@@ -50,6 +51,8 @@ public class SignupService {
 		);
 
 		// 사전 중복 검사 이후의 동시 가입은 MongoDB 고유 인덱스로 다시 차단한다.
+		user.updateMarketingPushConsent(request.isMarketingPushConsented(),
+				consentPolicy.getMarketingPushConsentVersion(), user.getCreatedAt());
 		try {
 			User savedUser = purchaseControls == null ? userRepository.save(user) : purchaseControls.register(user);
 			SignupResponse response = SignupResponse.from(savedUser);
