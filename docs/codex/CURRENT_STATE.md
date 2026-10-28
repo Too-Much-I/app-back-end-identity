@@ -1,5 +1,8 @@
 # Codex Current State
 
+<!-- codex-turn:01a18108-44e3-7273-a3ba-4da4b8dba857 -->
+- 2026-10-28 Jira TMI-224 / codex/TMI-224-marketing-eligibility: 독립 LC workload 목적의 광고동의 적격 reader 추가. ACTIVE MEMBER와 현재 버전 동의만 최소정보 응답. 공개 동의API와 같은 boolean/version/date 기준, strict JWT/JSON과 기본OFF. 사용자 JWT/기존 로그인·세션 불변. clean test2198/실패0/skip34 성공. 초기 Mockito Spring lifecycle interaction 오탐2건을 초기화 호출과 분리해 재실행 통과. 환경변수 연결 후 MarketingEligibility5개 통과. 테스트 전달 준비, 아직 배포/실수신 완료 아님. 운영 불변.
+
 ## 2026-10-13 — TMI-203 테스트 환경 조회와 배포 구분
 
 <!-- codex-turn:01a1339c-b25e-7cd2-8975-f524e4fd9abf -->

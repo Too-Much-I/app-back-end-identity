@@ -20262,3 +20262,16 @@
 - 테스트: git diff --check. 기록 보완만 수행하여 Gradle 미실행.
 - 유지 계약/결정: 코드·설정 불변. 실제 서버 조회·배포·기능 활성화 없음.
 - 위험/다음: 테스트 환경 준비 상태 확인 후 사용자 커밋/push 및 필요한 배포·설정 변경 범위를 결정한다. 기록 외 편집·Jira 쓰기·commit/push 없음.
+
+<!-- codex-turn:01a18108-44e3-7273-a3ba-4da4b8dba857 -->
+### 2026-10-28 TMI-224 안전성 검증 및 테스트 전달 준비
+
+- Jira: TMI-224. 브랜치: codex/TMI-224-marketing-eligibility. 목표: 사용자 승인에 따른 남은 보완·검증 후 test-only 전달.
+- 변경 파일: domain/user/marketing 신규 config/controller, 인증/동의 테스트, application.yml, AGENTS 및 계약/기록 문서.
+- 구현: 독립 LC workload 목적의 광고동의 적격 reader 추가. ACTIVE MEMBER와 현재 버전 동의만 최소정보 응답. 공개 동의API와 같은 boolean/version/date 기준, strict JWT/JSON과 기본OFF. 사용자 JWT/기존 로그인·세션 불변.
+- 테스트: clean test2198/실패0/skip34 성공. 초기 Mockito Spring lifecycle interaction 오탐2건을 초기화 호출과 분리해 재실행 통과. 환경변수 연결 후 MarketingEligibility5개 통과. git diff --check 통과.
+- 유지 계약/결정: 수목KST12시, 비전액환불 구매·광고동의·신청0~3회·활성회원/기기 조건. 기존21시·사용자 API·운영 환경 불변. 새 key/DB collection/index 생성 없음. 공개키 및 test 인증 연결은 실환경에서 별도 검증한다.
+- 위험: 단위/격리 테스트와 실제 서비스 인증·FCM 수신은 별개다. 마지막 재확인 이후 철회와 외부 전송은 원자적이지 않고, marker 후 crash/unknown은 중복방지 우선으로 당일 누락 가능하다.
+- diff: 앞선 TMI-224 미커밋 구현 포함, 무관한 원본 사용자 변경 제외. 예상 밖 범위 변경 없음.
+- 다음: CI/PR/develop 테스트 배포·서비스간 인증/설정 확인. 현재 기록 시점 commit/push/배포 전. 운영 제외.
+- Jira 댓글 초안(미등록): 독립 LC workload 목적의 광고동의 적격 reader 추가. ACTIVE MEMBER와 현재 버전 동의만 최소정보 응답. 공개 동의API와 같은 boolean/version/date 기준, strict JWT/JSON과 기본OFF. 사용자 JWT/기존 로그인·세션 불변. clean test2198/실패0/skip34 성공. 초기 Mockito Spring lifecycle interaction 오탐2건을 초기화 호출과 분리해 재실행 통과. 환경변수 연결 후 MarketingEligibility5개 통과. 테스트 환경 실제 연결·단말 E2E는 전달 후 확인 필요.
