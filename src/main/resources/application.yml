@@ -34,6 +34,10 @@ sentry:
     enabled: false
 
 app:
+  marketing-eligibility:
+    enabled: ${MARKETING_ELIGIBILITY_ENABLED:false}
+    environment: ${MARKETING_ELIGIBILITY_ENVIRONMENT:}
+    lc-public-jwks: ${MARKETING_ELIGIBILITY_LC_PUBLIC_JWKS:}
   billing-workload:
     private-jwk: ${BILLING_WORKLOAD_PRIVATE_JWK:}
     issuer: ${BILLING_WORKLOAD_ISSUER:}

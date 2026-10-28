@@ -20285,3 +20285,14 @@
 - 유지 계약: 기존 회원/가입/번호소유/불명 및 SNS 제외·삭제 fence 유지. 운영 env/secrets/DB/기능 스위치 변경 없음. 설치된 capture OFF rollback 금지.
 - IAM/변수는 앞선 승인으로 main immutable OIDC 전용 role 준비 완료. 원격main에는 아직 retired workflow만 있어 현재 변경은 배포 후보 단계다. 실제 Actions/health 검증은 병합 후 수행.
 - 기존 작업폴더의 미커밋 문서/스크립트는 포함하지 않음. 별도 worktree에서 main 이력 통합, 예상 밖 제품 변경 없음. 다음은 PR/main 반영 및 실행 검증. Jira 댓글 초안(미등록): 후보 테스트 성공, 실배포 결과는 후속.
+
+<!-- codex-turn:01a1818c-aad2-7f11-8d0a-3f9bf68525b9 -->
+### 2026-10-28 TMI-224 운영 dry-run 전달
+
+- Jira: TMI-224. 브랜치: codex/TMI-224-prod-identity. 목표: main 기반 이번 과제만 운영 전달.
+- 사용자 이번 운영 반영에 한해 커밋·푸시·main 병합·기존 배포 허용. Jira의 과거 테스트 한정 범위는 이번 승인으로 확대, Jira 자체 수정/댓글 없음.
+- 변경 파일: 이번 과제의 서비스별 promotion/marketing 조회·발신 코드와 테스트, application.yml, 계약 문서, AGENTS.md, 작업 기록. 이전 테스트 커밋에서 해당 파일만 patch 이식, develop 전체/TLS 복구 등 무관 변경 제외.
+- 동작/계약: 기존 사용자 API·결제원장·21시 알림 유지. 목적별 workload 인증/최소 응답 및 수목12:00~12:15 정책 유지. 기본OFF, 운영 활성화는 dry-run이며 운영 production 환경·기존 운영 LC키를 사용한다. 새 신뢰/route는 적용 직전 별도 승인.
+- 검증: clean test2194/실패0/오류0/skip34. 실제 운영 DB/FCM 테스트 없음. LC 초기 Mongo 환경 탐지 실패는 Docker29 API버전1.44 실행 옵션으로 해결, 제품 변경 없음.
+- 위험/다음: 테스트 환경에서도 인증된 적격조회·단말E2E 미확인 상태를 숨기지 않음. 실제 발송OFF로 코드/인증/dry-run 단계만 진행. 테스트키 재사용 금지, 시간 강제 변경 없음. 검증 후 PR·배포 결과 추기. 예상 밖 제품 변경 없음, 기존 사용자 작업 보존.
+- Jira 댓글 초안(미등록): 운영 main 기반 TMI-224 분리 전달 준비, dry-run/서비스별 테스트 수행. 실적격응답·단말E2E와 실제 발송 전환은 별도.

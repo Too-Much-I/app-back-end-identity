@@ -1,5 +1,8 @@
 # Codex Current State
 
+<!-- codex-turn:01a1818c-aad2-7f11-8d0a-3f9bf68525b9 -->
+- 2026-10-28 TMI-224 운영 main 기반 전용 브랜치 전달 준비. clean test2194/실패0/오류0/skip34. 사용자 이번 작업 commit/push/main 병합/운영 배포 승인. 실제 프로모션은 dry-run 유지, 새 운영 신뢰 등록은 별도 적용 전 확인. 운영 배포/인증 연결·실수신 검증 아직 미완료.
+
 <!-- codex-turn:01a15253-8e72-7aa2-8ea9-c066666565f0 -->
 
 - 2026-10-19: 사용자 한정 예외 승인으로 TMI-205 운영 Actions/phone-only5분 후보 커밋. main 이력과 통합하되 양쪽 과거 기록 보존. 전체2173개/실패0/skip34. 실제 배포는 아직 미실행, PR/main 반영 후 검증 예정. 기존 env/secrets/capture 보호 유지.
